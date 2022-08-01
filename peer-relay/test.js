@@ -51,30 +51,21 @@ let t_nodes = {}, t_ids = {}, t_msg, t_msgid, t_req, t_cmds, t_i, t_role;
 let t_port=4000, t_pending;
 let t_pre_process, t_cmds_processed, t_mode, t_mode_prev, t_req_id;
 let t_reprocess, t_conf, t_req_id_last, t_test_prev;
-let t_prev_time, t_event;
+let t_prev_time, t_event, t_pause;
 NodeMap.t.t_nodes = Router.t.t_nodes = t_nodes;
 NodeMap.t.node_from_id = Router.t.node_from_id = node_from_id;
 
-function push_event(event, dur){
-  assert(!t_conf.msg_delay || dur, 'invalid event dur');
-  t_event.push({ts: Date.now(), dur, event});
-}
+function push_event(event){ t_event.push({ts: Date.now(), event}); }
 
 function shift_event(c){
   if (!t_conf.msg_delay)
     return t_event.shift()?.event;
   if (!t_event.length)
     return;
-  let o = t_event[0];
-  for (let i=1; i<t_event.length; i++){
-    let o2 = t_event[i];
-    if (o2.ts+o2.dur < o.ts+o.dur)
-      o = o2;
-  }
-  assert.equal(Date.now(), o.ts+o.dur, 'wrong timing for event '+o.event+
+  let o = t_event.shift();
+  assert.equal(Date.now(), o.ts, 'wrong timing for event '+o.event+
     '\nexpected: '+c.fwd+' '+c.orig+'\npending: '+
     stringify(t_event, null, '\t'));
-  t_event.splice(t_event.indexOf(o), 1);
   return o.event;
 }
 
@@ -782,7 +773,7 @@ class FakeChannel extends EventEmitter {
       return;
     this.rtt = conf_rtt_from_id(this.id, this.local_id);
   }
-  send = data=>{
+  send = data=>etask(function*send(){
     let lbuffer = LBuffer.from(data); // XXX WIP
     let msg = lbuffer.msg(), msg0 = lbuffer.get_json(0);
     assert(!t_pre_process, 'invalid send during pre_process');
@@ -847,15 +838,17 @@ class FakeChannel extends EventEmitter {
     track_msg(lbuffer);
     if (msg.type=='ack' && !t_conf.no_autoack)
       return;
-    push_event(e,
-      t_conf.msg_delay ? conf_rtt_from_node(from0, to0)/2 : undefined);
+    assert(!from0.t.fake);
+    if (t_conf.msg_delay)
+      yield etask.sleep(conf_rtt_from_node(from0, to0)/2);
+    push_event(e);
     if (t_pending){
       xerr.notice('FakeChannel send resume pending t_i %s', t_i);
       t_pending.continue();
       t_pending = null;
       return;
     }
-  };
+  });
   destroy(){}
 }
 
@@ -1183,7 +1176,7 @@ const cmd_ensure_no_events = opt=>etask(function*cmd_ensure_no_events(){
     return;
   yield xsinon.wait();
   yield this.wait_ext(t_pending);
-  yield this.wait_ext(xxx_pause);
+  yield this.wait_ext(t_pause);
   assert(!is_sleeping());
   assert(!t_event.length, 'pending events '+stringify(t_event, null, '\t'));
 });
@@ -1933,9 +1926,10 @@ const cmd_msg = opt=>etask(function*cmd_msg(){
     _s = N(fwd_s(c.fwd, 0));
     _d = N(fwd_d(c.fwd, 0));
   }
+  // XXX: decide if to use dur_ms when prev_plus_ms is undefined
   let dur_ms = t_conf.msg_delay ? conf_rtt_from_node(_s, _d)/2 : undefined;
-  if (t_conf.msg_delay)
-    yield test_sleep(dur_ms);
+  if (t_conf.msg_delay && _s.t.fake)
+    yield test_sleep(prev_plus_ms);
   if (!_s.t.fake){
     assert(!event || !t_event.length, 'queue:\n'+t_event+'\ngot:\n'+event);
     event = event||shift_event(c);
@@ -2010,6 +2004,10 @@ const test_sleep = ms=>etask(function*test_sleep(){
   let i = t_sleep.indexOf(et);
   t_sleep.splice(i, 1);
   xerr.notice('*** test_sleep %s DONE', ms);
+  let wait = t_pause;
+  t_pause = null;
+  if (wait)
+    wait.continue();
 });
 
 function is_sleeping(){ return !!t_sleep.length; }
@@ -2349,23 +2347,26 @@ const cmd_fwd = opt=>etask(function*cmd_fwd(){
     (vv ? ' vv' : ''), [dir_c(c)]));
 });
 
-let xxx_pause;
 const cmd_ms = opt=>etask(function*cmd_ms(){
   let {c, event} = opt;
   if (t_pre_process)
     return;
   assert(!event, 'unexpected event for ms cmd '+event);
   let ms = assert_int(c.arg);
-  assert(!xxx_pause, 'already paused');
+  assert(!t_pause, 'already paused');
   if (t_conf.auto_time){
     assert(!is_sleeping());
     yield test_sleep(ms);
   }
   else {
-    assert(!xxx_pause);
-    xxx_pause = etask.wait();
+    assert(!t_pause);
+    t_pause = etask.wait();
     yield xsinon.tick(ms);
     yield xsinon.wait();
+    let wait = t_pause;
+    t_pause = null;
+    if (wait)
+      wait.continue();
   }
 });
 
@@ -2376,7 +2377,7 @@ function cmd_time(opt){
 
 const cmd_run_single = opt=>etask(function*cmd_run_single(){
   if (0) // XXX: TODO
-    assert(!xxx_pause, 'cmd_run_single while paused');
+    assert(!t_pause, 'cmd_run_single while paused');
   let c = opt.c;
   if (t_pre_process){
     let a;
@@ -2527,17 +2528,17 @@ function expand_loop_repeat(c){
 }
 
 let t_depth = 0;
-let prev_plus;
+let prev_plus, prev_plus_ms, prev_plus_ts;
 const cmd_run = event=>etask(function*cmd_run(){
   assert(!t_pending, 'cmd_run while pending with event '+event);
   assert(t_cmds && t_i<t_cmds.length, event ? 'unexpected event '+event :
     'invalid t_i '+t_i+' event');
   let c = t_cmds[t_i];
-  if (xxx_pause)
+  if (t_pause)
     return;
   if (is_sleeping() && c.cmd!='+' && !prev_plus){
-    xerr.notice('XXX set xxx_pause');
-    xxx_pause = etask.wait();
+    xerr.notice('pause test');
+    t_pause = etask.wait();
     return;
   }
   if (t_i>=t_cmds.length)
@@ -2548,7 +2549,22 @@ const cmd_run = event=>etask(function*cmd_run(){
   xerr.notice('%scmd %s: %s%s orig %s', ' '.repeat(t_depth), t_i,
     c.s ? build_cmd(c.s+c.d+'>'+c.cmd, c.arg) : c.orig,
     event ? ' event '+event : '', c.orig);
-  prev_plus = c.cmd=='+';
+  let pre = prev_plus;
+  prev_plus = c.cmd[0]=='+';
+  if (prev_plus){
+    let a = c.cmd.match(/^\+([\d]+)ms$/);
+    if (a?.length==2){
+      prev_plus_ms = +a[1];
+      prev_plus_ts = Date.now();
+    }
+    if (t_pre_process) // XXX HACK
+      t_cmds_processed.push(assign({}, c));
+    return;
+  } else if (!pre){
+    if (!t_pre_process && prev_plus_ts && prev_plus_ms)
+      assert.equal(Date.now(), prev_plus_ts+prev_plus_ms, 'date mismatch');
+    prev_plus_ms = undefined;
+  }
   t_reprocess = false;
   yield cmd_run_single({c, event});
   if (t_pre_process){
@@ -2558,12 +2574,6 @@ const cmd_run = event=>etask(function*cmd_run(){
       t_cmds_processed.push(assign({}, c));
   }
   t_depth--;
-  if (!is_sleeping()){
-    let xxx = xxx_pause;
-    xxx_pause = null;
-    if (xxx)
-      xxx.continue();
-  }
 });
 
 function set_id_bits(bits){ t_conf.id_bits = bits; }
@@ -2617,8 +2627,8 @@ const _test_run = (role, cmds)=>etask(function*_test_run(){
   for (t_i=0; t_i<t_cmds.length;){
     if (t_pending) // XXX: is it needed?
       yield this.wait_ext(t_pending);
-    else if (xxx_pause)
-      yield this.wait_ext(xxx_pause);
+    else if (t_pause)
+      yield this.wait_ext(t_pause);
     else
       cmd_run();
   }
@@ -2687,6 +2697,7 @@ const test_end = ()=>etask(function*(){
     'req handler node exists on test end '+
     stringify(Object.keys(ReqHandler.t.nodes)));
   assert(!t_sleep.length, 'pending sleep');
+  assert(!t_pause, 'test is paused');
   xerr.notice('*** test_done');
   xtest.xerr_level(xerr.L.ERR);
 });
@@ -4765,29 +4776,26 @@ describe('peer-relay', function(){
     let t = (name, test)=>t_roles(name, 'ab', test);
     t('time_manual', `#ms 1ms #1ms 10ms #10ms 1ms #ms 1ms #1ms`);
     t('time_auto', `conf(auto_time) #ms 1ms #1ms 10ms #10ms 1ms #ms 1ms #1ms`);
+    // XXX: auto-calc ack params (id, vv) in order to simplify test writing)
     t('xxx1a', `mode(msg) conf(auto_time msg_delay a-c rtt:200) ab>!connect()
-      #ms
-      // XXX: auto-calc ack params (id, vv) in order to simplify test writing)
+      #ms ab>!ping(id:1 !!) #0ms +100ms ab>ping(id:1.0) #100ms
+      +100ms ab<ping_r(id:1.0) #100ms`);
+    if (0) // XXX: TODO
+    t('xxx1b', `mode(msg) conf(msg_delay a-c rtt:200) ab>!connect() #ms
       ab>!ping(id:1 !!) #0ms
-      ab>ping(id:1.0) #100ms
-      ab<ping_r(id:1.0) #100ms
-    `);
-    t('xxx1b', `mode(msg) conf(msg_delay a-c rtt:200) ab>!connect()
-      #ms
-      // XXX: auto-calc ack params (id, vv) in order to simplify test writing)
-      ab>!ping(id:1 !!) #0ms
-      ab>ping(id:1.0) + 100ms #100ms
-      ab<ping_r(id:1.0) + 100ms #100ms
+      +100ms + ab>ping(id:1.0) #100ms
+      +100ms ab<ping_r(id:1.0) #100ms
     `);
     t('xxx1c', `mode(msg) conf(auto_time msg_delay !autoack a-c rtt:200)
       ab>!connect()
       #ms
       // XXX: auto-calc ack params (id, vv) in order to simplify test writing)
       ab>!ping(id:1 !!) #0ms
-      ab>ping(id:1.0) #100ms
-      ab<ack(id:>1.0 vv) + #0ms + ab<ping_r(id:1.0) #100ms
-      ab>ack(id:<1.0 vv) #100ms
+      +100ms ab>ping(id:1.0) #100ms
+      +100ms ab<ack(id:>1.0 vv) + ab<ping_r(id:1.0) #100ms
+      +100ms ab>ack(id:<1.0 vv) #100ms
     `);
+    if (0) // XXX: TODO
     t('xxx1d', `mode(msg) conf(msg_delay a-c rtt:200 !autoack)
       ab>!connect()
       #ms
@@ -4802,38 +4810,37 @@ describe('peer-relay', function(){
     t('xxx2a', `mode(msg) conf(auto_time msg_delay a-d rtt:200) !ring(a-d)
       #ms
       ac>!ping(id:1 !!) #0ms
-      ab:ac>ping(id:1.0) #100ms
-      bc:ab:ac>ping(id:1.0) #100ms
-      bc[a]:ac<ping_r(id:1.0) #100ms
-      ab:bc[a]:ac<ping_r(id:1.0) #100ms
+      +100ms ab:ac>ping(id:1.0) #100ms
+      +100ms bc:ab:ac>ping(id:1.0) #100ms
+      +100ms bc[a]:ac<ping_r(id:1.0) #100ms
+      +100ms ab:bc[a]:ac<ping_r(id:1.0) #100ms
     `);
     // XXX: TODO: version with rtt(200 bc:20))
     t('xxx2b', `mode(msg) conf(!autoack auto_time msg_delay a-d rtt:200)
       !ring(a-d) #ms
       ac>!ping(id:1 !!) #0ms
-      ab:ac>ping(id:1.0) #100ms
-      ab<ack(id:>1.0) + bc:ab:ac>ping(id:1.0) #100ms
-      bc[a]:ac<ack(id:>1.0 vv) + bc[a]:ac<ping_r(id:1.0) #100ms
-      ab:bc[a]:ac<ack(id:>1.0 vv) + bc>ack(id:<1.0)
+      +100ms ab:ac>ping(id:1.0) #100ms
+      +100ms ab<ack(id:>1.0) + bc:ab:ac>ping(id:1.0) #100ms
+      +100ms bc[a]:ac<ack(id:>1.0 vv) + bc[a]:ac<ping_r(id:1.0) #100ms
+      +100ms ab:bc[a]:ac<ack(id:>1.0 vv) + bc>ack(id:<1.0)
       + ab:bc[a]:ac<ping_r(id:1.0) #100ms
-      ab[c]:ac>ack(id:<1.0 vv) #100ms
-      bc:ab[c]:ac>ack(id:<1.0 vv) #100ms
+      +100ms ab[c]:ac>ack(id:<1.0 vv) #100ms
+      +100ms bc:ab[c]:ac>ack(id:<1.0 vv) #100ms
     `);
-    if (0) // XXX WIP
     t('xxx2c', `mode(msg)
       conf(!autoack auto_time msg_delay a-d rtt(200 bc:20))
       !ring(a-d) #ms
       ac>!ping(id:1 !!) #0ms
-      ab:ac>ping(id:1.0) #100ms
-      bc:ab:ac>ping(id:1.0)
-      #10ms + bc[a]:ac<ack(id:>1.0 vv) + bc[a]:ac<ping_r(id:1.0)
-      #10ms + ab<ack(id:>1.0)
-      #12200ms
-      ab:bc[a]:ac<ack(id:>1.0 vv) + bc>ack(id:<1.0)
-      + ab:bc[a]:ac<ping_r(id:1.0) #100ms
-      ab[c]:ac>ack(id:<1.0 vv) #100ms
-      bc:ab[c]:ac>ack(id:<1.0 vv) #10ms
+      +100ms ab:ac>ping(id:1.0) #100ms
+      +10ms bc:ab:ac>ping(id:1.0) #10ms
+      +10ms bc[a]:ac<ack(id:>1.0 vv) + bc[a]:ac<ping_r(id:1.0) #10ms
+      +10ms bc>ack(id:<1.0) #10ms // XXX3
+      +70ms ab<ack(id:>1.0) #70ms
+      +20ms ab:bc[a]:ac<ack(id:>1.0 vv) + ab:bc[a]:ac<ping_r(id:1.0) #20ms
+      +100ms ab[c]:ac>ack(id:<1.0 vv) #100ms
+      +10ms bc:ab[c]:ac>ack(id:<1.0 vv) #10ms
     `);
+    if (0) // XXX WIP
     t('xxx3a', `mode(msg) conf(!autoack msg_delay a-d rtt(200 bc:200))
       !ring(a-d) #ms
       ac>!ping(id:1 !!) #0ms

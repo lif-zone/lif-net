@@ -4810,13 +4810,22 @@ describe('peer-relay', function(){
       ab>!ping(id:1 !!) #0ms
       +100ms ab>ping(id:1.0) #100ms
       +100ms ab<ping_r(id:1.0) #100ms`);
-    t('xxx1', `mode(msg) conf(auto_time msg_delay a-c rtt:200)
+    t('xxx1a', `mode(msg) conf(auto_time msg_delay a-c rtt:200)
       ab>!connect() #ms
       ab>!ping(id:1 !!) #0ms
       +100ms ab>ping(id:1.0) #100ms a#ab>opening(>1.0)
       +100ms ab<ping_r(id:1.0) #100ms
       a#ab>close(>1.0vv)
       a#rtt(>1.0 200) 100ms b#rtt(<1.0 200)
+    `);
+    // XXX: rtt update during test
+    if (0) // XXX: TODO
+    t('xxx1b', `mode(msg) conf(auto_time msg_delay a-c rtt:200)
+      ab>!connect() #ms
+      ab>!ping(id:1 rtt:50 !!) #0ms
+      +25ms ab>ping(id:1.0 rtt:50) #25ms
+      +25ms ab<ping_r(id:1.0 rtt:50) #25ms
+      a#rtt(>1.0 50) 25ms b#rtt(<1.0 50)
     `);
     t('2_nodes_manualack', `mode(msg)
       conf(auto_time msg_delay !autoack a-c rtt:200) ab>!connect() #ms
@@ -4856,10 +4865,11 @@ describe('peer-relay', function(){
       +100ms ab[c]:ac>ack(id:<1.0 vv) #100ms
       +100ms bc:ab[c]:ac>ack(id:<1.0 vv) #100ms`);
     // XXX derry:
-    // 1. chnage +100ms --> @100ms
+    // 1. chnage +100ms --> @100ms --> 100ms
     // 2. I test when event is recieved (so order of events is different)
     // 3. calc rtt during connect
-    // ab>ws_connect ab>msg(id_a) ab<msg(id_b) // we need ack to calc rtt
+    // ab>ws_connect ab>msg(id_a) ab<msg(id_b) // both send ack
+    // 4. overload rtt in msg
     t('3_nodes_manualack2', `mode(msg)
       conf(!autoack auto_time msg_delay a-d rtt(200 bc:20))
       !ring(a-d) #ms

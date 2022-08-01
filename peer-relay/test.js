@@ -1177,7 +1177,8 @@ const cmd_ensure_no_events = opt=>etask(function*cmd_ensure_no_events(){
   yield xsinon.wait();
   yield this.wait_ext(t_pending);
   yield this.wait_ext(t_pause);
-  assert(!is_sleeping());
+  if (0) // XXX: review if to add
+  assert(!is_sleeping(), 'still sleeping');
   assert(!t_event.length, 'pending events '+stringify(t_event, null, '\t'));
 });
 
@@ -1926,10 +1927,9 @@ const cmd_msg = opt=>etask(function*cmd_msg(){
     _s = N(fwd_s(c.fwd, 0));
     _d = N(fwd_d(c.fwd, 0));
   }
-  // XXX: decide if to use dur_ms when prev_plus_ms is undefined
   let dur_ms = t_conf.msg_delay ? conf_rtt_from_node(_s, _d)/2 : undefined;
   if (t_conf.msg_delay && _s.t.fake)
-    yield test_sleep(prev_plus_ms);
+    yield test_sleep(!prev_plus_ms ? dur_ms : prev_plus_ms);
   if (!_s.t.fake){
     assert(!event || !t_event.length, 'queue:\n'+t_event+'\ngot:\n'+event);
     event = event||shift_event(c);
@@ -2698,6 +2698,7 @@ const test_end = ()=>etask(function*(){
     stringify(Object.keys(ReqHandler.t.nodes)));
   assert(!t_sleep.length, 'pending sleep');
   assert(!t_pause, 'test is paused');
+  assert(!is_sleeping(), 'still sleeping');
   xerr.notice('*** test_done');
   xtest.xerr_level(xerr.L.ERR);
 });
@@ -4816,6 +4817,8 @@ describe('peer-relay', function(){
       + ab:bc[a]:ac<ping_r(id:1.0) #100ms
       +100ms ab[c]:ac>ack(id:<1.0 vv) #100ms
       +100ms bc:ab[c]:ac>ack(id:<1.0 vv) #100ms`);
+    // XXX: I test when event is recieved (so order of events is different)
+    // chnage +100ms !100ms
     t('3_nodes_manualack2', `mode(msg)
       conf(!autoack auto_time msg_delay a-d rtt(200 bc:20))
       !ring(a-d) #ms

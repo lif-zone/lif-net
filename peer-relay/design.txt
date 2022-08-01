@@ -9,6 +9,7 @@ VP:
   - calc rtt from ack packets - each packet takes conn-rtt time to arrive
     destination.
     + add #1ms api for testing Date.now()
+    - make connect take time
   - unite ack from stream level with router ack tracking
     - fix stream out of order tests
   - return path selection decision on every ack

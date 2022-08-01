@@ -4777,47 +4777,30 @@ describe('peer-relay', function(){
     t('time_manual', `#ms 1ms #1ms 10ms #10ms 1ms #ms 1ms #1ms`);
     t('time_auto', `conf(auto_time) #ms 1ms #1ms 10ms #10ms 1ms #ms 1ms #1ms`);
     // XXX: auto-calc ack params (id, vv) in order to simplify test writing)
-    t('xxx1a', `mode(msg) conf(auto_time msg_delay a-c rtt:200) ab>!connect()
-      #ms ab>!ping(id:1 !!) #0ms +100ms ab>ping(id:1.0) #100ms
-      +100ms ab<ping_r(id:1.0) #100ms`);
-    if (0) // XXX: TODO
-    t('xxx1b', `mode(msg) conf(msg_delay a-c rtt:200) ab>!connect() #ms
+    // XXX: make connect take time
+    // XXX: decide if need support for msg_delay without auto_time
+    t('2_nodes_autoack', `mode(msg) conf(auto_time msg_delay a-c rtt:200)
+      ab>!connect() #ms
       ab>!ping(id:1 !!) #0ms
-      +100ms + ab>ping(id:1.0) #100ms
-      +100ms ab<ping_r(id:1.0) #100ms
-    `);
-    t('xxx1c', `mode(msg) conf(auto_time msg_delay !autoack a-c rtt:200)
-      ab>!connect()
-      #ms
-      // XXX: auto-calc ack params (id, vv) in order to simplify test writing)
+      +100ms ab>ping(id:1.0) #100ms
+      +100ms ab<ping_r(id:1.0) #100ms`);
+    t('2_nodes_manualack', `mode(msg)
+      conf(auto_time msg_delay !autoack a-c rtt:200) ab>!connect() #ms
       ab>!ping(id:1 !!) #0ms
       +100ms ab>ping(id:1.0) #100ms
       +100ms ab<ack(id:>1.0 vv) + ab<ping_r(id:1.0) #100ms
-      +100ms ab>ack(id:<1.0 vv) #100ms
-    `);
-    if (0) // XXX: TODO
-    t('xxx1d', `mode(msg) conf(msg_delay a-c rtt:200 !autoack)
-      ab>!connect()
-      #ms
-      // XXX: auto-calc ack params (id, vv) in order to simplify test writing)
-      ab>!ping(id:1 !!) #0ms
-      ab>ping(id:1.0) + 100ms #100ms
-      ab<ack(id:>1.0 vv) + #0ms + ab<ping_r(id:1.0) + 100ms #100ms
-      ab>ack(id:<1.0 vv) + 100ms #100ms
-    `);
+      +100ms ab>ack(id:<1.0 vv) #100ms`);
     t = (name, test)=>t_roles(name, 'abc', test);
-    // XXX: add test with !autoack
-    t('xxx2a', `mode(msg) conf(auto_time msg_delay a-d rtt:200) !ring(a-d)
-      #ms
+    // XXX: TODO: version with rtt(200 bc:20))
+    t('3_nodes_autoack', `mode(msg)
+      conf(auto_time msg_delay a-d rtt:200) !ring(a-d) #ms
       ac>!ping(id:1 !!) #0ms
       +100ms ab:ac>ping(id:1.0) #100ms
       +100ms bc:ab:ac>ping(id:1.0) #100ms
       +100ms bc[a]:ac<ping_r(id:1.0) #100ms
-      +100ms ab:bc[a]:ac<ping_r(id:1.0) #100ms
-    `);
-    // XXX: TODO: version with rtt(200 bc:20))
-    t('xxx2b', `mode(msg) conf(!autoack auto_time msg_delay a-d rtt:200)
-      !ring(a-d) #ms
+      +100ms ab:bc[a]:ac<ping_r(id:1.0) #100ms`);
+    t('3_nodes_manualack', `mode(msg)
+      conf(!autoack auto_time msg_delay a-d rtt:200) !ring(a-d) #ms
       ac>!ping(id:1 !!) #0ms
       +100ms ab:ac>ping(id:1.0) #100ms
       +100ms ab<ack(id:>1.0) + bc:ab:ac>ping(id:1.0) #100ms
@@ -4825,9 +4808,8 @@ describe('peer-relay', function(){
       +100ms ab:bc[a]:ac<ack(id:>1.0 vv) + bc>ack(id:<1.0)
       + ab:bc[a]:ac<ping_r(id:1.0) #100ms
       +100ms ab[c]:ac>ack(id:<1.0 vv) #100ms
-      +100ms bc:ab[c]:ac>ack(id:<1.0 vv) #100ms
-    `);
-    t('xxx2c', `mode(msg)
+      +100ms bc:ab[c]:ac>ack(id:<1.0 vv) #100ms`);
+    t('3_nodes_manualack2', `mode(msg)
       conf(!autoack auto_time msg_delay a-d rtt(200 bc:20))
       !ring(a-d) #ms
       ac>!ping(id:1 !!) #0ms
@@ -4838,38 +4820,7 @@ describe('peer-relay', function(){
       +70ms ab<ack(id:>1.0) #70ms
       +20ms ab:bc[a]:ac<ack(id:>1.0 vv) + ab:bc[a]:ac<ping_r(id:1.0) #20ms
       +100ms ab[c]:ac>ack(id:<1.0 vv) #100ms
-      +10ms bc:ab[c]:ac>ack(id:<1.0 vv) #10ms
-    `);
-    if (0) // XXX WIP
-    t('xxx3a', `mode(msg) conf(!autoack msg_delay a-d rtt(200 bc:200))
-      !ring(a-d) #ms
-      ac>!ping(id:1 !!) #0ms
-      // XXX: support ab:ac>ping(id:1.0) + 10ms + #10ms + 90ms #90ms
-      ab:ac>ping(id:1.0) + 100ms #100ms
-      ab<ack(id:>1.0) + bc:ab:ac>ping(id:1.0) + 100ms #100ms
-      bc[a]:ac<ack(id:>1.0 vv) +
-      bc[a]:ac<ping_r(id:1.0) + 100ms #100ms
-      ab:bc[a]:ac<ack(id:>1.0 vv) + bc>ack(id:<1.0)
-      + ab:bc[a]:ac<ping_r(id:1.0) + 100ms #100ms
-      ab[c]:ac>ack(id:<1.0 vv) + 100ms #100ms
-      bc:ab[c]:ac>ack(id:<1.0 vv) + 100ms #100ms
-    `);
-    // XXX: TODO: version with rtt(200 bc:20))
-    if (0) // XXX WIP
-    t('xxx3b', `mode(msg) conf(!autoack msg_delay a-d rtt(200 bc:20))
-      !ring(a-d) #ms
-      ac>!ping(id:1 !!) #0ms
-      ab:ac>ping(id:1.0) + 100ms #100ms
-      bc:ab:ac>ping(id:1.0) + 10ms +
-      ab<ack(id:>1.0) + 90ms
-      #100ms
-      bc[a]:ac<ack(id:>1.0 vv) +
-      bc[a]:ac<ping_r(id:1.0) + 10ms #10ms
-      ab:bc[a]:ac<ack(id:>1.0 vv) + bc>ack(id:<1.0)
-      + ab:bc[a]:ac<ping_r(id:1.0) + 10ms + 90ms #100ms
-      ab[c]:ac>ack(id:<1.0 vv) + 100ms #100ms
-      bc:ab[c]:ac>ack(id:<1.0 vv) + 10ms #10ms
-    `);
+      +10ms bc:ab[c]:ac>ack(id:<1.0 vv) #10ms`);
     if (true) return; // XXX: TODO
     // XXX: add time for connect as well
     t('ping', `mode(msg) conf(a-c rtt:100) ab>!connect()

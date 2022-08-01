@@ -1960,7 +1960,7 @@ const cmd_msg = opt=>etask(function*cmd_msg(){
   if (!_s.t.fake){
     assert(!event || !t_event.length, 'queue:\n'+t_event+'\ngot:\n'+event);
     event = event||shift_event(c);
-    if (!event){ // XXX: needed
+    if (!event){
       assert(!t_pending, 'already pending');
       xerr.notice('cmd_msg set t_pending t_i %s c.orig %s c.fwd %s',
         t_i, c.orig, c.fwd);

@@ -5,6 +5,7 @@ import assert from 'assert';
 import xerr from '../util/xerr.js';
 import NodeId from './node_id.js';
 import * as util from './util.js';
+import xutil from '../util/util.js';
 import NodeMap from './node_map.js';
 import {dbg_msg} from './util.js';
 import xlog from '../util/xlog.js';
@@ -347,6 +348,12 @@ export default class Router extends EventEmitter {
     let seq_o = state[dir][seq];
     if (!seq_o)
       return xerr('ack: req_id %s seq %s not found', req_id, seq);
+    if (!xutil.is_mocha() || Router.t?.t_conf.msg_delay){
+      seq_o.last_ts = Date.now();
+      seq_o.rtt = seq_o.last_ts - seq_o.ts;
+      // XXX: conn update rtt
+      // XXX: verify rtt  during test that it matches t_conf
+    }
     if (dir=='>' && vv){
       if (['res', 'req_end', 'res_end'].includes(seq_o.type))
         state.state = 'close';

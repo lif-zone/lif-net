@@ -10,8 +10,9 @@ VP:
     destination.
     + add #1ms api for testing Date.now()
     - make connect take time
-    - add delay for autoack messages
-    - update rtt on ack
+    + add delay for autoack messages
+    - update rtt on ack (and verify it during test to match t_conf)
+      - test rtt change over time
     - make min rtt 2ms (1ms each way)
   - unite ack from stream level with router ack tracking
     - fix stream out of order tests

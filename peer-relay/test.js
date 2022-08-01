@@ -872,6 +872,7 @@ const cmd_run_if_next_fake = ()=>etask(function*send(){
 function do_autoack(lbuffer, vv){
   let msg = lbuffer.msg(), msg0 = lbuffer.get_json(0);
   let from0 = node_from_id(msg0.from), to0 = node_from_id(msg0.to);
+  let dur_ms = t_conf.msg_delay ? conf_rtt_from_node(from0, to0)/2 : undefined;
   let rt = msg0.rt, path = rt?.path, msgid;
   if (!msg.req_id)
     return;
@@ -890,8 +891,12 @@ function do_autoack(lbuffer, vv){
       lbuffer2.add_json({from: from2, to: to2, type: 'fwd',
         rt: {path: path2}});
       if (!node_from_id(to2).t.fake){
-        return send_msg(node_from_id(from2).t.name, node_from_id(to2).t.name,
-          lbuffer2);
+        return etask(function*do_autoack(){
+          if (t_conf.msg_delay)
+            yield etask.sleep(dur_ms);
+          return send_msg(node_from_id(from2).t.name, node_from_id(to2).t.name,
+            lbuffer2);
+        });
       }
       from2 = to2;
     }
@@ -903,7 +908,11 @@ function do_autoack(lbuffer, vv){
   let msg2 = {msgid, to: from0.id.s, from: to0.id.s, type: 'ack',
     req_id: msg.req_id, seq: msg.seq, dir, vv: msg.to==to0.id.s};
   let lbuffer2 = new LBuffer(msg2);
-  return send_msg(to0.t.name, from0.t.name, lbuffer2);
+  return etask(function*do_autoack(){
+    if (t_conf.msg_delay)
+      yield etask.sleep(dur_ms);
+    return send_msg(to0.t.name, from0.t.name, lbuffer2);
+  });
 }
 
 function req_hook(lbuffer){
@@ -1397,11 +1406,28 @@ function cmd_test(opt){
   if (t_pre_process)
     return;
   assert(arg.length==1, 'invalid '+c.orig);
-
-  if (/(^\d*)ms$/.test(arg[0].cmd))
+  if (arg[0].cmd=='rtt')
+    cmd_test_rtt(c.s, arg[0].arg);
+  else if (/(^\d*)ms$/.test(arg[0].cmd))
     cmd_test_time(c, arg[0]);
   else
     cmd_test_state(c, arg[0]);
+}
+
+function cmd_test_rtt(s, arg){
+  let a = arg.match(/^([<>][0-9]+\.[0-9]+) ([0-9]+$)/);
+  assert.equal(a?.length, 3, 'invalid cmd_test_rtt '+arg);
+  let node = N(s), id = id_from_req_id(a[1]);
+  let seq = seq_from_req_id(a[1]), dir = dir_from_req_id(a[1]);
+  let rtt = assert_int(a[2]);
+  if (node.t.fake)
+    return;
+  let state_o = node.router.state[id];
+  assert(state_o, 'req not found '+arg);
+  assert(state_o[dir], 'req not found '+arg);
+  assert(state_o[dir][seq], 'req not found '+arg);
+  let seq_o = node.router.state[id][dir][seq];
+  assert.equal(seq_o.rtt, rtt, 'rtt mismatch');
 }
 
 function cmd_test_time(c, arg){
@@ -4778,21 +4804,33 @@ describe('peer-relay', function(){
     t('time_manual', `#ms 1ms #1ms 10ms #10ms 1ms #ms 1ms #1ms`);
     t('time_auto', `conf(auto_time) #ms 1ms #1ms 10ms #10ms 1ms #ms 1ms #1ms`);
     // XXX: auto-calc ack params (id, vv) in order to simplify test writing)
-    // XXX: make connect take time
     // XXX: decide if need support for msg_delay without auto_time
     t('2_nodes_autoack', `mode(msg) conf(auto_time msg_delay a-c rtt:200)
       ab>!connect() #ms
       ab>!ping(id:1 !!) #0ms
       +100ms ab>ping(id:1.0) #100ms
       +100ms ab<ping_r(id:1.0) #100ms`);
+    t('xxx1', `mode(msg) conf(auto_time msg_delay a-c rtt:200)
+      ab>!connect() #ms
+      ab>!ping(id:1 !!) #0ms
+      +100ms ab>ping(id:1.0) #100ms a#ab>opening(>1.0)
+      +100ms ab<ping_r(id:1.0) #100ms
+      a#ab>close(>1.0vv)
+      a#rtt(>1.0 200) 100ms b#rtt(<1.0 200)
+    `);
     t('2_nodes_manualack', `mode(msg)
       conf(auto_time msg_delay !autoack a-c rtt:200) ab>!connect() #ms
       ab>!ping(id:1 !!) #0ms
       +100ms ab>ping(id:1.0) #100ms
       +100ms ab<ack(id:>1.0 vv) + ab<ping_r(id:1.0) #100ms
       +100ms ab>ack(id:<1.0 vv) #100ms`);
+    t('xxx2', `mode(msg)
+      conf(auto_time msg_delay !autoack a-c rtt:200) ab>!connect() #ms
+      ab>!ping(id:1 !!) #0ms
+      +100ms ab>ping(id:1.0) #100ms
+      +100ms ab<ack(id:>1.0 vv) + ab<ping_r(id:1.0) #100ms a#rtt(>1.0 200)
+      +100ms ab>ack(id:<1.0 vv) #100ms b#rtt(<1.0 200)`);
     t = (name, test)=>t_roles(name, 'abc', test);
-    // XXX: TODO: version with rtt(200 bc:20))
     t('3_nodes_autoack', `mode(msg)
       conf(auto_time msg_delay a-d rtt:200) !ring(a-d) #ms
       ac>!ping(id:1 !!) #0ms
@@ -4817,8 +4855,11 @@ describe('peer-relay', function(){
       + ab:bc[a]:ac<ping_r(id:1.0) #100ms
       +100ms ab[c]:ac>ack(id:<1.0 vv) #100ms
       +100ms bc:ab[c]:ac>ack(id:<1.0 vv) #100ms`);
-    // XXX: I test when event is recieved (so order of events is different)
-    // chnage +100ms !100ms
+    // XXX derry:
+    // 1. chnage +100ms --> @100ms
+    // 2. I test when event is recieved (so order of events is different)
+    // 3. calc rtt during connect
+    // ab>ws_connect ab>msg(id_a) ab<msg(id_b) // we need ack to calc rtt
     t('3_nodes_manualack2', `mode(msg)
       conf(!autoack auto_time msg_delay a-d rtt(200 bc:20))
       !ring(a-d) #ms

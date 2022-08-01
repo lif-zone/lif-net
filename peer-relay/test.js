@@ -1410,7 +1410,7 @@ function cmd_test_time(c, arg){
     t_prev_time = Date.now();
   else {
     assert(t_prev_time!==undefined, 't_prev_time not defined, use #ms');
-    assert.equal(Date.now()-t_prev_time, ms);
+    assert.equal(Date.now()-t_prev_time, ms, 'expcted time mismatch');
     t_prev_time = Date.now();
   }
 }
@@ -4799,6 +4799,13 @@ describe('peer-relay', function(){
       +100ms bc:ab:ac>ping(id:1.0) #100ms
       +100ms bc[a]:ac<ping_r(id:1.0) #100ms
       +100ms ab:bc[a]:ac<ping_r(id:1.0) #100ms`);
+    t('3_nodes_autoack2', `mode(msg)
+      conf(auto_time msg_delay a-d rtt(200 bc:20)) !ring(a-d) #ms
+      ac>!ping(id:1 !!) #0ms
+      +100ms ab:ac>ping(id:1.0) #100ms
+      +10ms bc:ab:ac>ping(id:1.0) #10ms
+      +10ms bc[a]:ac<ping_r(id:1.0) #10ms
+      +100ms ab:bc[a]:ac<ping_r(id:1.0) #100ms`);
     t('3_nodes_manualack', `mode(msg)
       conf(!autoack auto_time msg_delay a-d rtt:200) !ring(a-d) #ms
       ac>!ping(id:1 !!) #0ms
@@ -4821,6 +4828,19 @@ describe('peer-relay', function(){
       +20ms ab:bc[a]:ac<ack(id:>1.0 vv) + ab:bc[a]:ac<ping_r(id:1.0) #20ms
       +100ms ab[c]:ac>ack(id:<1.0 vv) #100ms
       +10ms bc:ab[c]:ac>ack(id:<1.0 vv) #10ms`);
+    t('3_nodes_parallel', `mode(msg)
+      conf(auto_time msg_delay a-d rtt:200) !ring(a-d) #ms
+      ac>!ping(id:1 !!) #0ms
+      50ms ac>!ping(id:2 !!) #50ms
+      +50ms ab:ac>ping(id:1.0) #50ms
+      +50ms ab:ac>ping(id:2.0) #50ms
+      +50ms bc:ab:ac>ping(id:1.0) #50ms
+      +50ms bc:ab:ac>ping(id:2.0) #50ms
+      +50ms bc[a]:ac<ping_r(id:1.0) #50ms
+      +50ms bc[a]:ac<ping_r(id:2.0) #50ms
+      +50ms ab:bc[a]:ac<ping_r(id:1.0) #50ms
+      +50ms ab:bc[a]:ac<ping_r(id:2.0) #50ms`);
+    // XXX test fuzzy
     if (true) return; // XXX: TODO
     // XXX: add time for connect as well
     t('ping', `mode(msg) conf(a-c rtt:100) ab>!connect()

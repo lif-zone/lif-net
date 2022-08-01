@@ -10,6 +10,7 @@ VP:
     destination.
     + add #1ms api for testing Date.now()
     - make connect take time
+    - make min rtt 2ms (1ms each way)
   - unite ack from stream level with router ack tracking
     - fix stream out of order tests
   - return path selection decision on every ack

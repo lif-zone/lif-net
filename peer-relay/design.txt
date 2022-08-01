@@ -6,6 +6,7 @@ VP:
     + test ack behavior with fuzzy
     - add # test for request staus in cmd_req/cmd_res
     - auto-calc id/seq/dir in <ack command
+    - add mode:req to tests
   - calc rtt from ack packets - each packet takes conn-rtt time to arrive
     destination.
     + add #1ms api for testing Date.now()

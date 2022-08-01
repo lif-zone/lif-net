@@ -4823,7 +4823,7 @@ describe('peer-relay', function(){
       +100ms ab:ac>ping(id:1.0) #100ms
       +10ms bc:ab:ac>ping(id:1.0) #10ms
       +10ms bc[a]:ac<ack(id:>1.0 vv) + bc[a]:ac<ping_r(id:1.0) #10ms
-      +10ms bc>ack(id:<1.0) #10ms // XXX3
+      +10ms bc>ack(id:<1.0) #10ms
       +70ms ab<ack(id:>1.0) #70ms
       +20ms ab:bc[a]:ac<ack(id:>1.0 vv) + ab:bc[a]:ac<ping_r(id:1.0) #20ms
       +100ms ab[c]:ac>ack(id:<1.0 vv) #100ms

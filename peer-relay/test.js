@@ -4757,20 +4757,20 @@ describe('peer-relay', function(){
     t('time_auto', `conf(auto_time) #ms 1ms #1ms 10ms #10ms 1ms #ms 1ms #1ms`);
     // XXX: auto-calc ack params (id, vv) in order to simplify test writing)
     // XXX: decide if need support for msg_delay without auto_time
-    t('2_nodes_autoack', `conf(auto_time msg_delay a-c rtt:200) ab>!connect()
+    t('2_nodes_autoack', `conf(auto_time msg_delay a-b rtt:200) ab>!connect()
       #ms ab>!ping(id:1 !!) #0ms
       ab>ping(id:1.0) ab>*ping #100ms a#ab>opening(>1.0)
       ab<ping_r(id:1.0) ab<*ping_r #100ms a#ab>close(>1.0vv)
       a#rtt(>1.0 200) 100ms b#rtt(<1.0 200)
     `);
-    t('zzz3', `mode(msg req) conf(msg_delay a-c rtt:200)
+    t('zzz3', `mode(msg req) conf(msg_delay a-b rtt:200)
       ab>!connect() #ms
       ab>!ping(id:1 !!) #0ms
       100ms ab>ping(id:1.0) ab>*ping #100ms
       100ms ab<ping_r(id:1.0) ab<*ping_r #100ms`);
     // XXX: rtt update during test
     if (0) // XXX: TODO
-    t('xxx1b', `mode(msg) conf(auto_time msg_delay a-c rtt:200)
+    t('xxx1b', `mode(msg) conf(auto_time msg_delay a-b rtt:200)
       ab>!connect() #ms
       ab>!ping(id:1 rtt:50 !!) #0ms
       +25ms ab>ping(id:1.0 rtt:50) #25ms
@@ -4778,19 +4778,19 @@ describe('peer-relay', function(){
       a#rtt(>1.0 50) 25ms b#rtt(<1.0 50)
     `);
     t('2_nodes_manualack', `mode(msg)
-      conf(auto_time msg_delay !autoack a-c rtt:200) ab>!connect() #ms
+      conf(auto_time msg_delay !autoack a-b rtt:200) ab>!connect() #ms
       ab>!ping(id:1 !!) #0ms
       ab>ping(id:1.0) #100ms
       ab<ack(id:>1.0 vv) + ab<ping_r(id:1.0) #100ms
       ab>ack(id:<1.0 vv) #100ms`);
     t('xxx2', `mode(msg)
-      conf(auto_time msg_delay !autoack a-c rtt:200) ab>!connect() #ms
+      conf(auto_time msg_delay !autoack a-b rtt:200) ab>!connect() #ms
       ab>!ping(id:1 !!) #0ms
       +100ms ab>ping(id:1.0) #100ms
       +100ms ab<ack(id:>1.0 vv) + ab<ping_r(id:1.0) #100ms a#rtt(>1.0 200)
       +100ms ab>ack(id:<1.0 vv) #100ms b#rtt(<1.0 200)`);
     t('zzz1', `mode(msg)
-      conf(msg_delay !autoack a-c rtt:200) ab>!connect() #ms
+      conf(msg_delay !autoack a-b rtt:200) ab>!connect() #ms
       ab>!ping(id:1 !!) #0ms
       100ms ab>ping(id:1.0) #100ms
       100ms ab<ack(id:>1.0 vv) ab<ping_r(id:1.0) // #100ms a#rtt(>1.0 200)

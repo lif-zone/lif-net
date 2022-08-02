@@ -2119,7 +2119,6 @@ function cmd_req(opt){
   }
   seq = track_seq_req(s.t.name, d.t.name, id, cmd, type, seq, call);
   cmd = cmd || t_req[id].cmd;
-  debugger;
   assert_event_c2(c, build_cmd_o(dir_c(c)+c.cmd,
     {id, seq, ack, cmd, body}), c.fwd, event, call);
   if (!call)
@@ -4759,13 +4758,9 @@ describe('peer-relay', function(){
     // XXX: auto-calc ack params (id, vv) in order to simplify test writing)
     // XXX: decide if need support for msg_delay without auto_time
     t('2_nodes_autoack', `conf(auto_time msg_delay a-c rtt:200) ab>!connect()
-      #ms ab>!ping(id:1 !!) #0ms ab>ping(id:1.0) ab>*ping #100ms
-      ab<ping_r(id:1.0) ab<*ping_r #100ms`);
-    t('xxx1a', `mode(msg) conf(auto_time msg_delay a-c rtt:200)
-      ab>!connect() #ms
-      ab>!ping(id:1 !!) #0ms
-      ab>ping(id:1.0) #100ms a#ab>opening(>1.0)
-      ab<ping_r(id:1.0) #100ms a#ab>close(>1.0vv)
+      #ms ab>!ping(id:1 !!) #0ms
+      ab>ping(id:1.0) ab>*ping #100ms a#ab>opening(>1.0)
+      ab<ping_r(id:1.0) ab<*ping_r #100ms a#ab>close(>1.0vv)
       a#rtt(>1.0 200) 100ms b#rtt(<1.0 200)
     `);
     t('zzz3', `mode(msg req) conf(msg_delay a-c rtt:200)

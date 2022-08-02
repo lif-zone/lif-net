@@ -34,8 +34,6 @@ class Res extends EventEmitter {
     this.ack = [];
     this.sent = {};
     this.ooo = {};
-    if (ReqHandler.t_new_res_hook)
-      ReqHandler.t_new_res_hook(this);
   }
   send_end(opt, body){ return this.send(assign({}, opt, {end: true}), body); }
   send_close(opt, body){ return this.send(assign({}, opt, {close: true}),
@@ -68,8 +66,6 @@ class Res extends EventEmitter {
       this.set_timeout(seq);
     let msg = {ts, type, req_id, seq, ack, cmd, body, rt};
     this.router.send_msg(dst, msg); // XXX: what if error
-    if (ReqHandler.t_send_hook)
-      ReqHandler.t_send_hook(this.router, msg);
     if (opt.close)
       this.close();
   }

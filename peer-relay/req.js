@@ -121,8 +121,6 @@ export default class Req extends EventEmitter {
     if (!opt.close)
       this.set_timeout(seq);
     this.router.send_msg(this.dst, msg);
-    if (Req.t_send_hook)
-      Req.t_send_hook(msg);
     if (opt.close)
       this.close();
   }

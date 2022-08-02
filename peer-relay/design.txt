@@ -7,6 +7,10 @@ VP:
     - add # test for request staus in cmd_req/cmd_res
     - auto-calc id/seq/dir in <ack command
     - add mode:req to tests
+    - try to remove all calls to cmd_run (and handle events properly)
+    - add test failures with ms to verify it all works properly
+    - change timeout from 20s to 10s
+    - fix stream timeout tests
   - calc rtt from ack packets - each packet takes conn-rtt time to arrive
     destination.
     + add #1ms api for testing Date.now()

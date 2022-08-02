@@ -954,6 +954,11 @@ function req_hook(lbuffer){
   cmd_run();
 }
 
+function new_res_hook(res){
+  let s = res.node;
+  res.on('fail', o=>push_event(build_cmd_o(s.t.name+'>*fail',
+      {id: o.req_id, seq: o.seq, error: o.error})));
+}
 function fail_hook(o){
   let id = typeof o.req_id=='string' && +o.req_id<1000 ? o.req_id :
     undefined;
@@ -1076,7 +1081,6 @@ function fake_emit(c, msg){
 }
 
 function fake_send_msg(c, msg){
-  xerr.notice('XXX fake_send %s %s', c.fwd, c.orig);
   let s = N(c.s), d = N(c.d), f = s, t = d, fuzzy = get_fuzzy(c.d);
   let to = d.id.s, from = s.id.s;
   msg.to = to;
@@ -2589,6 +2593,7 @@ function test_setup_mode(){
     delete Req.t.fail_hook;
     delete ReqHandler.t.req_hook;
   }
+  ReqHandler.t_new_res_hook = new_res_hook;
 }
 
 const _test_run = (role, cmds)=>etask(function*_test_run(){
@@ -4454,7 +4459,6 @@ describe('peer-relay', function(){
       t('req_start', `setup:2_nodes
         ab>!req_start(id:0 seq:0) 19999ms -
         1ms a>*fail(id:0 seq:0 error(timeout))`);
-      if (0) // XXX: FIXME
       t('res_start', `setup:2_nodes
         ab>!req_start(id:0 seq:0) 19999ms -
         ab<!res_start(id:0 seq:0) 19999ms -
@@ -4462,7 +4466,6 @@ describe('peer-relay', function(){
       t('req_next', `setup:2_nodes ab>!req_start(id:0 seq:0)
         19999ms - ab<!res_start(id:0 seq:0) ab>!req_next(id:0 seq:1) 19999ms
         - 1ms a>*fail(id:0 seq:1 error(timeout))`);
-      if (0) // XXX: FIXME
       t('res_next', `setup:2_nodes ab>!req_start(id:0 seq:0)
         19999ms - ab<!res_start(id:0 seq:0) ab>!req_next(id:0 seq:1)
         19999ms - ab<!res_next(id:0 seq:1) 19999ms -
@@ -4476,26 +4479,21 @@ describe('peer-relay', function(){
         ab>!req_next(id:0 seq:2) 10s -`;
       t('multi_no_res', `${setup} 4999ms -
         1ms a>*fail(id(0) seq:1 error(timeout)) - 20s`);
-      if (0) // XXX: FIXME
       t('multi_no_res_1st', `${setup} ab<!res_next(id:0 seq:1 ack:2)
         4999ms - 1ms a>*fail(id:0 seq:1 error:timeout) 14999ms - 1ms
         b>*fail(id(0) seq:1 error:timeout)`);
-      if (0) // XXX: FIXME
       t('multi_no_res_2nd', `${setup} ab<!res_next(id:0 seq:1 ack:1)
         9999ms - 1ms a>*fail(id:0 seq:2 error:timeout) 9999ms - 1ms
         b>*fail(id(0) seq:1 error:timeout)`);
       setup = `setup:2_nodes ab>!req_start(id:0 seq:0)
         ab<!res_start(id:0 seq:0) ab>!req_next(id:0 seq:1)
         ab<!res_next(id:0 seq:1) 5s - ab<!res_next(id:0 seq:2) 10s -`;
-      if (0) // XXX: FIXME
       t('multi_no_req', `${setup} 4999ms -
         1ms b>*fail(id(0) seq:1 error(timeout)) - 20s`);
-      if (0) // XXX: FIXME
       t('multi_no_req_1st', `${setup} 4999ms -
         ab>!req_next(id:0 seq:2 ack:2) -
         1ms b>*fail(id(0) seq:1 error(timeout)) -
         20s a>*fail(id:0 seq:2 error:timeout) -`);
-      if (0) // XXX: FIXME
       t('multi_no_req_2nd', `${setup} 4999ms -
         ab>!req_next(id:0 seq:2 ack:1) -
         5s - 1ms b>*fail(id(0) seq:2 error(timeout)) -

@@ -34,6 +34,8 @@ class Res extends EventEmitter {
     this.ack = [];
     this.sent = {};
     this.ooo = {};
+    if (ReqHandler.t_new_res_hook)
+      ReqHandler.t_new_res_hook(this);
   }
   send_end(opt, body){ return this.send(assign({}, opt, {end: true}), body); }
   send_close(opt, body){ return this.send(assign({}, opt, {close: true}),

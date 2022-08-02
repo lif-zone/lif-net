@@ -321,10 +321,12 @@ export default class Router extends EventEmitter {
     if (!dir)
       return;
     let src = NodeId.from(msg.from), dst = NodeId.from(msg.to);
+    let src0 = NodeId.from(msg0.from), dst0 = NodeId.from(msg0.to);
     let state_o = this.state[req_id] = this.state[req_id]|| {req_id, ts,
       last_ts: ts, src, dst, state: 'opening', '>': {}, '<': {}};
     state_o.last_ts = ts;
-    let seq_o = state_o[dir][seq] = state_o[dir][seq]||{ts, last_ts: ts, type};
+    let seq_o = state_o[dir][seq] = state_o[dir][seq]||
+      {ts, last_ts: ts, type, src, dst};
     seq_o.last_ts = ts;
     let seq_state = this.id.eq(NodeId.from(msg0.from)) ? 'out' : 'in';
     if (false && seq_o.state && seq_o.state!='in') // XXX: TODO
@@ -351,8 +353,7 @@ export default class Router extends EventEmitter {
     if (!xutil.is_mocha() || Router.t?.t_conf.msg_delay){
       seq_o.last_ts = Date.now();
       seq_o.rtt = seq_o.last_ts - seq_o.ts;
-      // XXX: conn update rtt
-      // XXX: verify rtt  during test that it matches t_conf
+      this.node_map.update_conn({ids: [seq_o.src, seq_o.dst], rtt: seq_o.rtt});
     }
     if (dir=='>' && vv){
       if (['res', 'req_end', 'res_end'].includes(seq_o.type))

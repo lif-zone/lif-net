@@ -10,6 +10,10 @@ VP:
     - try to remove all calls to cmd_run (and handle events properly)
     - add test failures with ms to verify it all works properly
     - change timeout from 20s to 10s
+    - add node ring_join with msg_delay
+    - make msg_delay the default
+    - fix bug in req state handling (it doesn't use ack)
+      ack:3_nodes_manual ack:3_nodes_auto
   - calc rtt from ack packets - each packet takes conn-rtt time to arrive
     destination.
     + add #1ms api for testing Date.now()

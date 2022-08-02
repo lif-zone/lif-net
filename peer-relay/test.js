@@ -57,6 +57,12 @@ NodeMap.t.node_from_id = Router.t.node_from_id = node_from_id;
 
 function push_event(event){ t_event.push({ts: Date.now(), event}); }
 
+function events_str(){
+  let s = '';
+  t_event.forEach(o=>s+= (s ? ' ' : '')+o.ts+': '+o.event);
+  return s;
+}
+
 function shift_event(c){
   if (!t_conf.msg_delay)
     return t_event.shift()?.event;
@@ -64,8 +70,7 @@ function shift_event(c){
     return;
   let o = t_event.shift();
   assert.equal(Date.now(), o.ts, 'wrong timing for event '+o.event+
-    '\nexpected: '+c?.fwd+' '+c?.orig+'\npending: '+
-    stringify(t_event, null, '\t'));
+    '\nexpected: '+c?.fwd+' '+c?.orig+'\npending: '+events_str());
   return o.event;
 }
 
@@ -522,8 +527,7 @@ function assert_peers(peers){
 */
 
 function assert_event(event, exp){
-  assert.equal(normalize(event), normalize(exp), 't_pending:'+
-    stringify(t_event, null, '\t')); }
+  assert.equal(normalize(event), normalize(exp), 't_pending:'+events_str()); }
 
 // XXX: rm
 function assert_event_c(c, event, call){
@@ -557,8 +561,6 @@ function assert_missing_event(c, expected){
     s = N(fwd_s(c.fwd, 0));
   assert(s, 'fwd node not found '+stringify(c.fwd)+' '+c.orig);
   if (c.cmd[0]=='*'){
-    if (!t_mode.req) // XXX HACK: rm this (and capture req failure on mode:msg)
-      return;
     if (!d)
       assert(s.t.fake, 'missing event '+expected+'\nfor '+c.orig);
     else
@@ -1138,7 +1140,7 @@ const cmd_ensure_no_events = opt=>etask(function*cmd_ensure_no_events(){
   yield this.wait_ext(t_pause);
   if (0) // XXX: review if to add
   assert(!is_sleeping(), 'still sleeping');
-  assert(!t_event.length, 'pending events '+stringify(t_event, null, '\t'));
+  assert(!t_event.length, 'pending events '+events_str());
 });
 
 function cmd_mode(opt){
@@ -1925,7 +1927,8 @@ const cmd_msg = opt=>etask(function*cmd_msg(){
   if (t_conf.msg_delay && _s.t.fake && t_conf.auto_time)
     yield test_sleep(!prev_plus_ms ? dur_ms : prev_plus_ms);
   if (!_s.t.fake){
-    assert(!event || !t_event.length, 'queue:\n'+t_event+'\ngot:\n'+event);
+    assert(!event || !t_event.length, 'queue:\n'+events_str()+
+      '\ngot:\n'+event);
     event = event||shift_event(c);
     if (!event){
       assert(!t_pending, 'already pending');
@@ -2116,6 +2119,7 @@ function cmd_req(opt){
   }
   seq = track_seq_req(s.t.name, d.t.name, id, cmd, type, seq, call);
   cmd = cmd || t_req[id].cmd;
+  debugger;
   assert_event_c2(c, build_cmd_o(dir_c(c)+c.cmd,
     {id, seq, ack, cmd, body}), c.fwd, event, call);
   if (!call)
@@ -2506,9 +2510,9 @@ function expand_loop_repeat(c){
 let t_depth = 0;
 let prev_plus, prev_plus_ms, prev_plus_ts;
 const cmd_run = ()=>etask(function*cmd_run(){
-  assert(!t_pending, 'cmd_run while pending with event '+t_event);
+  assert(!t_pending, 'cmd_run while pending with event '+events_str());
   assert(t_cmds && t_i<t_cmds.length, t_event.length ?
-    'unexpected event '+t_event : 'invalid t_i '+t_i+' event');
+    'unexpected event '+events_str() : 'invalid t_i '+t_i+' event');
   let c = t_cmds[t_i];
   if (t_pause)
     return;
@@ -2525,7 +2529,7 @@ const cmd_run = ()=>etask(function*cmd_run(){
   t_depth++;
   xerr.notice('%scmd %s: %s%s orig %s', ' '.repeat(t_depth), t_i,
     c.s ? build_cmd(c.s+c.d+'>'+c.cmd, c.arg) : c.orig,
-    t_event.length ? ' event '+t_event : '', c.orig);
+    t_event.length ? ' event '+events_str() : '', c.orig);
   if (t_conf.auto_time){
     let pre = prev_plus;
     prev_plus = c.cmd[0]=='+';
@@ -2586,13 +2590,12 @@ function test_start(role){
 function test_setup_mode(){
   if (t_mode.req){
     Req.t.res_hook = res_hook;
-    Req.t.fail_hook = fail_hook;
     ReqHandler.t.req_hook = req_hook;
   } else {
     delete Req.t.res_hook;
-    delete Req.t.fail_hook;
     delete ReqHandler.t.req_hook;
   }
+  Req.t.fail_hook = fail_hook;
   ReqHandler.t_new_res_hook = new_res_hook;
 }
 
@@ -4755,17 +4758,14 @@ describe('peer-relay', function(){
     t('time_auto', `conf(auto_time) #ms 1ms #1ms 10ms #10ms 1ms #ms 1ms #1ms`);
     // XXX: auto-calc ack params (id, vv) in order to simplify test writing)
     // XXX: decide if need support for msg_delay without auto_time
-    t('2_nodes_autoack', `mode(msg req) conf(auto_time msg_delay a-c rtt:200)
-      ab>!connect() #ms
-      ab>!ping(id:1 !!) #0ms
-      +100ms ab>ping(id:1.0) ab>*ping #100ms
-      +100ms ab<ping_r(id:1.0) ab<*ping_r #100ms`);
+    t('2_nodes_autoack', `conf(auto_time msg_delay a-c rtt:200) ab>!connect()
+      #ms ab>!ping(id:1 !!) #0ms ab>ping(id:1.0) ab>*ping #100ms
+      ab<ping_r(id:1.0) ab<*ping_r #100ms`);
     t('xxx1a', `mode(msg) conf(auto_time msg_delay a-c rtt:200)
       ab>!connect() #ms
       ab>!ping(id:1 !!) #0ms
-      +100ms ab>ping(id:1.0) #100ms a#ab>opening(>1.0)
-      +100ms ab<ping_r(id:1.0) #100ms
-      a#ab>close(>1.0vv)
+      ab>ping(id:1.0) #100ms a#ab>opening(>1.0)
+      ab<ping_r(id:1.0) #100ms a#ab>close(>1.0vv)
       a#rtt(>1.0 200) 100ms b#rtt(<1.0 200)
     `);
     t('zzz3', `mode(msg req) conf(msg_delay a-c rtt:200)
@@ -4972,6 +4972,8 @@ describe('peer-relay', function(){
       ab<ack(id:>1.2) a#ac>closing(>1.2v) b#ac>closing(>1.2) c#same
       bc:ab[c]:ac>req_end(id:>1.2) a#ac>closing(>1.2v) b#ac>closing(>1.2)
       c#ac>close(>1.2vv) abc<ack(id:>1.2 vv) a,b,c#ac>close(>1.2vv)
+      // XXX: fix bug in req state handling (it doesn't use ack)
+      20s a>*fail(id:1 seq:1 error:timeout)
     `);
     t('3_nodes_auto', `mode:msg conf(a-c rtt:50) ab>!connect bc>!connect
       cb.a~c>!ring_join ab.c~a>!ring_join ba.bc~b>!ring_join
@@ -4992,6 +4994,8 @@ describe('peer-relay', function(){
       ab[c]:ac>req_end(id:>1.2)
       a#ac>closing(>1.2v) b#ac>closing(>1.2) c#ac>open(!id:>1.2)
       bc:ab[c]:ac>req_end(id:>1.2) a,b,c#ac>close(>1.2vv)
+      // XXX: fix bug in req state handling (it doesn't use ack)
+      20s a>*fail(id:1 seq:1 error:timeout)
     `);
     t('fuzzy_manual', `mode:msg conf(a-c rtt:50 !autoack) ab>!connect
       bc>!connect

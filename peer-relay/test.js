@@ -1374,7 +1374,16 @@ function cmd_test(opt){
 }
 
 function cmd_test_rtt(s, arg){
-  let a = arg.match(/^([<>][0-9]+\.[0-9]+) ([0-9]+$)/);
+  let a = arg.match(/^([a-zA-Z]):([0-9]+$)/);
+  if (a?.length==3){ // a#rtt(b:200)
+    let node = N(s), dst = N(a[1]), exp = +a[2];
+    if (node.t.fake)
+      return;
+    let conn = node.router.node_map.get_conn({ids: [node.id, dst.id]});
+    assert.equal(conn?.rtt, exp, 'invalid rtt');
+    return;
+  }
+  a = arg.match(/^([<>][0-9]+\.[0-9]+) ([0-9]+$)/);
   assert.equal(a?.length, 3, 'invalid cmd_test_rtt '+arg);
   let node = N(s), id = id_from_req_id(a[1]);
   let seq = seq_from_req_id(a[1]), dir = dir_from_req_id(a[1]);
@@ -4763,24 +4772,24 @@ describe('peer-relay', function(){
       ab>!ping(id:1 !!) #0ms
       ab>ping(id:1.0) ab>*ping #100ms a#ab>opening(>1.0)
       ab<ping_r(id:1.0) ab<*ping_r #100ms a#ab>close(>1.0vv)
-      a#rtt(>1.0 200) 100ms b#rtt(<1.0 200) test_node_conn(a(b:200) b(a:200))
-      conf(rtt:100) #ms test_node_conn(a(b:200) b(a:200))
+      a#rtt(>1.0 200) 100ms b#rtt(<1.0 200) a#rtt(b:200) b#rtt(a:200)
+      conf(rtt:100) #ms a#rtt(b:200) b#rtt(a:200)
       ab>!ping(id:2 !!) #0ms
       ab>ping(id:2.0) ab>*ping #50ms a#ab>opening(>2.0)
       ab<ping_r(id:2.0) ab<*ping_r #50ms a#ab>close(>2.0vv)
-      a#rtt(>2.0 100) 50ms b#rtt(<2.0 100) test_node_conn(a(b:100) b(a:100))
+      a#rtt(>2.0 100) 50ms b#rtt(<2.0 100) a#rtt(b:100) b#rtt(a:100)
     `);
     t('2_nodes_autoack_manual_time', `conf(msg_delay a-b rtt:200)
       ab>!connect() #ms
       ab>!ping(id:1 !!) #0ms
       100ms ab>ping(id:1.0) ab>*ping a#ab>opening(>1.0)
       100ms ab<ping_r(id:1.0) ab<*ping_r a#ab>close(>1.0vv)
-      a#rtt(>1.0 200) 100ms b#rtt(<1.0 200) test_node_conn(a(b:200) b(a:200))
-      conf(rtt:100) #ms test_node_conn(a(b:200) b(a:200))
+      a#rtt(>1.0 200) 100ms b#rtt(<1.0 200) a#rtt(b:200) b#rtt(a:200)
+      conf(rtt:100) #ms a#rtt(b:200) b#rtt(a:200)
       ab>!ping(id:2 !!) #0ms
       50ms ab>ping(id:2.0) ab>*ping a#ab>opening(>2.0)
       50ms ab<ping_r(id:2.0) ab<*ping_r a#ab>close(>2.0vv)
-      a#rtt(>2.0 100) 50ms b#rtt(<2.0 100) test_node_conn(a(b:100) b(a:100))
+      a#rtt(>2.0 100) 50ms b#rtt(<2.0 100) a#rtt(b:100) b#rtt(a:100)
     `);
     // XXX: rtt update during test
     if (0) // XXX: TODO

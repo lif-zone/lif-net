@@ -4757,17 +4757,18 @@ describe('peer-relay', function(){
     t('time_auto', `conf(auto_time) #ms 1ms #1ms 10ms #10ms 1ms #ms 1ms #1ms`);
     // XXX: auto-calc ack params (id, vv) in order to simplify test writing)
     // XXX: decide if need support for msg_delay without auto_time
-    t('2_nodes_autoack', `conf(auto_time msg_delay a-b rtt:200) ab>!connect()
-      #ms ab>!ping(id:1 !!) #0ms
+    t('2_nodes_autoack_auto_time', `conf(auto_time msg_delay a-b rtt:200)
+      ab>!connect() #ms ab>!ping(id:1 !!) #0ms
       ab>ping(id:1.0) ab>*ping #100ms a#ab>opening(>1.0)
       ab<ping_r(id:1.0) ab<*ping_r #100ms a#ab>close(>1.0vv)
       a#rtt(>1.0 200) 100ms b#rtt(<1.0 200)
     `);
-    t('zzz3', `mode(msg req) conf(msg_delay a-b rtt:200)
-      ab>!connect() #ms
-      ab>!ping(id:1 !!) #0ms
-      100ms ab>ping(id:1.0) ab>*ping #100ms
-      100ms ab<ping_r(id:1.0) ab<*ping_r #100ms`);
+    t('2_nodes_autoack_manual_time', `conf(msg_delay a-b rtt:200)
+      ab>!connect() #ms ab>!ping(id:1 !!) #0ms
+      100ms ab>ping(id:1.0) ab>*ping a#ab>opening(>1.0)
+      100ms ab<ping_r(id:1.0) ab<*ping_r a#ab>close(>1.0vv)
+      a#rtt(>1.0 200) 100ms b#rtt(<1.0 200)
+    `);
     // XXX: rtt update during test
     if (0) // XXX: TODO
     t('xxx1b', `mode(msg) conf(auto_time msg_delay a-b rtt:200)

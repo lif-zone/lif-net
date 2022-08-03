@@ -326,7 +326,7 @@ export default class Router extends EventEmitter {
       last_ts: ts, src, dst, state: 'opening', '>': {}, '<': {}};
     state_o.last_ts = ts;
     let seq_o = state_o[dir][seq] = state_o[dir][seq]||
-      {ts, last_ts: ts, type, src, dst};
+      {ts, last_ts: ts, type, src: src0, dst: dst0};
     seq_o.last_ts = ts;
     let seq_state = this.id.eq(NodeId.from(msg0.from)) ? 'out' : 'in';
     if (false && seq_o.state && seq_o.state!='in') // XXX: TODO

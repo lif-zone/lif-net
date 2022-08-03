@@ -1380,7 +1380,7 @@ function cmd_test_rtt(s, arg){
     if (node.t.fake)
       return;
     let conn = node.router.node_map.get_conn({ids: [node.id, dst.id]});
-    assert.equal(conn?.rtt, exp, 'invalid rtt');
+    assert.equal(conn?.rtt, exp, 'invalid rtt '+s+'#'+arg);
     return;
   }
   a = arg.match(/^([<>][0-9]+\.[0-9]+) ([0-9]+$)/);
@@ -4791,15 +4791,6 @@ describe('peer-relay', function(){
       50ms ab<ping_r(id:2.0) ab<*ping_r a#ab>close(>2.0vv)
       a#rtt(>2.0 100) 50ms b#rtt(<2.0 100) a#rtt(b:100) b#rtt(a:100)
     `);
-    // XXX: rtt update during test
-    if (0) // XXX: TODO
-    t('xxx1b', `mode(msg) conf(auto_time msg_delay a-b rtt:200)
-      ab>!connect() #ms
-      ab>!ping(id:1 rtt:50 !!) #0ms
-      +25ms ab>ping(id:1.0 rtt:50) #25ms
-      +25ms ab<ping_r(id:1.0 rtt:50) #25ms
-      a#rtt(>1.0 50) 25ms b#rtt(<1.0 50)
-    `);
     t('2_nodes_manualack', `mode(msg)
       conf(auto_time msg_delay !autoack a-b rtt:200) ab>!connect() #ms
       ab>!ping(id:1 !!) #0ms
@@ -4819,13 +4810,27 @@ describe('peer-relay', function(){
       100ms ab<ack(id:>1.0 vv) ab<ping_r(id:1.0) // #100ms a#rtt(>1.0 200)
       100ms ab>ack(id:<1.0 vv) // #100ms b#rtt(<1.0 200)`);
     t = (name, test)=>t_roles(name, 'abc', test);
-    t('3_nodes_autoack', `mode(msg)
+    // XXX: test abc>!ping #400ms
+    // XXX BUG: rtt is updaed wrongly because of they way conf works
+    t('3_nodes_autoack', `
       conf(auto_time msg_delay a-d rtt:200) !ring(a-d) #ms
       ac>!ping(id:1 !!) #0ms
       ab:ac>ping(id:1.0) #100ms
-      bc:ab:ac>ping(id:1.0) #100ms
+      bc:ab:ac>ping(id:1.0) ac>*ping #100ms
       bc[a]:ac<ping_r(id:1.0) #100ms
-      ab:bc[a]:ac<ping_r(id:1.0) #100ms`);
+      ab:bc[a]:ac<ping_r(id:1.0) ac<*ping_r #100ms
+      a#rtt(b:200) b#rtt(a:200) b#rtt(c:200) c#rtt(b:200)
+      conf(rtt:100)
+      ac>!ping(id:2 !!) #0ms
+      ab[c]:ac>ping(id:2.0) #50ms
+      a#rtt(b:200) b#rtt(a:100) b#rtt(c:200) c#rtt(b:200)
+      bc:ab[c]:ac>ping(id:2.0) ac>*ping #50ms
+      a#rtt(b:100) b#rtt(a:100) b#rtt(c:200) c#rtt(b:100)
+      bc[a]:ac<ping_r(id:2.0) #50ms
+      a#rtt(b:100) b#rtt(a:100) b#rtt(c:100) c#rtt(b:100)
+      ab:bc[a]:ac<ping_r(id:2.0) ac<*ping_r #50ms
+      a#rtt(b:100) b#rtt(a:100) b#rtt(c:100) c#rtt(b:100)
+    `);
     t('3_nodes_autoack2', `mode(msg)
       conf(auto_time msg_delay a-d rtt(200 bc:20)) !ring(a-d) #ms
       ac>!ping(id:1 !!) #0ms

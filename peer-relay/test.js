@@ -4816,15 +4816,12 @@ describe('peer-relay', function(){
       a#rtt(b:100) b#rtt(a:100) b#rtt(c:100) c#rtt(b:100)
       ab:bc[a]:ac<ping_r(id:2.0) ac<*ping_r #50ms a#rtt(b:100) b#rtt(a:100)
       b#rtt(c:100) c#rtt(b:100)`);
-/*
     t('3_nodes_autoack_auto_time_multi_rtt', `
       conf(auto_time msg_delay a-d rtt(200 bc:20)) !ring(a-d) #ms
       ac>!ping(id:1 !!) #0ms ab:ac>ping(id:1.0) #100ms bc:ab:ac>ping(id:1.0)
       ac>*ping #10ms bc[a]:ac<ping_r(id:1.0) #10ms ab:bc[a]:ac<ping_r(id:1.0)
-      ac<*ping_r #100ms
-      a#rtt(>1.0 200) b#rtt(>1.0 20) c#rtt(>1.0 0)
+      ac<*ping_r #100ms a#rtt(>1.0 200) b#rtt(>1.0 20) c#rtt(>1.0 0)
       100ms a#rtt(<1.0 0) b#rtt(<1.0 200) c#rtt(<1.0 20)`);
-*/
     t('3_nodes_manualack_auto_time', `
       conf(!autoack auto_time msg_delay a-d rtt:200) !ring(a-d) #ms
       ac>!ping(id:1 !!) #0ms
@@ -4838,16 +4835,13 @@ describe('peer-relay', function(){
       a#rtt(>1.0 200) b#rtt(>1.0 200) c#rtt(>1.0 0)
       a#rtt(<1.0 0) b#rtt(<1.0 200) c#rtt(<1.0 200)`);
     // XXX derry:
-    // 1. chnage +100ms --> @100ms --> 100ms
-    // 2. I test when event is recieved (so order of events is different)
     // 3. calc rtt during connect
     // ab>ws_connect ab>msg(id_a) ab<msg(id_b) // both send ack
-    // 4. overload rtt in msg
     // XXX: check 0ms and - behavior and verify they work welll
     // XXX: add mode:req to tests
-    t('3_nodes_manualack2', `mode(msg)
-      conf(!autoack auto_time msg_delay a-d rtt(200 bc:20))
-      !ring(a-d) #ms
+    // XXX REVIEW: +70ms, +20ms
+    t('3_nodes_manualack_auto_time_multi_rtt', `mode(msg)
+      conf(!autoack auto_time msg_delay a-d rtt(200 bc:20)) !ring(a-d) #ms
       ac>!ping(id:1 !!) #0ms
       ab:ac>ping(id:1.0) #100ms
       bc:ab:ac>ping(id:1.0) #10ms
@@ -4856,7 +4850,9 @@ describe('peer-relay', function(){
       +70ms ab<ack(id:>1.0) #70ms
       +20ms ab:bc[a]:ac<ack(id:>1.0 vv) + ab:bc[a]:ac<ping_r(id:1.0) #20ms
       ab[c]:ac>ack(id:<1.0 vv) #100ms
-      bc:ab[c]:ac>ack(id:<1.0 vv) #10ms`);
+      bc:ab[c]:ac>ack(id:<1.0 vv) #10ms
+      a#rtt(>1.0 200) b#rtt(>1.0 20) c#rtt(>1.0 0)
+      a#rtt(<1.0 0) b#rtt(<1.0 200) c#rtt(<1.0 20)`);
     t('zzz2', `mode(msg)
       conf(!autoack msg_delay a-d rtt(200 bc:20))
       !ring(a-d) #ms

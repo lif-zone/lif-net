@@ -164,6 +164,7 @@ export default class Router extends EventEmitter {
       this.ack_pending();
     }
     else {
+      this.track(lbuffer);
       let o = this.send_prepare(lbuffer);
       this.track(lbuffer, o?.vv);
       if (o?.vv){
@@ -310,12 +311,16 @@ export default class Router extends EventEmitter {
     let ts = Date.now();
     let msg = lbuffer.msg(), msg0 = lbuffer.get_json(0), type = msg.type;
     let req_id = ''+msg.req_id, seq = +msg.seq;
-    if (type=='ack')
-      return this.track_ack(msg.from, req_id, msg.dir, seq, msg.vv);
+    if (type=='ack'){
+      return this.track_ack(msg.from, req_id, msg.dir, seq, msg.vv,
+        msg0.from==msg.from);
+    }
     if (Array.isArray(msg.ack)){
       let rdir = type_to_rdir(type);
-      if (rdir)
-        msg.ack.forEach(s=>this.track_ack(msg.from, req_id, rdir, s, true));
+      if (rdir){
+        msg.ack.forEach(s=>this.track_ack(msg.from, req_id, rdir, s, true,
+          msg0.from==msg.from));
+      }
     }
     let dir = type_to_dir(type);
     if (!dir)
@@ -323,11 +328,9 @@ export default class Router extends EventEmitter {
     let src = NodeId.from(msg.from), dst = NodeId.from(msg.to);
     let src0 = NodeId.from(msg0.from), dst0 = NodeId.from(msg0.to);
     let state_o = this.state[req_id] = this.state[req_id]|| {req_id, ts,
-      last_ts: ts, src, dst, state: 'opening', '>': {}, '<': {}};
-    state_o.last_ts = ts;
+      src, dst, state: 'opening', '>': {}, '<': {}};
     let seq_o = state_o[dir][seq] = state_o[dir][seq]||
-      {ts, last_ts: ts, type, src: src0, dst: dst0};
-    seq_o.last_ts = ts;
+      {ts, prev_ts: ts, type, src: src0, dst: dst0};
     let seq_state = this.id.eq(NodeId.from(msg0.from)) ? 'out' : 'in';
     if (false && seq_o.state && seq_o.state!='in') // XXX: TODO
       xerr('invalid seq state %s->%s', seq_o.state, seq_state);
@@ -339,7 +342,7 @@ export default class Router extends EventEmitter {
     if (['res', 'req_end', 'res_end'].includes(type))
       state_o.state = 'closing';
   }
-  track_ack(from, req_id, dir, seq, vv){
+  track_ack(from, req_id, dir, seq, vv, update_rtt){
     let ts = Date.now();
     let state = this.state[req_id];
     // XXX: don't allow change from close to open
@@ -350,25 +353,34 @@ export default class Router extends EventEmitter {
     let seq_o = state[dir][seq];
     if (!seq_o)
       return xerr('ack: req_id %s seq %s not found', req_id, seq);
-    if (!xutil.is_mocha() || Router.t?.t_conf.msg_delay){
-      seq_o.last_ts = Date.now();
-      seq_o.rtt = seq_o.last_ts - seq_o.ts;
-      this.node_map.update_conn({ids: [seq_o.src, seq_o.dst], rtt: seq_o.rtt});
-    }
     if (dir=='>' && vv){
       if (['res', 'req_end', 'res_end'].includes(seq_o.type))
         state.state = 'close';
       else
         state.state = 'open';
       seq_o.state = 'done';
+      this.update_rtt_from_ack(seq_o, update_rtt);
     } else if (dir=='<' && vv){
       if (['res', 'req_end', 'res_end'].includes(seq_o.type))
         state.state = 'close';
       seq_o.state = 'done';
+      this.update_rtt_from_ack(seq_o, update_rtt);
     }
-    else
+    else {
       seq_o.state = 'ack';
+      this.update_rtt_from_ack(seq_o, update_rtt);
+    }
     seq_o.last_ts = ts;
+  }
+  update_rtt_from_ack(seq_o, update_rtt){
+    if (!update_rtt || seq_o.ack_ts)
+      return;
+    seq_o.ack_ts = Date.now();
+    if (!xutil.is_mocha() || Router.t?.t_conf.msg_delay){
+      seq_o.rtt = seq_o.ack_ts - seq_o.ts;
+      this.node_map.update_conn({ids: [seq_o.src, seq_o.dst],
+        rtt: seq_o.rtt});
+    }
   }
   destroy(){ this.node_map.destroy(); }
 }

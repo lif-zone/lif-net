@@ -878,6 +878,7 @@ const cmd_run_if_next_fake = ()=>etask(function*send(){
 function do_autoack(lbuffer, vv){
   let msg = lbuffer.msg(), msg0 = lbuffer.get_json(0);
   let from0 = node_from_id(msg0.from), to0 = node_from_id(msg0.to);
+  let from = node_from_id(msg.from), to = node_from_id(msg.to);
   let dur_ms = t_conf.msg_delay ? conf_rtt_from_node(from0, to0)/2 : undefined;
   let rt = msg0.rt, path = rt?.path, msgid;
   if (!msg.req_id)
@@ -886,7 +887,7 @@ function do_autoack(lbuffer, vv){
   if (!dir)
     return;
   if (vv || !path && msg.to==to0.id.s && lbuffer.size()>1){
-    let msg2 = {msgid, to: from0.id.s, from: to0.id.s, type: 'ack',
+    let msg2 = {msgid, to: from.id.s, from: to.id.s, type: 'ack',
       req_id: msg.req_id, seq: msg.seq, dir, vv: true};
     let lbuffer2 = new LBuffer(msg2);
     let path2 = Array.from(lbuffer.path());
@@ -1395,7 +1396,7 @@ function cmd_test_rtt(s, arg){
   assert(state_o[dir], 'req not found '+arg);
   assert(state_o[dir][seq], 'req not found '+arg);
   let seq_o = node.router.state[id][dir][seq];
-  assert.equal(seq_o.rtt, rtt, 'rtt mismatch');
+  assert.equal(seq_o.rtt, rtt, 'rtt mismatch '+s+' '+arg);
 }
 
 function cmd_test_time(c, arg){
@@ -4791,63 +4792,51 @@ describe('peer-relay', function(){
       50ms ab<ping_r(id:2.0) ab<*ping_r a#ab>close(>2.0vv)
       a#rtt(>2.0 100) 50ms b#rtt(<2.0 100) a#rtt(b:100) b#rtt(a:100)
     `);
-    t('2_nodes_manualack', `mode(msg)
+    t('2_nodes_manualack_auto_time', `
       conf(auto_time msg_delay !autoack a-b rtt:200) ab>!connect() #ms
       ab>!ping(id:1 !!) #0ms
-      ab>ping(id:1.0) #100ms
-      ab<ack(id:>1.0 vv) + ab<ping_r(id:1.0) #100ms
-      ab>ack(id:<1.0 vv) #100ms`);
-    t('xxx2', `mode(msg)
-      conf(auto_time msg_delay !autoack a-b rtt:200) ab>!connect() #ms
-      ab>!ping(id:1 !!) #0ms
-      +100ms ab>ping(id:1.0) #100ms
-      +100ms ab<ack(id:>1.0 vv) + ab<ping_r(id:1.0) #100ms a#rtt(>1.0 200)
-      +100ms ab>ack(id:<1.0 vv) #100ms b#rtt(<1.0 200)`);
-    t('zzz1', `mode(msg)
-      conf(msg_delay !autoack a-b rtt:200) ab>!connect() #ms
-      ab>!ping(id:1 !!) #0ms
-      100ms ab>ping(id:1.0) #100ms
-      100ms ab<ack(id:>1.0 vv) ab<ping_r(id:1.0) // #100ms a#rtt(>1.0 200)
-      100ms ab>ack(id:<1.0 vv) // #100ms b#rtt(<1.0 200)`);
+      ab>ping(id:1.0) ab>*ping #100ms
+      ab<ack(id:>1.0 vv) + ab<ping_r(id:1.0) ab<*ping_r #100ms
+      a#rtt(>1.0 200) +100ms ab>ack(id:<1.0 vv) #100ms b#rtt(<1.0 200)`);
+    t('2_nodes_manualack_manual_time', ` conf(msg_delay !autoack a-b rtt:200)
+      ab>!connect() #ms ab>!ping(id:1 !!) #0ms 100ms ab>ping(id:1.0)
+      ab>*ping #100ms 100ms ab<ack(id:>1.0 vv) ab<ping_r(id:1.0) ab<*ping_r
+      a#rtt(>1.0 200) 100ms ab>ack(id:<1.0 vv) b#rtt(<1.0 200)`);
     t = (name, test)=>t_roles(name, 'abc', test);
     // XXX: test abc>!ping #400ms
     // XXX BUG: rtt is updaed wrongly because of they way conf works
-    t('3_nodes_autoack', `
-      conf(auto_time msg_delay a-d rtt:200) !ring(a-d) #ms
-      ac>!ping(id:1 !!) #0ms
-      ab:ac>ping(id:1.0) #100ms
-      bc:ab:ac>ping(id:1.0) ac>*ping #100ms
-      bc[a]:ac<ping_r(id:1.0) #100ms
-      ab:bc[a]:ac<ping_r(id:1.0) ac<*ping_r #100ms
-      a#rtt(b:200) b#rtt(a:200) b#rtt(c:200) c#rtt(b:200)
-      conf(rtt:100)
-      ac>!ping(id:2 !!) #0ms
-      ab[c]:ac>ping(id:2.0) #50ms
-      a#rtt(b:200) b#rtt(a:100) b#rtt(c:200) c#rtt(b:200)
-      bc:ab[c]:ac>ping(id:2.0) ac>*ping #50ms
-      a#rtt(b:100) b#rtt(a:100) b#rtt(c:200) c#rtt(b:100)
-      bc[a]:ac<ping_r(id:2.0) #50ms
+    t('3_nodes_autoack_auto_time', `conf(auto_time msg_delay a-d rtt:200)
+      !ring(a-d) #ms ac>!ping(id:1 !!) #0ms ab:ac>ping(id:1.0) #100ms
+      bc:ab:ac>ping(id:1.0) ac>*ping #100ms bc[a]:ac<ping_r(id:1.0) #100ms
+      ab:bc[a]:ac<ping_r(id:1.0) ac<*ping_r #100ms a#rtt(b:200) b#rtt(a:200)
+      b#rtt(c:200) c#rtt(b:200) conf(rtt:100) ac>!ping(id:2 !!) #0ms
+      ab[c]:ac>ping(id:2.0) #50ms a#rtt(b:200) b#rtt(a:100) b#rtt(c:200)
+      c#rtt(b:200) bc:ab[c]:ac>ping(id:2.0) ac>*ping #50ms a#rtt(b:100)
+      b#rtt(a:100) b#rtt(c:200) c#rtt(b:100) bc[a]:ac<ping_r(id:2.0) #50ms
       a#rtt(b:100) b#rtt(a:100) b#rtt(c:100) c#rtt(b:100)
-      ab:bc[a]:ac<ping_r(id:2.0) ac<*ping_r #50ms
-      a#rtt(b:100) b#rtt(a:100) b#rtt(c:100) c#rtt(b:100)
-    `);
-    t('3_nodes_autoack2', `mode(msg)
+      ab:bc[a]:ac<ping_r(id:2.0) ac<*ping_r #50ms a#rtt(b:100) b#rtt(a:100)
+      b#rtt(c:100) c#rtt(b:100)`);
+/*
+    t('3_nodes_autoack_auto_time_multi_rtt', `
       conf(auto_time msg_delay a-d rtt(200 bc:20)) !ring(a-d) #ms
-      ac>!ping(id:1 !!) #0ms
-      ab:ac>ping(id:1.0) #100ms
-      bc:ab:ac>ping(id:1.0) #10ms
-      bc[a]:ac<ping_r(id:1.0) #10ms
-      ab:bc[a]:ac<ping_r(id:1.0) #100ms`);
-    t('3_nodes_manualack', `mode(msg)
+      ac>!ping(id:1 !!) #0ms ab:ac>ping(id:1.0) #100ms bc:ab:ac>ping(id:1.0)
+      ac>*ping #10ms bc[a]:ac<ping_r(id:1.0) #10ms ab:bc[a]:ac<ping_r(id:1.0)
+      ac<*ping_r #100ms
+      a#rtt(>1.0 200) b#rtt(>1.0 20) c#rtt(>1.0 0)
+      100ms a#rtt(<1.0 0) b#rtt(<1.0 200) c#rtt(<1.0 20)`);
+*/
+    t('3_nodes_manualack_auto_time', `
       conf(!autoack auto_time msg_delay a-d rtt:200) !ring(a-d) #ms
       ac>!ping(id:1 !!) #0ms
       ab:ac>ping(id:1.0) #100ms
-      ab<ack(id:>1.0) + bc:ab:ac>ping(id:1.0) #100ms
+      ab<ack(id:>1.0) + bc:ab:ac>ping(id:1.0) ac>*ping #100ms
       bc[a]:ac<ack(id:>1.0 vv) + bc[a]:ac<ping_r(id:1.0) #100ms
       ab:bc[a]:ac<ack(id:>1.0 vv) + bc>ack(id:<1.0)
-      + ab:bc[a]:ac<ping_r(id:1.0) #100ms
+      + ab:bc[a]:ac<ping_r(id:1.0) ac<*ping_r #100ms
       ab[c]:ac>ack(id:<1.0 vv) #100ms
-      bc:ab[c]:ac>ack(id:<1.0 vv) #100ms`);
+      bc:ab[c]:ac>ack(id:<1.0 vv) #100ms
+      a#rtt(>1.0 200) b#rtt(>1.0 200) c#rtt(>1.0 0)
+      a#rtt(<1.0 0) b#rtt(<1.0 200) c#rtt(<1.0 200)`);
     // XXX derry:
     // 1. chnage +100ms --> @100ms --> 100ms
     // 2. I test when event is recieved (so order of events is different)

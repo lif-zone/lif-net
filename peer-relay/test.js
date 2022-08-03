@@ -4840,16 +4840,16 @@ describe('peer-relay', function(){
     // XXX: check 0ms and - behavior and verify they work welll
     // XXX: add mode:req to tests
     // XXX REVIEW: +70ms, +20ms
-    t('3_nodes_manualack_auto_time_multi_rtt', `mode(msg)
+    t('3_nodes_manualack_auto_time_multi_rtt', `
       conf(!autoack auto_time msg_delay a-d rtt(200 bc:20)) !ring(a-d) #ms
       ac>!ping(id:1 !!) #0ms
       ab:ac>ping(id:1.0) #100ms
-      bc:ab:ac>ping(id:1.0) #10ms
+      bc:ab:ac>ping(id:1.0) ac>*ping #10ms
       bc[a]:ac<ack(id:>1.0 vv) + bc[a]:ac<ping_r(id:1.0) #10ms
       bc>ack(id:<1.0) #10ms
       +70ms ab<ack(id:>1.0) #70ms
-      +20ms ab:bc[a]:ac<ack(id:>1.0 vv) + ab:bc[a]:ac<ping_r(id:1.0) #20ms
-      ab[c]:ac>ack(id:<1.0 vv) #100ms
+      +20ms ab:bc[a]:ac<ack(id:>1.0 vv) + ab:bc[a]:ac<ping_r(id:1.0)
+      ac<*ping_r #20ms ab[c]:ac>ack(id:<1.0 vv) #100ms
       bc:ab[c]:ac>ack(id:<1.0 vv) #10ms
       a#rtt(>1.0 200) b#rtt(>1.0 20) c#rtt(>1.0 0)
       a#rtt(<1.0 0) b#rtt(<1.0 200) c#rtt(<1.0 20)`);

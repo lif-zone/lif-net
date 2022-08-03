@@ -4797,7 +4797,7 @@ describe('peer-relay', function(){
       ab>!ping(id:1 !!) #0ms
       ab>ping(id:1.0) ab>*ping #100ms
       ab<ack(id:>1.0 vv) + ab<ping_r(id:1.0) ab<*ping_r #100ms
-      a#rtt(>1.0 200) +100ms ab>ack(id:<1.0 vv) #100ms b#rtt(<1.0 200)`);
+      a#rtt(>1.0 200) ab>ack(id:<1.0 vv) #100ms b#rtt(<1.0 200)`);
     t('2_nodes_manualack_manual_time', ` conf(msg_delay !autoack a-b rtt:200)
       ab>!connect() #ms ab>!ping(id:1 !!) #0ms 100ms ab>ping(id:1.0)
       ab>*ping #100ms 100ms ab<ack(id:>1.0 vv) ab<ping_r(id:1.0) ab<*ping_r
@@ -4875,30 +4875,25 @@ describe('peer-relay', function(){
       100ms ab[c]:ac>ack(id:<1.0 vv) 10ms bc:ab[c]:ac>ack(id:<1.0 vv)
       a#rtt(>1.0 200) b#rtt(>1.0 20) c#rtt(>1.0 0)
       a#rtt(<1.0 0) b#rtt(<1.0 200) c#rtt(<1.0 20)`);
-    t('xxx4', `mode(msg)
-      conf(!autoack auto_time msg_delay a-d rtt(200 bc:20))
-      !ring(a-d) #ms
-      ac>!ping(id:1 !!) #0ms
-      +100ms ab:ac>ping(id:1.0) #100ms
-      +10ms bc:ab:ac>ping(id:1.0) #10ms
-      +10ms bc[a]:ac<ack(id:>1.0 vv) + bc[a]:ac<ping_r(id:1.0) #10ms
-      +10ms bc>ack(id:<1.0) #10ms
-      +70ms ab<ack(id:>1.0) // a#rtt(>1.0 200) // #70ms
-      +20ms ab:bc[a]:ac<ack(id:>1.0 vv) + ab:bc[a]:ac<ping_r(id:1.0) // #20ms
-      +100ms ab[c]:ac>ack(id:<1.0 vv) // #100ms
-      +10ms bc:ab[c]:ac>ack(id:<1.0 vv) // #10ms`);
-    t('3_nodes_parallel', `mode(msg)
+    t('3_nodes_parallel_autoack_auto_time', `
       conf(auto_time msg_delay a-d rtt:200) !ring(a-d) #ms
       ac>!ping(id:1 !!) #0ms
       50ms ac>!ping(id:2 !!) #50ms
       +50ms ab:ac>ping(id:1.0) #50ms
       +50ms ab:ac>ping(id:2.0) #50ms
-      +50ms bc:ab:ac>ping(id:1.0) #50ms
-      +50ms bc:ab:ac>ping(id:2.0) #50ms
+      +50ms bc:ab:ac>ping(id:1.0) ac>*ping(id:1.0) #50ms
+      +50ms bc:ab:ac>ping(id:2.0) ac>*ping(id:2.0) #50ms
       +50ms bc[a]:ac<ping_r(id:1.0) #50ms
       +50ms bc[a]:ac<ping_r(id:2.0) #50ms
-      +50ms ab:bc[a]:ac<ping_r(id:1.0) #50ms
-      +50ms ab:bc[a]:ac<ping_r(id:2.0) #50ms`);
+      +50ms ab:bc[a]:ac<ping_r(id:1.0) ac<*ping_r(id:1.0) #50ms
+      +50ms ab:bc[a]:ac<ping_r(id:2.0) ac<*ping_r(id:2.0) #50ms`);
+    t('3_nodes_parallel_autoack_manual_time', `
+      conf(msg_delay a-d rtt:200) !ring(a-d) #ms ac>!ping(id:1 !!)
+      50ms ac>!ping(id:2 !!) 50ms ab:ac>ping(id:1.0) 50ms ab:ac>ping(id:2.0)
+      50ms bc:ab:ac>ping(id:1.0) ac>*ping(id:1.0) 50ms bc:ab:ac>ping(id:2.0)
+      ac>*ping(id:2.0) 50ms bc[a]:ac<ping_r(id:1.0)
+      50ms bc[a]:ac<ping_r(id:2.0) 50ms ab:bc[a]:ac<ping_r(id:1.0)
+      ac<*ping_r(id:1.0) 50ms ab:bc[a]:ac<ping_r(id:2.0) ac<*ping_r(id:2.0)`);
     // XXX test fuzzy
     if (true) return; // XXX: TODO
     // XXX: add time for connect as well

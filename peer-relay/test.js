@@ -1072,7 +1072,6 @@ function fake_emit(c, msg){
     msg.seq = 0;
   assert(!c.fwd, 'fwd not allowed in fake_emit');
   assert(msg.req_id, 'missing req_id');
-  track_msg(new LBuffer(msg)); // XXX: rm track_msg from fake_emit
   if (!d.t.fake)
   {
     let lbuffer = new LBuffer(msg); // XXX WIP
@@ -4839,7 +4838,15 @@ describe('peer-relay', function(){
     // ab>ws_connect ab>msg(id_a) ab<msg(id_b) // both send ack
     // XXX: check 0ms and - behavior and verify they work welll
     // XXX: add mode:req to tests
+    // allow to change auto/manual time in test
     // XXX REVIEW: +70ms, +20ms
+    /* XXX TODO:
+      t('connect', `
+        ab>connect(!!)
+        // XXX: I don't test ws open/accept connection
+        100ms ab>msg(type:connect) ab<msg(type:connect)
+        100ms ab>ack ab<ack
+    */
     t('3_nodes_manualack_auto_time_multi_rtt', `
       conf(!autoack auto_time msg_delay a-d rtt(200 bc:20)) !ring(a-d) #ms
       ac>!ping(id:1 !!) #0ms

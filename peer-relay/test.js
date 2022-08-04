@@ -4814,7 +4814,8 @@ describe('peer-relay', function(){
       b#rtt(a:100) b#rtt(c:200) c#rtt(b:100) bc[a]:ac<ping_r(id:2.0) #50ms
       a#rtt(b:100) b#rtt(a:100) b#rtt(c:100) c#rtt(b:100)
       ab:bc[a]:ac<ping_r(id:2.0) ac<*ping_r #50ms a#rtt(b:100) b#rtt(a:100)
-      b#rtt(c:100) c#rtt(b:100)`);
+      b#rtt(c:100) c#rtt(b:100)
+    `);
     t('3_nodes_autoack_auto_time_multi_rtt', `
       conf(auto_time msg_delay a-d rtt(200 bc:20)) !ring(a-d) #ms
       ac>!ping(id:1 !!) #0ms ab:ac>ping(id:1.0) #100ms bc:ab:ac>ping(id:1.0)
@@ -4901,6 +4902,11 @@ describe('peer-relay', function(){
       ac>*ping(id:2.0) 50ms bc[a]:ac<ping_r(id:1.0)
       50ms bc[a]:ac<ping_r(id:2.0) 50ms ab:bc[a]:ac<ping_r(id:1.0)
       ac<*ping_r(id:1.0) 50ms ab:bc[a]:ac<ping_r(id:2.0) ac<*ping_r(id:2.0)`);
+    t('3_nodes_shortcut_autotime', `conf(auto_time msg_delay a-d rtt:200)
+      !ring(a-d) #ms ab.c>!ping #400ms`);
+    if (0) // XXX derry: support it?
+    t('3_nodes_shortcut_manual_time', `conf(msg_delay a-d rtt:200) !ring(a-d)
+      #ms 400ms ab.c>!ping`);
     // XXX test fuzzy
     if (true) return; // XXX: TODO
     // XXX: add time for connect as well

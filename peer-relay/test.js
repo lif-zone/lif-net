@@ -1579,10 +1579,6 @@ function cmd_node(opt){
   t_ids[node.id.s] = node;
 }
 
-// ab>!connect(wss) ab>http_get(upgrade(ws)) ab<http_resp(101)
-// ab<tcp_send(b.id) ab>tcp_send(a.id) -
-// once a gets b.id, it emits 'connection' - we emit ab>connect
-// once b gets a.id, it emits 'connection' - we emit ab<connected
 const cmd_connect = opt=>etask(function*(){
   let {c} = opt, s = N(c.s), d = N(c.d);
   let event = shift_event(c);
@@ -1596,6 +1592,7 @@ const cmd_connect = opt=>etask(function*(){
     default: assert(0, 'unknown arg '+a.cmd);
     }
   });
+  assert(e || call, '!! can only be used in !connect');
   assert(d, 'unknown node '+c.d);
   assert(!node_get_channel(c.s, c.d), 'connection already exists '+c.s+c.d);
   if (!wss && !wrtc && xutil.xor(support_wss(d), support_wrtc(d))){
@@ -1607,14 +1604,14 @@ const cmd_connect = opt=>etask(function*(){
   if (t_pre_process){
     if (call)
     {
-      if (e)
-        push_cmd(build_cmd(c.s+c.d+'>connect', wss&&'wss', wrtc&&'wrtc'));
-      set_orig(c, build_cmd(dir_c(c)+c.cmd, wss&&'wss', wrtc&&'wrtc', '!!'));
-    } else {
-      if (e)
-          push_cmd(c.s+c.d+'<connected');
+      if (e){
+        push_cmd(build_cmd(c.s+c.d+'>connect', wss&&'wss', wrtc&&'wrtc')+ ' '+
+          c.s+c.d+'<connected');
+      }
       set_orig(c, build_cmd(dir_c(c)+c.cmd, wss&&'wss', wrtc&&'wrtc', '!!'));
     }
+    else
+      set_orig(c, build_cmd(dir_c(c)+c.cmd, wss&&'wss', wrtc&&'wrtc'));
     return;
   }
   if (call){
@@ -3443,7 +3440,7 @@ describe('peer-relay', function(){
         _t('', 's=node(wss)', `s=node(wss)`);
         _t('', 's=node(wss) // XXX', `s=node(wss) // XXX`, true);
         _t('a=node(wss) b=node(wss)', `s=node(wss) // XXX XXX(2)(
-          ab>connect(!!)`, `s=node(wss) // XXX XXX(2)(\r ab>connect(wss !!)`,
+          ab>connect`, `s=node(wss) // XXX XXX(2)(\r ab>connect(wss)`,
           true);
         t('bc>fwd(ab>msg(body:x))', `bc>fwd(ab>msg(body(x)))`);
         t('bc:ab>msg(body:x)', `bc>fwd(ab>msg(body(x)))`);
@@ -3645,13 +3642,11 @@ describe('peer-relay', function(){
         _t('', 'x,y=node:wss', `x=node(wss) y=node(wss)`);
         t('ab,bc>!connect', `ab>!connect bc>!connect`);
         describe('connect', function(){
-          t('ab>connect(wss !!)', `ab>connect(wss !!)`);
-          t('ab>connect(!!)', `ab>connect(wss !!)`);
-          t('ab>connect', `ab>connect(wss !!) ab<connected`);
+          t('ab>connect(wss)', `ab>connect(wss)`);
+          t('ab>connect', `ab>connect(wss)`);
           t('ab>!connect(wss !!)', `ab>!connect(wss !!)`);
           t('ab>!connect(!!)', `ab>!connect(wss !!)`);
-          t('ab>!connect', `ab>!connect(wss !!) ab>connect(wss !!)
-            ab<connected`);
+          t('ab>!connect', `ab>!connect(wss !!) ab>connect(wss) ab<connected`);
         });
         describe('ring', function(){
           t('!ring(a-c)', `ab>!connect bc>!connect ca>!connect`);
@@ -4078,7 +4073,7 @@ describe('peer-relay', function(){
     describe('connect', ()=>{
       let t = (name, test)=>t_roles(name, 'ab', test);
       t('2_nodes_long', `a=node(id:10) b=node(id:20 wss) - ab>!connect:!!
-        ab>connect(wss !!) ab<connected`);
+        ab>connect(wss) ab<connected`);
       t('2_nodes_short', `a=node(id:10) b=node(id:20 wss) - ab>!connect`);
       if (!Node.t.xxx_wip)
         return;
@@ -4395,24 +4390,24 @@ describe('peer-relay', function(){
     });
     describe('2_nodes', ()=>{
       t('msg', `mode:msg a=node b=node(wss(port:4000)) ab>!connect(wss !!)
-        ab>connect(wss !!) ab<connected -
+        ab>connect(wss) ab<connected -
         ab>!req(id:0 body:ping res:ping_r !!)
         ab>msg(type:req id:0 body:ping) ab<msg(type:res id:0 body:ping_r)`);
       t('msg,req', `mode(msg req) a=node b=node(wss(port:4000))
-        ab>!connect(wss !!) ab>connect(wss !!) ab<connected -
+        ab>!connect(wss !!) ab>connect(wss) ab<connected -
         ab>!req(id:0 body:ping res:ping_r !!) ab>msg(type:req id:0 body:ping)
         ab>*req(id:0 body:ping) ab<msg(type:res id:0 body:ping_r)
         ab<*res(id:0 body:ping_r)`);
     });
     describe('3_nodes', ()=>{
       t('msg', `
-        mode:msg a=node b=node(wss) ab>!connect(wss !!) ab>connect(wss !!)
-        ab<connected - c=node(wss) bc>!connect(wss !!) bc>connect(wss !!)
+        mode:msg a=node b=node(wss) ab>!connect(wss !!) ab>connect(wss)
+        ab<connected - c=node(wss) bc>!connect(wss !!) bc>connect(wss)
         bc<connected - rt_add(a:bc) abc>!req(id:0 body:ping res:ping_r)`);
       t('msg,req', `
         mode(msg req) a=node b=node(wss) ab>!connect(wss !!)
-        ab>connect(wss !!) ab<connected - c=node(wss) bc>!connect(wss !!)
-        bc>connect(wss !!) bc<connected - rt_add(a:bc)
+        ab>connect(wss) ab<connected - c=node(wss) bc>!connect(wss !!)
+        bc>connect(wss) bc<connected - rt_add(a:bc)
         abc>!req(id:0 body:ping res:ping_r)`);
     });
     describe('failure', ()=>{
@@ -4753,7 +4748,7 @@ describe('peer-relay', function(){
   describe('2_nodes_ws', function(){
     const t = (name, test)=>t_roles(name, 'ab', test);
     t('long', `a=node b=node(wss(port:4000)) ab>!connect(wss !!)
-      ab>connect(wss !!) ab<connected`);
+      ab>connect(wss) ab<connected`);
     t('short', `a=node b=node(wss) ab>!connect`);
     t('msg', `mode:msg setup:2_nodes ab>!req(id:0 body:ping res:ping_r)
       ab<!req(id:1 body:ping res:ping_r)`);

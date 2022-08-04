@@ -1555,6 +1555,7 @@ function cmd_node(opt){
   else
     id = t_conf.node_ids[name];
   assert(id, 'no id for '+name);
+  assert(!t_ids[id.s], name+' id already used by '+t_ids[id.s]?.t.name);
   let fake = is_fake(name);
   key = {pub: id.b, priv: '00'};
   assert(!wss || !node_from_url(wss.url), wss?.url+' already used');
@@ -2698,6 +2699,10 @@ if (!xutil.is_inspect())
   beforeEach(function(){ xerr.set_buffered(true, 1000); });
 
 afterEach(function(){
+  if (this.currentTest.timedOut){
+    xerr.notice(this.currentTest.err.stack);
+    assert.fail('timeout');
+  }
   xerr.clear();
   xerr.set_buffered(false);
 });
@@ -4046,6 +4051,14 @@ describe('peer-relay', function(){
       t('2_nodes_long', `a=node(id:10) b=node(id:20 wss) - ab>!connect:!!
         ab>connect(wss !!) ab<connected`);
       t('2_nodes_short', `a=node(id:10) b=node(id:20 wss) - ab>!connect`);
+      if (0) // XXX: WIP
+      t('connect', `a=node(id:10 wss) b=node(id:20 wss)
+        ab>!connect(!!)
+        // XXX: I don't test ws low-level connect/accept
+        // ab>http_req ab<http_res(101 upgrade ws-accept) ab>tcp_conn
+        ab>msg(type:connect) ab<msg(type:connect)
+        ab>ack ab<ack
+        `);
     });
     describe('ping', ()=>{
       let t = (name, test)=>t_roles(name, 'ab', test);
@@ -4845,7 +4858,10 @@ describe('peer-relay', function(){
     // XXX: check 0ms and - behavior and verify they work welll
     // XXX: add mode:req to tests
     // allow to change auto/manual time in test
-    // XXX REVIEW: +70ms, +20ms
+    // XXX derry:
+    // 1. review: +70ms, +20ms
+    // 2. review abc>!ping shortcut
+    // 3. connect flow
     /* XXX TODO:
       t('connect', `
         ab>connect(!!)
@@ -4879,7 +4895,8 @@ describe('peer-relay', function(){
       a#rtt(<1.0 0) b#rtt(<1.0 200) c#rtt(<1.0 200)`);
     t('3_nodes_manualack_manual_time_multi_rtt', `
       conf(!autoack msg_delay a-d rtt(200 bc:20)) !ring(a-d) #ms
-      ac>!ping(id:1 !!) 100ms ab:ac>ping(id:1.0)
+      ac>!ping(id:1 !!)
+      100ms ab:ac>ping(id:1.0)
       10ms bc:ab:ac>ping(id:1.0) ac>*ping
       10ms bc[a]:ac<ack(id:>1.0 vv) bc[a]:ac<ping_r(id:1.0)
       10ms bc>ack(id:<1.0)
@@ -4910,6 +4927,7 @@ describe('peer-relay', function(){
     t('3_nodes_shortcut_autotime', `conf(auto_time msg_delay a-d rtt:200)
       !ring(a-d) #ms ab.c>!ping #400ms`);
     if (0) // XXX derry: support it?
+    // 100ms ab:ac>ping 100ms bc:ab:ac>ping ...
     t('3_nodes_shortcut_manual_time', `conf(msg_delay a-d rtt:200) !ring(a-d)
       #ms 400ms ab.c>!ping`);
     // XXX test fuzzy

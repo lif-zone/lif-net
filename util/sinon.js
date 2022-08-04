@@ -4,6 +4,7 @@ import sinon from 'sinon';
 import etask from './etask.js';
 import xutil from './util.js';
 import date from './date.js';
+import xerr from './xerr.js';
 import events from './events.js';
 
 const E = {};
@@ -34,8 +35,10 @@ function auto_inc(){
     if (!clock)
       return;
     var next = clock.firstTimerInRange(clock.now, Number.MAX_VALUE);
-    if (next)
+    if (next){
+        xerr.notice('time auto_inc %s', next.callAt-clock.now);
         clock_tick.call(clock, next.callAt-clock.now);
+    }
 }
 
 function idle_clear(){

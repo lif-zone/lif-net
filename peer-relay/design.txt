@@ -14,6 +14,7 @@ VP:
     - make msg_delay the default
     - fix bug in req state handling (it doesn't use ack)
       ack:3_nodes_manual ack:3_nodes_auto
+    - review all tests and add msg_delay
   - calc rtt from ack packets - each packet takes conn-rtt time to arrive
     destination.
     + add #1ms api for testing Date.now()

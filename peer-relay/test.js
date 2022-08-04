@@ -1563,7 +1563,7 @@ function cmd_node(opt){
     {keys: {priv: s2b(key.priv), pub: s2b(key.pub)}, bootstrap, wrtc},
     wss));
   node.t = {id: node.id.s, name, fake, wss};
-  xerr.notice('id %s:%s', name, node.id.s);
+  xerr.notice('new node %s id %%s', name, node.id.s);
   t_nodes[name] = node;
   t_ids[node.id.s] = node;
 }
@@ -2009,13 +2009,11 @@ const cmd_msg = opt=>etask(function*cmd_msg(){
 let t_sleep;
 const test_sleep = ms=>etask(function*test_sleep(){
   assert(t_conf.auto_time, 'test_sleep only can be called in auto_time');
-  xerr.notice('*** test_sleep %s', ms);
   let et = etask.sleep(ms);
   t_sleep.push(et);
   yield et;
   let i = t_sleep.indexOf(et);
   t_sleep.splice(i, 1);
-  xerr.notice('*** test_sleep %s DONE', ms);
   let wait = t_pause;
   t_pause = null;
   if (wait)
@@ -2540,9 +2538,9 @@ const cmd_run = ()=>etask(function*cmd_run(){
     return;
   t_i++;
   t_depth++;
-  xerr.notice('%scmd %s: %s%s orig %s', ' '.repeat(t_depth), t_i,
+  xerr.notice('%scmd %s: %s%s', ' '.repeat(t_depth), t_i,
     c.s ? build_cmd(c.s+c.d+'>'+c.cmd, c.arg) : c.orig,
-    t_event.length ? ' event '+events_str() : '', c.orig);
+    t_event.length ? ' event '+events_str() : '');
   if (t_conf.auto_time){
     let pre = prev_plus;
     prev_plus = c.cmd[0]=='+';
@@ -2554,6 +2552,7 @@ const cmd_run = ()=>etask(function*cmd_run(){
       }
       if (t_pre_process) // XXX HACK
         t_cmds_processed.push(assign({}, c));
+      t_depth--;
       return;
     } else if (!pre){
       if (!t_pre_process && prev_plus_ts && prev_plus_ms)
@@ -2691,6 +2690,7 @@ const test_end = ()=>etask(function*(){
   assert(!t_sleep.length, 'pending sleep');
   assert(!t_pause, 'test is paused');
   assert(!is_sleeping(), 'still sleeping');
+  assert.equal(t_depth, 0, 'invalid t_depth');
   xerr.notice('*** test_done');
   xtest.xerr_level(xerr.L.ERR);
 });

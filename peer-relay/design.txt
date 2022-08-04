@@ -9,6 +9,8 @@ VP:
     - add mode:req to tests
     - try to remove all calls to cmd_run (and handle events properly)
     - add test failures with ms to verify it all works properly
+    - in auto-time, add test to verify time is correct after event
+    - change push_event to recieve expected ts for event
     - change timeout from 20s to 10s
     - add node ring_join with msg_delay
     - make msg_delay the default

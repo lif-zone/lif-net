@@ -27,6 +27,8 @@ const s2b = buf_util.buf_from_str;
 const stringify = JSON.stringify, is_number = xutil.is_number;
 const DEF_RTT = 100;
 
+Node.t.xxx_wip = false; // XXX: rm
+
 function get_fuzzy(name){ return name && name[0]=='~' ? name[0] : ''; }
 function N(name, opt){
   opt = opt||{};
@@ -574,6 +576,8 @@ function assert_missing_event(c, expected){
 }
 
 function test_on_connection(channel){
+  if (Node.t.xxx_wip)
+    return;
   let s = node_from_id(channel.local_id.s), d = node_from_id(channel.id.s);
   if (channel.t.initiaor){
     assert(!s.t.fake, 'src must be real');
@@ -801,6 +805,7 @@ class FakeChannel extends EventEmitter {
       case 'conn_info': body= ''; break;
       case 'ring_join': body= ''; break;
       case 'ping': body= ''; break;
+      case 'connect': body= ''; break;
       case '': break;
       default: assert(0, 'invalid cmd '+cmd);
       }
@@ -818,9 +823,15 @@ class FakeChannel extends EventEmitter {
       'res_next', 'req_end', 'res_end', 'ack'].includes(type),
       'unexpected msg type '+type);
     }
-    e = build_cmd_o(from.t.name+fuzzy+to.t.name+'>msg',
-      {id: req_id, type, cmd, seq, ack: ack && ack.join(','), dir, vv,
-      body});
+    // XXX HACK: try to rm ack_connect
+    let ack_connect = t_msg[msg.req_id]?.cmd=='connect';
+    if (ack_connect)
+      e = build_cmd_o(from.t.name+fuzzy+to.t.name+'>msg', {type, body});
+    else {
+      e = build_cmd_o(from.t.name+fuzzy+to.t.name+'>msg',
+        {id: req_id, type, cmd, seq, ack: ack && ack.join(','), dir, vv,
+        body});
+    }
     if (fwd){
       let path = [msg.from];
       let i = lbuffer.size()-2;
@@ -841,7 +852,7 @@ class FakeChannel extends EventEmitter {
     if (msg.type!='ack') // XXX: review
       t_msgid[msgid_hash(msg)] = msg.msgid;
     track_msg(lbuffer);
-    if (msg.type=='ack' && !t_conf.no_autoack)
+    if (msg.type=='ack' && !t_conf.no_autoack && !ack_connect)
       return;
     assert(!from0.t.fake);
     if (t_conf.msg_delay)
@@ -881,7 +892,7 @@ function do_autoack(lbuffer, vv){
   let from = node_from_id(msg.from), to = node_from_id(msg.to);
   let dur_ms = t_conf.msg_delay ? conf_rtt_from_node(from0, to0)/2 : undefined;
   let rt = msg0.rt, path = rt?.path, msgid;
-  if (!msg.req_id)
+  if (!msg.req_id || msg.cmd=='connect')
     return;
   let dir = Router.type_to_dir(msg.type);
   if (!dir)
@@ -1613,6 +1624,13 @@ const cmd_connect = opt=>etask(function*(){
         yield s.wsConnector.connect(wss);
       else if (wrtc)
         yield s.wrtcConnector.connect(d.id.b);
+    } else if (Node.t.xxx_wip){
+      let channel = new FakeChannel({local_id: d.id, id: s.id});
+      if (wss)
+        channel.wsConnector = d.wsConnector;
+      else
+        channel.wrtcConnector = d.wrtcConnector;
+      yield d._onConnection(channel);
     }
   } else {
     if (s.t.fake && d.t.fake)
@@ -1945,11 +1963,15 @@ const cmd_msg = opt=>etask(function*cmd_msg(){
       '\ngot:\n'+event);
     event = event||shift_event(c);
     if (!event){
-      assert(!t_pending, 'already pending');
-      xerr.notice('cmd_msg set t_pending t_i %s c.orig %s c.fwd %s',
-        t_i, c.orig, c.fwd);
-      t_pending = etask.wait();
-      yield t_pending;
+      if (t_pending){
+        xerr.notice('already pending for event');
+        yield this.wait_ext(t_pending);
+      } else {
+        xerr.notice('cmd_msg set t_pending t_i %s c.orig %s c.fwd %s',
+          t_i, c.orig, c.fwd);
+        t_pending = etask.wait();
+        yield t_pending;
+      }
       event = shift_event(c);
     }
   }
@@ -1977,6 +1999,7 @@ const cmd_msg = opt=>etask(function*cmd_msg(){
     case 'conn_info': break;
     case 'ring_join': break;
     case 'ping': break;
+    case 'connect': break;
     case '': break;
     default: assert(0, 'invalid cmd '+cmd);
     }
@@ -2521,7 +2544,8 @@ function expand_loop_repeat(c){
 let t_depth = 0;
 let prev_plus, prev_plus_ms, prev_plus_ts;
 const cmd_run = ()=>etask(function*cmd_run(){
-  assert(!t_pending, 'cmd_run while pending with event '+events_str());
+  assert(!t_pending || t_conf.auto_time,
+    'cmd_run while pending with event '+events_str());
   assert(t_cmds && t_i<t_cmds.length, t_event.length ?
     'unexpected event '+events_str() : 'invalid t_i '+t_i+' event');
   let c = t_cmds[t_i];
@@ -2529,7 +2553,7 @@ const cmd_run = ()=>etask(function*cmd_run(){
     return;
   if (t_conf.auto_time){
     if (is_sleeping() && c.cmd!='+' && !prev_plus){
-      xerr.notice('pause test');
+      xerr.notice('pause test'); // XXX: put inside test_pause()
       t_pause = etask.wait();
       return;
     }
@@ -2616,11 +2640,16 @@ const _test_run = (role, cmds)=>etask(function*_test_run(){
   test_start(role);
   t_cmds = cmds;
   for (t_i=0; t_i<t_cmds.length;){
-    if (t_pending) // XXX: is it needed?
+    let skip_pending = false;
+    if (t_conf.auto_time && (t_cmds[t_i].cmd[0]=='+' || prev_plus))
+      skip_pending = true;
+    if (!skip_pending && t_pending)
       yield this.wait_ext(t_pending);
-    else if (t_pause)
+    if (t_pause){
+      if (skip_pending && t_pending);
+        yield this.wait_ext(t_pending);
       yield this.wait_ext(t_pause);
-    else
+    } else
       cmd_run();
   }
   yield test_end();
@@ -4051,14 +4080,19 @@ describe('peer-relay', function(){
       t('2_nodes_long', `a=node(id:10) b=node(id:20 wss) - ab>!connect:!!
         ab>connect(wss !!) ab<connected`);
       t('2_nodes_short', `a=node(id:10) b=node(id:20 wss) - ab>!connect`);
-      if (0) // XXX: WIP
-      t('connect', `a=node(id:10 wss) b=node(id:20 wss)
-        ab>!connect(!!)
-        // XXX: I don't test ws low-level connect/accept
-        // ab>http_req ab<http_res(101 upgrade ws-accept) ab>tcp_conn
-        ab>msg(type:connect) ab<msg(type:connect)
-        ab>ack ab<ack
-        `);
+      if (!Node.t.xxx_wip)
+        return;
+      t('connect_no_time', `a=node(id:10 wss) b=node(id:20 wss)
+        ab>!connect(!!) ab>msg(type:req cmd:connect)
+        ab<msg(type:req cmd:connect) ab>ack ab<ack`);
+      t('connect_manual_time', `conf(msg_delay rtt:200)
+        a=node(id:10 wss) b=node(id:20 wss) ab>!connect(!!)
+        100ms ab>msg(type:req cmd:connect) ab<msg(type:req cmd:connect)
+        100ms ab>ack ab<ack a#rtt(b:100) b#rtt(a:100)`);
+      t('connect_auto_time', `conf(msg_delay auto_time rtt:200)
+        a=node(id:10 wss) b=node(id:20 wss) ab>!connect(!!) #ms
+        ab>msg(type:req cmd:connect) + ab<msg(type:req cmd:connect) #100ms
+        ab>ack + ab<ack #100ms a#rtt(b:100) b#rtt(a:100)`);
     });
     describe('ping', ()=>{
       let t = (name, test)=>t_roles(name, 'ab', test);

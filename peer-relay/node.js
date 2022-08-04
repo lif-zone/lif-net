@@ -68,6 +68,8 @@ export default class Node extends EventEmitter {
     if (util.test_on_connection)
       yield util.test_on_connection(channel);
     _this.emit('peer', NodeId.from(channel.id));
+    if (Node.t.xxx_wip)
+      _this.send_connect(NodeId.from(channel.id));
     return channel;
   });
   connect_wrtc(id){ return this.wrtcConnector.connect(id); }
@@ -126,6 +128,11 @@ export default class Node extends EventEmitter {
     for (var i = 0; i < peers.length; i++)
       peers[i].destroy();
   }
+  send_connect(dst){
+    let req = new Req({node: this, dst, cmd: 'connect'});
+    req.send({close: true}, '');
+    return req;
+  }
   ping(dst, opt){
     opt = opt||{};
     let req = new Req({node: this, dst, req_id: opt.req_id, cmd: 'ping',
@@ -159,3 +166,4 @@ export default class Node extends EventEmitter {
 }
 Node.WsConnector = WsConnector;
 Node.WrtcConnector = WrtcConnector;
+Node.t = {};

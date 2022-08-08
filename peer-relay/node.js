@@ -10,7 +10,6 @@ import ReqHandler from './req_handler.js';
 import Wallet from './wallet.js';
 import WsConnector from './ws.js';
 import WrtcConnector from './wrtc.js';
-import util from '../util/util.js';
 import xerr from '../util/xerr.js';
 import etask from '../util/etask.js';
 const RING_NEIGHBOURS = 8;
@@ -47,8 +46,8 @@ export default class Node extends EventEmitter {
         this.wsConnector.connect(uri);
     });
   }
-  _onConnection = channel=>etask({_: this}, function*_onConnection(){
-    let _this = this._;
+  _onConnection(channel){
+    let _this = this;
     const onClose = ()=>{
       delete _this.pending[channel.id];
       _this.peers.remove(channel.id);
@@ -65,13 +64,10 @@ export default class Node extends EventEmitter {
     }
     _this.peers.add(channel);
     _this.emit('connection', channel);
-    if (util.test_on_connection)
-      yield util.test_on_connection(channel);
     _this.emit('peer', NodeId.from(channel.id));
-    if (Node.t.xxx_wip)
-      _this.send_connect(NodeId.from(channel.id));
+    _this.send_connect(NodeId.from(channel.id));
     return channel;
-  });
+  }
   connect_wrtc(id){ return this.wrtcConnector.connect(id); }
   connect = id=>{
     if (this.destroyed) // XXX: print error (or assert)

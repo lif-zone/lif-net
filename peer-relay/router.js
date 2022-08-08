@@ -104,9 +104,12 @@ export default class Router extends EventEmitter {
         }
       }
     } else {
-      if (channel = this.get_channel_from_path(path)){
+      if (msg.cmd=='connect')
+        channel = this.get_channel_from_id(to);
+      else if (channel = this.get_channel_from_path(path)){
         // XXX WIP
-        if (['req', 'req_start'].includes(msg.type) && rt?.opt!='!'){
+        if (['req', 'req_start'].includes(msg.type) && rt?.opt!='!' &&
+          msg.cmd!='connect'){
           // XXX: copy logic to fuzzy
           let rtt_pb_o = this.id.rtt_pb_via(to,
             NodeId.from(path[path.length-1]), this.calc_path_rtt(path));
@@ -296,10 +299,16 @@ export default class Router extends EventEmitter {
       return;
     let msgid = this.msgid();
     if (vv){
+      // XXX: provide path in rt
       let msg2 = {msgid, to: msg.from, from: this.id.s, type: 'ack',
         req_id: msg.req_id, seq: msg.seq, dir, vv: true};
       // XXX: set rt/path from incoming packet to make sure we do same path
       let lbuffer2 = new LBuffer(msg2);
+      if (msg2.to==channel.id.s){
+        this.ack_pending();
+        this.track(lbuffer2, true);
+        return channel.send(lbuffer2.to_str());
+      }
       return this._send(lbuffer2);
     }
     let msg2 = {msgid, to: channel.id.s, from: this.id.s, type: 'ack',

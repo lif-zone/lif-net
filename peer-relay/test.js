@@ -27,8 +27,6 @@ const s2b = buf_util.buf_from_str;
 const stringify = JSON.stringify, is_number = xutil.is_number;
 const DEF_RTT = 100;
 
-Node.t.xxx_wip = false; // XXX: rm
-
 function get_fuzzy(name){ return name && name[0]=='~' ? name[0] : ''; }
 function N(name, opt){
   opt = opt||{};
@@ -575,19 +573,6 @@ function assert_missing_event(c, expected){
   }
 }
 
-function test_on_connection(channel){
-  if (Node.t.xxx_wip)
-    return;
-  let s = node_from_id(channel.local_id.s), d = node_from_id(channel.id.s);
-  if (channel.t.initiaor){
-    assert(!s.t.fake, 'src must be real');
-    push_event(build_cmd(s.t.name+d.t.name+'>connect',
-      channel.wsConnector ? 'wss' : 'wrtc'));
-    push_event(s.t.name+d.t.name+'<connected');
-  } else
-    push_event(d.t.name+s.t.name+'<connected');
-}
-
 // XXX: unite with track_msg
 function track_seq_req(s, d, id, cmd, type, seq, call){
   if (!t_req[id])
@@ -692,7 +677,7 @@ function get_req_id(o){
   for (let req_id in t_msg){
     req_id = ''+req_id;
     let o2 = t_msg[req_id];
-    if (o.cmd==o2.cmd && (o.s==o2.s&&o.d==o2.d || o.s==o2.d&&o.d==o2.s ||
+    if (o.cmd==o2.cmd && (o.s==o2.s&&o.d==o2.d ||
       // XXX HACK: hack for ring_join becaue when fuzzy dst, the response is
       // from another id
       o.cmd=='ring_join' && o2.s==o.s)){
@@ -1583,6 +1568,7 @@ const cmd_connect = opt=>etask(function*(){
   let {c} = opt, s = N(c.s), d = N(c.d);
   let event = shift_event(c);
   let wss, wrtc, arg = xtest.test_parse_no_dir(c.arg), call = c.cmd[0]=='!';
+  assert(call, 'only !connect is supported');
   let e = true;
   xutil.forEach(arg, a=>{
     switch (a.cmd){
@@ -1605,8 +1591,17 @@ const cmd_connect = opt=>etask(function*(){
     if (call)
     {
       if (e){
-        push_cmd(build_cmd(c.s+c.d+'>connect', wss&&'wss', wrtc&&'wrtc')+ ' '+
-          c.s+c.d+'<connected');
+        let {msg_delay, auto_time} = t_conf;
+        let dur_ms = msg_delay && conf_rtt_from_node(s, d)/2;
+        push_cmd(
+          (msg_delay&&!auto_time ? dur_ms+'ms ' : '')+
+          c.s+c.d+'>msg(type:req cmd:connect)'+
+          (msg_delay&&auto_time ? ' + ' : ' ')+
+          c.s+c.d+'<msg(type:req cmd:connect)'+
+          (msg_delay&&!auto_time ? dur_ms+'ms ' : ' ')+
+          c.s+c.d+'<ack'+
+          (msg_delay&&auto_time ? ' + ' : ' ')+
+          c.s+c.d+'>ack');
       }
       set_orig(c, build_cmd(dir_c(c)+c.cmd, wss&&'wss', wrtc&&'wrtc', '!!'));
     }
@@ -1621,7 +1616,9 @@ const cmd_connect = opt=>etask(function*(){
         yield s.wsConnector.connect(wss);
       else if (wrtc)
         yield s.wrtcConnector.connect(d.id.b);
-    } else if (Node.t.xxx_wip){
+    } else {
+      if (s.t.fake && d.t.fake)
+        return;
       let channel = new FakeChannel({local_id: d.id, id: s.id});
       if (wss)
         channel.wsConnector = d.wsConnector;
@@ -1629,26 +1626,8 @@ const cmd_connect = opt=>etask(function*(){
         channel.wrtcConnector = d.wrtcConnector;
       yield d._onConnection(channel);
     }
-  } else {
-    if (s.t.fake && d.t.fake)
-      return;
-    if (s.t.fake){
-      let channel = new FakeChannel({local_id: d.id, id: s.id});
-      if (wss)
-        channel.wsConnector = d.wsConnector;
-      else
-        channel.wrtcConnector = d.wrtcConnector;
-      yield d._onConnection(channel);
-    } else
-      assert_event(event, build_cmd(c.s+c.d+'>connect', wss ? 'wss' : 'wrtc'));
   }
 });
-
-function cmd_connected(opt){
-  let {c} = opt;
-  let event = shift_event(c);
-  assert_event_c(c, event);
-}
 
 function cmd_conn_info(opt){
   let {c} = opt, r, nr, basic = !/[*!]/.test(c.cmd[0]);
@@ -2421,8 +2400,6 @@ const cmd_run_single = opt=>etask(function*cmd_run_single(){
   case 'rt_add': yield cmd_rt_add(opt); break;
   case 'node': yield cmd_node(opt); break;
   case '!connect': yield cmd_connect(opt); break;
-  case 'connect': yield cmd_connect(opt); break;
-  case 'connected': yield cmd_connected(opt); break;
   case 'conn_info': yield cmd_conn_info(opt); break;
   case '*conn_info': yield cmd_conn_info(opt); break;
   case 'conn_info_r': yield cmd_conn_info_r(opt); break;
@@ -3393,7 +3370,6 @@ describe('peer-relay', function(){
   beforeEach(function(){
     xtest.set(Node, 'WsConnector', FakeWsConnector);
     xtest.set(Node, 'WrtcConnector', FakeWrtcConnector);
-    xtest.set(xutil, 'test_on_connection', test_on_connection);
   });
   describe('test_api', function(){
     describe('pre_process', function(){
@@ -3440,7 +3416,7 @@ describe('peer-relay', function(){
         _t('', 's=node(wss)', `s=node(wss)`);
         _t('', 's=node(wss) // XXX', `s=node(wss) // XXX`, true);
         _t('a=node(wss) b=node(wss)', `s=node(wss) // XXX XXX(2)(
-          ab>connect`, `s=node(wss) // XXX XXX(2)(\r ab>connect(wss)`,
+          ab>!connect:!!`, `s=node(wss) // XXX XXX(2)(\r ab>!connect(!! wss)`,
           true);
         t('bc>fwd(ab>msg(body:x))', `bc>fwd(ab>msg(body(x)))`);
         t('bc:ab>msg(body:x)', `bc>fwd(ab>msg(body(x)))`);
@@ -3642,11 +3618,18 @@ describe('peer-relay', function(){
         _t('', 'x,y=node:wss', `x=node(wss) y=node(wss)`);
         t('ab,bc>!connect', `ab>!connect bc>!connect`);
         describe('connect', function(){
-          t('ab>connect(wss)', `ab>connect(wss)`);
-          t('ab>connect', `ab>connect(wss)`);
           t('ab>!connect(wss !!)', `ab>!connect(wss !!)`);
           t('ab>!connect(!!)', `ab>!connect(wss !!)`);
-          t('ab>!connect', `ab>!connect(wss !!) ab>connect(wss) ab<connected`);
+          t('ab>!connect', `ab>!connect(wss !!) ab>msg(type:req cmd:connect)
+            ab<msg(type:req cmd:connect) ab<ack ab>ack`);
+          t('conf(msg_delay auto_time rtt:200) ab>!connect',
+            `conf(msg_delay auto_time rtt:200) ab>!connect(wss !!)
+             ab>msg(type:req cmd:connect) + ab<msg(type:req cmd:connect)
+             ab<ack + ab>ack`);
+          t('conf(msg_delay rtt:200) ab>!connect',
+            `conf(msg_delay rtt:200) ab>!connect(wss !!)
+             100ms ab>msg(type:req cmd:connect) ab<msg(type:req cmd:connect)
+             100ms ab<ack ab>ack`);
         });
         describe('ring', function(){
           t('!ring(a-c)', `ab>!connect bc>!connect ca>!connect`);
@@ -4073,9 +4056,10 @@ describe('peer-relay', function(){
     describe('connect', ()=>{
       let t = (name, test)=>t_roles(name, 'ab', test);
       t('2_nodes_long', `a=node(id:10) b=node(id:20 wss) - ab>!connect:!!
-        ab>connect(wss) ab<connected`);
+        ab>msg(type:req cmd:connect) ab<msg(type:req cmd:connect)
+        ab<ack ab>ack`);
       t('2_nodes_short', `a=node(id:10) b=node(id:20 wss) - ab>!connect`);
-      if (!Node.t.xxx_wip)
+      if (true) // XXX fixme
         return;
       t('connect_no_time', `a=node(id:10 wss) b=node(id:20 wss)
         ab>!connect(!!) ab>msg(type:req cmd:connect)
@@ -4178,6 +4162,15 @@ describe('peer-relay', function(){
         // verify path rtt of path is sent so f will not use fa as shortcut
         !sp // XXX: f needs to rebuild path to know there is better path now
         bcdefghijk>!ping`);
+      t = (name, test)=>t_roles(name, 'abc', test);
+      t('shortcut_connect', `conf(id:a-mXYZn-z rtt(1 ac:999))
+        !ring(a-c)`);
+      t = (name, test)=>t_roles(name, 'abcd', test);
+      t('shortcut_connect2', `conf(id:a-mXYZn-z rtt(1 ad:999))
+        !ring(a-d)`);
+      t = (name, test)=>t_roles(name, 'abcde', test);
+      t('shortcut_connect3', `conf(id:a-mXYZn-z rtt(1 ad:999))
+        !ring(a-e da)`);
     });
   });
   describe('ring_join', ()=>{
@@ -4390,25 +4383,24 @@ describe('peer-relay', function(){
     });
     describe('2_nodes', ()=>{
       t('msg', `mode:msg a=node b=node(wss(port:4000)) ab>!connect(wss !!)
-        ab>connect(wss) ab<connected -
+        ab>msg(type:req cmd:connect) ab<msg(type:req cmd:connect)
+        ab<ack ab>ack -
         ab>!req(id:0 body:ping res:ping_r !!)
         ab>msg(type:req id:0 body:ping) ab<msg(type:res id:0 body:ping_r)`);
       t('msg,req', `mode(msg req) a=node b=node(wss(port:4000))
-        ab>!connect(wss !!) ab>connect(wss) ab<connected -
+        ab>!connect(wss !!) ab>msg(type:req cmd:connect)
+        ab<msg(type:req cmd:connect) ab<ack ab>ack -
         ab>!req(id:0 body:ping res:ping_r !!) ab>msg(type:req id:0 body:ping)
         ab>*req(id:0 body:ping) ab<msg(type:res id:0 body:ping_r)
         ab<*res(id:0 body:ping_r)`);
     });
     describe('3_nodes', ()=>{
       t('msg', `
-        mode:msg a=node b=node(wss) ab>!connect(wss !!) ab>connect(wss)
-        ab<connected - c=node(wss) bc>!connect(wss !!) bc>connect(wss)
-        bc<connected - rt_add(a:bc) abc>!req(id:0 body:ping res:ping_r)`);
+        mode:msg a=node b=node(wss) ab>!connect(wss) c=node(wss)
+        bc>!connect(wss) rt_add(a:bc) abc>!req(id:0 body:ping res:ping_r)`);
       t('msg,req', `
-        mode(msg req) a=node b=node(wss) ab>!connect(wss !!)
-        ab>connect(wss) ab<connected - c=node(wss) bc>!connect(wss !!)
-        bc>connect(wss) bc<connected - rt_add(a:bc)
-        abc>!req(id:0 body:ping res:ping_r)`);
+        mode(msg req) a=node b=node(wss) ab>!connect(wss) c=node(wss)
+        bc>!connect(wss) rt_add(a:bc) abc>!req(id:0 body:ping res:ping_r)`);
     });
     describe('failure', ()=>{
       describe('timeout', ()=>{
@@ -4748,7 +4740,8 @@ describe('peer-relay', function(){
   describe('2_nodes_ws', function(){
     const t = (name, test)=>t_roles(name, 'ab', test);
     t('long', `a=node b=node(wss(port:4000)) ab>!connect(wss !!)
-      ab>connect(wss) ab<connected`);
+      ab>msg(type:req cmd:connect) ab<msg(type:req cmd:connect) ab<ack
+      ab>ack`);
     t('short', `a=node b=node(wss) ab>!connect`);
     t('msg', `mode:msg setup:2_nodes ab>!req(id:0 body:ping res:ping_r)
       ab<!req(id:1 body:ping res:ping_r)`);
@@ -4813,9 +4806,23 @@ describe('peer-relay', function(){
     t('time_auto', `conf(auto_time) #ms 1ms #1ms 10ms #10ms 1ms #ms 1ms #1ms`);
     // XXX: auto-calc ack params (id, vv) in order to simplify test writing)
     // XXX: decide if need support for msg_delay without auto_time
-    // XXX: TODO: test_node_conn(a(b:200)) -> a#rtt(b:200)
-    t('2_nodes_autoack_auto_time', `conf(auto_time msg_delay a-b rtt:200)
-      ab>!connect() #ms
+    // XXX: ab>req(cmd:connect) --> ab>connect
+    t('2_nodes_connect_manual_time', `conf(msg_delay a-b rtt:200)
+      ab>!connect:!!
+      100ms ab>msg(type:req cmd:connect) ab<msg(type:req cmd:connect)
+      100ms ab<ack ab>ack a#rtt(b:200) b#rtt(a:200)`);
+    t('2_nodes_connect_auto_time', `conf(auto_time msg_delay a-b rtt:200)
+      ab>!connect:!! #ms
+      #0ms   ab>msg(type:req cmd:connect) + ab<msg(type:req cmd:connect)
+      #100ms ab<ack + ab>ack
+      #100ms a#rtt(b:200) b#rtt(a:200)`);
+    t('2_nodes_connect_shortcut_manual_time', `conf(msg_delay a-b rtt:200) #ms
+      ab>!connect #200ms a#rtt(b:200) b#rtt(a:200)`);
+    t('2_nodes_connect_shortcut_auto_time', `
+      conf(auto_time msg_delay a-b rtt:200) #ms
+      ab>!connect #200ms a#rtt(b:200) b#rtt(a:200)`);
+    t('2_nodes_autoack_auto_time', `conf(auto_time msg_delay a-b rtt:200) #ms
+      ab>!connect() #200ms
       ab>!ping(id:1 !!) #0ms
       ab>ping(id:1.0) ab>*ping #100ms a#ab>opening(>1.0)
       ab<ping_r(id:1.0) ab<*ping_r #100ms a#ab>close(>1.0vv)
@@ -4898,6 +4905,7 @@ describe('peer-relay', function(){
         100ms ab>msg(type:connect) ab<msg(type:connect)
         100ms ab>ack ab<ack
     */
+    // XXX: 1. +70ms -> 70ms 2) move #123ms to start of line
     t('3_nodes_manualack_auto_time_multi_rtt', `
       conf(!autoack auto_time msg_delay a-d rtt(200 bc:20)) !ring(a-d) #ms
       ac>!ping(id:1 !!) #0ms

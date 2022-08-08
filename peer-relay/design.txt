@@ -4,6 +4,7 @@ VP:
   - automatic ack
     + send ack transparently if enabled
     + test ack behavior with fuzzy
+    - rm channel.rtt from router
     - add # test for request staus in cmd_req/cmd_res
     - auto-calc id/seq/dir in <ack command
     - add mode:req to tests
@@ -17,6 +18,7 @@ VP:
     - fix bug in req state handling (it doesn't use ack)
       ack:3_nodes_manual ack:3_nodes_auto
     - review all tests and add msg_delay
+    - fix router.js:ack() to force rt/path when sending ack
   - calc rtt from ack packets - each packet takes conn-rtt time to arrive
     destination.
     + add #1ms api for testing Date.now()

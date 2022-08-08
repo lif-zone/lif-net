@@ -53,8 +53,8 @@ update_conn(opt){
   let n0 = this.get({id: ids[0], create: true});
   let n1 = this.get({id: ids[1], create: true});
   let conn = this.get_conn({ids, create: true});
-  if (conn.rtt==rtt && conn.self==self)
-    return;
+  if (conn.rtt==rtt && conn.self===self)
+    return conn;
   conn.update_conn({rtt, self});
   rtt = conn.rtt;
   if (self){
@@ -66,6 +66,7 @@ update_conn(opt){
   n0.set_conn(n1.id, conn);
   n1.set_conn(n0.id, conn);
   this.schedule_build_rtt_graph();
+  return conn;
 }
 find(id){ return this.get(id); }
 find_next(id){

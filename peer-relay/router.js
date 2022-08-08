@@ -242,7 +242,8 @@ export default class Router extends EventEmitter {
       let f = NodeId.from(msg.from), t = NodeId.from(msg.to);
       rtt += msg.rtt||DEF_RTT;
       path.push(f.s);
-      this.node_map.update_conn({ids: [f, t], rtt: msg.rtt||DEF_RTT});
+      if (!this.id.eq(f) && !this.id.eq(t))
+        this.node_map.update_conn({ids: [f, t], rtt: msg.rtt||DEF_RTT});
       let node = this.node_map.get({id: f});
       let fold = util.path_fold(path);
       if (fold!==path)
@@ -263,8 +264,10 @@ export default class Router extends EventEmitter {
     let ret = {};
     for (let i=0, prev=NodeId.from(this.id.s); i<path.length; i++){
       let curr = NodeId.from(path[i]), ids = [prev, curr];
-      if (rtt_a[i])
-        this.node_map.update_conn({ids, rtt: rtt_a[i]});
+      if (rtt_a[i]){
+        if (!this.id.eq(ids[0]) && !this.id.eq(ids[1]))
+          this.node_map.update_conn({ids, rtt: rtt_a[i]});
+      }
       prev = curr;
     }
     return ret;
@@ -368,16 +371,19 @@ export default class Router extends EventEmitter {
       else
         state.state = 'open';
       seq_o.state = 'done';
-      this.update_rtt_from_ack(seq_o, update_rtt);
+      if (from!=this.id.s)
+        this.update_rtt_from_ack(seq_o, update_rtt);
     } else if (dir=='<' && vv){
       if (['res', 'req_end', 'res_end'].includes(seq_o.type))
         state.state = 'close';
       seq_o.state = 'done';
-      this.update_rtt_from_ack(seq_o, update_rtt);
+      if (from!=this.id.s)
+        this.update_rtt_from_ack(seq_o, update_rtt);
     }
     else {
       seq_o.state = 'ack';
-      this.update_rtt_from_ack(seq_o, update_rtt);
+      if (from!=this.id.s)
+        this.update_rtt_from_ack(seq_o, update_rtt);
     }
     seq_o.last_ts = ts;
   }
@@ -387,8 +393,15 @@ export default class Router extends EventEmitter {
     seq_o.ack_ts = Date.now();
     if (!xutil.is_mocha() || Router.t?.t_conf.msg_delay){
       seq_o.rtt = seq_o.ack_ts - seq_o.ts;
-      this.node_map.update_conn({ids: [seq_o.src, seq_o.dst],
-        rtt: seq_o.rtt});
+      if (!seq_o.rtt)
+        return xerr('invalid rtt');
+      let channel = this.get_channel_from_id(this.id.eq(seq_o.src) ?
+        seq_o.dst : seq_o.src);
+      if (!channel)
+        return xerr('channel not found');
+      let conn = this.node_map.update_conn({ids: [seq_o.src, seq_o.dst],
+        rtt: seq_o.rtt, self: channel});
+      channel.rtt = conn.rtt;
     }
   }
   destroy(){ this.node_map.destroy(); }

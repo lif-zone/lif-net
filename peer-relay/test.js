@@ -765,7 +765,8 @@ class FakeChannel extends EventEmitter {
     this.t = {};
     if (!t_conf) // XXX HACK: rm it, needed for channels test
       return;
-    this.rtt = conf_rtt_from_id(this.id, this.local_id);
+    if (!t_conf.msg_delay)
+      this.rtt = conf_rtt_from_id(this.id, this.local_id);
   }
   send = data=>etask(function*send(){
     let lbuffer = LBuffer.from(data); // XXX WIP
@@ -808,15 +809,9 @@ class FakeChannel extends EventEmitter {
       'res_next', 'req_end', 'res_end', 'ack'].includes(type),
       'unexpected msg type '+type);
     }
-    // XXX HACK: try to rm ack_connect
-    let ack_connect = t_msg[msg.req_id]?.cmd=='connect';
-    if (ack_connect)
-      e = build_cmd_o(from.t.name+fuzzy+to.t.name+'>msg', {type, body});
-    else {
-      e = build_cmd_o(from.t.name+fuzzy+to.t.name+'>msg',
-        {id: req_id, type, cmd, seq, ack: ack && ack.join(','), dir, vv,
-        body});
-    }
+    e = build_cmd_o(from.t.name+fuzzy+to.t.name+'>msg',
+      {id: req_id, type, cmd, seq, ack: ack && ack.join(','), dir, vv,
+      body});
     if (fwd){
       let path = [msg.from];
       let i = lbuffer.size()-2;
@@ -837,6 +832,7 @@ class FakeChannel extends EventEmitter {
     if (msg.type!='ack') // XXX: review
       t_msgid[msgid_hash(msg)] = msg.msgid;
     track_msg(lbuffer);
+    let ack_connect = t_msg[msg.req_id]?.cmd=='connect';
     if (msg.type=='ack' && !t_conf.no_autoack && !ack_connect)
       return;
     assert(!from0.t.fake);
@@ -1380,7 +1376,9 @@ function cmd_test_rtt(s, arg){
     if (node.t.fake)
       return;
     let conn = node.router.node_map.get_conn({ids: [node.id, dst.id]});
+    let channel = node.router.get_channel_from_id(dst.id);
     assert.equal(conn?.rtt, exp, 'invalid rtt '+s+'#'+arg);
+    assert.equal(channel.rtt, exp, 'invalid channel rtt '+s+'#'+arg);
     return;
   }
   a = arg.match(/^([<>][0-9]+\.[0-9]+) ([0-9]+$)/);
@@ -1395,7 +1393,7 @@ function cmd_test_rtt(s, arg){
   assert(state_o[dir], 'req not found '+arg);
   assert(state_o[dir][seq], 'req not found '+arg);
   let seq_o = node.router.state[id][dir][seq];
-  assert.equal(seq_o.rtt, rtt, 'rtt mismatch '+s+' '+arg);
+  assert.equal(seq_o.rtt, rtt ? rtt : undefined, 'rtt mismatch '+s+' '+arg);
 }
 
 function cmd_test_time(c, arg){
@@ -1802,8 +1800,7 @@ function cmd_ack(opt){
     default: assert(0, 'unknown arg '+a.cmd);
     }
   });
-  if (!t_pre_process)
-    return;
+  assert(t_pre_process, 'should never happen');
   let s = build_cmd_o(c.loop ? loop_str(c.loop)+'>msg' :
     dir_c(c)+'msg', {id, type: 'ack', seq, dir, vv});
   if (c.fwd){
@@ -1953,11 +1950,23 @@ const cmd_msg = opt=>etask(function*cmd_msg(){
   }
   if (['req', 'req_start', 'req_next', 'req_end'].includes(type)){
     id = id||get_req_id({s: s.t.name, d: d.t.name, cmd});
+    if (!id && s.t.fake)
+      id = ++t_req_id+'';
   } else if (['res', 'res_start', 'res_next', 'res_end'].includes(type)){
     // XXX HACK: we use t_req_id_last to handle fuzzy. in fuzzy a-a>req
     // but the response is sent from uknown node.
     id = id||get_req_id({s: d.t.name, d: s.t.name, cmd})||t_req_id_last;
+  } else if (type=='ack'){
+    if (!id){ // XXX HACK for connect (need to support for any ack)
+      id = get_req_id({s: d.t.name, d: s.t.name, cmd: 'connect'});
+      if (id){
+        dir = '>';
+        seq = 0;
+        vv = true;
+      }
+    }
   }
+  assert(id, 'missing req_id');
   if (ack===undefined && ['req_next', 'req_end', 'res', 'res_start',
     'res_next', 'res_end'].includes(type)){
     ack = get_ack({req_id: id,
@@ -3899,8 +3908,8 @@ describe('peer-relay', function(){
       aX>!connect test_node_conn(X(a:100) a(X:100))
       aX:ba:cb:cY>req test_node_conn(X(a:100) a(b:10 X:100) b(a:10 c:20)
         c(b:20))
-      aX:ba:db:dY>req test_node_conn(X(a:100) a(b:10 X:100) b(a:10 c:20 d:30)
-        c(b:20) d(b:30))
+      aX:ba:db:dY>req test_node_conn(X(a:100) a(b:10 X:100)
+        b(a:10 c:20 d:30) c(b:20) d(b:30))
       zX>!connect test_node_conn(X(a:100 z:100) a(b:10 X:100) b(a:10 c:20 d:30)
         c(b:20) d(b:30) z(X:100))
       // XXX TODO: zX:Yz:Yc,Xa:zX:Yz:Yc>req
@@ -4243,7 +4252,8 @@ describe('peer-relay', function(){
       YaXc>!ping YbXc>!ping(rt:bXc) Yb.Xc>!ping(rt:aXc) !YaXc>!ping(rt:!aXc)
       Yb.Xc>!ping`);
     t = (name, test)=>t_roles(name, 'bcXY', test);
-    t('sub_rtt_is_not_ignored', `mode(msg req) conf(id:a-mXYZn-z rtt:1000)
+    t('sub_rtt_is_not_ignored', `mode(msg req)
+      conf(msg_delay auto_time id:a-mXYZn-z rtt:1000)
       Yb,Xb>!connect Xb.Y~X>!ring_join cX>!connect cX.b~c>!ring_join
       Yb.Xc>!ping YbXc>!ping !sp YbXc>!ping conf(rtt(1000 Yb:1))
       YbXc>!ping !sp Yb.Xc>!ping`);
@@ -4800,198 +4810,7 @@ describe('peer-relay', function(){
        cba.e.d~b>ring_join cbae.a.b~d>ring_join cb.ae~a>ring_join
        cd.ea~e>ring_join`);
   });
-  describe('xxx_rtt', function(){
-    let t = (name, test)=>t_roles(name, 'ab', test);
-    t('time_manual', `#ms 1ms #1ms 10ms #10ms 1ms #ms 1ms #1ms`);
-    t('time_auto', `conf(auto_time) #ms 1ms #1ms 10ms #10ms 1ms #ms 1ms #1ms`);
-    // XXX: auto-calc ack params (id, vv) in order to simplify test writing)
-    // XXX: decide if need support for msg_delay without auto_time
-    // XXX: ab>req(cmd:connect) --> ab>connect
-    t('2_nodes_connect_manual_time', `conf(msg_delay a-b rtt:200)
-      ab>!connect:!!
-      100ms ab>msg(type:req cmd:connect) ab<msg(type:req cmd:connect)
-      100ms ab<ack ab>ack a#rtt(b:200) b#rtt(a:200)`);
-    t('2_nodes_connect_auto_time', `conf(auto_time msg_delay a-b rtt:200)
-      ab>!connect:!! #ms
-      #0ms   ab>msg(type:req cmd:connect) + ab<msg(type:req cmd:connect)
-      #100ms ab<ack + ab>ack
-      #100ms a#rtt(b:200) b#rtt(a:200)`);
-    t('2_nodes_connect_shortcut_manual_time', `conf(msg_delay a-b rtt:200) #ms
-      ab>!connect #200ms a#rtt(b:200) b#rtt(a:200)`);
-    t('2_nodes_connect_shortcut_auto_time', `
-      conf(auto_time msg_delay a-b rtt:200) #ms
-      ab>!connect #200ms a#rtt(b:200) b#rtt(a:200)`);
-    t('2_nodes_autoack_auto_time', `conf(auto_time msg_delay a-b rtt:200) #ms
-      ab>!connect() #200ms
-      ab>!ping(id:1 !!) #0ms
-      ab>ping(id:1.0) ab>*ping #100ms a#ab>opening(>1.0)
-      ab<ping_r(id:1.0) ab<*ping_r #100ms a#ab>close(>1.0vv)
-      a#rtt(>1.0 200) 100ms b#rtt(<1.0 200) a#rtt(b:200) b#rtt(a:200)
-      conf(rtt:100) #ms a#rtt(b:200) b#rtt(a:200)
-      ab>!ping(id:2 !!) #0ms
-      ab>ping(id:2.0) ab>*ping #50ms a#ab>opening(>2.0)
-      ab<ping_r(id:2.0) ab<*ping_r #50ms a#ab>close(>2.0vv)
-      a#rtt(>2.0 100) 50ms b#rtt(<2.0 100) a#rtt(b:100) b#rtt(a:100)
-    `);
-    t('2_nodes_autoack_manual_time', `conf(msg_delay a-b rtt:200)
-      ab>!connect() #ms
-      ab>!ping(id:1 !!) #0ms
-      100ms ab>ping(id:1.0) ab>*ping a#ab>opening(>1.0)
-      100ms ab<ping_r(id:1.0) ab<*ping_r a#ab>close(>1.0vv)
-      a#rtt(>1.0 200) 100ms b#rtt(<1.0 200) a#rtt(b:200) b#rtt(a:200)
-      conf(rtt:100) #ms a#rtt(b:200) b#rtt(a:200)
-      ab>!ping(id:2 !!) #0ms
-      50ms ab>ping(id:2.0) ab>*ping a#ab>opening(>2.0)
-      50ms ab<ping_r(id:2.0) ab<*ping_r a#ab>close(>2.0vv)
-      a#rtt(>2.0 100) 50ms b#rtt(<2.0 100) a#rtt(b:100) b#rtt(a:100)
-    `);
-    t('2_nodes_manualack_auto_time', `
-      conf(auto_time msg_delay !autoack a-b rtt:200) ab>!connect() #ms
-      ab>!ping(id:1 !!) #0ms
-      ab>ping(id:1.0) ab>*ping #100ms
-      ab<ack(id:>1.0 vv) + ab<ping_r(id:1.0) ab<*ping_r #100ms
-      a#rtt(>1.0 200) ab>ack(id:<1.0 vv) #100ms b#rtt(<1.0 200)`);
-    t('2_nodes_manualack_manual_time', ` conf(msg_delay !autoack a-b rtt:200)
-      ab>!connect() #ms ab>!ping(id:1 !!) #0ms 100ms ab>ping(id:1.0)
-      ab>*ping #100ms 100ms ab<ack(id:>1.0 vv) ab<ping_r(id:1.0) ab<*ping_r
-      a#rtt(>1.0 200) 100ms ab>ack(id:<1.0 vv) b#rtt(<1.0 200)`);
-    t = (name, test)=>t_roles(name, 'abc', test);
-    // XXX: test abc>!ping #400ms
-    // XXX BUG: rtt is updaed wrongly because of they way conf works
-    t('3_nodes_autoack_auto_time', `conf(auto_time msg_delay a-d rtt:200)
-      !ring(a-d) #ms ac>!ping(id:1 !!) #0ms ab:ac>ping(id:1.0) #100ms
-      bc:ab:ac>ping(id:1.0) ac>*ping #100ms bc[a]:ac<ping_r(id:1.0) #100ms
-      ab:bc[a]:ac<ping_r(id:1.0) ac<*ping_r #100ms a#rtt(b:200) b#rtt(a:200)
-      b#rtt(c:200) c#rtt(b:200) conf(rtt:100) ac>!ping(id:2 !!) #0ms
-      ab[c]:ac>ping(id:2.0) #50ms a#rtt(b:200) b#rtt(a:100) b#rtt(c:200)
-      c#rtt(b:200) bc:ab[c]:ac>ping(id:2.0) ac>*ping #50ms a#rtt(b:100)
-      b#rtt(a:100) b#rtt(c:200) c#rtt(b:100) bc[a]:ac<ping_r(id:2.0) #50ms
-      a#rtt(b:100) b#rtt(a:100) b#rtt(c:100) c#rtt(b:100)
-      ab:bc[a]:ac<ping_r(id:2.0) ac<*ping_r #50ms a#rtt(b:100) b#rtt(a:100)
-      b#rtt(c:100) c#rtt(b:100)
-    `);
-    t('3_nodes_autoack_auto_time_multi_rtt', `
-      conf(auto_time msg_delay a-d rtt(200 bc:20)) !ring(a-d) #ms
-      ac>!ping(id:1 !!) #0ms ab:ac>ping(id:1.0) #100ms bc:ab:ac>ping(id:1.0)
-      ac>*ping #10ms bc[a]:ac<ping_r(id:1.0) #10ms ab:bc[a]:ac<ping_r(id:1.0)
-      ac<*ping_r #100ms a#rtt(>1.0 200) b#rtt(>1.0 20) c#rtt(>1.0 0)
-      100ms a#rtt(<1.0 0) b#rtt(<1.0 200) c#rtt(<1.0 20)`);
-    t('3_nodes_manualack_auto_time', `
-      conf(!autoack auto_time msg_delay a-d rtt:200) !ring(a-d) #ms
-      ac>!ping(id:1 !!) #0ms
-      ab:ac>ping(id:1.0) #100ms
-      ab<ack(id:>1.0) + bc:ab:ac>ping(id:1.0) ac>*ping #100ms
-      bc[a]:ac<ack(id:>1.0 vv) + bc[a]:ac<ping_r(id:1.0) #100ms
-      ab:bc[a]:ac<ack(id:>1.0 vv) + bc>ack(id:<1.0)
-      + ab:bc[a]:ac<ping_r(id:1.0) ac<*ping_r #100ms
-      ab[c]:ac>ack(id:<1.0 vv) #100ms
-      bc:ab[c]:ac>ack(id:<1.0 vv) #100ms
-      a#rtt(>1.0 200) b#rtt(>1.0 200) c#rtt(>1.0 0)
-      a#rtt(<1.0 0) b#rtt(<1.0 200) c#rtt(<1.0 200)`);
-    // XXX derry:
-    // 3. calc rtt during connect
-    // ab>ws_connect ab>msg(id_a) ab<msg(id_b) // both send ack
-    // XXX: check 0ms and - behavior and verify they work welll
-    // XXX: add mode:req to tests
-    // allow to change auto/manual time in test
-    // XXX derry:
-    // 1. review: +70ms, +20ms
-    // 2. review abc>!ping shortcut
-    // 3. connect flow
-    /* XXX TODO:
-      t('connect', `
-        ab>connect(!!)
-        // XXX: I don't test ws open/accept connection
-        100ms ab>msg(type:connect) ab<msg(type:connect)
-        100ms ab>ack ab<ack
-    */
-    // XXX: 1. +70ms -> 70ms 2) move #123ms to start of line
-    t('3_nodes_manualack_auto_time_multi_rtt', `
-      conf(!autoack auto_time msg_delay a-d rtt(200 bc:20)) !ring(a-d) #ms
-      ac>!ping(id:1 !!) #0ms
-      ab:ac>ping(id:1.0) #100ms
-      bc:ab:ac>ping(id:1.0) ac>*ping #10ms
-      bc[a]:ac<ack(id:>1.0 vv) + bc[a]:ac<ping_r(id:1.0) #10ms
-      bc>ack(id:<1.0) #10ms
-      +70ms ab<ack(id:>1.0) #70ms
-      +20ms ab:bc[a]:ac<ack(id:>1.0 vv) + ab:bc[a]:ac<ping_r(id:1.0)
-      ac<*ping_r #20ms ab[c]:ac>ack(id:<1.0 vv) #100ms
-      bc:ab[c]:ac>ack(id:<1.0 vv) #10ms
-      a#rtt(>1.0 200) b#rtt(>1.0 20) c#rtt(>1.0 0)
-      a#rtt(<1.0 0) b#rtt(<1.0 200) c#rtt(<1.0 20)`);
-    t('3_nodes_manualack_manual_time', `
-      conf(!autoack msg_delay a-d rtt(200 bc:200)) !ring(a-d) #ms
-      ac>!ping(id:1 !!) 100ms ab:ac>ping(id:1.0)
-      100ms ab<ack(id:>1.0) bc:ab:ac>ping(id:1.0) ac>*ping
-      100ms bc[a]:ac<ack(id:>1.0 vv) bc[a]:ac<ping_r(id:1.0)
-      100ms ab:bc[a]:ac<ack(id:>1.0 vv) bc>ack(id:<1.0)
-      ab:bc[a]:ac<ping_r(id:1.0) ac<*ping_r
-      100ms ab[c]:ac>ack(id:<1.0 vv)
-      100ms bc:ab[c]:ac>ack(id:<1.0 vv)
-      a#rtt(>1.0 200) b#rtt(>1.0 200) c#rtt(>1.0 0)
-      a#rtt(<1.0 0) b#rtt(<1.0 200) c#rtt(<1.0 200)`);
-    t('3_nodes_manualack_manual_time_multi_rtt', `
-      conf(!autoack msg_delay a-d rtt(200 bc:20)) !ring(a-d) #ms
-      ac>!ping(id:1 !!)
-      100ms ab:ac>ping(id:1.0)
-      10ms bc:ab:ac>ping(id:1.0) ac>*ping
-      10ms bc[a]:ac<ack(id:>1.0 vv) bc[a]:ac<ping_r(id:1.0)
-      10ms bc>ack(id:<1.0)
-      70ms ab<ack(id:>1.0)
-      20ms ab:bc[a]:ac<ack(id:>1.0 vv) ab:bc[a]:ac<ping_r(id:1.0) ac<*ping_r
-      100ms ab[c]:ac>ack(id:<1.0 vv) 10ms bc:ab[c]:ac>ack(id:<1.0 vv)
-      a#rtt(>1.0 200) b#rtt(>1.0 20) c#rtt(>1.0 0)
-      a#rtt(<1.0 0) b#rtt(<1.0 200) c#rtt(<1.0 20)`);
-    t('3_nodes_parallel_autoack_auto_time', `
-      conf(auto_time msg_delay a-d rtt:200) !ring(a-d) #ms
-      ac>!ping(id:1 !!) #0ms
-      50ms ac>!ping(id:2 !!) #50ms
-      +50ms ab:ac>ping(id:1.0) #50ms
-      +50ms ab:ac>ping(id:2.0) #50ms
-      +50ms bc:ab:ac>ping(id:1.0) ac>*ping(id:1.0) #50ms
-      +50ms bc:ab:ac>ping(id:2.0) ac>*ping(id:2.0) #50ms
-      +50ms bc[a]:ac<ping_r(id:1.0) #50ms
-      +50ms bc[a]:ac<ping_r(id:2.0) #50ms
-      +50ms ab:bc[a]:ac<ping_r(id:1.0) ac<*ping_r(id:1.0) #50ms
-      +50ms ab:bc[a]:ac<ping_r(id:2.0) ac<*ping_r(id:2.0) #50ms`);
-    t('3_nodes_parallel_autoack_manual_time', `
-      conf(msg_delay a-d rtt:200) !ring(a-d) #ms ac>!ping(id:1 !!)
-      50ms ac>!ping(id:2 !!) 50ms ab:ac>ping(id:1.0) 50ms ab:ac>ping(id:2.0)
-      50ms bc:ab:ac>ping(id:1.0) ac>*ping(id:1.0) 50ms bc:ab:ac>ping(id:2.0)
-      ac>*ping(id:2.0) 50ms bc[a]:ac<ping_r(id:1.0)
-      50ms bc[a]:ac<ping_r(id:2.0) 50ms ab:bc[a]:ac<ping_r(id:1.0)
-      ac<*ping_r(id:1.0) 50ms ab:bc[a]:ac<ping_r(id:2.0) ac<*ping_r(id:2.0)`);
-    t('3_nodes_shortcut_autotime', `conf(auto_time msg_delay a-d rtt:200)
-      !ring(a-d) #ms ab.c>!ping #400ms`);
-    if (0) // XXX derry: support it?
-    // 100ms ab:ac>ping 100ms bc:ab:ac>ping ...
-    t('3_nodes_shortcut_manual_time', `conf(msg_delay a-d rtt:200) !ring(a-d)
-      #ms 400ms ab.c>!ping`);
-    // XXX test fuzzy
-    if (true) return; // XXX: TODO
-    // XXX: add time for connect as well
-    t('ping', `mode(msg) conf(a-c rtt:100) ab>!connect()
-      ab>!ping:!! #0ms ab>ping #+100ms ab<ping_r #+100ms`);
-    t('role a', `
-      a-100ms-b>ping 0ms
-      a- ab<ping_r -100ms-b<ack 0ms
-      a-100ms-b<ack
-    `);
-    t('role a', `
-      ab>ping
-      ab<ack + #0 ab<ping_r #100
-      ab<ack +0ms #0 ab<ping_r #100
-
-      ab<ack +50ms #50 ab<ping_r #100 // mixed 50ms
-
-      ab<ack #100 ab<ping_r #100
-      ab<ack +100ms #100 ab<ping_r #100
-
-      // together(ab<ack ab<ping_r)
-      ab<ack
-    `);
-  });
-  describe('ack', function(){
+  describe('ack_no_rtt', function(){
     let t = (name, test)=>t_roles(name, 'ab', test);
     t = (name, test)=>t_roles(name, 'ab', test);
     // XXX derry:
@@ -5148,7 +4967,206 @@ describe('peer-relay', function(){
     `);
     // test_vc(ac(open ab:50 bc:no_ack:200))
   });
-      // XXX: by default it is with ack. how to makr it isn't
-      // ab:ac>req_start ab<ack
+  describe('ack_rtt', function(){
+    let t = (name, test)=>t_roles(name, 'ab', test);
+    t('time_manual', `#ms 1ms #1ms 10ms #10ms 1ms #ms 1ms #1ms`);
+    t('time_auto', `conf(auto_time) #ms 1ms #1ms 10ms #10ms 1ms #ms 1ms #1ms`);
+    // XXX: auto-calc ack params (id, vv) in order to simplify test writing)
+    // XXX: decide if need support for msg_delay without auto_time
+    // XXX: ab>req(cmd:connect) --> ab>connect
+    t('2_nodes_connect_manual_time', `conf(msg_delay a-b rtt:200)
+      ab>!connect:!!
+      100ms ab>msg(type:req cmd:connect) ab<msg(type:req cmd:connect)
+      100ms ab<ack ab>ack a#rtt(b:200) b#rtt(a:200)`);
+    t('2_nodes_connect_auto_time', `conf(auto_time msg_delay a-b rtt:200)
+      ab>!connect:!! #ms
+      #0ms   ab>msg(type:req cmd:connect) + ab<msg(type:req cmd:connect)
+      #100ms ab<ack + ab>ack
+      #100ms a#rtt(b:200) b#rtt(a:200)`);
+    t('2_nodes_connect_shortcut_manual_time', `conf(msg_delay a-b rtt:200) #ms
+      ab>!connect #200ms a#rtt(b:200) b#rtt(a:200)`);
+    t('2_nodes_connect_shortcut_auto_time', `
+      conf(auto_time msg_delay a-b rtt:200) #ms
+      ab>!connect #200ms a#rtt(b:200) b#rtt(a:200)`);
+    t('2_nodes_autoack_auto_time', `conf(auto_time msg_delay a-b rtt:200) #ms
+      ab>!connect() #200ms
+      ab>!ping(id:1 !!) #0ms
+      ab>ping(id:1.0) ab>*ping #100ms a#ab>opening(>1.0)
+      ab<ping_r(id:1.0) ab<*ping_r #100ms a#ab>close(>1.0vv)
+      a#rtt(>1.0 200) 100ms b#rtt(<1.0 200) a#rtt(b:200) b#rtt(a:200)
+      conf(rtt:100) #ms a#rtt(b:200) b#rtt(a:200)
+      ab>!ping(id:2 !!) #0ms
+      ab>ping(id:2.0) ab>*ping #50ms a#ab>opening(>2.0)
+      ab<ping_r(id:2.0) ab<*ping_r #50ms a#ab>close(>2.0vv)
+      a#rtt(>2.0 100) 50ms b#rtt(<2.0 100) a#rtt(b:100) b#rtt(a:100)
+    `);
+    t('2_nodes_autoack_manual_time', `conf(msg_delay a-b rtt:200)
+      ab>!connect() #ms
+      ab>!ping(id:1 !!) #0ms
+      100ms ab>ping(id:1.0) ab>*ping a#ab>opening(>1.0)
+      100ms ab<ping_r(id:1.0) ab<*ping_r a#ab>close(>1.0vv)
+      a#rtt(>1.0 200) 100ms b#rtt(<1.0 200) a#rtt(b:200) b#rtt(a:200)
+      conf(rtt:100) #ms a#rtt(b:200) b#rtt(a:200)
+      ab>!ping(id:2 !!) #0ms
+      50ms ab>ping(id:2.0) ab>*ping a#ab>opening(>2.0)
+      50ms ab<ping_r(id:2.0) ab<*ping_r a#ab>close(>2.0vv)
+      a#rtt(>2.0 100) 50ms b#rtt(<2.0 100) a#rtt(b:100) b#rtt(a:100)
+    `);
+    t('2_nodes_manualack_auto_time', `
+      conf(auto_time msg_delay !autoack a-b rtt:200) ab>!connect() #ms
+      ab>!ping(id:1 !!) #0ms
+      ab>ping(id:1.0) ab>*ping #100ms
+      ab<ack(id:>1.0 vv) + ab<ping_r(id:1.0) ab<*ping_r #100ms
+      a#rtt(>1.0 200) ab>ack(id:<1.0 vv) #100ms b#rtt(<1.0 200)`);
+    t('2_nodes_manualack_manual_time', ` conf(msg_delay !autoack a-b rtt:200)
+      ab>!connect() #ms ab>!ping(id:1 !!) #0ms 100ms ab>ping(id:1.0)
+      ab>*ping #100ms 100ms ab<ack(id:>1.0 vv) ab<ping_r(id:1.0) ab<*ping_r
+      a#rtt(>1.0 200) 100ms ab>ack(id:<1.0 vv) b#rtt(<1.0 200)`);
+    t = (name, test)=>t_roles(name, 'abc', test);
+    // XXX: test abc>!ping #400ms
+    t('3_nodes_autoack_auto_time', `conf(auto_time msg_delay a-d rtt:200)
+      !ring(a-d) #ms ac>!ping(id:1 !!) #0ms ab:ac>ping(id:1.0) #100ms
+      bc:ab:ac>ping(id:1.0) ac>*ping #100ms bc[a]:ac<ping_r(id:1.0) #100ms
+      ab:bc[a]:ac<ping_r(id:1.0) ac<*ping_r #100ms a#rtt(b:200) b#rtt(a:200)
+      b#rtt(c:200) c#rtt(b:200) conf(rtt:100) ac>!ping(id:2 !!) #0ms
+      ab[c]:ac>ping(id:2.0) #50ms a#rtt(b:200) b#rtt(a:200) b#rtt(c:200)
+      c#rtt(b:200) bc:ab[c]:ac>ping(id:2.0) ac>*ping #50ms a#rtt(b:100)
+      b#rtt(a:200) b#rtt(c:200) c#rtt(b:200)
+      bc[a]:ac<ping_r(id:2.0) #50ms
+      a#rtt(b:100) b#rtt(a:100) b#rtt(c:200) c#rtt(b:200)
+      ab:bc[a]:ac<ping_r(id:2.0) ac<*ping_r #50ms
+      a#rtt(b:100) b#rtt(a:100) b#rtt(c:200) c#rtt(b:100)
+      50ms a#rtt(b:100) b#rtt(a:100) b#rtt(c:100) c#rtt(b:100)
+    `);
+    t('3_nodes_autoack_auto_time_multi_rtt', `
+      conf(auto_time msg_delay a-d rtt(200 bc:20)) !ring(a-d) #ms
+      ac>!ping(id:1 !!) #0ms ab:ac>ping(id:1.0) #100ms bc:ab:ac>ping(id:1.0)
+      ac>*ping #10ms bc[a]:ac<ping_r(id:1.0) #10ms ab:bc[a]:ac<ping_r(id:1.0)
+      ac<*ping_r #100ms a#rtt(>1.0 200) b#rtt(>1.0 20) c#rtt(>1.0 0)
+      100ms a#rtt(<1.0 0) b#rtt(<1.0 200) c#rtt(<1.0 20)`);
+    t('3_nodes_manualack_auto_time', `
+      conf(!autoack auto_time msg_delay a-d rtt:200) !ring(a-d) #ms
+      ac>!ping(id:1 !!) #0ms
+      ab:ac>ping(id:1.0) #100ms
+      ab<ack(id:>1.0) + bc:ab:ac>ping(id:1.0) ac>*ping #100ms
+      bc[a]:ac<ack(id:>1.0 vv) + bc[a]:ac<ping_r(id:1.0) #100ms
+      ab:bc[a]:ac<ack(id:>1.0 vv) + bc>ack(id:<1.0)
+      + ab:bc[a]:ac<ping_r(id:1.0) ac<*ping_r #100ms
+      ab[c]:ac>ack(id:<1.0 vv) #100ms
+      bc:ab[c]:ac>ack(id:<1.0 vv) #100ms
+      a#rtt(>1.0 200) b#rtt(>1.0 200) c#rtt(>1.0 0)
+      a#rtt(<1.0 0) b#rtt(<1.0 200) c#rtt(<1.0 200)
+      conf(rtt:100) ac>!ping(id:2 !!) #0ms ab[c]:ac>ping(id:2.0) #50ms
+      ab<ack(id:>2.0) + bc:ab[c]:ac>ping(id:2.0) ac>*ping #50ms
+      bc[a]:ac<ack(id:>2.0 vv) + bc[a]:ac<ping_r(id:2.0) #50ms
+      ab:bc[a]:ac<ack(id:>2.0 vv) + bc>ack(id:<2.0)
+      + ab:bc[a]:ac<ping_r(id:2.0) ac<*ping_r #50ms
+      ab[c]:ac>ack(id:<2.0 vv) #50ms bc:ab[c]:ac>ack(id:<2.0 vv) #50ms
+      a#rtt(>2.0 100) b#rtt(>2.0 100) c#rtt(>2.0 0)
+      a#rtt(<2.0 0) b#rtt(<2.0 100) c#rtt(<2.0 100)
+      a#rtt(b:100) b#rtt(a:100) b#rtt(c:100) c#rtt(b:100)`);
+    // XXX derry:
+    // 3. calc rtt during connect
+    // ab>ws_connect ab>msg(id_a) ab<msg(id_b) // both send ack
+    // XXX: check 0ms and - behavior and verify they work welll
+    // XXX: add mode:req to tests
+    // allow to change auto/manual time in test
+    // XXX derry:
+    // 1. review: +70ms, +20ms
+    // 2. review abc>!ping shortcut
+    // 3. connect flow
+    /* XXX TODO:
+      t('connect', `
+        ab>connect(!!)
+        // XXX: I don't test ws open/accept connection
+        100ms ab>msg(type:connect) ab<msg(type:connect)
+        100ms ab>ack ab<ack
+    */
+    // XXX: 1. +70ms -> 70ms 2) move #123ms to start of line
+    t('3_nodes_manualack_auto_time_multi_rtt', `
+      conf(!autoack auto_time msg_delay a-d rtt(200 bc:20)) !ring(a-d) #ms
+      ac>!ping(id:1 !!) #0ms
+      ab:ac>ping(id:1.0) #100ms
+      bc:ab:ac>ping(id:1.0) ac>*ping #10ms
+      bc[a]:ac<ack(id:>1.0 vv) + bc[a]:ac<ping_r(id:1.0) #10ms
+      bc>ack(id:<1.0) #10ms
+      +70ms ab<ack(id:>1.0) #70ms
+      +20ms ab:bc[a]:ac<ack(id:>1.0 vv) + ab:bc[a]:ac<ping_r(id:1.0)
+      ac<*ping_r #20ms ab[c]:ac>ack(id:<1.0 vv) #100ms
+      bc:ab[c]:ac>ack(id:<1.0 vv) #10ms
+      a#rtt(>1.0 200) b#rtt(>1.0 20) c#rtt(>1.0 0)
+      a#rtt(<1.0 0) b#rtt(<1.0 200) c#rtt(<1.0 20)`);
+    t('3_nodes_manualack_manual_time', `
+      conf(!autoack msg_delay a-d rtt(200 bc:200)) !ring(a-d) #ms
+      ac>!ping(id:1 !!) 100ms ab:ac>ping(id:1.0)
+      100ms ab<ack(id:>1.0) bc:ab:ac>ping(id:1.0) ac>*ping
+      100ms bc[a]:ac<ack(id:>1.0 vv) bc[a]:ac<ping_r(id:1.0)
+      100ms ab:bc[a]:ac<ack(id:>1.0 vv) bc>ack(id:<1.0)
+      ab:bc[a]:ac<ping_r(id:1.0) ac<*ping_r
+      100ms ab[c]:ac>ack(id:<1.0 vv)
+      100ms bc:ab[c]:ac>ack(id:<1.0 vv)
+      a#rtt(>1.0 200) b#rtt(>1.0 200) c#rtt(>1.0 0)
+      a#rtt(<1.0 0) b#rtt(<1.0 200) c#rtt(<1.0 200)`);
+    t('3_nodes_manualack_manual_time_multi_rtt', `
+      conf(!autoack msg_delay a-d rtt(200 bc:20)) !ring(a-d) #ms
+      ac>!ping(id:1 !!)
+      100ms ab:ac>ping(id:1.0)
+      10ms bc:ab:ac>ping(id:1.0) ac>*ping
+      10ms bc[a]:ac<ack(id:>1.0 vv) bc[a]:ac<ping_r(id:1.0)
+      10ms bc>ack(id:<1.0)
+      70ms ab<ack(id:>1.0)
+      20ms ab:bc[a]:ac<ack(id:>1.0 vv) ab:bc[a]:ac<ping_r(id:1.0) ac<*ping_r
+      100ms ab[c]:ac>ack(id:<1.0 vv) 10ms bc:ab[c]:ac>ack(id:<1.0 vv)
+      a#rtt(>1.0 200) b#rtt(>1.0 20) c#rtt(>1.0 0)
+      a#rtt(<1.0 0) b#rtt(<1.0 200) c#rtt(<1.0 20)`);
+    t('3_nodes_parallel_autoack_auto_time', `
+      conf(auto_time msg_delay a-d rtt:200) !ring(a-d) #ms
+      ac>!ping(id:1 !!) #0ms
+      50ms ac>!ping(id:2 !!) #50ms
+      +50ms ab:ac>ping(id:1.0) #50ms
+      +50ms ab:ac>ping(id:2.0) #50ms
+      +50ms bc:ab:ac>ping(id:1.0) ac>*ping(id:1.0) #50ms
+      +50ms bc:ab:ac>ping(id:2.0) ac>*ping(id:2.0) #50ms
+      +50ms bc[a]:ac<ping_r(id:1.0) #50ms
+      +50ms bc[a]:ac<ping_r(id:2.0) #50ms
+      +50ms ab:bc[a]:ac<ping_r(id:1.0) ac<*ping_r(id:1.0) #50ms
+      +50ms ab:bc[a]:ac<ping_r(id:2.0) ac<*ping_r(id:2.0) #50ms`);
+    t('3_nodes_parallel_autoack_manual_time', `
+      conf(msg_delay a-d rtt:200) !ring(a-d) #ms ac>!ping(id:1 !!)
+      50ms ac>!ping(id:2 !!) 50ms ab:ac>ping(id:1.0) 50ms ab:ac>ping(id:2.0)
+      50ms bc:ab:ac>ping(id:1.0) ac>*ping(id:1.0) 50ms bc:ab:ac>ping(id:2.0)
+      ac>*ping(id:2.0) 50ms bc[a]:ac<ping_r(id:1.0)
+      50ms bc[a]:ac<ping_r(id:2.0) 50ms ab:bc[a]:ac<ping_r(id:1.0)
+      ac<*ping_r(id:1.0) 50ms ab:bc[a]:ac<ping_r(id:2.0) ac<*ping_r(id:2.0)`);
+    t('3_nodes_shortcut_autotime', `conf(auto_time msg_delay a-d rtt:200)
+      !ring(a-d) #ms ab.c>!ping #400ms`);
+    if (0) // XXX derry: support it?
+    // 100ms ab:ac>ping 100ms bc:ab:ac>ping ...
+    t('3_nodes_shortcut_manual_time', `conf(msg_delay a-d rtt:200) !ring(a-d)
+      #ms 400ms ab.c>!ping`);
+    // XXX test fuzzy
+    if (true) return; // XXX: TODO
+    // XXX: add time for connect as well
+    t('ping', `mode(msg) conf(a-c rtt:100) ab>!connect()
+      ab>!ping:!! #0ms ab>ping #+100ms ab<ping_r #+100ms`);
+    t('role a', `
+      a-100ms-b>ping 0ms
+      a- ab<ping_r -100ms-b<ack 0ms
+      a-100ms-b<ack
+    `);
+    t('role a', `
+      ab>ping
+      ab<ack + #0 ab<ping_r #100
+      ab<ack +0ms #0 ab<ping_r #100
+
+      ab<ack +50ms #50 ab<ping_r #100 // mixed 50ms
+
+      ab<ack #100 ab<ping_r #100
+      ab<ack +100ms #100 ab<ping_r #100
+
+      // together(ab<ack ab<ping_r)
+      ab<ack
+    `);
+  });
 });
 

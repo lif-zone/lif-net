@@ -2348,6 +2348,8 @@ const cmd_ms = opt=>etask(function*cmd_ms(){
   let ms = assert_int(c.arg);
   assert(!t_pause, 'already paused');
   if (t_conf.auto_time){
+    prev_plus_ms = ms;
+    prev_plus_ts = Date.now();
     assert(!is_sleeping());
     yield test_sleep(ms);
   }
@@ -2552,11 +2554,6 @@ const cmd_run = ()=>etask(function*cmd_run(){
     let pre = prev_plus;
     prev_plus = c.cmd[0]=='+';
     if (prev_plus){
-      let a = c.cmd.match(/^\+([\d]+)ms$/);
-      if (a?.length==2){
-        prev_plus_ms = +a[1];
-        prev_plus_ts = Date.now();
-      }
       if (t_pre_process) // XXX HACK
         t_cmds_processed.push(assign({}, c));
       t_depth--;
@@ -5066,23 +5063,7 @@ describe('peer-relay', function(){
       a#rtt(<2.0 0) b#rtt(<2.0 100) c#rtt(<2.0 100)
       a#rtt(b:100) b#rtt(a:100) b#rtt(c:100) c#rtt(b:100)`);
     // XXX derry:
-    // 3. calc rtt during connect
-    // ab>ws_connect ab>msg(id_a) ab<msg(id_b) // both send ack
-    // XXX: check 0ms and - behavior and verify they work welll
-    // XXX: add mode:req to tests
-    // allow to change auto/manual time in test
-    // XXX derry:
-    // 1. review: +70ms, +20ms
     // 2. review abc>!ping shortcut
-    // 3. connect flow
-    /* XXX TODO:
-      t('connect', `
-        ab>connect(!!)
-        // XXX: I don't test ws open/accept connection
-        100ms ab>msg(type:connect) ab<msg(type:connect)
-        100ms ab>ack ab<ack
-    */
-    // XXX: 1. +70ms -> 70ms 2) move #123ms to start of line
     t('3_nodes_manualack_auto_time_multi_rtt', `
       conf(!autoack auto_time msg_delay a-d rtt(200 bc:20)) !ring(a-d) #ms
       ac>!ping(id:1 !!) #0ms
@@ -5090,8 +5071,8 @@ describe('peer-relay', function(){
       bc:ab:ac>ping(id:1.0) ac>*ping #10ms
       bc[a]:ac<ack(id:>1.0 vv) + bc[a]:ac<ping_r(id:1.0) #10ms
       bc>ack(id:<1.0) #10ms
-      +70ms ab<ack(id:>1.0) #70ms
-      +20ms ab:bc[a]:ac<ack(id:>1.0 vv) + ab:bc[a]:ac<ping_r(id:1.0)
+      70ms + ab<ack(id:>1.0) #70ms
+      20ms + ab:bc[a]:ac<ack(id:>1.0 vv) + ab:bc[a]:ac<ping_r(id:1.0)
       ac<*ping_r #20ms ab[c]:ac>ack(id:<1.0 vv) #100ms
       bc:ab[c]:ac>ack(id:<1.0 vv) #10ms
       a#rtt(>1.0 200) b#rtt(>1.0 20) c#rtt(>1.0 0)
@@ -5123,14 +5104,14 @@ describe('peer-relay', function(){
       conf(auto_time msg_delay a-d rtt:200) !ring(a-d) #ms
       ac>!ping(id:1 !!) #0ms
       50ms ac>!ping(id:2 !!) #50ms
-      +50ms ab:ac>ping(id:1.0) #50ms
-      +50ms ab:ac>ping(id:2.0) #50ms
-      +50ms bc:ab:ac>ping(id:1.0) ac>*ping(id:1.0) #50ms
-      +50ms bc:ab:ac>ping(id:2.0) ac>*ping(id:2.0) #50ms
-      +50ms bc[a]:ac<ping_r(id:1.0) #50ms
-      +50ms bc[a]:ac<ping_r(id:2.0) #50ms
-      +50ms ab:bc[a]:ac<ping_r(id:1.0) ac<*ping_r(id:1.0) #50ms
-      +50ms ab:bc[a]:ac<ping_r(id:2.0) ac<*ping_r(id:2.0) #50ms`);
+      50ms + ab:ac>ping(id:1.0) #50ms
+      50ms + ab:ac>ping(id:2.0) #50ms
+      50ms + bc:ab:ac>ping(id:1.0) ac>*ping(id:1.0) #50ms
+      50ms + bc:ab:ac>ping(id:2.0) ac>*ping(id:2.0) #50ms
+      50ms + bc[a]:ac<ping_r(id:1.0) #50ms
+      50ms + bc[a]:ac<ping_r(id:2.0) #50ms
+      50ms + ab:bc[a]:ac<ping_r(id:1.0) ac<*ping_r(id:1.0) #50ms
+      50ms + ab:bc[a]:ac<ping_r(id:2.0) ac<*ping_r(id:2.0) #50ms`);
     t('3_nodes_parallel_autoack_manual_time', `
       conf(msg_delay a-d rtt:200) !ring(a-d) #ms ac>!ping(id:1 !!)
       50ms ac>!ping(id:2 !!) 50ms ab:ac>ping(id:1.0) 50ms ab:ac>ping(id:2.0)
@@ -5145,28 +5126,6 @@ describe('peer-relay', function(){
     t('3_nodes_shortcut_manual_time', `conf(msg_delay a-d rtt:200) !ring(a-d)
       #ms 400ms ab.c>!ping`);
     // XXX test fuzzy
-    if (true) return; // XXX: TODO
-    // XXX: add time for connect as well
-    t('ping', `mode(msg) conf(a-c rtt:100) ab>!connect()
-      ab>!ping:!! #0ms ab>ping #+100ms ab<ping_r #+100ms`);
-    t('role a', `
-      a-100ms-b>ping 0ms
-      a- ab<ping_r -100ms-b<ack 0ms
-      a-100ms-b<ack
-    `);
-    t('role a', `
-      ab>ping
-      ab<ack + #0 ab<ping_r #100
-      ab<ack +0ms #0 ab<ping_r #100
-
-      ab<ack +50ms #50 ab<ping_r #100 // mixed 50ms
-
-      ab<ack #100 ab<ping_r #100
-      ab<ack +100ms #100 ab<ping_r #100
-
-      // together(ab<ack ab<ping_r)
-      ab<ack
-    `);
   });
 });
 

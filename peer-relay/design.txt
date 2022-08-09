@@ -4,10 +4,14 @@ VP:
   - automatic ack
     + send ack transparently if enabled
     + test ack behavior with fuzzy
-    - rm channel.rtt from router
+    + rm channel.rtt from router
+    * change all tests to use msg_delay/auto_time
+      + fix all the onces that work
+      - change abc>xxx to include ms command if !auto_time
+      - decide if to fix remaining tests
+    - rm all mode(msg req) - it is the default now
     - add # test for request staus in cmd_req/cmd_res
     - auto-calc id/seq/dir in <ack command
-    - add mode:req to tests
     - try to remove all calls to cmd_run (and handle events properly)
     - add test failures with ms to verify it all works properly
     - in auto-time, add test to verify time is correct after event
@@ -17,8 +21,8 @@ VP:
     - make msg_delay the default
     - fix bug in req state handling (it doesn't use ack)
       ack:3_nodes_manual ack:3_nodes_auto
-    - review all tests and add msg_delay
     - fix router.js:ack() to force rt/path when sending ack
+    - fix req_id to be unique per node (not globablly in the network)
   - calc rtt from ack packets - each packet takes conn-rtt time to arrive
     destination.
     + add #1ms api for testing Date.now()
@@ -30,7 +34,6 @@ VP:
   - unite ack from stream level with router ack tracking
     - fix stream out of order tests
   - return path selection decision on every ack
-  - fix req_id to be unique per node (not globablly in the network)
   - notify backwards when ack response is taking longer than ~2*rtt
   - a#test api - test also routing information
   - cleanup of expired requests

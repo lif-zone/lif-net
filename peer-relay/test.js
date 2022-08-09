@@ -3909,16 +3909,14 @@ describe('peer-relay', function(){
   });
   describe('node_conn', ()=>{
     let t = (name, test)=>t_roles(name, 'X', test);
-    t('direct', `mode(msg req) conf(id:a-mXYZn-z rtt(50 aX:10))
-      test_node_conn(X)
+    t('direct', `conf(id:a-mXYZn-z rtt(50 aX:10)) test_node_conn(X)
       Xa>!connect test_node_conn(X(a:10) a(X:10))
       Xb<!connect test_node_conn(X(a:10 b:50) a(X:10) b(X:50))
       Xy>!connect test_node_conn(X(a:10 b:50 y:50) a(X:10) b(X:50) y(X:50))
       Xz<!connect test_node_conn(X(a:10 b:50 y:50 z:50) a(X:10) b(X:50) y(X:50)
         z(X:50))`);
-    t('from_fwd', `mode(msg req)
-      conf(id:a-mXYZn-z rtt(ab:10 bc:20 db:30 zY:40)) test_node_conn(X)
-      aX>!connect test_node_conn(X(a:100) a(X:100))
+    t('from_fwd', ` conf(id:a-mXYZn-z rtt(ab:10 bc:20 db:30 zY:40))
+      test_node_conn(X) aX>!connect test_node_conn(X(a:100) a(X:100))
       aX:ba:cb:cY>req test_node_conn(X(a:100) a(b:10 X:100) b(a:10 c:20)
         c(b:20))
       aX:ba:db:dY>req test_node_conn(X(a:100) a(b:10 X:100)
@@ -3932,8 +3930,7 @@ describe('peer-relay', function(){
   });
   describe('node_map', ()=>{
     let t = (name, test)=>t_roles(name, 'X', test);
-    t('find', `mode(msg req)
-      conf(id(a:0.1 b:0.2 X:0.25 c:0.3 d:0.4)) Xa,Xb,Xc,Xd>!connect
+    t('find', `conf(id(a:0.1 b:0.2 X:0.25 c:0.3 d:0.4)) Xa,Xb,Xc,Xd>!connect
       test_node_find(X:0 next:a prev:d)
       test_node_find(X:0.09 next:a prev:d)
       test_node_find(X:0.1 next:b prev:d)
@@ -4047,7 +4044,7 @@ describe('peer-relay', function(){
       t({d: '.65', peers: '.05 0.1 .6', range: ['.6', '.05']}, '');
     });
     describe('graph', ()=>{
-      t('basic', `mode(msg req) conf(id:a-mXYZn-z rtt(100 zX:500)) aX>!connect
+      t('basic', `conf(id:a-mXYZn-z rtt(100 zX:500)) aX>!connect
         999ms test_node_graph(X aX:100) 1ms test_node_graph(X aX:100)
         aX:ba:bX>req test_node_graph(X aX:100 baX:200)
         1s test_node_graph(X aX:100 baX:200)
@@ -4060,7 +4057,7 @@ describe('peer-relay', function(){
         aX:za:zX>req test_node_graph(X aX:100 baX:200 caX:200 zaX:200)
         1s test_node_graph(X aX:100 baX:200 caX:200 zaX:200)
       `);
-      t('ring', `mode(msg req) conf(id(a:0.1 b:0.2 X:0.3 c:0.4 d:0.5 e:0.6))
+      t('ring', `conf(id(a:0.1 b:0.2 X:0.3 c:0.4 d:0.5 e:0.6))
         ab,bX,Xc,cd,da,eX>!connect test_node_graph(X bX:100 cX:100 eX:100)
         1s test_node_graph(X bX:100 cX:100 eX:100) eX.c.d>!ping
         test_node_graph(X bX:100 cX:100 eX:100 dcX:200)
@@ -4146,9 +4143,9 @@ describe('peer-relay', function(){
       t('5_nodes_ring', `conf(!msg_delay) conf(id(a:10 b:20 c:30 d:40 e:50))
         !ring(a-e) ae.d>!ping 59s - aed<!ping 60s - aed<!ping 60s`);
       t = (name, test)=>t_roles(name, 'abXz', test);
-      t('best_path_circula1', `mode(msg req)
+      t('best_path_circula1', `
         conf(id:a-mXYZn-z rtt(100 Xb:110)) ab,bX,Xz,za>!connect Xb.a>!ping`);
-      t('best_path_circular2', `mode(msg req)
+      t('best_path_circular2', `
          conf(id:a-mXYZn-z rtt(100 Xb:111)) ab,bX,Xz,za>!connect Xz.a>!ping`);
     });
     describe('rtt', ()=>{
@@ -4200,7 +4197,7 @@ describe('peer-relay', function(){
     let t = (name, test)=>t_roles(name, 'abcdef', test);
     t('basic', `conf(id:a-mXYZn-z) !ring(a-f) ed.c.b.a.f~e>!ring_join`);
     t = (name, test)=>t_roles(name, 'abXYnopz', test);
-    t('ring_long:abXno~p', `mode(msg req) conf(id:a-mXYZn-z)
+    t('ring_long:abXno~p', `conf(id:a-mXYZn-z)
       ab,bX,Xn,no,oa,pX>!connect p~p>!ring_join
       pX{X-X}:p~p>msg(type:req cmd:ring_join)
       Xn{n-X}:pX{X-X}:p~p>msg(type:req cmd:ring_join)
@@ -4210,35 +4207,35 @@ describe('peer-relay', function(){
       on[Xp]:ao[nXp]:ap>msg(type:res cmd:ring_join)
       nX[p]:on[Xp]:ao[nXp]:ap>msg(type:res cmd:ring_join)
       Xp:nX[p]:on[Xp]:ao[nXp]:ap>msg(type:res cmd:ring_join) ap>*ring_join_r`);
-    t('ring_short:abXnop~p,pX>!connect', `mode(msg req) conf(id:a-mXYZn-z)
+    t('ring_short:abXnop~p,pX>!connect', `conf(id:a-mXYZn-z)
       ab,bX,Xn,no,oa,pX>!connect pX.n.o.a~p>!ring_join`);
-    t('ring_short:rtt_ok', `mode(msg req) conf(id:a-mXYZn-z rtt(100 oa:223))
+    t('ring_short:rtt_ok', `conf(id:a-mXYZn-z rtt(100 oa:223))
       ab,bX,Xn,no,oa,ob,pX>!connect pX.n.o.a~p>!ring_join`);
-    t('ring_short:rtt_slow', `mode(msg req) conf(id:a-mXYZn-z rtt(100 oa:224))
+    t('ring_short:rtt_slow', `conf(id:a-mXYZn-z rtt(100 oa:224))
       ab,bX,Xn,no,oa,ob,pX>!connect pX.n.o.b.a~p>!ring_join`);
-    t('ring_short:abXnop~p,po>!connect', `mode(msg req) conf(id:a-mXYZn-z)
+    t('ring_short:abXnop~p,po>!connect', `conf(id:a-mXYZn-z)
       ab,bX,Xn,no,oa,po>!connect po.n.X.b.a~p>!ring_join`);
-    t('ring_step_by_step:abXnop~p', `mode(msg req) conf(id:a-mXYZn-z)
+    t('ring_step_by_step:abXnop~p', `conf(id:a-mXYZn-z)
       aX>!connect // XXX: fixme aX~X>!ring_join
       bX>!connect bX.a~b>!ring_join nX>!connect nX.b.Xa~n>!ring_join
       oX>!connect oX.n.Xa~o>!ring_join pX>!connect pX.o.Xa~p>!ring_join`);
-    t('ring_step_by_step2:abXnop~p', `mode(msg req) conf(id:a-mXYZn-z)
+    t('ring_step_by_step2:abXnop~p', `conf(id:a-mXYZn-z)
       aX>!connect // XXX: fixme aX~X>!ring_join
       bX>!connect bX.a~b>!ring_join nX>!connect nX.b.Xa~n>!ring_join !sp
       oX>!connect oX.n.Xa~o>!ring_join !sp pX>!connect pX.o.Xa~p>!ring_join`);
-    t('ring_step_by_step3:abXnop~p', `mode(msg req) conf(id:a-mXYZn-z)
+    t('ring_step_by_step3:abXnop~p', `conf(id:a-mXYZn-z)
       aX>!connect // XXX: fixme aX~X>!ring_join
       bX>!connect bX.a~b>!ring_join nX>!connect nX.b.Xa~n>!ring_join
       oX>!connect oX.n.Xa~o>!ring_join !sp oX.n.Xa~o>!ring_join !sp
       pX>!connect pX.o.Xa~p>!ring_join`);
-    t('star:abXnop~p', `mode(msg req) conf(id:a-mXYZn-z)
+    t('star:abXnop~p', `conf(id:a-mXYZn-z)
       ab,bX,Xn,no,oa,aX,oX,pX>!connect pX.o.a~p>!ring_join`);
-    t('ring:abXnoz~z', `mode(msg req) conf(id:a-mXYZn-z)
+    t('ring:abXnoz~z', `conf(id:a-mXYZn-z)
       ab,bX,Xn,no,oa,zX>!connect zX.b.a.o~z>!ring_join`);
     t = (name, test)=>t_roles(name, 'abcd', test);
-    t('ring_rtt_same', `mode(msg req) conf(id:a-mXYZn-z rtt(100 ac:270))
+    t('ring_rtt_same', `conf(id:a-mXYZn-z rtt(100 ac:270))
       !ring(a-c) da>!connect da.c~d>!ring_join`);
-    t('ring_rtt_slow', `mode(msg req) conf(id:a-mXYZn-z rtt(100 ac:271))
+    t('ring_rtt_slow', `conf(id:a-mXYZn-z rtt(100 ac:271))
       !ring(a-c) da>!connect da.b.c~d>!ring_join`);
     t = (name, test)=>t_roles(name, 'abcdef', test);
     t('shortcut_fast', `conf(id:a-mXYZn-z rtt(999 da:1)) !ring(a-f da)
@@ -4246,7 +4243,7 @@ describe('peer-relay', function(){
     t('shortcut_slow', `conf(id:a-mXYZn-z rtt(1 da:999)) !ring(a-f da)
       ed.c.b.a.f~e>!ring_join`);
     t = (name, test)=>t_roles(name, 'abcdXY', test);
-    t('multi_path_rtt_same', `mode(msg req) conf(id:a-mXYZn-z rtt(100 Xa:140))
+    t('multi_path_rtt_same', `conf(id:a-mXYZn-z rtt(100 Xa:140))
       XY,aX>!connect aX.Y~a>!ring_join bY>!connect bY.Xa.X~b>!ring_join
       dY>!connect dY.b.YX~d>!ring_join cX>!connect cX.a.XYb.Yd~c>!ring_join`);
     // XXX: check why test fail with msg_delay
@@ -4382,7 +4379,7 @@ describe('peer-relay', function(){
         20s - ab>!req(id:1 body:ping !!) ab>msg(id:1 type:req body:ping) -
         ab<!res(id:1 ack:0 body:ping_r !!)
         ab<msg(id:1 type:res ack:0 body:ping_r)`);
-      t('msg,req', `mode(msg req) setup:2_nodes
+      t('msg,req', `setup:2_nodes
         ab>!req(id:0 body:ping !!) ab>msg(id:0 type:req body:ping)
         ab>*req(id:0 body:ping) -
         ab<!res(id:0 ack:0 body:ping_r !!)
@@ -4398,7 +4395,7 @@ describe('peer-relay', function(){
       t('msg', `mode(msg) setup:2_nodes ab>!req(id:0 body:ping) -
         ab>!req(id:1 body:ping) - ab<!res(id:1 body:ping_r) -
         ab<!res(id:0 body:ping_r)`);
-       t('msg,req', `mode(msg req) setup:2_nodes ab>!req(id:0 body:ping)
+       t('msg,req', `setup:2_nodes ab>!req(id:0 body:ping)
         ab>!req(id:1 body:ping) - ab<!res(id:1 body:ping_r) -
         ab<!res(id:0 body:ping_r)`);
     });
@@ -4408,7 +4405,7 @@ describe('peer-relay', function(){
         ab<ack ab>ack -
         ab>!req(id:0 body:ping res:ping_r !!)
         ab>msg(type:req id:0 body:ping) ab<msg(type:res id:0 body:ping_r)`);
-      t('msg,req', `mode(msg req) a=node b=node(wss(port:4000))
+      t('msg,req', `a=node b=node(wss(port:4000))
         ab>!connect(wss !!) ab>msg(type:req cmd:connect)
         ab<msg(type:req cmd:connect) ab<ack ab>ack -
         ab>!req(id:0 body:ping res:ping_r !!) ab>msg(type:req id:0 body:ping)
@@ -4416,18 +4413,16 @@ describe('peer-relay', function(){
         ab<*res(id:0 body:ping_r)`);
     });
     describe('3_nodes', ()=>{
-      t('msg', `
-        mode:msg a=node b=node(wss) ab>!connect(wss) c=node(wss)
+      t('msg', ` mode:msg a=node b=node(wss) ab>!connect(wss) c=node(wss)
         bc>!connect(wss) rt_add(a:bc) abc>!req(id:0 body:ping res:ping_r)`);
-      t('msg,req', `
-        mode(msg req) a=node b=node(wss) ab>!connect(wss) c=node(wss)
+      t('msg,req', ` a=node b=node(wss) ab>!connect(wss) c=node(wss)
         bc>!connect(wss) rt_add(a:bc) abc>!req(id:0 body:ping res:ping_r)`);
     });
     describe('failure', ()=>{
       describe('timeout', ()=>{
         t('msg', `mode:msg setup:2_nodes ab>!req(id:0 body:ping) 19949ms -
           1ms a>*fail(id:0 error:timeout)`);
-        t('msg,req', `mode(msg req) setup:2_nodes ab>!req(id:0 body:ping)
+        t('msg,req', `setup:2_nodes ab>!req(id:0 body:ping)
           19949ms - 1ms a>*fail(id:0 error:timeout)`);
       });
       if (0)// XXX TODO
@@ -4436,7 +4431,7 @@ describe('peer-relay', function(){
           ab>msg(id:0 type:req body:ping) ab<!res(id:1 body:ping_r)
           ab<msg(id:1 type:res body:ping_r) - 19949ms -
           1ms a>*fail(id:0 error:timeout)`);
-        t('msg,req', `mode(msg req) setup:2_nodes ab>!req(id:0 body:ping)
+        t('msg,req', `setup:2_nodes ab>!req(id:0 body:ping)
           ab>msg(id:0 type:req body:ping) ab>*req(id:0 body:ping)
           ab<!res(id:1 body:ping_r) ab<msg(id:1 type:res body:ping_r)
           ab<*res(id:1 body:ping_r) - 19949ms -
@@ -4446,8 +4441,7 @@ describe('peer-relay', function(){
         t('msg', `mode:msg setup:2_nodes c=node cb>!req(id:0 body:ping !!) -
         19999ms - 1ms c>*fail(id:0 error:timeout)`);
         if (0) // XXX: fixme
-        t('msg,req', `mode(msg req) setup:2_nodes c=node
-        cb>!req(id:0 body:ping) - 19999ms -
+        t('msg,req', `setup:2_nodes c=node cb>!req(id:0 body:ping) - 19999ms -
         1ms c>*fail(id:0 error:timeout)`);
       });
     });
@@ -4469,8 +4463,7 @@ describe('peer-relay', function(){
         ab>msg(id:0 type:req_end cmd:test ack:1 seq:2 body:b2)
         ab<!res_end(id:0 seq:2 ack:2 body:c2 !!)
         ab<msg(id:0 type:res_end cmd:test seq:2 ack:2 body:c2)`);
-      t('msg,req', `mode(msg req) setup:2_nodes
-        ab>!req_start(id:0 seq:0 cmd:test body:b0 !!)
+      t('msg,req', `setup:2_nodes ab>!req_start(id:0 seq:0 cmd:test body:b0 !!)
         ab>msg(id:0 type:req_start cmd:test seq:0 body:b0)
         ab>*req_start(id:0 seq:0 cmd:test body:b0)
         ab<!res_start(id:0 seq:0 ack:0 body:c0 !!)
@@ -4503,8 +4496,7 @@ describe('peer-relay', function(){
         ab>msg(id:0 type:req_end cmd:test ack:1 seq:2 body:b2)
         ab<!res_end(id:0 ack:2 body:c2 !!)
         ab<msg(id:0 type:res_end cmd:test seq:2 ack:2 body:c2)`);
-      t('msg,req', `mode(msg req) setup:2_nodes
-        ab>!req_start(id:0 cmd:test body:b0 !!)
+      t('msg,req', `setup:2_nodes ab>!req_start(id:0 cmd:test body:b0 !!)
         ab>msg(id:0 type:req_start cmd:test seq:0 body:b0)
         ab>*req_start(id:0 cmd:test body:b0)
         ab<!res_start(id:0 ack:0 body:c0 !!)
@@ -4782,7 +4774,7 @@ describe('peer-relay', function(){
     t('short', `a=node b=node(wss) ab>!connect`);
     t('msg', `mode:msg setup:2_nodes ab>!req(id:0 body:ping res:ping_r)
       ab<!req(id:1 body:ping res:ping_r)`);
-    t('msg,req', `mode(msg req) setup:2_nodes
+    t('msg,req', `setup:2_nodes
       ab>!req(id:0 body:ping res:ping_r) - ab<!req(id:1 body:ping res:ping_r)
     `);
   });
@@ -4791,7 +4783,7 @@ describe('peer-relay', function(){
     t('msg', `mode:msg a=node(wrtc) b=node(wrtc wss) -
       ab>!connect(wrtc) - ab>!req(id:0 body:ping res:ping_r)
       ab<!req(id:1 body:ping res:ping_r)`);
-    t('msg,req', `mode(msg req) a=node(wrtc) b=node(wrtc wss) -
+    t('msg,req', `a=node(wrtc) b=node(wrtc wss) -
       ab>!connect(wrtc) - ab>!req(id:0 body:ping res:ping_r) -
       ab<!req(id:1 body:ping res:ping_r)
     `);
@@ -4799,7 +4791,7 @@ describe('peer-relay', function(){
   describe('2_nodes_wss', function(){
     const t = (name, test)=>t_roles(name, 'ab', test);
     t('msg', `mode:msg setup:2_nodes_wss`);
-    t('msg,req', `mode(msg req) setup:2_nodes_wss`);
+    t('msg,req', `setup:2_nodes_wss`);
   });
   describe('3_nodes', function(){
     const t = (name, test)=>t_roles(name, 'abcs', test);
@@ -4811,7 +4803,7 @@ describe('peer-relay', function(){
         ab>!req(id:0 body:ping res:ping_r)
         abc>!req(id:1 body:ping res:ping_r)
         bc>!req(id:2 body:ping res:ping_r)`);
-      t('msg,req', `mode(msg req) setup:3_nodes_linear rt_add(a:bc)
+      t('msg,req', `setup:3_nodes_linear rt_add(a:bc)
         ab>!req(id:0 body:ping res:ping_r)
         abc>!req(id:1 body:ping res:ping_r)
         bc>!req(id:2 body:ping res:ping_r)`);
@@ -4819,12 +4811,12 @@ describe('peer-relay', function(){
     describe('linear_wrtc', ()=>{
       t('msg', `mode:msg a=node(wrtc) b,c=node(wrtc wss)
         ab>!connect:wss - bc>!connect:wrtc`);
-      t('msg,req', `mode(msg req) a=node(wrtc) b,c=node(wrtc wss)
+      t('msg,req', `a=node(wrtc) b,c=node(wrtc wss)
         ab>!connect:wss - bc>!connect:wrtc`);
     });
     describe('linear_wss', ()=>{
       t('msg', `mode:msg setup:3_nodes_wss`);
-      t('msg,req', `mode(msg req) setup:3_nodes_wss`);
+      t('msg,req', `setup:3_nodes_wss`);
     });
   });
   // XXX: add disconnect tests

@@ -9,7 +9,8 @@ VP:
       + fix all the onces that work
       - change abc>xxx to include ms command if !auto_time
       - decide if to fix remaining tests
-    * rm all mode(msg req) - it is the default now
+    + rm all mode(msg req) - it is the default now
+    - return route decision on ack
     - add # test for request staus in cmd_req/cmd_res
     - auto-calc id/seq/dir in <ack command
     - try to remove all calls to cmd_run (and handle events properly)

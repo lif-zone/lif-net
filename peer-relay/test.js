@@ -3390,7 +3390,6 @@ describe('peer-relay', function(){
   });
   describe('test_api', function(){
     describe('pre_process', function(){
-if (0) // XXX: fixme
       describe('shortcut', ()=>{
         const _t = (mode, test, exp, both)=>it(mode+(mode ? ' ': '')+test,
           ()=>etask(function*(){
@@ -3638,14 +3637,19 @@ if (0) // XXX: fixme
         describe('connect', function(){
           t('ab>!connect(wss !!)', `ab>!connect(wss !!)`);
           t('ab>!connect(!!)', `ab>!connect(wss !!)`);
-          t('ab>!connect', `ab>!connect(wss !!) ab>msg(type:req cmd:connect)
-            ab<msg(type:req cmd:connect) ab<ack ab>ack`);
-          t('conf(msg_delay auto_time rtt:200) ab>!connect',
-            `conf(msg_delay auto_time rtt:200) ab>!connect(wss !!)
+          t('conf(!msg_delay !auto_time) ab>!connect',
+            `conf(!msg_delay !auto_time) ab>!connect(wss !!)
+            ab>msg(type:req cmd:connect) ab<msg(type:req cmd:connect)
+            ab<ack ab>ack`);
+          t('conf(rtt:200) ab>!connect', `conf(rtt:200) ab>!connect(wss !!)
              ab>msg(type:req cmd:connect) + ab<msg(type:req cmd:connect)
              ab<ack + ab>ack`);
-          t('conf(msg_delay rtt:200) ab>!connect',
-            `conf(msg_delay rtt:200) ab>!connect(wss !!)
+          t('conf(auto_time rtt:200) ab>!connect',
+            `conf(auto_time rtt:200) ab>!connect(wss !!)
+             ab>msg(type:req cmd:connect) + ab<msg(type:req cmd:connect)
+             ab<ack + ab>ack`);
+          t('conf(!auto_time rtt:200) ab>!connect',
+            `conf(!auto_time rtt:200) ab>!connect(wss !!)
              100ms ab>msg(type:req cmd:connect) ab<msg(type:req cmd:connect)
              100ms ab<ack ab>ack`);
         });

@@ -809,6 +809,9 @@ class FakeChannel extends EventEmitter {
       default: assert(0, 'invalid cmd ', cmd);
       }
       break;
+    case 'ack':
+      body = body && 'rt:'+path_to_str(body.rt);
+      break;
     default: assert(['req', 'res', 'req_start', 'res_start', 'req_next',
       'res_next', 'req_end', 'res_end', 'ack'].includes(type),
       'unexpected msg type '+type);
@@ -1795,7 +1798,7 @@ function cmd_ack(opt){
   let {c} = opt;
   let event = shift_event(c);
   assert(!event, 'unexpected event');
-  let arg = xtest.test_parse_no_dir(c.arg), seq, id, dir, vv;
+  let arg = xtest.test_parse_no_dir(c.arg), seq, id, dir, vv, body;
   xutil.forEach(arg, a=>{
     switch (a.cmd){
     case 'vv': vv = assert_bool(a.arg); break;
@@ -1804,15 +1807,16 @@ function cmd_ack(opt){
       id = id_from_req_id(a.arg);
       seq = seq_from_req_id(a.arg);
       break;
+    case 'body': body = a.arg; break;
     default: assert(0, 'unknown arg '+a.cmd);
     }
   });
   assert(t_pre_process, 'should never happen');
   let s = build_cmd_o(c.loop ? loop_str(c.loop)+'>msg' :
-    dir_c(c)+'msg', {id, type: 'ack', seq, dir, vv});
+    dir_c(c)+'msg', {id, type: 'ack', seq, dir, vv, body});
   if (c.fwd){
-    s = build_fwd(c.fwd, c.rt2, c.range2,
-      build_cmd_o(normalize(dir_c(c))+'msg', {id, type: 'ack', seq, dir, vv}));
+    s = build_fwd(c.fwd, c.rt2, c.range2, build_cmd_o(
+      normalize(dir_c(c))+'msg', {id, type: 'ack', seq, dir, vv, body}));
   }
   set_push_cmd(c, s);
 }
@@ -5148,6 +5152,20 @@ describe('peer-relay', function(){
       ac<*ping_r(id:1.0) 50ms ab:bc[a]:ac<ping_r(id:2.0) ac<*ping_r(id:2.0)`);
     t('3_nodes_shortcut_autotime', `conf(auto_time msg_delay a-d rtt:200)
       !ring(a-d) #ms ab.c>!ping #400ms`);
+    // XXX derry: change order of events. ack after forward
+    // 100ms bc:ab:ac>ping(id:1.0) ab<ack(id:>1.0 body(rt:c)) ac>*ping
+    if (0)
+    t('xxx1', `
+      conf(!autoack !auto_time a-d rtt(200 bc:200)) !ring(a-d) #ms
+      ac>!ping(id:1 !!) 100ms ab:ac>ping(id:1.0)
+      100ms ab<ack(id:>1.0 body(rt:c)) bc:ab:ac>ping(id:1.0) ac>*ping
+      100ms bc[a]:ac<ack(id:>1.0 vv) bc[a]:ac<ping_r(id:1.0)
+      100ms ab:bc[a]:ac<ack(id:>1.0 vv) bc>ack(id:<1.0)
+      ab:bc[a]:ac<ping_r(id:1.0) ac<*ping_r
+      100ms ab[c]:ac>ack(id:<1.0 vv)
+      100ms bc:ab[c]:ac>ack(id:<1.0 vv)
+      a#rtt(>1.0 200) b#rtt(>1.0 200) c#rtt(>1.0 0)
+      a#rtt(<1.0 0) b#rtt(<1.0 200) c#rtt(<1.0 200)`);
     if (0) // XXX derry: support it?
     // 100ms ab:ac>ping 100ms bc:ab:ac>ping ...
     t('3_nodes_shortcut_manual_time', `conf(msg_delay a-d rtt:200) !ring(a-d)

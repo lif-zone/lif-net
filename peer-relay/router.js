@@ -61,7 +61,7 @@ export default class Router extends EventEmitter {
       this.emit('message', lbuffer);
   }
   send_prepare = function(lbuffer){
-    let channel;
+    let channel, fwd_rt;
     let msg = lbuffer.msg(), msg0 = lbuffer.get_json(0), range;
     let rt = msg0.rt, path = rt?.path;
     let to = NodeId.from(msg.to), from = NodeId.from(msg.from), best;
@@ -138,6 +138,8 @@ export default class Router extends EventEmitter {
     if (msg0.type=='fwd' || range || path?.length>1 || !channel.id.eq(to)){
       let msg2 = {from: this.id.s, to: channel.id.s, type: 'fwd',
         rtt: channel.rtt||DEF_RTT};
+      if (!rt?.path && path) // XXX handle whith optional path as well
+        fwd_rt = Array.from(path);
       if (path && path.length>1){
         path = Array.from(path);
         path.splice(0, 1);
@@ -148,7 +150,7 @@ export default class Router extends EventEmitter {
         msg2.range = NodeId.range_to_msg(range);
       lbuffer.add_json(msg2);
     }
-    return {channel, lbuffer};
+    return {channel, lbuffer, fwd_rt};
   }
   _on_msg(data, channel){
     let lbuffer = LBuffer.from(data), msg = lbuffer.msg();
@@ -168,16 +170,16 @@ export default class Router extends EventEmitter {
     }
     else {
       this.track(lbuffer);
-      let o = this.send_prepare(lbuffer);
+      let o = this.send_prepare(lbuffer), {fwd_rt} = o||{};
       this.track(lbuffer, o?.vv);
       if (o?.vv){
         if (msg.type!='ack')
-          this.pending_ack = {channel, lbuffer, vv: true};
+          this.pending_ack = {channel, lbuffer, vv: true, fwd_rt};
         this.emit('message', lbuffer);
         this.ack_pending();
       } else {
         if (msg.type!='ack')
-          this.ack(channel, lbuffer);
+          this.ack(channel, lbuffer, false, fwd_rt);
         if (o?.channel)
           o.channel.send(lbuffer.to_str());
       }
@@ -188,7 +190,8 @@ export default class Router extends EventEmitter {
       return;
     let pending = this.pending_ack;
     this.pending_ack = null;
-    return this.ack(pending.channel, pending.lbuffer, pending.vv);
+    return this.ack(pending.channel, pending.lbuffer, pending.vv,
+      pending.fwd_rt);
   }
   _onChannelAdded(channel){
     let dst = channel.id;
@@ -296,15 +299,17 @@ export default class Router extends EventEmitter {
     }
     return a;
   }
-  ack(channel, lbuffer, vv){
+  ack(channel, lbuffer, vv, fwd_rt){
     let msg = lbuffer.msg(), dir = type_to_dir(msg.type);
     if (!dir)
       return;
-    let msgid = this.msgid();
+    let msgid = this.msgid(), body;
+    if (false && fwd_rt) // XXX: WIP
+      body = {rt: fwd_rt};
     if (vv){
       // XXX: provide path in rt
       let msg2 = {msgid, to: msg.from, from: this.id.s, type: 'ack',
-        req_id: msg.req_id, seq: msg.seq, dir, vv: true};
+        req_id: msg.req_id, seq: msg.seq, dir, vv: true, body};
       // XXX: set rt/path from incoming packet to make sure we do same path
       let lbuffer2 = new LBuffer(msg2);
       if (msg2.to==channel.id.s){
@@ -315,7 +320,7 @@ export default class Router extends EventEmitter {
       return this._send(lbuffer2);
     }
     let msg2 = {msgid, to: channel.id.s, from: this.id.s, type: 'ack',
-      req_id: msg.req_id, seq: msg.seq, dir};
+      req_id: msg.req_id, seq: msg.seq, dir, body};
     let lbuffer2 = new LBuffer(msg2);
     return channel.send(lbuffer2.to_str());
   }

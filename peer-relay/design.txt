@@ -11,8 +11,9 @@ VP:
       - decide if to fix remaining tests
     + rm all mode(msg req) - it is the default now
     * return route decision on ack
-      * change order of fwd/ack. first fwd msg, then ack msg
-      * return route on manual ack
+      * fix event handling - check event when msg recieved and set future timer
+      o change order of fwd/ack. first fwd msg, then ack msg
+      o return route on manual ack
       - return route on auto ack
     - add ack fuzzy test with msg_delay
     - fix ack_no_rtt 3_nodes_manual test

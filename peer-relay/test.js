@@ -4917,7 +4917,8 @@ describe('peer-relay', function(){
       ab:bc[a]:ac<ack(id:>1.1 vv)
       a,b#ac>open(>1.1vv)
       ac>!req_end(!!) a#ac>closing(>1.2) b,c#ac>open(!id:>1.2)
-      ab[c]:ac>req_end(id:>1.2) a#ac>closing(>1.2) c#ac>open(!id:>1.2) b#ac>closing(>1.2)
+      ab[c]:ac>req_end(id:>1.2) a#ac>closing(>1.2) c#ac>open(!id:>1.2)
+      b#ac>closing(>1.2)
       bc:ab[c]:ac>req_end(id:>1.2) a#ac>closing(>1.2) b#ac>closing(>1.2)
       ab<ack(id:>1.2) a#ac>closing(>1.2v) b#ac>closing(>1.2) c#ac>close(>1.2vv)
       c#ac>close(>1.2vv)
@@ -5154,6 +5155,22 @@ describe('peer-relay', function(){
       100ms ab[c]:ac>ack(id:<1.0 vv) 10ms bc:ab[c]:ac>ack(id:<1.0 vv)
       a#rtt(>1.0 200) b#rtt(>1.0 20) c#rtt(>1.0 0)
       a#rtt(<1.0 0) b#rtt(<1.0 200) c#rtt(<1.0 20)`);
+    // XXX: need autoack version
+    // XXX derry: change events to run when even happens
+    // ab:ac>ping(id:1.0) 10ms completion_of_ping_recv
+    t('3_nodes_manualack_manual_time_multi_rtt2', `
+      conf(!autoack msg_delay !auto_time a-d rtt(200 ab:20)) !ring(a-d) #ms
+      ac>!ping(id:1 !!)
+      10ms ab:ac>ping(id:1.0)
+      10ms ab<ack(id:>1.0)
+      90ms bc:ab:ac>ping(id:1.0) ac>*ping
+      100ms bc[a]:ac<ack(id:>1.0 vv) bc[a]:ac<ping_r(id:1.0)
+      10ms ab:bc[a]:ac<ack(id:>1.0 vv) ab:bc[a]:ac<ping_r(id:1.0) ac<*ping_r
+      10ms ab[c]:ac>ack(id:<1.0 vv)
+      80ms bc>ack(id:<1.0)
+      20ms bc:ab[c]:ac>ack(id:<1.0 vv)
+      a#rtt(>1.0 20) b#rtt(>1.0 200) c#rtt(>1.0 0)
+      a#rtt(<1.0 0) b#rtt(<1.0 20) c#rtt(<1.0 200)`);
     t('3_nodes_parallel_autoack_auto_time', `
       conf(auto_time msg_delay a-d rtt:200) !ring(a-d) #ms
       ac>!ping(id:1 !!) #0ms

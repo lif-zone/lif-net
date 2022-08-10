@@ -178,10 +178,10 @@ export default class Router extends EventEmitter {
         this.emit('message', lbuffer);
         this.ack_pending();
       } else {
-        if (msg.type!='ack')
-          this.ack(channel, lbuffer, false, fwd_rt);
         if (o?.channel)
           o.channel.send(lbuffer.to_str());
+        if (msg.type!='ack')
+          this.ack(channel, lbuffer, false, fwd_rt);
       }
     }
   }

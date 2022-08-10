@@ -10,7 +10,15 @@ VP:
       - change abc>xxx to include ms command if !auto_time
       - decide if to fix remaining tests
     + rm all mode(msg req) - it is the default now
-    - return route decision on ack
+    * return route decision on ack
+      * change order of fwd/ack. first fwd msg, then ack msg
+      * return route on manual ack
+      - return route on auto ack
+    - add ack fuzzy test with msg_delay
+    - fix ack_no_rtt 3_nodes_manual test
+      XXX: fix bug in req state handling (it doesn't use ack)
+    - fix stream timeout disabled bugs multi_no_req/res
+    - fix ack = undefined in *req/res
     - add # test for request staus in cmd_req/cmd_res
     - auto-calc id/seq/dir in <ack command
     - try to remove all calls to cmd_run (and handle events properly)

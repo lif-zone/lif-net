@@ -48,11 +48,10 @@ process.on('unhandledRejection', err=>xerr.xexit(err));
 xerr.set_exception_handler('test', (prefix, o, err)=>xerr.xexit(err));
 
 let t_nodes = {}, t_ids = {}, t_msg, t_msgid, t_req, t_cmds, t_i, t_role;
-let t_port=4000, t_pending;
+let t_port=4000, t_pending, t_sleep;
 let t_pre_process, t_cmds_processed, t_mode, t_mode_prev, t_req_id;
 let t_reprocess, t_conf, t_req_id_last, t_test_prev;
 let t_prev_time, t_event, t_pause, t_no_events_allowed_ts;
-let t_sleep;
 NodeMap.t.t_nodes = Router.t.t_nodes = t_nodes;
 NodeMap.t.node_from_id = Router.t.node_from_id = node_from_id;
 

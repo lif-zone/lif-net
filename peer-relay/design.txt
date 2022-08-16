@@ -9,6 +9,13 @@ VP:
       + fix all the onces that work
       - change abc>xxx to include ms command if !auto_time
       - decide if to fix remaining tests
+    - fix sub_rtt_is_not_ignored
+    - review all tests with !msg_delay and fix
+    - fix 3_nodes_manualack_manual_time_multi_rtt
+      10ms 70ms 20ms -> 100ms
+    - fix multi_no_res
+    - rm/rename all zzz tests
+    - create tests for error (99ms/101ms instead of 100ms)
     + rm all mode(msg req) - it is the default now
     * return route decision on ack
       * fix event handling - check event when msg recieved and set future timer
@@ -48,6 +55,8 @@ VP:
   - a#test api - test also routing information
   - cleanup of expired requests
 - conn disconnected: update tables
+  - ws server/client, wrtc peer detection of disconnect (closing state)
+  - need send close connection to all requests going through it
 - handle failures
   - conn dead (timeouts): zero incoming pkts, mark dead, retry?
 - remove obsolete

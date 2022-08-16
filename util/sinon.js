@@ -34,11 +34,11 @@ var idle_listeners = new events();
 function auto_inc(){
     if (!clock)
       return;
-    var next = clock.firstTimerInRange(clock.now, Number.MAX_VALUE);
-    if (next){
-        xerr.notice('time auto_inc %s', next.callAt-clock.now);
-        clock_tick.call(clock, next.callAt-clock.now);
-    }
+    let ms = E.next();
+    if (ms===undefined)
+      return;
+    xerr.notice('time auto_inc %sms', ms);
+    clock_tick.call(clock, ms);
 }
 
 function idle_clear(){
@@ -73,6 +73,17 @@ E.uninit = function(){
     idle_listeners = new events();
     if (clock)
         clock = void clock.restore();
+};
+
+E.clock = function(){ return clock; };
+
+E.next = function(){
+  if (!clock)
+    return;
+  var next = clock.firstTimerInRange(clock.now, Number.MAX_VALUE);
+  if (!next)
+    return;
+  return next.callAt-clock.now;
 };
 
 E.tick = function(time, opt){

@@ -2574,6 +2574,7 @@ const test_sleep = ms=>etask(function*(){
   if (ms===undefined)
     return;
   assert(!t_no_events_allowed_ts);
+  xerr.notice('test_sleep %sms', ms);
   t_no_events_allowed_ts = Date.now()+ms;
   xsinon.set_max_auto_inc(ms);
   yield etask_sleep(ms);
@@ -5126,8 +5127,7 @@ describe('peer-relay', function(){
       a#rtt(b:100) b#rtt(a:100) b#rtt(c:200) c#rtt(b:200)
       ab:bc[a]:ac<ping_r(id:2.0) ac<*ping_r #50ms
       a#rtt(b:100) b#rtt(a:100) b#rtt(c:200) c#rtt(b:100)
-      50ms a#rtt(b:100) b#rtt(a:100) b#rtt(c:100) c#rtt(b:100)
-    `);
+      50ms a#rtt(b:100) b#rtt(a:100) b#rtt(c:100) c#rtt(b:100)`);
     t('3_nodes_autoack_manual_time_multi_rtt', `
       conf(!auto_time msg_delay a-d rtt(200 bc:20)) !ring(a-d)
       ac>!ping(id:1 !!)
@@ -5181,8 +5181,17 @@ describe('peer-relay', function(){
       #100ms bc:ab[c]:ac>ack(id:<1.0 vv)
       #10ms  a#rtt(>1.0 200) b#rtt(>1.0 20) c#rtt(>1.0 0)
              a#rtt(<1.0 0) b#rtt(<1.0 200) c#rtt(<1.0 20)`);
-    // XXX derry: make sure error are clear. for example if event didn't
-    // arrived (idea: move time 1 year)
+    t('3_nodes_manualack_auto_time_multi_rtt2', `
+      conf(!autoack msg_delay a-d rtt(200 ab:20)) !ring(a-d)
+      #ms     ac>!ping(id:1 !!) ab:ac>ping(id:1.0)
+      #10ms   bc:ab:ac>ping(id:1.0) + ab<ack(id:>1.0)
+      100ms + ac>*ping bc[a]:ac<ack(id:>1.0 vv) + bc[a]:ac<ping_r(id:1.0)
+      100ms + ab:bc[a]:ac<ack(id:>1.0 vv) + ab:bc[a]:ac<ping_r(id:1.0) +
+              bc>ack(id:<1.0)
+      10ms  + ac<*ping_r + ab[c]:ac>ack(id:<1.0 vv)
+      10ms  + bc:ab[c]:ac>ack(id:<1.0 vv)
+              a#rtt(>1.0 20) b#rtt(>1.0 200) c#rtt(>1.0 0)
+      100ms a#rtt(<1.0 0) b#rtt(<1.0 20) c#rtt(<1.0 200)`);
     t('3_nodes_manualack_manual_time', `
       conf(!autoack msg_delay !auto_time a-d rtt(200 bc:200)) !ring(a-d) #ms
       ac>!ping(id:1 !!) ab:ac>ping(id:1.0)
@@ -5205,7 +5214,6 @@ describe('peer-relay', function(){
       100ms bc:ab[c]:ac>ack(id:<1.0 vv)
       a#rtt(>1.0 200) b#rtt(>1.0 20) c#rtt(>1.0 0)
       a#rtt(<1.0 0) b#rtt(<1.0 200) c#rtt(<1.0 20)`);
-    // XXX: need autoack version and auto_time
     t('3_nodes_manualack_manual_time_multi_rtt2', `
       conf(!autoack msg_delay !auto_time a-d rtt(200 ab:20)) !ring(a-d)
             ac>!ping(id:1 !!) ab:ac>ping(id:1.0)

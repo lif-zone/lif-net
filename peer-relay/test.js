@@ -616,7 +616,7 @@ function conf_rtt(a, b){
 }
 
 function conf_rtt_from_node(s, d){ return conf_rtt(s.t.name, d.t.name); }
-
+function conf_rtt_from_name(s, d){ return conf_rtt(N(s).t.name, N(d).t.name); }
 function conf_rtt_from_id(id1, id2){
   return conf_rtt(node_from_id(id1).t.name, node_from_id(id2).t.name); }
 
@@ -1748,35 +1748,38 @@ function cmd_ping(opt){
   });
   assert(!rt || call, 'rt can only be used with call');
   if (t_pre_process){
-    let s;
+    let str;
     if (c.fwd){
-      s = build_fwd(c.fwd, c.rt2, c.range2,
+      str = build_fwd(c.fwd, c.rt2, c.range2,
         build_cmd_o(normalize(dir_c(c))+'msg',
         {id, seq, type: 'req', cmd: 'ping'}));
     } else if (basic){
-      s = build_cmd_o(c.loop ? loop_str(c.loop)+'>msg' : dir_c(c)+'msg',
+      str = build_cmd_o(c.loop ? loop_str(c.loop)+'>msg' : dir_c(c)+'msg',
         {id, seq, type: 'req', cmd: 'ping'});
-      set_push_cmd(c, s);
+      set_push_cmd(c, str);
     } else if (call && e){
-      s = build_cmd_o(c.s+c.d+'>!ping', {'!!': e,
+      let {msg_delay, auto_time} = t_conf;
+      let dur_ms = msg_delay && !auto_time && conf_rtt_from_node(s, d)/2;
+      str = build_cmd_o(c.s+c.d+'>!ping', {'!!': e,
         'rt': rt && rt_to_str(rt)});
-      s += t_mode.msg ? ' '+build_cmd_o(
+      str += t_mode.msg ? ' '+build_cmd_o(
         c.loop ? loop_str(c.loop)+'>msg' : dir_c(c)+'msg',
-        {id, seq, type: 'req', cmd: 'ping'}) : '';
-      s += build_cmd_o(dir_c(c)+'*req', {id, seq, cmd: 'ping'});
-      s += t_mode.msg ? ' '+build_cmd_o(
+        {id, seq, type: 'req', cmd: 'ping'})+
+        (!c.loop&&msg_delay&&!auto_time ? ' '+dur_ms+'ms ' : ' ') : '';
+      str += build_cmd_o(dir_c(c)+'*req', {id, seq, cmd: 'ping'});
+      str += t_mode.msg ? ' '+build_cmd_o(
         c.loop ? rev_loop_str(c.loop)+'>msg' : rev_c(c)+'msg',
-        {id, seq, type: 'res', cmd: 'ping'}) : '';
-      s += build_cmd_o(rev_c(c)+'*res', {id, seq, cmd: 'ping'});
+        {id, seq, type: 'res', cmd: 'ping'})+
+        (!c.loop&&msg_delay&&!auto_time ? ' '+dur_ms+'ms ' : ' ') : '';
+      str += build_cmd_o(rev_c(c)+'*res', {id, seq, cmd: 'ping'});
     } else if (c.cmd[0]=='*')
-      s = build_cmd_o(dir_c(c)+'*req', {id, seq, cmd: 'ping'});
-    if (s)
-      set_push_cmd(c, s);
+      str = build_cmd_o(dir_c(c)+'*req', {id, seq, cmd: 'ping'});
+    if (str)
+      set_push_cmd(c, str);
     return;
   }
   if (!call)
     return;
-debugger;
   if (!s.t.fake)
     s.ping(d.id, {req_id: id, rt});
 }
@@ -2486,6 +2489,11 @@ function expand_loop_fwd(c){
     prev = _build_cmd(o.arg, [dir_c(o)]);
     set_orig(o, prev);
     a.push(o);
+    let {msg_delay, auto_time} = t_conf;
+    let dur_ms = msg_delay && !auto_time && conf_rtt_from_name(o.s, o.d)/2;
+    if (msg_delay && !auto_time){
+      a.push({cmd: 'ms', arg: ''+dur_ms, orig: 'ms('+dur_ms+')'});
+    }
   }
   return _set_push_cmd(c, a);
 }
@@ -3497,6 +3505,12 @@ describe('peer-relay', function(){
         t('abcd<fwd(ac>msg(body:x))', `cd<fwd(ac>msg(body(x)) rt(ab))
           bc<fwd(cd<fwd(ac>msg(body(x)) rt(ab)) rt(a))
           ab<fwd(bc<fwd(cd<fwd(ac>msg(body(x)) rt(ab)) rt(a)))`);
+        t('conf(auto_time rtt:200) abc>msg(body:x)',
+          `conf(auto_time rtt:200) ab>fwd(ac>msg(body(x)) rt(c))
+          bc>fwd(ab>fwd(ac>msg(body(x)) rt(c)))`);
+        t('conf(!auto_time rtt(200 ab:100)) abc>msg(body:x)',
+          `conf(!auto_time rtt(200 ab:100)) ab>fwd(ac>msg(body(x)) rt(c)) 50ms
+          bc>fwd(ab>fwd(ac>msg(body(x)) rt(c))) 100ms`);
         t('pX.n.o>fwd(p~p>msg)', `pX:p~p>msg Xn:pX:p~p>msg no:Xn:pX:p~p>msg`);
         t('pX.n.o~p>fwd(p~p>msg)', `pX{X-X}:p~p>msg Xn{n-X}:pX{X-X}:p~p>msg
           no{o-X}:Xn{n-X}:pX{X-X}:p~p>msg`);
@@ -3836,6 +3850,10 @@ describe('peer-relay', function(){
             cg:bc[defg]:bg>msg(type:req cmd:ping)`);
           t('ab>!ping(!!)', `ab>!ping(!!)`);
           t('ab>!ping', `ab>!ping(!!) ab>ping ab>*ping ab<ping_r ab<*ping_r`);
+          t('conf(auto_time rtt:200) ab>!ping', `conf(auto_time rtt:200)
+            ab>!ping(!!) ab>ping ab>*ping ab<ping_r ab<*ping_r`);
+          t('conf(!auto_time rtt:200) ab>!ping', `conf(!auto_time rtt:200)
+            ab>!ping(!!) ab>ping 100ms ab>*ping ab<ping_r 100ms ab<*ping_r`);
           t('abc>!ping', `ac>!ping(!!) abc>ping ac>*ping abc<ping_r
             ac<*ping_r`);
           t('abc>!ping(rt:d)',
@@ -3860,8 +3878,13 @@ describe('peer-relay', function(){
           t('ab[c]:ac>ping(id:1.0)', `ab[c]:ac>msg(id:1.0 type:req cmd:ping)`);
           t('abc>!ping', `ac>!ping(!!) abc>ping ac>*ping abc<ping_r
             ac<*ping_r`);
-          t('abc>!ping(rt:bc)', `ac>!ping(!! rt(bc)) abc>ping ac>*ping abc<ping_r
-            ac<*ping_r`);
+          t('abc>!ping(rt:bc)', `ac>!ping(!! rt(bc)) abc>ping ac>*ping
+            abc<ping_r ac<*ping_r`);
+          t('conf(auto_time rtt:200) abc>!ping', `conf(auto_time rtt:200)
+            ac>!ping(!!) abc>ping ac>*ping abc<ping_r ac<*ping_r`);
+          t('conf(!auto_time rtt:200) abc>!ping', `conf(!auto_time rtt:200)
+            ac>!ping(!!) ab[c]:ac>ping 100ms bc:ab[c]:ac>ping 100ms ac>*ping
+            bc[a]:ac<ping_r 100ms ab:bc[a]:ac<ping_r 100ms ac<*ping_r`);
         });
         describe('ring_join', function(){
           t('bX.a~b>ring_join(!! !r)', `bX{X-X}:b~b>msg(type:req cmd:ring_join)
@@ -5245,9 +5268,9 @@ describe('peer-relay', function(){
       50ms + ac<*ping_r(id:1.0)
       50ms + ac<*ping_r(id:2.0)`);
     t('3_nodes_parallel_autoack_manual_time', `
-      conf(msg_delay !auto_time a-d rtt:200) !ring(a-d) ac>!ping(id:1 !!)
-      ab:ac>ping(id:1.0) 50ms ac>!ping(id:2 !!)
-      ab:ac>ping(id:2.0)
+      conf(msg_delay !auto_time a-d rtt:200) !ring(a-d)
+      ac>!ping(id:1 !!) ab:ac>ping(id:1.0)
+      50ms ac>!ping(id:2 !!) ab:ac>ping(id:2.0)
       50ms bc:ab:ac>ping(id:1.0)
       50ms bc:ab:ac>ping(id:2.0)
       50ms ac>*ping(id:1.0) bc[a]:ac<ping_r(id:1.0)
@@ -5256,9 +5279,12 @@ describe('peer-relay', function(){
       50ms ab:bc[a]:ac<ping_r(id:2.0)
       50ms ac<*ping_r(id:1.0)
       50ms ac<*ping_r(id:2.0)`);
+    t('2_nodes_shortcut_auto_time', `conf(a-b rtt:200)
+      #ms ab>!connect #200ms ab>!ping #200ms`);
+    t('2_nodes_shortcut_manual_time', `conf(!auto_time a-b rtt:200)
+      #ms ab>!connect #200ms ab>!ping #200ms`);
     t('3_nodes_shortcut_auto_time', `conf(auto_time msg_delay a-d rtt:200)
       !ring(a-d) #ms abc>!ping(rt:bc) #400ms`);
-    if (0)
     t('3_nodes_shortcut_manual_time', `conf(!auto_time msg_delay a-d rtt:200)
       !ring(a-d) #ms abc>!ping(rt:bc) #400ms`);
     // XXX derry: change order of events. ack after forward

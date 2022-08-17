@@ -5033,41 +5033,6 @@ describe('peer-relay', function(){
       #50ms a#rtt(>2.0 100) 50ms b#rtt(<2.0 100) a#rtt(b:100) b#rtt(a:100)
       a#ab>close(>2.0vv)
       100ms // a#ab>close(>2.0vv)`);
-    t('zzz1', `
-      conf(!auto_time msg_delay a-b rtt:200)
-      ab>!connect() #ms
-      ab>!ping(id:1 !!) #0ms
-      ab>ping(id:1.0)
-      a#ab>opening(>1.0)
-      100ms
-      ab>*ping
-      ab<ping_r(id:1.0) 100ms
-      ab<*ping_r
-      a#ab>close(>1.0vv)
-      a#rtt(>1.0 200)
-      100ms
-      b#rtt(<1.0 200) a#rtt(b:200) b#rtt(a:200)
-    `);
-    t('zzz2', `conf(!auto_time msg_delay a-b rtt:200)
-      ab>!connect() #ms
-      ab>!ping(id:1 !!) #0ms
-      ab>ping(id:1.0) 100ms
-      ab>*ping
-      a#ab>opening(>1.0)
-      ab<ping_r(id:1.0) 100ms
-      ab<*ping_r
-      a#ab>close(>1.0vv)
-      a#rtt(>1.0 200) 100ms b#rtt(<1.0 200) a#rtt(b:200) b#rtt(a:200)
-      conf(rtt:100) #ms a#rtt(b:200) b#rtt(a:200)
-      ab>!ping(id:2 !!) #0ms
-      ab>ping(id:2.0) 50ms
-      ab>*ping
-      a#ab>opening(>2.0)
-      ab<ping_r(id:2.0) 50ms
-      ab<*ping_r
-      a#ab>close(>2.0vv)
-      a#rtt(>2.0 100) 50ms b#rtt(<2.0 100) a#rtt(b:100) b#rtt(a:100)
-    `);
     t('2_nodes_autoack_manual_time', `conf(!auto_time msg_delay a-b rtt:200)
       ab>!connect() #ms
       ab>!ping(id:1 !!)
@@ -5078,8 +5043,7 @@ describe('peer-relay', function(){
       ab>!ping(id:2 !!)
       ab>ping(id:2.0) 50ms ab>*ping a#ab>opening(>2.0)
       ab<ping_r(id:2.0) 50ms ab<*ping_r a#ab>close(>2.0vv)
-      a#rtt(>2.0 100) 50ms b#rtt(<2.0 100) a#rtt(b:100) b#rtt(a:100)
-    `);
+      a#rtt(>2.0 100) 50ms b#rtt(<2.0 100) a#rtt(b:100) b#rtt(a:100)`);
     t('2_nodes_manualack_auto_time', `
       conf(auto_time msg_delay !autoack a-b rtt:200) #ms ab>!connect() #200ms
       #0ms   ab>!ping(id:1 !!) ab>ping(id:1.0)

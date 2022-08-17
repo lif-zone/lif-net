@@ -1,6 +1,7 @@
 // author: derry. coder: arik.
 'use strict'; /*jslint node:true*/ /*global afterEach*/
 import sinon from 'sinon';
+import assert from 'assert';
 import etask from './etask.js';
 import xutil from './util.js';
 import date from './date.js';
@@ -36,6 +37,8 @@ function auto_inc(){
       return;
     let ms = E.next();
     if (ms===undefined)
+      return;
+    if (Date.now()+ms > auto_inc_max_ts)
       return;
     xerr.notice('time auto_inc %sms', ms);
     clock_tick.call(clock, ms);
@@ -150,6 +153,11 @@ function firstTimerInRange(clock, from, to){
   return timer;
 }
 
+let auto_inc_max_ts;
+E.set_max_auto_inc = function(ms){
+  assert(is_auto_inc, 'only valid in auto_inc mode');
+  auto_inc_max_ts = ms===undefined ? undefined : Date.now()+ms;
+};
 
 E.clock_set = function(opt){
     E.uninit();
@@ -157,6 +165,7 @@ E.clock_set = function(opt){
     opt.now = +date(opt.now||'2000-01-01');
     opt.date = opt.date||date;
     is_auto_inc = opt.auto_inc;
+    auto_inc_max_ts = undefined;
     clock = sinon.useFakeTimers.apply(null, [opt.now]);
     clock.firstTimerInRange = (from, to)=>firstTimerInRange(clock, from, to);
     clock_restore = clock.restore;

@@ -77,6 +77,10 @@ E.hook_assert = ()=>{
       get: function(){ return this._operator; },
       set: function(x){
           this._operator = x;
+          if (E.assert_hook){
+            E.assert_hook(this, print);
+            return;
+          }
           try { print(this); }
           catch(e){ console.trace('unknown assert error'); }
           process.exit(1);

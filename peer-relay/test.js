@@ -4610,8 +4610,7 @@ describe('peer-relay', function(){
       setup = `conf(!msg_delay) setup:2_nodes ab>!req_start(id:0 seq:0)
         ab<!res_start(id:0 seq:0) ab>!req_next(id:0 seq:1)
         ab<!res_next(id:0 seq:1) 5s - ab<!res_next(id:0 seq:2) 10s -`;
-      if (0) // XXX: FIXME
-      t('multi_no_req', `${setup} 4999ms -
+      t('multi_no_req', `${setup} 4999ms
         1ms b>*fail(id(0) seq:1 error(timeout)) - 20s`);
       if (0) // XXX: FIXME
       t('multi_no_req_1st', `${setup} 4999ms -

@@ -4401,9 +4401,9 @@ describe('peer-relay', function(){
     });
   });
   describe('req_new', function(){
-    const t = (name, test)=>t_roles(name, 'abc', test);
     // XXX: need auto
     describe('manual', ()=>{
+      const t = (name, test)=>t_roles(name, 'ab', test);
       t('msg', `mode:msg setup:2_nodes
         ab>!req(id:0 body:ping !!) ab>msg(id:0 type:req body:ping)
         ab<!res(id:0 ack:0 body:ping_r !!)
@@ -4424,6 +4424,7 @@ describe('peer-relay', function(){
         ab<*res(id:1 ack:0 body:ping_r)`);
     });
     describe('wrong_order', ()=>{
+      const t = (name, test)=>t_roles(name, 'ab', test);
       t('msg', `mode(msg) setup:2_nodes ab>!req(id:0 body:ping)
         ab>!req(id:1 body:ping) ab<!res(id:1 body:ping_r)
         ab<!res(id:0 body:ping_r)`);
@@ -4432,6 +4433,7 @@ describe('peer-relay', function(){
         ab<!res(id:0 body:ping_r)`);
     });
     describe('2_nodes', ()=>{
+      const t = (name, test)=>t_roles(name, 'ab', test);
       t('msg', `mode:msg a=node b=node(wss(port:4000)) ab>!connect(wss !!)
         ab>msg(type:req cmd:connect) + ab<msg(type:req cmd:connect)
         ab<ack + ab>ack -
@@ -4445,31 +4447,39 @@ describe('peer-relay', function(){
         ab<*res(id:0 body:ping_r)`);
     });
     describe('3_nodes', ()=>{
+      const t = (name, test)=>t_roles(name, 'ab', test);
       t('msg', ` mode:msg a=node b=node(wss) ab>!connect(wss) c=node(wss)
         bc>!connect(wss) rt_add(a:bc) abc>!req(id:0 body:ping res:ping_r)`);
       t('msg,req', ` a=node b=node(wss) ab>!connect(wss) c=node(wss)
         bc>!connect(wss) rt_add(a:bc) abc>!req(id:0 body:ping res:ping_r)`);
     });
     describe('failure', ()=>{
+      const t = (name, test)=>t_roles(name, 'ab', test);
       describe('timeout', ()=>{
         t('msg', `mode:msg setup:2_nodes ab>!req(id:0 body:ping) 20s
           a>*fail(id:0 error:timeout)`);
         t('msg,req', `setup:2_nodes ab>!req(id:0 body:ping) 19950ms
           a>*fail(id:0 error:timeout)`);
       });
-      if (0)// XXX TODO
       describe('timeout_wrong_id', ()=>{
-        t('msg', `mode:msg setup:2_nodes ab>!req(id:0 body:ping)
-          ab>msg(id:0 type:req body:ping) ab<!res(id:1 body:ping_r)
-          ab<msg(id:1 type:res body:ping_r) - 19949ms -
-          1ms a>*fail(id:0 error:timeout)`);
-        t('msg,req', `setup:2_nodes ab>!req(id:0 body:ping)
+        const t = (name, test)=>t_roles(name, 'a', test);
+        t('msg', `mode:msg setup:2_nodes
+          ab>!req(id:0 body:ping !!)
+          ab>msg(id:0 type:req body:ping)
+          ab>!req(id:1 body:ping !!)
+          ab>msg(id:1 type:req body:ping)
+          ab<msg(id:1 type:res body:ping_r) 50ms 19850ms
+          a>*fail(id:0 error:timeout)`);
+        t('msg,req', `setup:2_nodes
+          ab>!req(id:0 body:ping !!)
           ab>msg(id:0 type:req body:ping) ab>*req(id:0 body:ping)
-          ab<!res(id:1 body:ping_r) ab<msg(id:1 type:res body:ping_r)
-          ab<*res(id:1 body:ping_r) - 19949ms -
-          1ms a>*fail(id:0 error:timeout)`);
+          ab>!req(id:1 body:ping !!)
+          ab>msg(id:1 type:req body:ping) ab>*req(id:1 body:ping)
+          ab<msg(id:1 type:res body:ping_r) ab<*res(id:1 body:ping_r) 19850ms
+          a>*fail(id:0 error:timeout)`);
       });
       describe('no_route', ()=>{
+        const t = (name, test)=>t_roles(name, 'ab', test);
         t('msg', `mode:msg setup:2_nodes c=node cb>!req(id:0 body:ping !!)
         20s c>*fail(id:0 error:timeout)`);
         if (0) // XXX: fixme
@@ -4582,15 +4592,14 @@ describe('peer-relay', function(){
       let setup = `setup:2_nodes ab>!req_start(id:0 seq:0)
         ab<!res_start(id:0 seq:0) - ab>!req_next(id:0 seq:1) 5s -
         ab>!req_next(id:0 seq:2) 10s -`;
-      if (0) // XXX: FIXME
       t('multi_no_res', `${setup} 4899ms
         1ms a>*fail(id(0) seq:1 error(timeout)) 20s`);
       // XXX: check why test fail with msg_delay
       if (0) // XXX: FIXME
       t('multi_no_res_1st', `conf(!msg_delay)
         ${setup} ab<!res_next(id:0 seq:1 ack:2)
-        4999ms - 1ms a>*fail(id:0 seq:1 error:timeout) 14999ms - 1ms
-        b>*fail(id(0) seq:1 error:timeout)`);
+        5000ms a>*fail(id:0 seq:1 error:timeout)
+        14999ms - 1ms b>*fail(id(0) seq:1 error:timeout)`);
       // XXX: check why test fail with msg_delay
       if (0) // XXX: FIXME
       t('multi_no_res_2nd', `conf(!msg_delay)

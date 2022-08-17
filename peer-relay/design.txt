@@ -11,10 +11,8 @@ VP:
       - decide if to fix remaining tests
     - fix sub_rtt_is_not_ignored
     - review all tests with !msg_delay and fix
-    - fix 3_nodes_manualack_manual_time_multi_rtt
-      10ms 70ms 20ms -> 100ms
-    - fix multi_no_res
-    - rm/rename all zzz tests
+    - fix multi_no_res/multi_no_req
+      - rm cmd_res hack (ack = undefined)
     - create tests for error (99ms/101ms instead of 100ms)
     + rm all mode(msg req) - it is the default now
     * return route decision on ack

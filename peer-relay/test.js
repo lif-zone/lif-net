@@ -1776,6 +1776,7 @@ function cmd_ping(opt){
   }
   if (!call)
     return;
+debugger;
   if (!s.t.fake)
     s.ping(d.id, {req_id: id, rt});
 }
@@ -3794,6 +3795,8 @@ describe('peer-relay', function(){
           t('ab>req_end', `ab>msg(type:req_end)`);
           t('abc>req_end', `abc>msg(type:req_end)`);
           t('bc:ab>req_end', `bc:ab>msg(type:req_end)`);
+          t('abc>!req', `ac>!req(!!) abc>msg(type:req) ac>*req`);
+          t('abc>!req(rt:bc)', `ac>!req(rt:bc !!) abc>msg(type:req) ac>*req`);
         });
         describe('res', function(){
           t('ab>res(id:1)', `ab>msg(type:res id:1)`);
@@ -3808,6 +3811,7 @@ describe('peer-relay', function(){
           t('ab>res_end', `ab>msg(type:res_end)`);
           t('abc>res_end', `abc>msg(type:res_end)`);
           t('bc:ab>res_end', `bc:ab>msg(type:res_end)`);
+          t('abc>!res', `ac>!res(!!) abc>msg(type:res) ac>*res`);
         });
         describe('ping', function(){
           t('ab>*ping_r', `ab>*res(cmd:ping)`);
@@ -3854,6 +3858,10 @@ describe('peer-relay', function(){
           t('ab[c]:ac>ping_r(id:1.0)',
             `ab[c]:ac>msg(id:1.0 type:res cmd:ping)`);
           t('ab[c]:ac>ping(id:1.0)', `ab[c]:ac>msg(id:1.0 type:req cmd:ping)`);
+          t('abc>!ping', `ac>!ping(!!) abc>ping ac>*ping abc<ping_r
+            ac<*ping_r`);
+          t('abc>!ping(rt:bc)', `ac>!ping(!! rt(bc)) abc>ping ac>*ping abc<ping_r
+            ac<*ping_r`);
         });
         describe('ring_join', function(){
           t('bX.a~b>ring_join(!! !r)', `bX{X-X}:b~b>msg(type:req cmd:ring_join)
@@ -5249,7 +5257,10 @@ describe('peer-relay', function(){
       50ms ac<*ping_r(id:1.0)
       50ms ac<*ping_r(id:2.0)`);
     t('3_nodes_shortcut_auto_time', `conf(auto_time msg_delay a-d rtt:200)
-      !ring(a-d) #ms ab.c>!ping #400ms`);
+      !ring(a-d) #ms abc>!ping(rt:bc) #400ms`);
+    if (0)
+    t('3_nodes_shortcut_manual_time', `conf(!auto_time msg_delay a-d rtt:200)
+      !ring(a-d) #ms abc>!ping(rt:bc) #400ms`);
     // XXX derry: change order of events. ack after forward
     // 100ms bc:ab:ac>ping(id:1.0) ab<ack(id:>1.0 body(rt:c)) ac>*ping
     if (0)

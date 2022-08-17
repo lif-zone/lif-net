@@ -2,19 +2,10 @@ VP:
 - fix req_id handling - make it unique per node (not network wide)
 - ack every pkt
   - automatic ack
-    + send ack transparently if enabled
-    + test ack behavior with fuzzy
-    + rm channel.rtt from router
-    * change all tests to use msg_delay/auto_time
-      + fix all the onces that work
-      - change abc>xxx to include ms command if !auto_time
-      - decide if to fix remaining tests
-    - fix sub_rtt_is_not_ignored
     - review all tests with !msg_delay and fix
     - fix multi_no_res/multi_no_req
       - rm cmd_req/cmd_res hack (ack = undefined)
     - create tests for error (99ms/101ms instead of 100ms)
-    + rm all mode(msg req) - it is the default now
     * return route decision on ack
       * fix event handling - check event when msg recieved and set future timer
       o change order of fwd/ack. first fwd msg, then ack msg

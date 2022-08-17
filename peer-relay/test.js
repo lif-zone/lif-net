@@ -55,6 +55,12 @@ let t_prev_time, t_event, t_pause, t_no_events_allowed_ts;
 NodeMap.t.t_nodes = Router.t.t_nodes = t_nodes;
 NodeMap.t.node_from_id = Router.t.node_from_id = node_from_id;
 
+const etask_sleep = dur=>etask(function*etask_sleep(){
+  let t0 = Date.now();
+  yield etask.sleep(dur);
+  assert.equal(Date.now(), t0+dur, 'wrong time after sleep. timer skipped');
+});
+
 function push_event(event){
   xerr.notice('push_event %s', event);
   t_event.push({ts: Date.now(), event});
@@ -849,7 +855,7 @@ class FakeChannel extends EventEmitter {
         'no events allowed, got:\n'+e+' events:\n'+events_str());
     }
     if (t_conf.msg_delay)
-      yield etask.sleep(dur);
+      yield etask_sleep(dur);
     if (!t_pending)
       return;
     xerr.notice('FakeChannel send resume pending t_i %s', t_i);
@@ -902,7 +908,7 @@ function do_autoack(lbuffer, vv){
       if (!node_from_id(to2).t.fake){
         return etask(function*do_autoack(){
           if (t_conf.msg_delay)
-            yield etask.sleep(dur_ms);
+            yield etask_sleep(dur_ms);
           return send_msg(node_from_id(from2).t.name, node_from_id(to2).t.name,
             lbuffer2);
         });
@@ -919,7 +925,7 @@ function do_autoack(lbuffer, vv){
   let lbuffer2 = new LBuffer(msg2);
   return etask(function*do_autoack(){
     if (t_conf.msg_delay)
-      yield etask.sleep(dur_ms);
+      yield etask_sleep(dur_ms);
     return send_msg(to0.t.name, from0.t.name, lbuffer2);
   });
 }
@@ -2568,7 +2574,7 @@ const test_sleep = ms=>etask(function*(){
     return;
   assert(!t_no_events_allowed_ts);
   t_no_events_allowed_ts = Date.now()+ms;
-  yield etask.sleep(ms);
+  yield etask_sleep(ms);
   yield xsinon.wait(); // XXX: needed?
   t_no_events_allowed_ts = undefined;
 });
@@ -2599,6 +2605,8 @@ const _test_run = (role, cmds)=>etask(function*_test_run(){
       'event not handled on time '+events_str());
     let c = t_cmds[t_i];
     if (!t_pre_process){
+      if (t_pending)
+        yield this.wait_ext(t_pending);
       if (t_conf.auto_time){
         let ms;
         if (c.cmd=='ms')
@@ -2615,8 +2623,6 @@ const _test_run = (role, cmds)=>etask(function*_test_run(){
           exp_time += ms;
         }
       }
-      if (t_pending)
-        yield this.wait_ext(t_pending);
       if (t_pause)
         yield this.wait_ext(t_pause);
     }
@@ -2652,7 +2658,39 @@ const test_pre_process = test=>etask(function*test_preprocess(){
   return t_cmds_processed;
 });
 
-const test_run = (role, test)=>etask(function*test_run(){
+let in_assert_hook;
+const test_run = (role, test, exp_err)=>etask(function*test_run(){
+  let _this = this;
+  assert(!xtest.assert_hook, 'assert_hook already assigned');
+  if (exp_err){
+    xtest.assert_hook = function(err, print){
+      if (in_assert_hook){
+        console.log('assert in assert_hook');
+        process.exit(1);
+        return;
+      }
+      in_assert_hook = true;
+      // XXX HACK: due to zerr CRIT handling
+      if (/xerr L.CRIT in mocha/.test(err)){
+        xtest.assert_hook = null;
+        in_assert_hook = false;
+        return console.log('skip assert in assert');
+      }
+      console.log('assert_hook %s', err);
+      etask(function*(){
+        _this.return();
+        if (0) // XXX
+          yield test_cleanup();
+        in_assert_hook = false;
+      });
+      if (exp_err instanceof RegExp && exp_err.test(err))
+        return;
+      print(err);
+      console.error('expected error %s did not match error:\n%s',
+        exp_err, err);
+      process.exit(1);
+    };
+  }
   xerr.notice('pre_process run');
   let cmds = yield test_pre_process(test);
   cmds = xtest.test_parse(test_to_str(cmds));
@@ -2661,6 +2699,17 @@ const test_run = (role, test)=>etask(function*test_run(){
   test_setup_mode();
   yield _test_run(role, cmds);
   xsinon.uninit();
+  xtest.assert_hook = null;
+  assert(!exp_err, 'FAILED: test PASS but expected to FAIL with '+exp_err);
+});
+
+const test_cleanup = ()=>etask(function*test_cleanup(){
+  for (let n in t_nodes){
+    delete t_ids[t_nodes[n].id.s];
+    yield t_nodes[n].destroy();
+    delete t_nodes[n];
+  }
+  t_cmds = t_role = t_i = undefined;
 });
 
 const test_end = ()=>etask(function*(){
@@ -2669,17 +2718,12 @@ const test_end = ()=>etask(function*(){
   assert(t_cmds, 'test not running');
   assert.equal(t_i, t_cmds.length, 'not all cmds run: '+t_cmds[t_i]);
   if (!t_pre_process){
-    yield etask.sleep(date.ms.YEAR);
+    yield etask_sleep(date.ms.YEAR);
     yield xsinon.wait();
   }
   yield cmd_ensure_no_events();
   assert(xsinon.next()===undefined, 'timers still pending on test end');
-  for (let n in t_nodes){
-    delete t_ids[t_nodes[n].id.s];
-    yield t_nodes[n].destroy();
-    delete t_nodes[n];
-  }
-  t_cmds = t_role = t_i = undefined;
+  yield test_cleanup();
   assert(!t_event.length, 'test ended while events not recieved yet '
     +events_str());
   assert(!t_pending, 'test ended while t_pending '+t_pending?.expected);
@@ -5004,10 +5048,11 @@ describe('peer-relay', function(){
     // XXX: decide if need support for msg_delay without auto_time
     // XXX: ab>req(cmd:connect) --> ab>connect
     t('2_nodes_connect_manual_time', `conf(!auto_time msg_delay a-b rtt:200)
-      ab>!connect:!!  ab>msg(type:req cmd:connect) ab<msg(type:req cmd:connect)
-      100ms ab<ack ab>ack 100ms a#rtt(b:200) b#rtt(a:200)`);
+      ab>!connect:!! ab>msg(type:req cmd:connect) ab<msg(type:req cmd:connect)
+      100ms ab<ack ab>ack
+      100ms a#rtt(b:200) b#rtt(a:200)`);
     t('2_nodes_connect_auto_time', `conf(auto_time msg_delay a-b rtt:200)
-      ab>!connect:!! #ms
+      #ms ab>!connect:!!
       #0ms   ab>msg(type:req cmd:connect) + ab<msg(type:req cmd:connect)
       #100ms ab<ack + ab>ack
       #100ms a#rtt(b:200) b#rtt(a:200)`);
@@ -5211,6 +5256,22 @@ describe('peer-relay', function(){
     t('3_nodes_shortcut_manual_time', `conf(msg_delay a-d rtt:200) !ring(a-d)
       #ms 400ms ab.c>!ping`);
     // XXX test fuzzy
+  });
+  describe('timing_errors', function(){
+    if (1) return; // XXX: WIP
+    let t = (name, test)=>t_roles(name, 'ab', test);
+    t('manual_on_time', `conf(!auto_time msg_delay a-b rtt:200)
+      ab>!connect:!! ab>msg(type:req cmd:connect) ab<msg(type:req cmd:connect)
+      100ms ab<ack ab>ack 100ms a#rtt(b:200) b#rtt(a:200)`);
+    let xit = (name, role, exp_err, test)=>it(name+'_'+role,
+      ()=>test_run(role, test, exp_err));
+    xit('manual_early', 'a', /time moved without explicit cmd/,
+      `conf(!auto_time msg_delay a-b rtt:200)
+      ab>!connect:!! ab>msg(type:req cmd:connect) ab<msg(type:req cmd:connect)
+      99ms ab<ack ab>ack 100ms a#rtt(b:200) b#rtt(a:200)`);
+    xit('manual_late', 'a', /.*/, `conf(!auto_time msg_delay a-b rtt:200)
+      ab>!connect:!! ab>msg(type:req cmd:connect) ab<msg(type:req cmd:connect)
+      101ms ab<ack ab>ack 100ms a#rtt(b:200) b#rtt(a:200)`);
   });
 });
 

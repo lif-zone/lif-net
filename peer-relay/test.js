@@ -852,7 +852,7 @@ class FakeChannel extends EventEmitter {
     push_event(e);
     if (t_no_events_allowed_ts){
       assert.equal(Date.now(), t_no_events_allowed_ts,
-        'no events allowed, got:\n'+e+' events:\n'+events_str());
+        'unexpected event while sleeping: '+e);
     }
     if (t_conf.msg_delay)
       yield etask_sleep(dur);
@@ -1962,8 +1962,8 @@ const cmd_msg = opt=>etask(function*cmd_msg(){
       '\ngot:\n'+event);
     if (!(event = event||shift_event(c))){
       assert(!t_pending, 'already pending for event');
-      xerr.notice('cmd_msg wait for eventt_i %s c.orig %s c.fwd %s',
-        t_i, c.orig, c.fwd);
+      xerr.notice('waiting for event %s%s t_i %s',
+        c.fwd?.length ? 'fwd '+c.fwd+' ' : '', c.orig, t_i);
       t_pending = etask.wait();
       yield t_pending;
       event = shift_event(c);
@@ -2515,7 +2515,8 @@ const cmd_run = ()=>etask(function*cmd_run(){
     return;
   t_i++;
   t_depth++;
-  xerr.notice('%scmd %s: %s%s', ' '.repeat(t_depth), t_i,
+  assert.equal(t_depth, 1);
+  xerr.notice('%scmd %s: %s%s', ''.repeat(t_depth), t_i,
     c.s ? build_cmd(c.s+c.d+'>'+c.cmd, c.arg) : c.orig,
     t_event.length ? ' event '+events_str() : '');
   t_reprocess = false;
@@ -2574,6 +2575,7 @@ const test_sleep = ms=>etask(function*(){
     return;
   assert(!t_no_events_allowed_ts);
   t_no_events_allowed_ts = Date.now()+ms;
+  xsinon.set_max_auto_inc(ms);
   yield etask_sleep(ms);
   yield xsinon.wait(); // XXX: needed?
   t_no_events_allowed_ts = undefined;
@@ -2696,6 +2698,7 @@ const test_run = (role, test, exp_err)=>etask(function*test_run(){
   cmds = xtest.test_parse(test_to_str(cmds));
   xerr.notice('real run');
   xsinon.clock_set({now: 1, auto_inc: true});
+  xsinon.set_max_auto_inc(0);
   test_setup_mode();
   yield _test_run(role, cmds);
   xsinon.uninit();
@@ -2718,6 +2721,7 @@ const test_end = ()=>etask(function*(){
   assert(t_cmds, 'test not running');
   assert.equal(t_i, t_cmds.length, 'not all cmds run: '+t_cmds[t_i]);
   if (!t_pre_process){
+    xsinon.set_max_auto_inc();
     yield etask_sleep(date.ms.YEAR);
     yield xsinon.wait();
   }
@@ -5258,11 +5262,11 @@ describe('peer-relay', function(){
     // XXX test fuzzy
   });
   describe('timing_errors', function(){
-    if (1) return; // XXX: WIP
     let t = (name, test)=>t_roles(name, 'ab', test);
     t('manual_on_time', `conf(!auto_time msg_delay a-b rtt:200)
       ab>!connect:!! ab>msg(type:req cmd:connect) ab<msg(type:req cmd:connect)
       100ms ab<ack ab>ack 100ms a#rtt(b:200) b#rtt(a:200)`);
+    if (1) return; // XXX: WIP
     let xit = (name, role, exp_err, test)=>it(name+'_'+role,
       ()=>test_run(role, test, exp_err));
     xit('manual_early', 'a', /time moved without explicit cmd/,

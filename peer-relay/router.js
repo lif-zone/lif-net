@@ -304,7 +304,7 @@ export default class Router extends EventEmitter {
     if (!dir)
       return;
     let msgid = this.msgid(), body;
-    if (false && fwd_rt) // XXX: WIP
+    if (Router.t.xxx_rt && fwd_rt) // XXX: WIP
       body = {rt: fwd_rt};
     if (vv){
       // XXX: provide path in rt

@@ -27,6 +27,8 @@ const s2b = buf_util.buf_from_str;
 const stringify = JSON.stringify, is_number = xutil.is_number;
 const DEF_RTT = 100;
 
+Router.t.xxx_rt = false; // XXX WIP
+
 function get_fuzzy(name){ return name && name[0]=='~' ? name[0] : ''; }
 function N(name, opt){
   opt = opt||{};
@@ -5287,21 +5289,18 @@ describe('peer-relay', function(){
       !ring(a-d) #ms abc>!ping(rt:bc) #400ms`);
     t('3_nodes_shortcut_manual_time', `conf(!auto_time msg_delay a-d rtt:200)
       !ring(a-d) #ms abc>!ping(rt:bc) #400ms`);
-    // XXX derry: change order of events. ack after forward
-    // 100ms bc:ab:ac>ping(id:1.0) ab<ack(id:>1.0 body(rt:c)) ac>*ping
-    if (0)
-    t('xxx1', `
-      conf(!autoack !auto_time a-d rtt(200 bc:200)) !ring(a-d) #ms
-      ac>!ping(id:1 !!) 100ms ab:ac>ping(id:1.0)
-      100ms ab<ack(id:>1.0 body(rt:c)) bc:ab:ac>ping(id:1.0) ac>*ping
-      // XXX: 100ms bc:ab:ac>ping(id:1.0) ab<ack(id:>1.0 body(rt:c)) ac>*ping
-      100ms bc[a]:ac<ack(id:>1.0 vv) bc[a]:ac<ping_r(id:1.0)
-      100ms ab:bc[a]:ac<ack(id:>1.0 vv) bc>ack(id:<1.0)
-      ab:bc[a]:ac<ping_r(id:1.0) ac<*ping_r
-      100ms ab[c]:ac>ack(id:<1.0 vv)
+    if (Router.t.xxx_rt) // XXX WIP
+    t('zzz0_manual', `
+      conf(!autoack msg_delay !auto_time a-d rtt(200 bc:20)) !ring(a-d)
+            ac>!ping(id:1 !!) ab:ac>ping(id:1.0)
+      100ms bc:ab:ac>ping(id:1.0) ab<ack(id:>1.0 body(rt:c))
+      10ms  ac>*ping bc[a]:ac<ack(id:>1.0 vv) bc[a]:ac<ping_r(id:1.0)
+      10ms  ab:bc[a]:ac<ack(id:>1.0 vv) ab:bc[a]:ac<ping_r(id:1.0)
+            bc>ack(id:<1.0)
+      100ms ac<*ping_r ab[c]:ac>ack(id:<1.0 vv)
       100ms bc:ab[c]:ac>ack(id:<1.0 vv)
-      a#rtt(>1.0 200) b#rtt(>1.0 200) c#rtt(>1.0 0)
-      a#rtt(<1.0 0) b#rtt(<1.0 200) c#rtt(<1.0 200)`);
+      a#rtt(>1.0 200) b#rtt(>1.0 20) c#rtt(>1.0 0)
+      a#rtt(<1.0 0) b#rtt(<1.0 200) c#rtt(<1.0 20)`);
     if (0) // XXX derry: support it?
     // 100ms ab:ac>ping 100ms bc:ab:ac>ping ...
     t('3_nodes_shortcut_manual_time', `conf(msg_delay a-d rtt:200) !ring(a-d)

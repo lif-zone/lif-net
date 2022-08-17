@@ -5196,7 +5196,7 @@ describe('peer-relay', function(){
             a#rtt(<1.0 0) b#rtt(<1.0 200) c#rtt(<1.0 200)`);
     t('3_nodes_manualack_manual_time_multi_rtt', `
       conf(!autoack msg_delay !auto_time a-d rtt(200 bc:20)) !ring(a-d)
-      #ms   ac>!ping(id:1 !!) ab:ac>ping(id:1.0)
+            ac>!ping(id:1 !!) ab:ac>ping(id:1.0)
       100ms bc:ab:ac>ping(id:1.0) ab<ack(id:>1.0)
       10ms  ac>*ping bc[a]:ac<ack(id:>1.0 vv) bc[a]:ac<ping_r(id:1.0)
       10ms  ab:bc[a]:ac<ack(id:>1.0 vv) ab:bc[a]:ac<ping_r(id:1.0)
@@ -5205,23 +5205,18 @@ describe('peer-relay', function(){
       100ms bc:ab[c]:ac>ack(id:<1.0 vv)
       a#rtt(>1.0 200) b#rtt(>1.0 20) c#rtt(>1.0 0)
       a#rtt(<1.0 0) b#rtt(<1.0 200) c#rtt(<1.0 20)`);
-    // XXX: need autoack version
-    // XXX derry: change events to run when even happens
-    // ab:ac>ping(id:1.0) 10ms completion_of_ping_recv
-    if (0) // ZZZ
+    // XXX: need autoack version and auto_time
     t('3_nodes_manualack_manual_time_multi_rtt2', `
-      conf(!autoack msg_delay !auto_time a-d rtt(200 ab:20)) !ring(a-d) #ms
-      ac>!ping(id:1 !!)
-      10ms ab:ac>ping(id:1.0)
-      10ms ab<ack(id:>1.0)
-      90ms bc:ab:ac>ping(id:1.0) ac>*ping
-      100ms bc[a]:ac<ack(id:>1.0 vv) bc[a]:ac<ping_r(id:1.0)
-      10ms ab:bc[a]:ac<ack(id:>1.0 vv) ab:bc[a]:ac<ping_r(id:1.0) ac<*ping_r
-      10ms ab[c]:ac>ack(id:<1.0 vv)
-      80ms bc>ack(id:<1.0)
-      20ms bc:ab[c]:ac>ack(id:<1.0 vv)
-      a#rtt(>1.0 20) b#rtt(>1.0 200) c#rtt(>1.0 0)
-      a#rtt(<1.0 0) b#rtt(<1.0 20) c#rtt(<1.0 200)`);
+      conf(!autoack msg_delay !auto_time a-d rtt(200 ab:20)) !ring(a-d)
+            ac>!ping(id:1 !!) ab:ac>ping(id:1.0)
+      10ms  bc:ab:ac>ping(id:1.0) ab<ack(id:>1.0)
+      100ms ac>*ping bc[a]:ac<ack(id:>1.0 vv) bc[a]:ac<ping_r(id:1.0)
+      100ms ab:bc[a]:ac<ack(id:>1.0 vv) ab:bc[a]:ac<ping_r(id:1.0)
+            bc>ack(id:<1.0)
+      10ms  ac<*ping_r ab[c]:ac>ack(id:<1.0 vv)
+      10ms  bc:ab[c]:ac>ack(id:<1.0 vv)
+            a#rtt(>1.0 20) b#rtt(>1.0 200) c#rtt(>1.0 0)
+      100ms a#rtt(<1.0 0) b#rtt(<1.0 20) c#rtt(<1.0 200)`);
     t('3_nodes_parallel_autoack_auto_time', `
       conf(msg_delay auto_time a-d rtt:200) !ring(a-d) #ms ac>!ping(id:1 !!)
       ab:ac>ping(id:1.0) 50ms + #50ms + ac>!ping(id:2 !!) + ab:ac>ping(id:2.0)

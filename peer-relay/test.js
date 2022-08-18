@@ -786,63 +786,9 @@ class FakeChannel extends EventEmitter {
     // XXX: need to filter out only test commands, other should fail test
     if (!t_mode.msg)
       return;
-    let e, fwd = fwd_from_lbuffer(lbuffer);
-    let {fuzzy, req_id, type, cmd, ack, seq, dir, vv, body} = msg;
-    cmd = cmd||'';
-    fuzzy = fuzzy||'';
-    let from = node_from_id(msg.from), to = node_from_id(msg.to);
     let from0 = node_from_id(msg0.from), to0 = node_from_id(msg0.to);
-    // XXX: why missing msgid for type=='ack'?
-    assert(msg.type=='ack' || msg.msgid, 'missing msg msgid '+data);
-    xerr.notice('*** send%s msg %s %s', fwd ? ' fwd '+fwd : '',
-      from.t.name+to.t.name+'>'+cmd, stringify(msg));
-    switch (type){
-    case 'req':
-      switch (cmd){
-      case 'conn_info': body= ''; break;
-      case 'ring_join': body= ''; break;
-      case 'ping': body= ''; break;
-      case 'connect': body= ''; break;
-      case '': break;
-      default: assert(0, 'invalid cmd '+cmd);
-      }
-      break;
-    case 'res':
-      switch (cmd){
-      case 'conn_info': body = conn_opts(body); break;
-      case 'ring_join': body= ''; break;
-      case 'ping': body= ''; break;
-      case '': break;
-      default: assert(0, 'invalid cmd ', cmd);
-      }
-      break;
-    case 'ack':
-      body = body && 'rt:'+path_to_str(body.rt);
-      break;
-    default: assert(['req', 'res', 'req_start', 'res_start', 'req_next',
-      'res_next', 'req_end', 'res_end', 'ack'].includes(type),
-      'unexpected msg type '+type);
-    }
-    e = build_cmd_o(from.t.name+fuzzy+to.t.name+'>msg',
-      {id: req_id, type, cmd, seq, ack: ack && ack.join(','), dir, vv,
-      body});
-    if (fwd){
-      let path = [msg.from];
-      let i = lbuffer.size()-2;
-      Array.from(fwd).reverse().forEach(f=>{
-        let m = lbuffer.get_json(i);
-        i--;
-        let srt = t_conf.rt&&fwd&&m.rt ?
-          build_cmd('rt', rt_to_str(m.rt)) : '';
-        if (!t_conf.rt && m.rt)
-          srt = build_cmd('rt', rt_to_str(m.rt));
-        let srange = m.range && build_cmd('range',
-          range_to_str(NodeId.range_from_msg(m.range)));
-        e = build_cmd(f+'fwd', e+
-          (srt ? ' '+srt : '')+(srange ? ' '+srange : ''));
-        path.push(fwd_d_id(f));
-      });
-    }
+    let e = event_from_lbuffer(lbuffer);
+    xerr.notice('*** channel.send %s', event_from_lbuffer(lbuffer));
     if (msg.type!='ack') // XXX: review
       t_msgid[msgid_hash(msg)] = msg.msgid;
     track_msg(lbuffer);
@@ -866,6 +812,65 @@ class FakeChannel extends EventEmitter {
     pending.continue();
   });
   destroy(){}
+}
+
+function event_from_lbuffer(lbuffer){
+  let msg = lbuffer.msg();
+  let from = node_from_id(msg.from), to = node_from_id(msg.to);
+  let fwd = fwd_from_lbuffer(lbuffer);
+  let {fuzzy, req_id, type, cmd, ack, seq, dir, vv, body} = msg;
+  cmd = cmd||'';
+  fuzzy = fuzzy||'';
+  // XXX: why missing msgid for type=='ack'?
+  assert(msg.type=='ack' || msg.msgid, 'missing msg msgid');
+  switch (type){
+  case 'req':
+    switch (cmd){
+    case 'conn_info': body= ''; break;
+    case 'ring_join': body= ''; break;
+    case 'ping': body= ''; break;
+    case 'connect': body= ''; break;
+    case '': break;
+    default: assert(0, 'invalid cmd '+cmd);
+    }
+    break;
+  case 'res':
+    switch (cmd){
+    case 'conn_info': body = conn_opts(body); break;
+    case 'ring_join': body= ''; break;
+    case 'ping': body= ''; break;
+    case '': break;
+    default: assert(0, 'invalid cmd ', cmd);
+    }
+    break;
+  case 'ack':
+    body = body && 'rt:'+path_to_str(body.rt);
+    break;
+  default: assert(['req', 'res', 'req_start', 'res_start', 'req_next',
+    'res_next', 'req_end', 'res_end', 'ack'].includes(type),
+    'unexpected msg type '+type);
+  }
+  let e = build_cmd_o(from.t.name+fuzzy+to.t.name+'>msg',
+    {id: req_id, type, cmd, seq, ack: ack && ack.join(','), dir, vv,
+    body});
+  if (fwd){
+    let path = [msg.from];
+    let i = lbuffer.size()-2;
+    Array.from(fwd).reverse().forEach(f=>{
+      let m = lbuffer.get_json(i);
+      i--;
+      let srt = t_conf.rt&&fwd&&m.rt ?
+        build_cmd('rt', rt_to_str(m.rt)) : '';
+      if (!t_conf.rt && m.rt)
+        srt = build_cmd('rt', rt_to_str(m.rt));
+      let srange = m.range && build_cmd('range',
+        range_to_str(NodeId.range_from_msg(m.range)));
+      e = build_cmd(f+'fwd', e+
+        (srt ? ' '+srt : '')+(srange ? ' '+srange : ''));
+      path.push(fwd_d_id(f));
+    });
+  }
+  return e;
 }
 
 /* XXX: rm?
@@ -1589,11 +1594,21 @@ function cmd_node(opt){
   xerr.notice('new node %s id %%s', name, node.id.s);
   t_nodes[name] = node;
   t_ids[node.id.s] = node;
+  if (t_conf.emit_ack && !node.t.fake)
+    node.router.on('msg', emit_ack_on_msg);
+}
+
+function emit_ack_on_msg(lbuffer){
+  let msg = lbuffer.msg(), to = node_from_id(msg.to);
+  if (msg.type!='ack')
+    return;
+  let e = build_cmd(to.t.name+'*>msg', event_from_lbuffer(lbuffer));
+  xerr.notice('*** emit_ack '+e)
+  push_event(e);
 }
 
 const cmd_connect = opt=>etask(function*(){
   let {c} = opt, s = N(c.s), d = N(c.d);
-  let event = shift_event(c);
   let wss, wrtc, arg = xtest.test_parse_no_dir(c.arg), call = c.cmd[0]=='!';
   assert(call, 'only !connect is supported');
   let e = true;
@@ -1638,7 +1653,6 @@ const cmd_connect = opt=>etask(function*(){
     return;
   }
   if (call){
-    assert(!event);
     if (!s.t.fake){
       if (wss)
         yield s.wsConnector.connect(wss);
@@ -1971,8 +1985,7 @@ const cmd_msg = opt=>etask(function*cmd_msg(){
       assert(!t_pending, 'already pending for event');
       xerr.notice('waiting for event %s%s t_i %s',
         c.fwd?.length ? 'fwd '+c.fwd+' ' : '', c.orig, t_i);
-      t_pending = etask.wait();
-      yield t_pending;
+      yield (t_pending = etask.wait());
       event = shift_event(c);
       assert(event, 'no event after pending');
     }

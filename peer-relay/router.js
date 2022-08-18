@@ -157,6 +157,7 @@ export default class Router extends EventEmitter {
     let msg0 = lbuffer.get_json(0), rt = msg0.rt, path = rt?.path;
     let msgid = msg.msgid;
     this.update_conn(lbuffer);
+    this.emit('msg', lbuffer);
     if (!msgid && msg.type!='ack') // XXX: TODO ack
       return log('invalid message msgid %s', dbg_msg(msg));
     log.debug('channel-msg %s', dbg_msg(msg));

@@ -1205,6 +1205,7 @@ function cmd_conf(opt){
     case 'rtt': assert_rtt(arg2); break;
     case '!node': no_node = assert_bool(arg2); break;
     case '!autoack': t_conf.no_autoack = assert_bool(arg2); break;
+    case 'emit_ack': t_conf.emit_ack = assert_bool(arg2); break;
     case 'msg_delay': t_conf.msg_delay = assert_bool(arg2); break;
     case '!msg_delay': t_conf.msg_delay = !assert_bool(arg2); break;
     case 'auto_time':
@@ -5291,7 +5292,19 @@ describe('peer-relay', function(){
       !ring(a-d) #ms abc>!ping(rt:bc) #400ms`);
     if (Router.t.xxx_rt) // XXX WIP
     t('zzz0_manual', `
-      conf(!autoack msg_delay !auto_time a-d rtt(200 bc:20)) !ring(a-d)
+      conf(!autoack emit_ack !auto_time a-d rtt(200 bc:20)) !ring(a-d)
+            ac>!ping(id:1 !!) ab:ac>ping(id:1.0)
+      100ms bc:ab:ac>ping(id:1.0) ab<ack(id:>1.0 body(rt:c))
+      10ms  ac>*ping bc[a]:ac<ack(id:>1.0 vv) bc[a]:ac<ping_r(id:1.0)
+      10ms  ab:bc[a]:ac<ack(id:>1.0 vv) ab:bc[a]:ac<ping_r(id:1.0)
+            bc>ack(id:<1.0)
+      100ms ac<*ping_r ab[c]:ac>ack(id:<1.0 vv)
+      100ms bc:ab[c]:ac>ack(id:<1.0 vv)
+      a#rtt(>1.0 200) b#rtt(>1.0 20) c#rtt(>1.0 0)
+      a#rtt(<1.0 0) b#rtt(<1.0 200) c#rtt(<1.0 20)`);
+    if (Router.t.xxx_rt) // XXX WIP
+    t('zzz0_auto', `
+      conf(emit_ack !auto_time a-d rtt(200 bc:20)) !ring(a-d)
             ac>!ping(id:1 !!) ab:ac>ping(id:1.0)
       100ms bc:ab:ac>ping(id:1.0) ab<ack(id:>1.0 body(rt:c))
       10ms  ac>*ping bc[a]:ac<ack(id:>1.0 vv) bc[a]:ac<ping_r(id:1.0)

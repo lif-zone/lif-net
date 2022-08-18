@@ -912,10 +912,13 @@ function do_autoack(lbuffer, vv){
     let path2 = Array.from(lbuffer.path());
     path2.reverse();
     let from2 = to0.id.s, to2;
+    dur_ms = 0;
     while (path2.length){
       to2 = path2.shift();
       lbuffer2.add_json({from: from2, to: to2, type: 'fwd',
         rt: {path: path2}});
+      if (t_conf.msg_delay)
+          dur_ms += conf_rtt_from_id(from2, to2)/2;
       if (!node_from_id(to2).t.fake){
         return etask(function*do_autoack(){
           if (t_conf.msg_delay)
@@ -1856,11 +1859,13 @@ function cmd_ack(opt){
     }
   });
   assert(t_pre_process, 'should never happen');
-  let s = build_cmd_o(c.loop ? loop_str(c.loop)+'>msg' :
-    dir_c(c)+'msg', {id, type: 'ack', seq, dir, vv, body, rx});
+  let s;
   if (c.fwd){
     s = build_fwd(c.fwd, c.rt2, c.range2, build_cmd_o(
-      normalize(dir_c(c))+'msg', {id, type: 'ack', seq, dir, vv, body}));
+      normalize(dir_c(c))+'msg', {id, type: 'ack', seq, dir, vv, body, rx}));
+  } else {
+    s = build_cmd_o(c.loop ? loop_str(c.loop)+'>msg' :
+      dir_c(c)+'msg', {id, type: 'ack', seq, dir, vv, body, rx});
   }
   set_push_cmd(c, s);
 }
@@ -2030,6 +2035,8 @@ const cmd_msg = opt=>etask(function*cmd_msg(){
     {id, type, cmd, seq, ack, dir, vv, body, rx});
   if (rx){
     if (!_d.t.fake){
+      if (c.fwd)
+        expected = build_fwd(c.fwd, c.rt2, c.range2, normalize(expected));
       event = shift_event(c);
       assert_event(event, expected, 'event rx mismatch');
     }
@@ -3751,6 +3758,10 @@ describe('peer-relay', function(){
           t('ab<ack(id:>1.0)', `ab<msg(id:1 type:ack seq:0 dir(>))`);
           t('bc[a]:ac<ack(id:>1.0 vv)',
             `cb[a]:ca>msg(type:ack id:1.0 dir:> vv)`);
+          t('ab>ack(id:>1.0 body(rt:c) rx)',
+            `ab>msg(id:1 type:ack seq:0 dir:> body(rt:c) rx)`);
+          t('ab:bc[a]:ac<ack(id:>1.0 vv rx)', `ba>fwd(cb>fwd(ca>msg(id(1)
+            type(ack) seq(0) dir(>) vv rx) rt(a)))`);
         });
         describe('fwd', function(){
           t('bc:ac>msg', `bc>fwd(ac>msg)`);
@@ -5338,29 +5349,34 @@ describe('peer-relay', function(){
       100ms ab<ack(id:>1.0 vv rx) ab<*ping_r
       100ms ab>ack(id:<1.0 vv rx)`);
     t = (name, test)=>t_roles(name, 'abc', test);
-    if (false && Router.t.xxx_rt) // XXX WIP
+    if (Router.t.xxx_rt) // XXX WIP
     t('zzz0_manual', `
-      conf(!autoack emit_ack !auto_time a-d rtt(200 bc:20)) !ring(a-d)
-            ac>!ping(id:1 !!) ab:ac>ping(id:1.0)
+      conf(emit_ack !autoack !auto_time a-d rtt(200 bc:20)) !ring(a-d)
+      ac>!ping(id:1 !!) ab:ac>ping(id:1.0)
       100ms bc:ab:ac>ping(id:1.0) ab<ack(id:>1.0 body(rt:c))
       10ms  ac>*ping bc[a]:ac<ack(id:>1.0 vv) bc[a]:ac<ping_r(id:1.0)
-      10ms  ab:bc[a]:ac<ack(id:>1.0 vv) ab:bc[a]:ac<ping_r(id:1.0)
-            bc>ack(id:<1.0)
-      80ms  a>*msg(ack(id:>1.0 body(rt:c)))
-      20ms ac<*ping_r ab[c]:ac>ack(id:<1.0 vv)
-      100ms bc:ab[c]:ac>ack(id:<1.0 vv)
+      10ms  bc[a]:ac<ack(id:>1.0 vv rx) ab:bc[a]:ac<ack(id:>1.0 vv)
+            ab:bc[a]:ac<ping_r(id:1.0) bc>ack(id:<1.0)
+      10ms  bc>ack(id:<1.0 rx)
+      70ms  ab<ack(id:>1.0 body(rt:c) rx)
+      20ms ab:bc[a]:ac<ack(id:>1.0 vv rx) ac<*ping_r ab[c]:ac>ack(id:<1.0 vv)
+      100ms ab[c]:ac>ack(id:<1.0 vv rx) bc:ab[c]:ac>ack(id:<1.0 vv)
+      10ms bc:ab[c]:ac>ack(id:<1.0 vv rx)
       a#rtt(>1.0 200) b#rtt(>1.0 20) c#rtt(>1.0 0)
       a#rtt(<1.0 0) b#rtt(<1.0 200) c#rtt(<1.0 20)`);
-    if (false && Router.t.xxx_rt) // XXX WIP
+//    if (false && Router.t.xxx_rt) // XXX WIP
+    if (false)
     t('zzz0_auto', `
-      conf(emit_ack !auto_time a-d rtt(200 bc:20)) !ring(a-d)
-            ac>!ping(id:1 !!) ab:ac>ping(id:1.0)
-      100ms bc:ab:ac>ping(id:1.0) ab<ack(id:>1.0 body(rt:c))
-      10ms  ac>*ping bc[a]:ac<ack(id:>1.0 vv) bc[a]:ac<ping_r(id:1.0)
-      10ms  ab:bc[a]:ac<ack(id:>1.0 vv) ab:bc[a]:ac<ping_r(id:1.0)
-            bc>ack(id:<1.0)
-      100ms ac<*ping_r ab[c]:ac>ack(id:<1.0 vv)
-      100ms bc:ab[c]:ac>ack(id:<1.0 vv)
+      conf(emit_ack !auto_time a-d rtt(200 bc:20)) !ring(a-d) #ms
+      ac>!ping(id:1 !!) ab:ac>ping(id:1.0)
+      100ms  #100ms bc:ab:ac>ping(id:1.0)
+      10ms   #10ms ac>*ping bc[a]:ac<ping_r(id:1.0)
+      10ms   #10ms bc[a]:ac<ack(id:>1.0 vv rx) ab:bc[a]:ac<ping_r(id:1.0)
+      10ms  #10ms bc>ack(id:<1.0 rx)
+      70ms  ab<ack(id:>1.0 rx)
+      20ms ab:bc[a]:ac<ack(id:>1.0 vv rx) ac<*ping_r
+      100ms ab[c]:ac>ack(id:<1.0 vv rx)
+      10ms bc:ab[c]:ac>ack(id:<1.0 vv rx)
       a#rtt(>1.0 200) b#rtt(>1.0 20) c#rtt(>1.0 0)
       a#rtt(<1.0 0) b#rtt(<1.0 200) c#rtt(<1.0 20)`);
     if (0) // XXX derry: support it?

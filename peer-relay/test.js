@@ -65,12 +65,16 @@ const etask_sleep = dur=>etask(function*etask_sleep(){
 
 function push_event(event){
   xerr.notice('push_event %s', event);
+  if (t_event.length){
+    assert.equal(t_event[0].ts, Date.now(),
+     'got event before previous handled. event '+event+'\n'+events_str());
+  }
   t_event.push({ts: Date.now(), event});
 }
 
 function events_str(){
   let s = '';
-  t_event.forEach(o=>s+= (s ? ' ' : '')+o.ts+': '+o.event);
+  t_event.forEach(o=>s+= (s ? '\n' : '')+o.ts+': '+o.event);
   return s;
 }
 
@@ -1138,7 +1142,7 @@ function fake_send_msg(c, msg, dur_ms){
       lbuffer.add_json(msg2);
     }
   }
-  track_msg(lbuffer);
+  try { track_msg(lbuffer); } catch(err){ debugger; }
   // XXX: setTimeout - > etask
   if (!d.t.fake){
     if (dur_ms)
@@ -1600,9 +1604,11 @@ function cmd_node(opt){
 
 function emit_ack_on_msg(lbuffer){
   let msg = lbuffer.msg(), to = node_from_id(msg.to);
-  if (msg.type!='ack')
+  let ack_connect = t_msg[msg.req_id]?.cmd=='connect';
+  if (msg.type!='ack' || ack_connect)
     return;
-  let e = build_cmd(to.t.name+'*>msg', event_from_lbuffer(lbuffer));
+debugger;
+  let e = build_cmd(to.t.name+'>*msg', event_from_lbuffer(lbuffer));
   xerr.notice('*** emit_ack '+e)
   push_event(e);
 }
@@ -2049,6 +2055,12 @@ const cmd_msg = opt=>etask(function*cmd_msg(){
     case '': break;
     default: assert(0, 'invalid cmd '+cmd);
     }
+  } else if (type=='ack'){
+    if (body)
+      body = {rt: parse_path(body.replace('rt:', ''))};
+  } else if (!['req_start', 'req_next', 'req_end', 'res_start', 'res_next',
+      'res_end'].includes(type)){
+    assert.fail('invalid type '+type);
   }
   let rt; // XXX: rm this logic. just pass c.rt
   if (c.rt)
@@ -2057,6 +2069,12 @@ const cmd_msg = opt=>etask(function*cmd_msg(){
     dur_ms);
   if (t_conf.msg_delay && t_conf.auto_time)
     t_sleep.push(dur_ms);
+});
+
+// XXX HACK: rm
+const cmd_msg_emit = opt=>etask(function*cmd_msg(){
+  let {c} = opt, event = shift_event(c);
+  assert_event_c2(c, build_cmd(dir_c(c)+c.cmd, c.arg), null, event, false);
 });
 
 function dir_from_req_id(s){
@@ -2426,6 +2444,7 @@ const cmd_run_single = opt=>etask(function*cmd_run_single(){
   case 'ping_r': yield cmd_ping_r(opt); break;
   case 'ack': yield cmd_ack(opt); break;
   case 'msg': yield cmd_msg(opt); break;
+  case '*msg': yield cmd_msg_emit(opt); break;
   case 'fwd': yield cmd_fwd(opt); break;
   case 'req': yield cmd_req(opt); break;
   case '!req': yield cmd_req(opt); break;
@@ -5303,7 +5322,21 @@ describe('peer-relay', function(){
       !ring(a-d) #ms abc>!ping(rt:bc) #400ms`);
     t('3_nodes_shortcut_manual_time', `conf(!auto_time msg_delay a-d rtt:200)
       !ring(a-d) #ms abc>!ping(rt:bc) #400ms`);
-    if (Router.t.xxx_rt) // XXX WIP
+    t = (name, test)=>t_roles(name, 'ab', test);
+    t('zzz_2_nodes_manualack_manual_time', `
+      conf(emit_ack !auto_time !autoack a-b rtt:200)
+      ab>!connect() ab>!ping(id:1 !!) ab>ping(id:1.0)
+      100ms ab>*ping ab<ack(id:>1.0 vv) ab<ping_r(id:1.0)
+      100ms a>*msg(ba>msg(id(1) type(ack) seq(0) dir(>) vv))
+            ab<*ping_r ab>ack(id:<1.0 vv)
+      100ms b>*msg(ab>msg(id(1) type(ack) seq(0) dir(<) vv))`);
+    t('zzz_2_nodes_autoack_manual_time', `conf(emit_ack !auto_time a-b rtt:200)
+      ab>!connect() ab>!ping(id:1 !!) ab>ping(id:1.0)
+      100ms ab>*ping ab<ping_r(id:1.0)
+      100ms a>*msg(ba>msg(id(1) type(ack) seq(0) dir(>) vv)) ab<*ping_r
+      100ms b>*msg(ab>msg(id(1) type(ack) seq(0) dir(<) vv))`);
+    t = (name, test)=>t_roles(name, 'abc', test);
+    if (false && Router.t.xxx_rt) // XXX WIP
     t('zzz0_manual', `
       conf(!autoack emit_ack !auto_time a-d rtt(200 bc:20)) !ring(a-d)
             ac>!ping(id:1 !!) ab:ac>ping(id:1.0)
@@ -5311,11 +5344,12 @@ describe('peer-relay', function(){
       10ms  ac>*ping bc[a]:ac<ack(id:>1.0 vv) bc[a]:ac<ping_r(id:1.0)
       10ms  ab:bc[a]:ac<ack(id:>1.0 vv) ab:bc[a]:ac<ping_r(id:1.0)
             bc>ack(id:<1.0)
-      100ms ac<*ping_r ab[c]:ac>ack(id:<1.0 vv)
+      80ms  a>*msg(ack(id:>1.0 body(rt:c)))
+      20ms ac<*ping_r ab[c]:ac>ack(id:<1.0 vv)
       100ms bc:ab[c]:ac>ack(id:<1.0 vv)
       a#rtt(>1.0 200) b#rtt(>1.0 20) c#rtt(>1.0 0)
       a#rtt(<1.0 0) b#rtt(<1.0 200) c#rtt(<1.0 20)`);
-    if (Router.t.xxx_rt) // XXX WIP
+    if (false && Router.t.xxx_rt) // XXX WIP
     t('zzz0_auto', `
       conf(emit_ack !auto_time a-d rtt(200 bc:20)) !ring(a-d)
             ac>!ping(id:1 !!) ab:ac>ping(id:1.0)

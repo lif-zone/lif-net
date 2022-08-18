@@ -915,8 +915,8 @@ function do_autoack(lbuffer, vv){
     dur_ms = 0;
     while (path2.length){
       to2 = path2.shift();
-      lbuffer2.add_json({from: from2, to: to2, type: 'fwd',
-        rt: {path: path2}});
+      lbuffer2.add_json(assign({from: from2, to: to2, type: 'fwd'},
+        path2.length ? {rt: {path: path2}} : undefined));
       if (t_conf.msg_delay)
           dur_ms += conf_rtt_from_id(from2, to2)/2;
       if (!node_from_id(to2).t.fake){
@@ -1611,6 +1611,7 @@ function emit_ack_on_msg(lbuffer){
   if (msg.type!='ack' || ack_connect)
     return;
   let e = event_from_lbuffer(lbuffer, {rx: true});
+  e = event_from_lbuffer(lbuffer, {rx: true});
   xerr.notice('*** emit_ack '+e);
   push_event(e);
 }
@@ -5364,8 +5365,7 @@ describe('peer-relay', function(){
       10ms bc:ab[c]:ac>ack(id:<1.0 vv rx)
       a#rtt(>1.0 200) b#rtt(>1.0 20) c#rtt(>1.0 0)
       a#rtt(<1.0 0) b#rtt(<1.0 200) c#rtt(<1.0 20)`);
-//    if (false && Router.t.xxx_rt) // XXX WIP
-    if (false)
+    // if (Router.t.xxx_rt) // XXX WIP
     t('zzz0_auto', `
       conf(emit_ack !auto_time a-d rtt(200 bc:20)) !ring(a-d) #ms
       ac>!ping(id:1 !!) ab:ac>ping(id:1.0)

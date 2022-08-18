@@ -1,6 +1,9 @@
 VP:
 - fix req_id handling - make it unique per node (not network wide)
-- ack every pkt
+o ack every pkt
+  o resume return route decision on every ack
+    - Router.t.xxx_rt = false; // XXX WIP
+    - search for zzz tests
   - automatic ack
     - review all tests with !msg_delay and fix
     - fix multi_no_res/multi_no_req

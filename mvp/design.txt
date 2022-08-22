@@ -1,3 +1,7 @@
+derry:
+- how to sign a frame (with or without the header)
+
+tasks:
 - http server
 - https server (need ssl certificate)
 - dns server

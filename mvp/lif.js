@@ -43,7 +43,7 @@ class Scroll {
     if (!o.decl)
       o = assert({}, o, {decl: {ts: Date.now()}});
     Array.from(arguments).forEach(o=>l.add_tail_json(o));
-//    l.sign({keys: this.keys});
+    l.sign(this.keys.key);
     this.lines.push(l);
     return l;
   }

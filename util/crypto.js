@@ -17,3 +17,10 @@ E.key_pair = function(seed){
     sodium.crypto_sign_keypair(pub, key);
   return {pub: Buffer.from(pub), key: Buffer.from(key)};
 };
+
+// XXX: need test
+E.sign = function(buf, key){
+  const sig = b4a.allocUnsafe(sodium.crypto_sign_BYTES);
+  sodium.crypto_sign_detached(sig, buf, key);
+  return Buffer.from(sig);
+}

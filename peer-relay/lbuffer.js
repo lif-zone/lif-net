@@ -1,7 +1,10 @@
 // author: derry. coder: arik.
 'use strict'; /*jslint node:true, browser:true*/
 import xutil from '../util/util.js';
+import crypto from '../util/crypto.js';
 import NodeId from './node_id.js';
+import buf_util from './buf_util.js';
+const s2b = buf_util.buf_from_str;
 const stringify = JSON.stringify;
 
 export default class LBuffer {
@@ -30,15 +33,19 @@ export default class LBuffer {
     this.array[i].json = this.array[i].json||JSON.parse(this.array[i].data);
     return this.array[i].json;
   }
-  to_str(){
+  _to_str(){
     let h = [], d='';
-    if (this.array.length<=1)
-      return '\0'+xutil.get(this, ['array', 0, 'data'], '');
     this.array.forEach(o=>{
       h.push(o.data.length);
       d += o.data;
     });
-    return stringify(h)+'\0'+d;
+    return {header: h, data: d};
+  }
+  to_str(){
+    let {header, data} = this._to_str();
+    if (header.length<=1)
+      return '\0'+data;
+    return stringify(header)+'\0'+data;
   }
   path(){
     let o, p = [];
@@ -53,6 +60,12 @@ export default class LBuffer {
       if (o.range)
         return NodeId.range_from_msg(o.range);
     }
+  }
+  sign(key){
+    let {header, data} = this._to_str();
+    let sig = crypto.sign(s2b(data), key);
+    this.add_json({sig: NodeId.from(sig).s});
+    return sig;
   }
 }
 

@@ -1,3 +1,7 @@
 - http server
 - https server (need ssl certificate)
 - dns server
+- deployment
+  - get real vps
+  - create mvp install script
+  - install mvp

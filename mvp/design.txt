@@ -5,3 +5,5 @@
   - get real vps
   - create mvp install script
   - install mvp
+- lbuffer/scroll - support bytearray
+- bundle js on demand + auto-bundle on file change

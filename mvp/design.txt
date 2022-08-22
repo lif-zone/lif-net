@@ -7,3 +7,5 @@
   - install mvp
 - lbuffer/scroll - support bytearray
 - bundle js on demand + auto-bundle on file change
+- rename NodeId -> Id
+  - Fix BITS to be 8*sodium.crypto_sign_PUBLICKEYBYTES

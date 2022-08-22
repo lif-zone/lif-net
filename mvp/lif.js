@@ -1,5 +1,6 @@
 // author: derry. coder: arik.
 'use strict'; /*jslint node:true, browser:true*/
+import assert from 'assert';
 import LBuffer from '../peer-relay/lbuffer.js';
 /* XXX WIP
 import LIF;
@@ -39,9 +40,12 @@ class Scroll {
   }
   decl(o){
     let l = new LBuffer();
+    if (!o.decl)
+      o = assert({}, o, {decl: {ts: Date.now()}});
     Array.from(arguments).forEach(o=>l.add_tail_json(o));
-    l.sign({keys: this.keys});
+//    l.sign({keys: this.keys});
     this.lines.push(l);
+    return l;
   }
 }
 

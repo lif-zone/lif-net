@@ -10,6 +10,9 @@ tasks:
   - create mvp install script
   - install mvp
 - lbuffer/scroll - support bytearray
-- bundle js on demand + auto-bundle on file change
+- webserver
+  - bundle js on demand
+  - auto-reload on file change
+  - generate bundle files in build dir
 - rename NodeId -> Id
   - Fix BITS to be 8*sodium.crypto_sign_PUBLICKEYBYTES

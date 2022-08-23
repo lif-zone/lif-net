@@ -284,6 +284,7 @@ E.xexit = function(args){
         console.error('xerr.xexit was called', new Error().stack);
     if (env.NODE_ENV=='production')
     {
+        /* XXX TODO
         var conf = require('./conf.js');
         var zcounter_file = require('./zcounter_file.js');
         zcounter_file.inc('server_xexit');
@@ -291,11 +292,13 @@ E.xexit = function(args){
         write_xexit_log({id: 'lerr_server_xexit', info: ''+args,
             ts: date.to_sql(), backtrace: stack, version: version,
             app: conf.app});
+        */
     }
     debugger; // eslint-disable-line no-debugger
     _process.exit(1);
 };
 
+/* XXX TODO
 var write_xexit_log = function(json){
     try {
         var file = require('./file.js');
@@ -304,6 +307,7 @@ var write_xexit_log = function(json){
             _process.pid+'.log', E.json(json));
     } catch(e){ E.xerr(E.e2s(e)); }
 };
+*/
 }
 else
 { // browser-xerr

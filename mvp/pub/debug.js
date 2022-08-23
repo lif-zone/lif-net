@@ -6,30 +6,56 @@ import ReactDOM from 'react-dom';
 import LIF from '../lif.js';
 import NodeId from '../../peer-relay/node_id.js';
 import crypto from '../../util/crypto.js';
+import etask from '../../util/etask.js';
+import buf_util from '../../peer-relay/buf_util.js';
+const b2s = buf_util.buf_to_str;
 
 class DebugPage extends React.Component {
-  render(){ return <div>XXX react</div>; }
+  state = {};
+  componentDidMount(){
+    let keys, keys_str = localStorage.getItem('lif_keypair');
+    if (keys_str){
+      console.log('found keys %s', keys_str);
+      keys = crypto.keypair_from_str(keys_str);
+    } else {
+      keys = crypto.keypair();
+      keys_str = crypto.keypair_to_str(keys);
+      localStorage.setItem('lif_keypair', keys_str);
+      console.log('new keys %s', keys_str);
+    }
+    this.setState({keys});
+  }
+  render(){
+    let {keys} = this.state;
+    if (!keys)
+      return <div>Loading keys...</div>;
+    return <div>
+      <h1>LIF Debug Page</h1>
+      <table>
+        <tbody>
+          <tr><td>pub:</td><td>{b2s(keys.pub)}</td></tr>
+          <tr><td>key:</td><td>{b2s(keys.key)}</td></tr>
+        </tbody>
+      </table>
+      <div>
+        <button onClick={this.on_new_scroll}>New scroll</button>
+      </div>
+    </div>;
+  }
+  on_new_scroll = ()=>{
+    let {keys} = this.state;
+    let scroll = new LIF.Scroll({keys});
+    let id = NodeId.from(keys.pub);
+    let l = scroll.decl({scroll: {pub: id.s, topic: 'http',
+      domain: 'derry.lif.zone'}});
+    console.log(l.to_str());
+  };
 }
 
 function init(){
   const root = document.querySelector('#root');
   const create_element = React.createElement;
   ReactDOM.render(create_element(DebugPage), root);
-  let keys, keys_str = localStorage.getItem('lif_keypair');
-  if (keys_str){
-    console.log('found keys %s', keys_str);
-    keys = crypto.keypair_from_str(keys_str);
-  } else {
-    keys = crypto.keypair();
-    keys_str = crypto.keypair_to_str(keys);
-    localStorage.setItem('lif_keypair', keys_str);
-    console.log('new keys %s', keys_str);
-  }
-  let scroll = new LIF.Scroll({keys});
-  let id = NodeId.from(keys.pub);
-  let l = scroll.decl({scroll: {pub: id.s, topic: 'http',
-    domain: 'derry.lif.zone'}});
-  console.log(l.to_str());
 }
 
 if (document.readyState=='complete')

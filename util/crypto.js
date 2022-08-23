@@ -1,14 +1,17 @@
 // author: derry. coder: arik.
+// XXX: file need test
 'use strict'; /*jslint node:true,browser:true*/
 import sodium from 'sodium-universal';
 import b4a from 'b4a'; // XXX: rm
 import {Buffer} from 'buffer';
+import buf_util from '../peer-relay/buf_util.js';
+const s2b = buf_util.buf_from_str, b2s = buf_util.buf_to_str;
+const stringify = JSON.stringify;
 
 const E = {};
 export default E;
 
-// XXX: need test
-E.key_pair = function(seed){
+E.keypair = function(seed){
   const pub = b4a.allocUnsafe(sodium.crypto_sign_PUBLICKEYBYTES);
   const key = b4a.allocUnsafe(sodium.crypto_sign_SECRETKEYBYTES);
   if (seed)
@@ -18,9 +21,16 @@ E.key_pair = function(seed){
   return {pub: Buffer.from(pub), key: Buffer.from(key)};
 };
 
-// XXX: need test
 E.sign = function(buf, key){
   const sig = b4a.allocUnsafe(sodium.crypto_sign_BYTES);
   sodium.crypto_sign_detached(sig, buf, key);
   return Buffer.from(sig);
 }
+
+E.keypair_to_str = function(keys){
+  return stringify({pub: b2s(keys.pub), key: b2s(keys.key)}); };
+
+E.keypair_from_str = function(keys_str){
+  let _keys = JSON.parse(keys_str);
+  return {pub: s2b(_keys.pub), key: s2b(_keys.key)};
+};

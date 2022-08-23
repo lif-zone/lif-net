@@ -21,7 +21,7 @@ module.exports = {
       presets: ['@babel/preset-react']
     },
   },
-  ignorePatterns: ['bundle*.js'],
+  ignorePatterns: ['*bundle*.js'],
   rules: {
     // Possible errors
     indent: 'off',

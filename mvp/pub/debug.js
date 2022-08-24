@@ -9,7 +9,7 @@ import buf_util from '../../peer-relay/buf_util.js';
 const b2s = buf_util.buf_to_str;
 
 class DebugPage extends React.Component {
-  state = {};
+  state = {dd: []};
   componentDidMount(){
     let keys, keys_str = localStorage.getItem('lif_keypair');
     if (keys_str){
@@ -24,11 +24,12 @@ class DebugPage extends React.Component {
     this.setState({keys});
   }
   render(){
-    let {keys} = this.state;
+    let {keys, dd} = this.state;
     if (!keys)
       return <div>Loading keys...</div>;
     return <div>
       <h1>LIF Debug Page</h1>
+      <div><button onClick={this.on_new_scroll}>New scroll</button></div>
       <table>
         <tbody>
           <tr><td>pub:</td><td><pre>{b2s(keys.pub)}</pre></td></tr>
@@ -36,18 +37,25 @@ class DebugPage extends React.Component {
         </tbody>
       </table>
       <div>
-        <button onClick={this.on_new_scroll}>New scroll</button>
+        <div>scroll:</div>
+        {dd.map(item=><div key={item.to_str()}>{item.to_str()}</div>)}
       </div>
     </div>;
   }
   on_new_scroll = ()=>{
     let {keys} = this.state;
     let scroll = new LIF.Scroll({keys});
+    scroll.on('decl', this.on_new_decl);
     scroll.decl({scroll: {topic: 'http',
       domain: 'derry.lif.zone',
       default: ['crypt', 'pub', 'scroll.topic', 'scroll.domain']}});
     scroll.decl({http_record: {uri: '/', mime: 'html'}},
       '<html><body>derry</body></html>');
+  };
+  on_new_decl = l=>{
+    this.setState(state=>{
+      return {dd: state.dd.concat(l)};
+    });
   };
 }
 

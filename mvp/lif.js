@@ -6,6 +6,8 @@ import LBuffer from '../peer-relay/lbuffer.js';
 import xcrypto from '../util/crypto.js';
 import buf_util from '../peer-relay/buf_util.js';
 import date from '../util/date.js';
+import etask from '../util/etask.js';
+import idb from 'idb';
 const b2s = buf_util.buf_to_str;
 const assign = Object.assign;
 /* XXX WIP
@@ -42,28 +44,33 @@ export default E;
 class Scroll extends EventEmitter {
   constructor(opt){
     super();
-    this.dd = [];
+    this.dd = {};
     this.keys = opt.keys;
     this.seq = 0;
     this.crypt = opt.crypt||'ed25519';
     this.pub = b2s(opt.keys.pub);
     assert.equal(this.crypt, 'ed25519', 'unsupported crypt');
   }
-  decl(o){
-    let ts = date.to_sql_ms(), d = new LBuffer();
-    d.add_tail_json(assign({crypt: this.crypt, seq: this.seq++, ts,
-      pub: this.pub}, this.prev&&{prev: this.prev}));
-    Array.from(arguments).forEach(data=>{
-      if (typeof data=='object')
-        d.add_tail_json(data);
-      else
-        d.add_tail(data);
+  decl(){
+    let arg = arguments;
+    return etask({_: this}, function*(){
+      let _this = this._;
+      let ts = date.to_sql_ms(), seq = _this.seq++, d = new LBuffer();
+      assert(!_this.dd[seq], 'scroll seq already exists '+seq);
+      d.add_tail_json(assign({crypt: _this.crypt, seq, ts, pub: _this.pub},
+        _this.prev&&{prev: _this.prev}));
+      Array.from(arg).forEach(data=>{
+        if (typeof data=='object')
+          d.add_tail_json(data);
+        else
+          d.add_tail(data);
+      });
+      d.sign(_this.keys.key);
+      _this.dd[seq] = d;
+      _this.prev = b2s(xcrypto.sha256(d.to_buffer()));
+      _this.emit('decl', d);
+      return d;
     });
-    d.sign(this.keys.key);
-    this.dd.push(d);
-    this.prev = b2s(xcrypto.sha256(d.to_buffer()));
-    this.emit('decl', d);
-    return d;
   }
 }
 

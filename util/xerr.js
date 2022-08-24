@@ -8,7 +8,6 @@ import xescape from './escape.js';
 import rate_limit from './rate_limit.js';
 import cluster from 'cluster';
 const is_node = typeof window==='undefined';
-let version = '0.0.1'; // XXX HACK
 let _process = is_node ? process : {env: {}};
 var _xerr;
 var env = _process.env, xerr_cb = [];
@@ -294,6 +293,7 @@ E.xexit = function(args){
             app: conf.app});
         */
     }
+    console.error('CRASH:\n'+stack);
     debugger; // eslint-disable-line no-debugger
     _process.exit(1);
 };

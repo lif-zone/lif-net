@@ -4,9 +4,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
 import LIF from '../lif.js';
-import NodeId from '../../peer-relay/node_id.js';
 import crypto from '../../util/crypto.js';
-import etask from '../../util/etask.js';
 import buf_util from '../../peer-relay/buf_util.js';
 const b2s = buf_util.buf_to_str;
 
@@ -45,10 +43,11 @@ class DebugPage extends React.Component {
   on_new_scroll = ()=>{
     let {keys} = this.state;
     let scroll = new LIF.Scroll({keys});
-    let id = NodeId.from(keys.pub);
-    let l = scroll.decl({scroll: {pub: id.s, topic: 'http',
-      domain: 'derry.lif.zone'}});
-    console.log(l.to_str());
+    scroll.decl({scroll: {topic: 'http',
+      domain: 'derry.lif.zone',
+      default: ['crypt', 'pub', 'scroll.topic', 'scroll.domain']}});
+    scroll.decl({http_record: {uri: '/', mime: 'html'}},
+      '<html><body>derry</body></html>');
   };
 }
 

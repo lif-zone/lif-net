@@ -14,13 +14,8 @@ async function start(){
 function debug_handler(req, res){
   res.send(`<html>
     <script src=pub/debug.bundle.js></script>
-    <body><div id=root\></body>
+    <body><div id=root></div></body>
   <html>`);
-}
-
-function exit(msg){
-  console.error(msg);
-  process.exit(1);
 }
 
 start();

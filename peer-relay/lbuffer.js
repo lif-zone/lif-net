@@ -1,7 +1,7 @@
 // author: derry. coder: arik.
 'use strict'; /*jslint node:true, browser:true*/
 import xutil from '../util/util.js';
-import crypto from '../util/crypto.js';
+import xcrypto from '../util/crypto.js';
 import NodeId from './node_id.js';
 import buf_util from './buf_util.js';
 import {Buffer} from 'buffer';
@@ -47,6 +47,7 @@ export default class LBuffer {
       return '\0'+data;
     return stringify(header)+'\0'+data;
   }
+  to_buffer(){ return Buffer.from(this.to_str()) }
   path(){
     let o, p = [];
     for (let i=0; i<this.size() && (o=this.get_json(i)) && o.type=='fwd'; i++)
@@ -64,7 +65,7 @@ export default class LBuffer {
   sign(key){
     let {header, data} = this._to_str();
     // XXX: need to_buffer api
-    let sig = crypto.sign(Buffer.from(data), key);
+    let sig = xcrypto.sign(Buffer.from(data), key);
     this.add_json({sig: NodeId.from(sig).s});
     return sig;
   }

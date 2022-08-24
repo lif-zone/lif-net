@@ -3,9 +3,9 @@
 'use strict'; /*jslint node:true,browser:true*/
 import sodium from 'sodium-universal';
 import b4a from 'b4a'; // XXX: rm
+import crypto from 'crypto';
 /* XXX secp256k1 support
 import secp256k1 from 'secp256k1';
-import crypto from 'crypto';
 */
 import {Buffer} from 'buffer';
 import buf_util from '../peer-relay/buf_util.js';
@@ -49,7 +49,7 @@ E.sign = function(buf, key){
   sodium.crypto_sign_detached(sig, buf, key);
   return Buffer.from(sig);
 */
-}
+};
 
 E.keypair_to_str = function(keys){
   return stringify({pub: b2s(keys.pub), key: b2s(keys.key)}); };
@@ -57,4 +57,8 @@ E.keypair_to_str = function(keys){
 E.keypair_from_str = function(keys_str){
   let _keys = JSON.parse(keys_str);
   return {pub: s2b(_keys.pub), key: s2b(_keys.key)};
+};
+
+E.sha256 = function(buf){
+  return Buffer.from(crypto.createHash('sha256').update(buf).digest());
 };

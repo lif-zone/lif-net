@@ -2,6 +2,11 @@
 'use strict'; /*jslint node:true, browser:true*/
 import assert from 'assert';
 import LBuffer from '../peer-relay/lbuffer.js';
+import xcrypto from '../util/crypto.js';
+import buf_util from '../peer-relay/buf_util.js';
+import date from '../util/date.js';
+const b2s = buf_util.buf_to_str;
+const assign = Object.assign;
 /* XXX WIP
 import LIF;
 
@@ -35,16 +40,26 @@ export default E;
 
 class Scroll {
   constructor(opt){
-    this.lines = [];
+    this.ll = [];
     this.keys = opt.keys;
+    this.seq = 0;
+    this.crypt = opt.crypt||'ed25519';
+    this.pub = b2s(opt.keys.pub);
+    assert.equal(this.crypt, 'ed25519', 'unsupported crypt');
   }
   decl(o){
-    let l = new LBuffer();
-    if (!o.decl)
-      o = assert({}, o, {decl: {ts: Date.now()}});
-    Array.from(arguments).forEach(o=>l.add_tail_json(o));
+    let ts = date.to_sql_ms(), l = new LBuffer();
+    l.add_tail_json(assign({crypt: this.crypt, seq: this.seq++, ts,
+      pub: this.pub}, this.prev&&{prev: this.prev}));
+    Array.from(arguments).forEach(data=>{
+      if (typeof data=='object')
+        l.add_tail_json(data);
+      else
+        l.add_tail(data);
+    });
     l.sign(this.keys.key);
-    this.lines.push(l);
+    this.ll.push(l);
+    this.prev = b2s(xcrypto.sha256(l.to_buffer()));
     return l;
   }
 }

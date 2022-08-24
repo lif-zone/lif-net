@@ -1,9 +1,12 @@
 (function(){function r(e,n,t){function o(i,f){if(!n[i]){if(!e[i]){var c="function"==typeof require&&require;if(!f&&c)return c(i,!0);if(u)return u(i,!0);var a=new Error("Cannot find module '"+i+"'");throw a.code="MODULE_NOT_FOUND",a}var p=n[i]={exports:{}};e[i][0].call(p.exports,function(r){var n=e[i][1][r];return o(n||r)},p,p.exports,r,e,n,t)}return n[i].exports}for(var u="function"==typeof require&&require,i=0;i<t.length;i++)o(t[i]);return o}return r})()({1:[function(require,module,exports){
+(function (process){(function (){
 // author: derry. coder: arik.
 'use strict';
 /*jslint node:true, browser:true*/
 
 var _interopRequireDefault = require("@babel/runtime/helpers/interopRequireDefault");
+
+var _typeof3 = require("@babel/runtime/helpers/typeof");
 
 Object.defineProperty(exports, "__esModule", {
   value: true
@@ -32,20 +35,43 @@ var _lbuffer = _interopRequireDefault(require("../peer-relay/lbuffer.js"));
 
 var _crypto = _interopRequireDefault(require("../util/crypto.js"));
 
+var _xerr = _interopRequireDefault(require("../util/xerr.js"));
+
 var _buf_util = _interopRequireDefault(require("../peer-relay/buf_util.js"));
 
 var _date = _interopRequireDefault(require("../util/date.js"));
 
 var _etask = _interopRequireDefault(require("../util/etask.js"));
 
-var _idb = _interopRequireDefault(require("idb"));
+var idb = _interopRequireWildcard(require("idb"));
+
+function _getRequireWildcardCache(nodeInterop) { if (typeof WeakMap !== "function") return null; var cacheBabelInterop = new WeakMap(); var cacheNodeInterop = new WeakMap(); return (_getRequireWildcardCache = function _getRequireWildcardCache(nodeInterop) { return nodeInterop ? cacheNodeInterop : cacheBabelInterop; })(nodeInterop); }
+
+function _interopRequireWildcard(obj, nodeInterop) { if (!nodeInterop && obj && obj.__esModule) { return obj; } if (obj === null || _typeof3(obj) !== "object" && typeof obj !== "function") { return { "default": obj }; } var cache = _getRequireWildcardCache(nodeInterop); if (cache && cache.has(obj)) { return cache.get(obj); } var newObj = {}; var hasPropertyDescriptor = Object.defineProperty && Object.getOwnPropertyDescriptor; for (var key in obj) { if (key !== "default" && Object.prototype.hasOwnProperty.call(obj, key)) { var desc = hasPropertyDescriptor ? Object.getOwnPropertyDescriptor(obj, key) : null; if (desc && (desc.get || desc.set)) { Object.defineProperty(newObj, key, desc); } else { newObj[key] = obj[key]; } } } newObj["default"] = obj; if (cache) { cache.set(obj, newObj); } return newObj; }
 
 function _createSuper(Derived) { var hasNativeReflectConstruct = _isNativeReflectConstruct(); return function _createSuperInternal() { var Super = (0, _getPrototypeOf2["default"])(Derived), result; if (hasNativeReflectConstruct) { var NewTarget = (0, _getPrototypeOf2["default"])(this).constructor; result = Reflect.construct(Super, arguments, NewTarget); } else { result = Super.apply(this, arguments); } return (0, _possibleConstructorReturn2["default"])(this, result); }; }
 
 function _isNativeReflectConstruct() { if (typeof Reflect === "undefined" || !Reflect.construct) return false; if (Reflect.construct.sham) return false; if (typeof Proxy === "function") return true; try { Boolean.prototype.valueOf.call(Reflect.construct(Boolean, [], function () {})); return true; } catch (e) { return false; } }
 
 var b2s = _buf_util["default"].buf_to_str;
-var assign = Object.assign;
+var assign = Object.assign; // XXX: mv to other place
+
+_xerr["default"].set_exception_catch_all(true);
+
+process.on('uncaughtException', err_handler);
+process.on('unhandledRejection', err_handler);
+
+_xerr["default"].set_exception_handler('test', function (prefix, o, err) {
+  return err_handler(err);
+});
+
+function err_handler(err) {
+  console.error('err handler:');
+  console.error(err);
+  var err2 = new Error('err_handler');
+  err2.err_orig = err;
+  throw err2;
+}
 /* XXX WIP
 import LIF;
 
@@ -74,6 +100,7 @@ scroll.decl({http_record: {uri: '/derry.jpg', mime_type: 'image/jpeg'},
 
 */
 
+
 var E = {};
 var _default = E;
 exports["default"] = _default;
@@ -100,46 +127,92 @@ var Scroll = /*#__PURE__*/function (_EventEmitter) {
   }
 
   (0, _createClass2["default"])(Scroll, [{
+    key: "scroll_hash",
+    value: function scroll_hash() {
+      var _this$dd$;
+
+      return (_this$dd$ = this.dd[0]) === null || _this$dd$ === void 0 ? void 0 : _this$dd$.hash;
+    }
+  }, {
     key: "decl",
     value: function decl() {
+      var _arg$, _arg$$scroll;
+
       var arg = arguments;
+
+      var ts = _date["default"].to_sql_ms(),
+          seq = this.seq++,
+          d = new _lbuffer["default"]();
+
+      var topic = (_arg$ = arg[0]) === null || _arg$ === void 0 ? void 0 : (_arg$$scroll = _arg$.scroll) === null || _arg$$scroll === void 0 ? void 0 : _arg$$scroll.topic;
+      (0, _assert["default"])(!this.dd[seq], 'scroll seq already exists ' + seq);
+      (0, _assert["default"])(seq || ['http', 'dns'].includes(topic), 'invalid scroll topic ' + topic);
+      d.add_tail_json(assign({
+        crypt: this.crypt,
+        seq: seq,
+        ts: ts,
+        pub: this.pub
+      }, this.prev && {
+        prev: this.prev
+      }));
+      Array.from(arg).forEach(function (data) {
+        if ((0, _typeof2["default"])(data) == 'object') d.add_tail_json(data);else d.add_tail(data);
+      });
+      d.sign(this.keys.key); // XXX: wrap it in LBuffer.hash()
+
+      var hash = b2s(_crypto["default"].sha256(d.to_buffer()));
+      this.dd[seq] = {
+        d: d,
+        hash: hash
+      };
+      this.prev = hash;
       return (0, _etask["default"])({
         _: this
-      }, /*#__PURE__*/_regenerator["default"].mark(function _callee() {
-        var _this, ts, seq, d;
+      }, /*#__PURE__*/_regenerator["default"].mark(function decl() {
+        var _this, db;
 
-        return _regenerator["default"].wrap(function _callee$(_context) {
+        return _regenerator["default"].wrap(function decl$(_context) {
           while (1) {
             switch (_context.prev = _context.next) {
               case 0:
                 _this = this._;
-                ts = _date["default"].to_sql_ms(), seq = _this.seq++, d = new _lbuffer["default"]();
-                (0, _assert["default"])(!_this.dd[seq], 'scroll seq already exists ' + seq);
-                d.add_tail_json(assign({
-                  crypt: _this.crypt,
-                  seq: seq,
-                  ts: ts,
-                  pub: _this.pub
-                }, _this.prev && {
-                  prev: _this.prev
-                }));
-                Array.from(arg).forEach(function (data) {
-                  if ((0, _typeof2["default"])(data) == 'object') d.add_tail_json(data);else d.add_tail(data);
+                _context.next = 3;
+                return idb.openDB('Scroll', 1, {
+                  upgrade: function upgrade(db) {
+                    var store = db.createObjectStore('http', {
+                      keyPath: 'hash'
+                    });
+                    store.createIndex('scroll-seq', ['scroll', 'seq']);
+                    store = db.createObjectStore('dns', {
+                      keyPath: 'hash'
+                    });
+                    store.createIndex('scroll-seq', ['scroll', 'seq']);
+                  }
                 });
-                d.sign(_this.keys.key);
-                _this.dd[seq] = d;
-                _this.prev = b2s(_crypto["default"].sha256(d.to_buffer()));
 
-                _this.emit('decl', d);
+              case 3:
+                db = _context.sent;
+                _context.next = 6;
+                return db.add('http', {
+                  hash: hash,
+                  scroll: _this.scroll_hash(),
+                  seq: seq,
+                  pub: _this.pub,
+                  decl: d.to_buffer()
+                });
+
+              case 6:
+                _this.emit('decl', d); // XXX: mv outside
+
 
                 return _context.abrupt("return", d);
 
-              case 10:
+              case 8:
               case "end":
                 return _context.stop();
             }
           }
-        }, _callee, this);
+        }, decl, this);
       }));
     }
   }]);
@@ -148,7 +221,8 @@ var Scroll = /*#__PURE__*/function (_EventEmitter) {
 
 E.Scroll = Scroll;
 
-},{"../peer-relay/buf_util.js":293,"../peer-relay/lbuffer.js":294,"../util/crypto.js":297,"../util/date.js":298,"../util/etask.js":300,"@babel/runtime/helpers/classCallCheck":4,"@babel/runtime/helpers/createClass":5,"@babel/runtime/helpers/getPrototypeOf":7,"@babel/runtime/helpers/inherits":8,"@babel/runtime/helpers/interopRequireDefault":9,"@babel/runtime/helpers/possibleConstructorReturn":10,"@babel/runtime/helpers/typeof":12,"@babel/runtime/regenerator":14,"assert":30,"events":135,"idb":175}],2:[function(require,module,exports){
+}).call(this)}).call(this,require('_process'))
+},{"../peer-relay/buf_util.js":293,"../peer-relay/lbuffer.js":294,"../util/crypto.js":297,"../util/date.js":298,"../util/etask.js":300,"../util/xerr.js":305,"@babel/runtime/helpers/classCallCheck":4,"@babel/runtime/helpers/createClass":5,"@babel/runtime/helpers/getPrototypeOf":7,"@babel/runtime/helpers/inherits":8,"@babel/runtime/helpers/interopRequireDefault":9,"@babel/runtime/helpers/possibleConstructorReturn":10,"@babel/runtime/helpers/typeof":12,"@babel/runtime/regenerator":14,"_process":200,"assert":30,"events":135,"idb":175}],2:[function(require,module,exports){
 // author: derry. coder: arik.
 'use strict';
 /*jslint node:true, browser:true*/

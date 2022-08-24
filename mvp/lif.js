@@ -4,12 +4,28 @@ import assert from 'assert';
 import {EventEmitter} from 'events';
 import LBuffer from '../peer-relay/lbuffer.js';
 import xcrypto from '../util/crypto.js';
+import xerr from '../util/xerr.js';
 import buf_util from '../peer-relay/buf_util.js';
 import date from '../util/date.js';
 import etask from '../util/etask.js';
-import idb from 'idb';
+import * as idb from 'idb';
 const b2s = buf_util.buf_to_str;
 const assign = Object.assign;
+
+// XXX: mv to other place
+xerr.set_exception_catch_all(true);
+process.on('uncaughtException', err_handler);
+process.on('unhandledRejection', err_handler);
+xerr.set_exception_handler('test', (prefix, o, err)=>err_handler(err));
+
+function err_handler(err){
+  console.error('err handler:');
+  console.error(err);
+  let err2 = new Error('err_handler');
+  err2.err_orig = err;
+  throw err2;
+}
+
 /* XXX WIP
 import LIF;
 
@@ -51,23 +67,37 @@ class Scroll extends EventEmitter {
     this.pub = b2s(opt.keys.pub);
     assert.equal(this.crypt, 'ed25519', 'unsupported crypt');
   }
+  scroll_hash(){ return this.dd[0]?.hash; }
   decl(){
     let arg = arguments;
-    return etask({_: this}, function*(){
+    let ts = date.to_sql_ms(), seq = this.seq++, d = new LBuffer();
+    let topic = arg[0]?.scroll?.topic;
+    assert(!this.dd[seq], 'scroll seq already exists '+seq);
+    assert(seq || ['http', 'dns'].includes(topic),
+      'invalid scroll topic '+topic);
+    d.add_tail_json(assign({crypt: this.crypt, seq, ts, pub: this.pub},
+      this.prev&&{prev: this.prev}));
+    Array.from(arg).forEach(data=>{
+      if (typeof data=='object')
+        d.add_tail_json(data);
+      else
+        d.add_tail(data);
+    });
+    d.sign(this.keys.key);
+    // XXX: wrap it in LBuffer.hash()
+    let hash = b2s(xcrypto.sha256(d.to_buffer()));
+    this.dd[seq] = {d, hash};
+    this.prev = hash;
+    return etask({_: this}, function*decl(){
       let _this = this._;
-      let ts = date.to_sql_ms(), seq = _this.seq++, d = new LBuffer();
-      assert(!_this.dd[seq], 'scroll seq already exists '+seq);
-      d.add_tail_json(assign({crypt: _this.crypt, seq, ts, pub: _this.pub},
-        _this.prev&&{prev: _this.prev}));
-      Array.from(arg).forEach(data=>{
-        if (typeof data=='object')
-          d.add_tail_json(data);
-        else
-          d.add_tail(data);
-      });
-      d.sign(_this.keys.key);
-      _this.dd[seq] = d;
-      _this.prev = b2s(xcrypto.sha256(d.to_buffer()));
+      let db = yield idb.openDB('Scroll', 1, {upgrade(db){
+          let store = db.createObjectStore('http', {keyPath: 'hash'});
+          store.createIndex('scroll-seq', ['scroll', 'seq']);
+          store = db.createObjectStore('dns', {keyPath: 'hash'});
+          store.createIndex('scroll-seq', ['scroll', 'seq']);
+        }});
+        yield db.add('http', {hash, scroll: _this.scroll_hash(), seq: seq,
+          pub: _this.pub, decl: d.to_buffer()});
       _this.emit('decl', d);
       return d;
     });

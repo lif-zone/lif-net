@@ -4,7 +4,7 @@ import xutil from '../util/util.js';
 import crypto from '../util/crypto.js';
 import NodeId from './node_id.js';
 import buf_util from './buf_util.js';
-const s2b = buf_util.buf_from_str;
+import {Buffer} from 'buffer';
 const stringify = JSON.stringify;
 
 export default class LBuffer {
@@ -63,7 +63,8 @@ export default class LBuffer {
   }
   sign(key){
     let {header, data} = this._to_str();
-    let sig = crypto.sign(s2b(data), key);
+    // XXX: need to_buffer api
+    let sig = crypto.sign(Buffer.from(data), key);
     this.add_json({sig: NodeId.from(sig).s});
     return sig;
   }

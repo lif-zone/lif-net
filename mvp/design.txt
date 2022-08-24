@@ -16,3 +16,6 @@ tasks:
   - generate bundle files in build dir
 - rename NodeId -> Id
   - Fix BITS to be 8*sodium.crypto_sign_PUBLICKEYBYTES
+- verify we use native webcrpto in crypto-browserify and that we use
+  node native crypto in node
+

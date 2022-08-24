@@ -194,7 +194,7 @@ var DebugPage = /*#__PURE__*/function (_React$Component) {
     value: function render() {
       var keys = this.state.keys;
       if (!keys) return /*#__PURE__*/_react["default"].createElement("div", null, "Loading keys...");
-      return /*#__PURE__*/_react["default"].createElement("div", null, /*#__PURE__*/_react["default"].createElement("h1", null, "LIF Debug Page"), /*#__PURE__*/_react["default"].createElement("table", null, /*#__PURE__*/_react["default"].createElement("tbody", null, /*#__PURE__*/_react["default"].createElement("tr", null, /*#__PURE__*/_react["default"].createElement("td", null, "pub:"), /*#__PURE__*/_react["default"].createElement("td", null, b2s(keys.pub))), /*#__PURE__*/_react["default"].createElement("tr", null, /*#__PURE__*/_react["default"].createElement("td", null, "key:"), /*#__PURE__*/_react["default"].createElement("td", null, b2s(keys.key))))), /*#__PURE__*/_react["default"].createElement("div", null, /*#__PURE__*/_react["default"].createElement("button", {
+      return /*#__PURE__*/_react["default"].createElement("div", null, /*#__PURE__*/_react["default"].createElement("h1", null, "LIF Debug Page"), /*#__PURE__*/_react["default"].createElement("table", null, /*#__PURE__*/_react["default"].createElement("tbody", null, /*#__PURE__*/_react["default"].createElement("tr", null, /*#__PURE__*/_react["default"].createElement("td", null, "pub:"), /*#__PURE__*/_react["default"].createElement("td", null, /*#__PURE__*/_react["default"].createElement("pre", null, b2s(keys.pub)))), /*#__PURE__*/_react["default"].createElement("tr", null, /*#__PURE__*/_react["default"].createElement("td", null, "key:"), /*#__PURE__*/_react["default"].createElement("td", null, /*#__PURE__*/_react["default"].createElement("pre", null, b2s(keys.key)))))), /*#__PURE__*/_react["default"].createElement("div", null, /*#__PURE__*/_react["default"].createElement("button", {
         onClick: this.on_new_scroll
       }, "New scroll")));
     }
@@ -208,24 +208,6 @@ function init() {
   var create_element = _react["default"].createElement;
 
   _reactDom["default"].render(create_element(DebugPage), root);
-  /*
-    let keys, keys_str = localStorage.getItem('lif_keypair');
-    if (keys_str){
-      console.log('found keys %s', keys_str);
-      keys = crypto.keypair_from_str(keys_str);
-    } else {
-      keys = crypto.keypair();
-      keys_str = crypto.keypair_to_str(keys);
-      localStorage.setItem('lif_keypair', keys_str);
-      console.log('new keys %s', keys_str);
-    }
-    let scroll = new LIF.Scroll({keys});
-    let id = NodeId.from(keys.pub);
-    let l = scroll.decl({scroll: {pub: id.s, topic: 'http',
-      domain: 'derry.lif.zone'}});
-    console.log(l.to_str());
-  */
-
 }
 
 if (document.readyState == 'complete') init();else window.addEventListener('load', init);
@@ -42545,6 +42527,8 @@ var _node_id = _interopRequireDefault(require("./node_id.js"));
 
 var _buf_util = _interopRequireDefault(require("./buf_util.js"));
 
+var _buffer = require("buffer");
+
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { "default": obj }; }
 
 function _typeof(obj) { "@babel/helpers - typeof"; return _typeof = "function" == typeof Symbol && "symbol" == typeof Symbol.iterator ? function (obj) { return typeof obj; } : function (obj) { return obj && "function" == typeof Symbol && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; }, _typeof(obj); }
@@ -42555,7 +42539,6 @@ function _defineProperties(target, props) { for (var i = 0; i < props.length; i+
 
 function _createClass(Constructor, protoProps, staticProps) { if (protoProps) _defineProperties(Constructor.prototype, protoProps); if (staticProps) _defineProperties(Constructor, staticProps); Object.defineProperty(Constructor, "prototype", { writable: false }); return Constructor; }
 
-var s2b = _buf_util["default"].buf_from_str;
 var stringify = JSON.stringify;
 
 var LBuffer = /*#__PURE__*/function () {
@@ -42664,9 +42647,10 @@ var LBuffer = /*#__PURE__*/function () {
     value: function sign(key) {
       var _this$_to_str2 = this._to_str(),
           header = _this$_to_str2.header,
-          data = _this$_to_str2.data;
+          data = _this$_to_str2.data; // XXX: need to_buffer api
 
-      var sig = _crypto["default"].sign(s2b(data), key);
+
+      var sig = _crypto["default"].sign(_buffer.Buffer.from(data), key);
 
       this.add_json({
         sig: _node_id["default"].from(sig).s
@@ -42711,7 +42695,7 @@ LBuffer.from = function (s) {
   return lbuffer;
 };
 
-},{"../util/crypto.js":98,"../util/util.js":105,"./buf_util.js":94,"./node_id.js":96}],96:[function(require,module,exports){
+},{"../util/crypto.js":98,"../util/util.js":105,"./buf_util.js":94,"./node_id.js":96,"buffer":19}],96:[function(require,module,exports){
 // author: derry. coder: arik.
 'use strict';
 /*jslint node:true, browser:true*/
@@ -43206,6 +43190,11 @@ var _buf_util = _interopRequireDefault(require("../peer-relay/buf_util.js"));
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { "default": obj }; }
 
 // XXX: rm
+
+/* XXX secp256k1 support
+import secp256k1 from 'secp256k1';
+import crypto from 'crypto';
+*/
 var s2b = _buf_util["default"].buf_from_str,
     b2s = _buf_util["default"].buf_to_str;
 var stringify = JSON.stringify;
@@ -43223,6 +43212,13 @@ E.keypair = function (seed) {
     pub: _buffer.Buffer.from(pub),
     key: _buffer.Buffer.from(key)
   };
+  /* XXX secp256k1 support
+    let key;
+    while ((key = Buffer.from(crypto.randomBytes(32))) &&
+      !secp256k1.privateKeyVerify(key));
+    let pub = secp256k1.publicKeyCreate(key);
+    return {pub: Buffer.from(pub), key: Buffer.from(key)};
+  */
 };
 
 E.sign = function (buf, key) {
@@ -43231,6 +43227,19 @@ E.sign = function (buf, key) {
   _sodiumUniversal["default"].crypto_sign_detached(sig, buf, key);
 
   return _buffer.Buffer.from(sig);
+  /* XXX secp256k1 support
+    debugger;
+    console.log('XXX pre-buf %o', buf);
+    const hash = crypto.createHash('sha256').update(buf).digest();
+    console.log('XXX hash %o', hash);
+    console.log('XXX buf %o', buf);
+    const sig = secp256k1.ecdsaSign(hash, key);
+    console.log('XXX sig %o', sig);
+    return Buffer.from(hash);
+    const sig = b4a.allocUnsafe(sodium.crypto_sign_BYTES);
+    sodium.crypto_sign_detached(sig, buf, key);
+    return Buffer.from(sig);
+  */
 };
 
 E.keypair_to_str = function (keys) {

@@ -33,8 +33,8 @@ class DebugPage extends React.Component {
       <h1>LIF Debug Page</h1>
       <table>
         <tbody>
-          <tr><td>pub:</td><td>{b2s(keys.pub)}</td></tr>
-          <tr><td>key:</td><td>{b2s(keys.key)}</td></tr>
+          <tr><td>pub:</td><td><pre>{b2s(keys.pub)}</pre></td></tr>
+          <tr><td>key:</td><td><pre>{b2s(keys.key)}</pre></td></tr>
         </tbody>
       </table>
       <div>

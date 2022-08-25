@@ -65,6 +65,7 @@ const open_db = db_name=>etask(function*open_db(){
     let store = db.createObjectStore('http', {keyPath: 'hash'});
     store.createIndex('domain-uri', ['scroll.domain', 'http_record.uri']);
     store = db.createObjectStore('dns', {keyPath: 'hash'});
+    store.createIndex('domain', 'dns_record.domain');
   }});
   return g_db;
 });
@@ -124,19 +125,29 @@ class Scroll extends EventEmitter {
         _this.scroll_default());
       if (topic=='http' && hash!=_this.scroll_hash())
         o.http_record = {uri: xutil.get(decl_json(d), 'http_record.uri')};
+      if (topic=='dns' && hash!=_this.scroll_hash())
+        o.dns_record = {domain: xutil.get(decl_json(d), 'dns_record.domain')};
       assign(o, {json: d.to_json(), decl: d.to_buffer()});
-      yield db.add('http', o);
+      yield db.add(topic, o);
       _this.emit('decl', d);
       return d;
     });
   }
 }
 
-E.http_get_uri = (domain, uri)=>etask(function*http_lookup_uri(){
+E.http = {};
+E.http.get_uri = (domain, uri)=>etask(function*http_lookup_uri(){
   let db = yield open_db('Scroll');
   let dd = yield db.getAllFromIndex('http', 'domain-uri',
     IDBKeyRange.only([domain, uri]));
-  console.log('XXX http_lookup_uri %o', dd);
+  console.log('XXX http.get_uri %o', dd);
+});
+
+E.dns = {};
+E.dns.resolve = domain=>etask(function*dns_resolve(){
+  let db = yield open_db('Scroll');
+  let dd = yield db.getAllFromIndex('dns', 'domain', IDBKeyRange.only(domain));
+  console.log('XXX dns.resolve %o', dd);
 });
 
 E.Scroll = Scroll;

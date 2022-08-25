@@ -15,6 +15,7 @@ class DebugPage extends React.Component {
     super(props);
     this.ref_http_domain = React.createRef();
     this.ref_http_uri = React.createRef();
+    this.ref_dns_domain = React.createRef();
   }
   componentDidMount(){
     let keys, keys_str = localStorage.getItem('lif_keypair');
@@ -36,14 +37,21 @@ class DebugPage extends React.Component {
     return <div>
       <h1>LIF Debug Page</h1>
       <div>
-        <button onClick={this.on_new_scroll}>New scroll</button>
+        <button onClick={this.on_new_http_scroll}>New http scroll</button>
+        <button onClick={this.on_new_dns_scroll}>New dns scroll</button>
       </div>
       <div>
-        http_get_uri domain:
+        http.get_uri:
         <input ref={this.ref_http_domain} defaultValue='derry.lif.zone'>
         </input>
         uri: <input ref={this.ref_http_uri} defaultValue='/'></input>
         <button onClick={this.on_http_get_uri}>go</button>
+      </div>
+      <div>
+        dns.resolve:
+        <input ref={this.ref_dns_domain} defaultValue='derry.lif.zone'>
+        </input>
+        <button onClick={this.on_dns_resolve}>go</button>
       </div>
       <table>
         <tbody>
@@ -57,7 +65,8 @@ class DebugPage extends React.Component {
       </div>
     </div>;
   }
-  on_new_scroll = ()=>{
+  on_new_decl = l=>this.setState(state=>({dd: state.dd.concat(l)}));
+  on_new_http_scroll = ()=>{
     let {keys} = this.state;
     let scroll = new LIF.Scroll({keys});
     scroll.on('decl', this.on_new_decl);
@@ -69,16 +78,24 @@ class DebugPage extends React.Component {
     scroll.decl({http_record: {uri: '/about', mime: 'html'}},
       '<html><body>about derry</body></html>');
   };
-  on_new_decl = l=>{
-    this.setState(state=>{
-      return {dd: state.dd.concat(l)};
-    });
+  on_new_dns_scroll = ()=>{
+    let {keys} = this.state;
+    let scroll = new LIF.Scroll({keys});
+    scroll.on('decl', this.on_new_decl);
+    // XXX: 1. do we need struct: 'table' 2. any defaults?
+    scroll.decl({scroll: {topic: 'dns', default: ['crypt', 'pub']}});
+    scroll.decl({dns_record: {domain: 'derry.lif.zone', pub: b2s(keys.pub)}});
   };
   on_http_get_uri = ()=>etask({_: this}, function*on_http_get_uri(){
     let _this = this._;
     let domain = _this.ref_http_domain?.current?.value;
     let uri = _this.ref_http_uri?.current?.value;
-    yield LIF.http_get_uri(domain, uri);
+    yield LIF.http.get_uri(domain, uri);
+  });
+  on_dns_resolve = ()=>etask({_: this}, function*on_dns_resolve(){
+    let _this = this._;
+    let domain = _this.ref_dns_domain?.current?.value;
+    yield LIF.dns.resolve(domain);
   });
 }
 

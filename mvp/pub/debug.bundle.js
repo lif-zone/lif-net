@@ -126,6 +126,7 @@ var open_db = function open_db(db_name) {
                 store = db.createObjectStore('dns', {
                   keyPath: 'hash'
                 });
+                store.createIndex('domain', 'dns_record.domain');
               }
             });
 
@@ -260,19 +261,22 @@ var Scroll = /*#__PURE__*/function (_EventEmitter) {
                 if (topic == 'http' && hash != _this.scroll_hash()) o.http_record = {
                   uri: _util["default"].get(decl_json(d), 'http_record.uri')
                 };
+                if (topic == 'dns' && hash != _this.scroll_hash()) o.dns_record = {
+                  domain: _util["default"].get(decl_json(d), 'dns_record.domain')
+                };
                 assign(o, {
                   json: d.to_json(),
                   decl: d.to_buffer()
                 });
-                _context2.next = 9;
-                return db.add('http', o);
+                _context2.next = 10;
+                return db.add(topic, o);
 
-              case 9:
+              case 10:
                 _this.emit('decl', d);
 
                 return _context2.abrupt("return", d);
 
-              case 11:
+              case 12:
               case "end":
                 return _context2.stop();
             }
@@ -284,7 +288,9 @@ var Scroll = /*#__PURE__*/function (_EventEmitter) {
   return Scroll;
 }(_events.EventEmitter);
 
-E.http_get_uri = function (domain, uri) {
+E.http = {};
+
+E.http.get_uri = function (domain, uri) {
   return (0, _etask["default"])( /*#__PURE__*/_regenerator["default"].mark(function http_lookup_uri() {
     var db, dd;
     return _regenerator["default"].wrap(function http_lookup_uri$(_context3) {
@@ -301,7 +307,7 @@ E.http_get_uri = function (domain, uri) {
 
           case 5:
             dd = _context3.sent;
-            console.log('XXX http_lookup_uri %o', dd);
+            console.log('XXX http.get_uri %o', dd);
 
           case 7:
           case "end":
@@ -309,6 +315,36 @@ E.http_get_uri = function (domain, uri) {
         }
       }
     }, http_lookup_uri);
+  }));
+};
+
+E.dns = {};
+
+E.dns.resolve = function (domain) {
+  return (0, _etask["default"])( /*#__PURE__*/_regenerator["default"].mark(function dns_resolve() {
+    var db, dd;
+    return _regenerator["default"].wrap(function dns_resolve$(_context4) {
+      while (1) {
+        switch (_context4.prev = _context4.next) {
+          case 0:
+            _context4.next = 2;
+            return open_db('Scroll');
+
+          case 2:
+            db = _context4.sent;
+            _context4.next = 5;
+            return db.getAllFromIndex('dns', 'domain', IDBKeyRange.only(domain));
+
+          case 5:
+            dd = _context4.sent;
+            console.log('XXX dns.resolve %o', dd);
+
+          case 7:
+          case "end":
+            return _context4.stop();
+        }
+      }
+    }, dns_resolve);
   }));
 };
 
@@ -322,6 +358,8 @@ E.Scroll = Scroll;
 // XXX run: npm run mvp-bundle && node ./main.js
 
 var _interopRequireDefault = require("@babel/runtime/helpers/interopRequireDefault");
+
+var _regenerator = _interopRequireDefault(require("@babel/runtime/regenerator"));
 
 var _classCallCheck2 = _interopRequireDefault(require("@babel/runtime/helpers/classCallCheck"));
 
@@ -345,6 +383,8 @@ var _lif = _interopRequireDefault(require("../lif.js"));
 
 var _crypto = _interopRequireDefault(require("../../util/crypto.js"));
 
+var _etask = _interopRequireDefault(require("../../util/etask.js"));
+
 var _buf_util = _interopRequireDefault(require("../../peer-relay/buf_util.js"));
 
 function _createSuper(Derived) { var hasNativeReflectConstruct = _isNativeReflectConstruct(); return function _createSuperInternal() { var Super = (0, _getPrototypeOf2["default"])(Derived), result; if (hasNativeReflectConstruct) { var NewTarget = (0, _getPrototypeOf2["default"])(this).constructor; result = Reflect.construct(Super, arguments, NewTarget); } else { result = Super.apply(this, arguments); } return (0, _possibleConstructorReturn2["default"])(this, result); }; }
@@ -359,19 +399,26 @@ var DebugPage = /*#__PURE__*/function (_React$Component) {
   var _super = _createSuper(DebugPage);
 
   function DebugPage(props) {
-    var _this;
+    var _this2;
 
     (0, _classCallCheck2["default"])(this, DebugPage);
-    _this = _super.call(this, props);
-    (0, _defineProperty2["default"])((0, _assertThisInitialized2["default"])(_this), "state", {
+    _this2 = _super.call(this, props);
+    (0, _defineProperty2["default"])((0, _assertThisInitialized2["default"])(_this2), "state", {
       dd: []
     });
-    (0, _defineProperty2["default"])((0, _assertThisInitialized2["default"])(_this), "on_new_scroll", function () {
-      var keys = _this.state.keys;
+    (0, _defineProperty2["default"])((0, _assertThisInitialized2["default"])(_this2), "on_new_decl", function (l) {
+      return _this2.setState(function (state) {
+        return {
+          dd: state.dd.concat(l)
+        };
+      });
+    });
+    (0, _defineProperty2["default"])((0, _assertThisInitialized2["default"])(_this2), "on_new_http_scroll", function () {
+      var keys = _this2.state.keys;
       var scroll = new _lif["default"].Scroll({
         keys: keys
       });
-      scroll.on('decl', _this.on_new_decl);
+      scroll.on('decl', _this2.on_new_decl);
       scroll.decl({
         scroll: {
           topic: 'http',
@@ -392,24 +439,81 @@ var DebugPage = /*#__PURE__*/function (_React$Component) {
         }
       }, '<html><body>about derry</body></html>');
     });
-    (0, _defineProperty2["default"])((0, _assertThisInitialized2["default"])(_this), "on_new_decl", function (l) {
-      _this.setState(function (state) {
-        return {
-          dd: state.dd.concat(l)
-        };
+    (0, _defineProperty2["default"])((0, _assertThisInitialized2["default"])(_this2), "on_new_dns_scroll", function () {
+      var keys = _this2.state.keys;
+      var scroll = new _lif["default"].Scroll({
+        keys: keys
+      });
+      scroll.on('decl', _this2.on_new_decl); // XXX: 1. do we need struct: 'table' 2. any defaults?
+
+      scroll.decl({
+        scroll: {
+          topic: 'dns',
+          "default": ['crypt', 'pub']
+        }
+      });
+      scroll.decl({
+        dns_record: {
+          domain: 'derry.lif.zone',
+          pub: b2s(keys.pub)
+        }
       });
     });
-    (0, _defineProperty2["default"])((0, _assertThisInitialized2["default"])(_this), "on_http_get_uri", function () {
-      var _this$ref_http_domain, _this$ref_http_domain2, _this$ref_http_uri, _this$ref_http_uri$cu;
+    (0, _defineProperty2["default"])((0, _assertThisInitialized2["default"])(_this2), "on_http_get_uri", function () {
+      return (0, _etask["default"])({
+        _: (0, _assertThisInitialized2["default"])(_this2)
+      }, /*#__PURE__*/_regenerator["default"].mark(function on_http_get_uri() {
+        var _this$ref_http_domain, _this$ref_http_domain2, _this$ref_http_uri, _this$ref_http_uri$cu;
 
-      var domain = (_this$ref_http_domain = _this.ref_http_domain) === null || _this$ref_http_domain === void 0 ? void 0 : (_this$ref_http_domain2 = _this$ref_http_domain.current) === null || _this$ref_http_domain2 === void 0 ? void 0 : _this$ref_http_domain2.value;
-      var uri = (_this$ref_http_uri = _this.ref_http_uri) === null || _this$ref_http_uri === void 0 ? void 0 : (_this$ref_http_uri$cu = _this$ref_http_uri.current) === null || _this$ref_http_uri$cu === void 0 ? void 0 : _this$ref_http_uri$cu.value;
+        var _this, domain, uri;
 
-      _lif["default"].http_get_uri(domain, uri);
+        return _regenerator["default"].wrap(function on_http_get_uri$(_context) {
+          while (1) {
+            switch (_context.prev = _context.next) {
+              case 0:
+                _this = this._;
+                domain = (_this$ref_http_domain = _this.ref_http_domain) === null || _this$ref_http_domain === void 0 ? void 0 : (_this$ref_http_domain2 = _this$ref_http_domain.current) === null || _this$ref_http_domain2 === void 0 ? void 0 : _this$ref_http_domain2.value;
+                uri = (_this$ref_http_uri = _this.ref_http_uri) === null || _this$ref_http_uri === void 0 ? void 0 : (_this$ref_http_uri$cu = _this$ref_http_uri.current) === null || _this$ref_http_uri$cu === void 0 ? void 0 : _this$ref_http_uri$cu.value;
+                _context.next = 5;
+                return _lif["default"].http.get_uri(domain, uri);
+
+              case 5:
+              case "end":
+                return _context.stop();
+            }
+          }
+        }, on_http_get_uri, this);
+      }));
     });
-    _this.ref_http_domain = /*#__PURE__*/_react["default"].createRef();
-    _this.ref_http_uri = /*#__PURE__*/_react["default"].createRef();
-    return _this;
+    (0, _defineProperty2["default"])((0, _assertThisInitialized2["default"])(_this2), "on_dns_resolve", function () {
+      return (0, _etask["default"])({
+        _: (0, _assertThisInitialized2["default"])(_this2)
+      }, /*#__PURE__*/_regenerator["default"].mark(function on_dns_resolve() {
+        var _this$ref_dns_domain, _this$ref_dns_domain$;
+
+        var _this, domain;
+
+        return _regenerator["default"].wrap(function on_dns_resolve$(_context2) {
+          while (1) {
+            switch (_context2.prev = _context2.next) {
+              case 0:
+                _this = this._;
+                domain = (_this$ref_dns_domain = _this.ref_dns_domain) === null || _this$ref_dns_domain === void 0 ? void 0 : (_this$ref_dns_domain$ = _this$ref_dns_domain.current) === null || _this$ref_dns_domain$ === void 0 ? void 0 : _this$ref_dns_domain$.value;
+                _context2.next = 4;
+                return _lif["default"].dns.resolve(domain);
+
+              case 4:
+              case "end":
+                return _context2.stop();
+            }
+          }
+        }, on_dns_resolve, this);
+      }));
+    });
+    _this2.ref_http_domain = /*#__PURE__*/_react["default"].createRef();
+    _this2.ref_http_uri = /*#__PURE__*/_react["default"].createRef();
+    _this2.ref_dns_domain = /*#__PURE__*/_react["default"].createRef();
+    return _this2;
   }
 
   (0, _createClass2["default"])(DebugPage, [{
@@ -440,8 +544,10 @@ var DebugPage = /*#__PURE__*/function (_React$Component) {
           dd = _this$state.dd;
       if (!keys) return /*#__PURE__*/_react["default"].createElement("div", null, "Loading keys...");
       return /*#__PURE__*/_react["default"].createElement("div", null, /*#__PURE__*/_react["default"].createElement("h1", null, "LIF Debug Page"), /*#__PURE__*/_react["default"].createElement("div", null, /*#__PURE__*/_react["default"].createElement("button", {
-        onClick: this.on_new_scroll
-      }, "New scroll")), /*#__PURE__*/_react["default"].createElement("div", null, "http_get_uri domain:", /*#__PURE__*/_react["default"].createElement("input", {
+        onClick: this.on_new_http_scroll
+      }, "New http scroll"), /*#__PURE__*/_react["default"].createElement("button", {
+        onClick: this.on_new_dns_scroll
+      }, "New dns scroll")), /*#__PURE__*/_react["default"].createElement("div", null, "http.get_uri:", /*#__PURE__*/_react["default"].createElement("input", {
         ref: this.ref_http_domain,
         defaultValue: "derry.lif.zone"
       }), "uri: ", /*#__PURE__*/_react["default"].createElement("input", {
@@ -449,6 +555,11 @@ var DebugPage = /*#__PURE__*/function (_React$Component) {
         defaultValue: "/"
       }), /*#__PURE__*/_react["default"].createElement("button", {
         onClick: this.on_http_get_uri
+      }, "go")), /*#__PURE__*/_react["default"].createElement("div", null, "dns.resolve:", /*#__PURE__*/_react["default"].createElement("input", {
+        ref: this.ref_dns_domain,
+        defaultValue: "derry.lif.zone"
+      }), /*#__PURE__*/_react["default"].createElement("button", {
+        onClick: this.on_dns_resolve
       }, "go")), /*#__PURE__*/_react["default"].createElement("table", null, /*#__PURE__*/_react["default"].createElement("tbody", null, /*#__PURE__*/_react["default"].createElement("tr", null, /*#__PURE__*/_react["default"].createElement("td", null, "pub:"), /*#__PURE__*/_react["default"].createElement("td", null, /*#__PURE__*/_react["default"].createElement("pre", null, b2s(keys.pub)))), /*#__PURE__*/_react["default"].createElement("tr", null, /*#__PURE__*/_react["default"].createElement("td", null, "key:"), /*#__PURE__*/_react["default"].createElement("td", null, /*#__PURE__*/_react["default"].createElement("pre", null, b2s(keys.key)))))), /*#__PURE__*/_react["default"].createElement("div", null, /*#__PURE__*/_react["default"].createElement("div", null, "scroll:"), dd.map(function (item) {
         return /*#__PURE__*/_react["default"].createElement("div", {
           key: item.to_str()
@@ -671,7 +782,7 @@ init();
 
 */
 
-},{"../../peer-relay/buf_util.js":293,"../../util/crypto.js":297,"../lif.js":1,"@babel/runtime/helpers/assertThisInitialized":3,"@babel/runtime/helpers/classCallCheck":4,"@babel/runtime/helpers/createClass":5,"@babel/runtime/helpers/defineProperty":6,"@babel/runtime/helpers/getPrototypeOf":7,"@babel/runtime/helpers/inherits":8,"@babel/runtime/helpers/interopRequireDefault":9,"@babel/runtime/helpers/possibleConstructorReturn":10,"react":215,"react-dom":212}],3:[function(require,module,exports){
+},{"../../peer-relay/buf_util.js":293,"../../util/crypto.js":297,"../../util/etask.js":300,"../lif.js":1,"@babel/runtime/helpers/assertThisInitialized":3,"@babel/runtime/helpers/classCallCheck":4,"@babel/runtime/helpers/createClass":5,"@babel/runtime/helpers/defineProperty":6,"@babel/runtime/helpers/getPrototypeOf":7,"@babel/runtime/helpers/inherits":8,"@babel/runtime/helpers/interopRequireDefault":9,"@babel/runtime/helpers/possibleConstructorReturn":10,"@babel/runtime/regenerator":14,"react":215,"react-dom":212}],3:[function(require,module,exports){
 function _assertThisInitialized(self) {
   if (self === void 0) {
     throw new ReferenceError("this hasn't been initialised - super() hasn't been called");

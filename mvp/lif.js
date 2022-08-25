@@ -57,6 +57,18 @@ scroll.decl({http_record: {uri: '/derry.jpg', mime_type: 'image/jpeg'},
 const E = {};
 export default E;
 
+let g_db;
+const open_db = db_name=>etask(function*open_db(){
+  assert.equal(db_name, 'Scroll', 'unknown db '+db_name);
+  g_db = yield idb.openDB(db_name, 1, {upgrade(db){
+    let store = db.createObjectStore('http', {keyPath: 'hash'});
+    store.createIndex('scroll-seq', ['scroll', 'seq']);
+    store = db.createObjectStore('dns', {keyPath: 'hash'});
+    store.createIndex('scroll-seq', ['scroll', 'seq']);
+  }});
+  return g_db;
+});
+
 class Scroll extends EventEmitter {
   constructor(opt){
     super();
@@ -90,18 +102,27 @@ class Scroll extends EventEmitter {
     this.prev = hash;
     return etask({_: this}, function*decl(){
       let _this = this._;
-      let db = yield idb.openDB('Scroll', 1, {upgrade(db){
-          let store = db.createObjectStore('http', {keyPath: 'hash'});
-          store.createIndex('scroll-seq', ['scroll', 'seq']);
-          store = db.createObjectStore('dns', {keyPath: 'hash'});
-          store.createIndex('scroll-seq', ['scroll', 'seq']);
-        }});
-        yield db.add('http', {hash, scroll: _this.scroll_hash(), seq: seq,
-          pub: _this.pub, decl: d.to_buffer()});
+      let db = yield open_db('Scroll');
+      yield db.add('http', {hash, scroll: _this.scroll_hash(), seq: seq,
+          pub: _this.pub,
+          json: d.to_json(),
+          decl: d.to_buffer()});
       _this.emit('decl', d);
       return d;
     });
   }
 }
 
+class Scrolls extends EventEmitter {
+  constructor(opt){
+    super();
+  }
+  load_all = ()=>etask({_: this}, function*load_all(){
+    let db = yield open_db('Scroll');
+    let xxx = yield db.getAllKeysFromIndex('http', 'scroll-seq');
+    console.log('XXX keys2 %o', xxx);
+  });
+}
+
 E.Scroll = Scroll;
+E.scrolls = new Scrolls();

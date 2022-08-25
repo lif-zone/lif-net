@@ -29,7 +29,10 @@ class DebugPage extends React.Component {
       return <div>Loading keys...</div>;
     return <div>
       <h1>LIF Debug Page</h1>
-      <div><button onClick={this.on_new_scroll}>New scroll</button></div>
+      <div>
+        <button onClick={this.on_get_scrolls}>Show scrolls</button>
+        <button onClick={this.on_new_scroll}>New scroll</button>
+      </div>
       <table>
         <tbody>
           <tr><td>pub:</td><td><pre>{b2s(keys.pub)}</pre></td></tr>
@@ -42,6 +45,9 @@ class DebugPage extends React.Component {
       </div>
     </div>;
   }
+  on_get_scrolls = ()=>{
+    LIF.scrolls.load_all();
+  };
   on_new_scroll = ()=>{
     let {keys} = this.state;
     let scroll = new LIF.Scroll({keys});

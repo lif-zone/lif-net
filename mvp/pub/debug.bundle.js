@@ -13,7 +13,9 @@ Object.defineProperty(exports, "__esModule", {
 });
 exports["default"] = void 0;
 
-var _regenerator = _interopRequireDefault(require("@babel/runtime/regenerator"));
+var _assertThisInitialized2 = _interopRequireDefault(require("@babel/runtime/helpers/assertThisInitialized"));
+
+var _defineProperty2 = _interopRequireDefault(require("@babel/runtime/helpers/defineProperty"));
 
 var _typeof2 = _interopRequireDefault(require("@babel/runtime/helpers/typeof"));
 
@@ -26,6 +28,8 @@ var _inherits2 = _interopRequireDefault(require("@babel/runtime/helpers/inherits
 var _possibleConstructorReturn2 = _interopRequireDefault(require("@babel/runtime/helpers/possibleConstructorReturn"));
 
 var _getPrototypeOf2 = _interopRequireDefault(require("@babel/runtime/helpers/getPrototypeOf"));
+
+var _regenerator = _interopRequireDefault(require("@babel/runtime/regenerator"));
 
 var _assert = _interopRequireDefault(require("assert"));
 
@@ -104,6 +108,42 @@ scroll.decl({http_record: {uri: '/derry.jpg', mime_type: 'image/jpeg'},
 var E = {};
 var _default = E;
 exports["default"] = _default;
+var g_db;
+
+var open_db = function open_db(db_name) {
+  return (0, _etask["default"])( /*#__PURE__*/_regenerator["default"].mark(function open_db() {
+    return _regenerator["default"].wrap(function open_db$(_context) {
+      while (1) {
+        switch (_context.prev = _context.next) {
+          case 0:
+            _assert["default"].equal(db_name, 'Scroll', 'unknown db ' + db_name);
+
+            _context.next = 3;
+            return idb.openDB(db_name, 1, {
+              upgrade: function upgrade(db) {
+                var store = db.createObjectStore('http', {
+                  keyPath: 'hash'
+                });
+                store.createIndex('scroll-seq', ['scroll', 'seq']);
+                store = db.createObjectStore('dns', {
+                  keyPath: 'hash'
+                });
+                store.createIndex('scroll-seq', ['scroll', 'seq']);
+              }
+            });
+
+          case 3:
+            g_db = _context.sent;
+            return _context.abrupt("return", g_db);
+
+          case 5:
+          case "end":
+            return _context.stop();
+        }
+      }
+    }, open_db);
+  }));
+};
 
 var Scroll = /*#__PURE__*/function (_EventEmitter) {
   (0, _inherits2["default"])(Scroll, _EventEmitter);
@@ -171,45 +211,34 @@ var Scroll = /*#__PURE__*/function (_EventEmitter) {
       }, /*#__PURE__*/_regenerator["default"].mark(function decl() {
         var _this, db;
 
-        return _regenerator["default"].wrap(function decl$(_context) {
+        return _regenerator["default"].wrap(function decl$(_context2) {
           while (1) {
-            switch (_context.prev = _context.next) {
+            switch (_context2.prev = _context2.next) {
               case 0:
                 _this = this._;
-                _context.next = 3;
-                return idb.openDB('Scroll', 1, {
-                  upgrade: function upgrade(db) {
-                    var store = db.createObjectStore('http', {
-                      keyPath: 'hash'
-                    });
-                    store.createIndex('scroll-seq', ['scroll', 'seq']);
-                    store = db.createObjectStore('dns', {
-                      keyPath: 'hash'
-                    });
-                    store.createIndex('scroll-seq', ['scroll', 'seq']);
-                  }
-                });
+                _context2.next = 3;
+                return open_db('Scroll');
 
               case 3:
-                db = _context.sent;
-                _context.next = 6;
+                db = _context2.sent;
+                _context2.next = 6;
                 return db.add('http', {
                   hash: hash,
                   scroll: _this.scroll_hash(),
                   seq: seq,
                   pub: _this.pub,
+                  json: d.to_json(),
                   decl: d.to_buffer()
                 });
 
               case 6:
-                _this.emit('decl', d); // XXX: mv outside
+                _this.emit('decl', d);
 
-
-                return _context.abrupt("return", d);
+                return _context2.abrupt("return", d);
 
               case 8:
               case "end":
-                return _context.stop();
+                return _context2.stop();
             }
           }
         }, decl, this);
@@ -219,10 +248,56 @@ var Scroll = /*#__PURE__*/function (_EventEmitter) {
   return Scroll;
 }(_events.EventEmitter);
 
+var Scrolls = /*#__PURE__*/function (_EventEmitter2) {
+  (0, _inherits2["default"])(Scrolls, _EventEmitter2);
+
+  var _super2 = _createSuper(Scrolls);
+
+  function Scrolls(opt) {
+    var _this3;
+
+    (0, _classCallCheck2["default"])(this, Scrolls);
+    _this3 = _super2.call(this);
+    (0, _defineProperty2["default"])((0, _assertThisInitialized2["default"])(_this3), "load_all", function () {
+      return (0, _etask["default"])({
+        _: (0, _assertThisInitialized2["default"])(_this3)
+      }, /*#__PURE__*/_regenerator["default"].mark(function load_all() {
+        var db, xxx;
+        return _regenerator["default"].wrap(function load_all$(_context3) {
+          while (1) {
+            switch (_context3.prev = _context3.next) {
+              case 0:
+                _context3.next = 2;
+                return open_db('Scroll');
+
+              case 2:
+                db = _context3.sent;
+                _context3.next = 5;
+                return db.getAllKeysFromIndex('http', 'scroll-seq');
+
+              case 5:
+                xxx = _context3.sent;
+                console.log('XXX keys2 %o', xxx);
+
+              case 7:
+              case "end":
+                return _context3.stop();
+            }
+          }
+        }, load_all);
+      }));
+    });
+    return _this3;
+  }
+
+  return (0, _createClass2["default"])(Scrolls);
+}(_events.EventEmitter);
+
 E.Scroll = Scroll;
+E.scrolls = new Scrolls();
 
 }).call(this)}).call(this,require('_process'))
-},{"../peer-relay/buf_util.js":293,"../peer-relay/lbuffer.js":294,"../util/crypto.js":297,"../util/date.js":298,"../util/etask.js":300,"../util/xerr.js":305,"@babel/runtime/helpers/classCallCheck":4,"@babel/runtime/helpers/createClass":5,"@babel/runtime/helpers/getPrototypeOf":7,"@babel/runtime/helpers/inherits":8,"@babel/runtime/helpers/interopRequireDefault":9,"@babel/runtime/helpers/possibleConstructorReturn":10,"@babel/runtime/helpers/typeof":12,"@babel/runtime/regenerator":14,"_process":200,"assert":30,"events":135,"idb":175}],2:[function(require,module,exports){
+},{"../peer-relay/buf_util.js":293,"../peer-relay/lbuffer.js":294,"../util/crypto.js":297,"../util/date.js":298,"../util/etask.js":300,"../util/xerr.js":305,"@babel/runtime/helpers/assertThisInitialized":3,"@babel/runtime/helpers/classCallCheck":4,"@babel/runtime/helpers/createClass":5,"@babel/runtime/helpers/defineProperty":6,"@babel/runtime/helpers/getPrototypeOf":7,"@babel/runtime/helpers/inherits":8,"@babel/runtime/helpers/interopRequireDefault":9,"@babel/runtime/helpers/possibleConstructorReturn":10,"@babel/runtime/helpers/typeof":12,"@babel/runtime/regenerator":14,"_process":200,"assert":30,"events":135,"idb":175}],2:[function(require,module,exports){
 // author: derry. coder: arik.
 'use strict';
 /*jslint node:true, browser:true*/
@@ -277,6 +352,9 @@ var DebugPage = /*#__PURE__*/function (_React$Component) {
     _this = _super.call.apply(_super, [this].concat(args));
     (0, _defineProperty2["default"])((0, _assertThisInitialized2["default"])(_this), "state", {
       dd: []
+    });
+    (0, _defineProperty2["default"])((0, _assertThisInitialized2["default"])(_this), "on_get_scrolls", function () {
+      _lif["default"].scrolls.load_all();
     });
     (0, _defineProperty2["default"])((0, _assertThisInitialized2["default"])(_this), "on_new_scroll", function () {
       var keys = _this.state.keys;
@@ -336,6 +414,8 @@ var DebugPage = /*#__PURE__*/function (_React$Component) {
           dd = _this$state.dd;
       if (!keys) return /*#__PURE__*/_react["default"].createElement("div", null, "Loading keys...");
       return /*#__PURE__*/_react["default"].createElement("div", null, /*#__PURE__*/_react["default"].createElement("h1", null, "LIF Debug Page"), /*#__PURE__*/_react["default"].createElement("div", null, /*#__PURE__*/_react["default"].createElement("button", {
+        onClick: this.on_get_scrolls
+      }, "Show scrolls"), /*#__PURE__*/_react["default"].createElement("button", {
         onClick: this.on_new_scroll
       }, "New scroll")), /*#__PURE__*/_react["default"].createElement("table", null, /*#__PURE__*/_react["default"].createElement("tbody", null, /*#__PURE__*/_react["default"].createElement("tr", null, /*#__PURE__*/_react["default"].createElement("td", null, "pub:"), /*#__PURE__*/_react["default"].createElement("td", null, /*#__PURE__*/_react["default"].createElement("pre", null, b2s(keys.pub)))), /*#__PURE__*/_react["default"].createElement("tr", null, /*#__PURE__*/_react["default"].createElement("td", null, "key:"), /*#__PURE__*/_react["default"].createElement("td", null, /*#__PURE__*/_react["default"].createElement("pre", null, b2s(keys.key)))))), /*#__PURE__*/_react["default"].createElement("div", null, /*#__PURE__*/_react["default"].createElement("div", null, "scroll:"), dd.map(function (item) {
         return /*#__PURE__*/_react["default"].createElement("div", {
@@ -67872,6 +67952,7 @@ var LBuffer = /*#__PURE__*/function () {
         data: data
       };
       this.array.unshift(o);
+      return this.get(0);
     }
   }, {
     key: "add_tail",
@@ -67880,16 +67961,19 @@ var LBuffer = /*#__PURE__*/function () {
         data: data
       };
       this.array.push(o);
+      return this.get(this.array.length - 1);
     }
   }, {
     key: "add_json",
     value: function add_json(o) {
       this.add(stringify(o));
+      return this.get_json(0);
     }
   }, {
     key: "add_tail_json",
     value: function add_tail_json(o) {
       this.add_tail(stringify(o));
+      return this.get_json(this.array.length - 1);
     }
   }, {
     key: "size",
@@ -67930,6 +68014,15 @@ var LBuffer = /*#__PURE__*/function () {
 
       if (header.length <= 1) return '\0' + data;
       return stringify(header) + '\0' + data;
+    }
+  }, {
+    key: "to_json",
+    value: function to_json() {
+      var a = [];
+      this.array.forEach(function (o) {
+        return a.push(o.json || o.data);
+      });
+      return a;
     }
   }, {
     key: "to_buffer",

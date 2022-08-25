@@ -20,13 +20,21 @@ export default class LBuffer {
   add(data){
     let o = {data};
     this.array.unshift(o);
+    return this.get(0);
   }
   add_tail(data){
     let o = {data};
     this.array.push(o);
+    return this.get(this.array.length-1);
   }
-  add_json(o){ this.add(stringify(o)); }
-  add_tail_json(o){ this.add_tail(stringify(o)); }
+  add_json(o){
+    this.add(stringify(o));
+    return this.get_json(0);
+  }
+  add_tail_json(o){
+    this.add_tail(stringify(o));
+    return this.get_json(this.array.length-1);
+  }
   size(){ return this.array.length; }
   get(i){ return this.array[i].data; }
   get_json(i){
@@ -46,6 +54,11 @@ export default class LBuffer {
     if (header.length<=1)
       return '\0'+data;
     return stringify(header)+'\0'+data;
+  }
+  to_json(){
+    let a = [];
+    this.array.forEach(o=>a.push(o.json||o.data));
+    return a;
   }
   to_buffer(){ return Buffer.from(this.to_str()) }
   path(){

@@ -4,6 +4,7 @@ import assert from 'assert';
 import {EventEmitter} from 'events';
 import LBuffer from '../peer-relay/lbuffer.js';
 import xcrypto from '../util/crypto.js';
+import xutil from '../util/util.js';
 import xerr from '../util/xerr.js';
 import buf_util from '../peer-relay/buf_util.js';
 import date from '../util/date.js';
@@ -62,12 +63,14 @@ const open_db = db_name=>etask(function*open_db(){
   assert.equal(db_name, 'Scroll', 'unknown db '+db_name);
   g_db = yield idb.openDB(db_name, 1, {upgrade(db){
     let store = db.createObjectStore('http', {keyPath: 'hash'});
-    store.createIndex('scroll-seq', ['scroll', 'seq']);
+    store.createIndex('domain-uri', ['scroll.domain', 'http_record.uri']);
     store = db.createObjectStore('dns', {keyPath: 'hash'});
-    store.createIndex('scroll-seq', ['scroll', 'seq']);
   }});
   return g_db;
 });
+
+function decl_meta(d){ return d.get_json(1); }
+function decl_json(d){ return d.get_json(2); }
 
 class Scroll extends EventEmitter {
   constructor(opt){
@@ -80,13 +83,25 @@ class Scroll extends EventEmitter {
     assert.equal(this.crypt, 'ed25519', 'unsupported crypt');
   }
   scroll_hash(){ return this.dd[0]?.hash; }
+  scroll_decl(){ return this.dd[0]?.d; }
+  scroll_topic(){
+    return xutil.get(decl_json(this.scroll_decl()), 'scroll.topic'); }
+  scroll_default(){
+    let d = this.scroll_decl();
+    let def = xutil.get(decl_json(d), 'scroll.default');
+    if (!def?.length || !Array.isArray(def))
+      return;
+    let o = {};
+    // XXX: need decl_meta and decl_json
+    def.forEach(name=>xutil.set(o, name, xutil.get(decl_meta(d), name)||
+      xutil.get(decl_json(d), name)));
+    console.log('XXX def %o', o);
+    return o;
+  }
   decl(){
     let arg = arguments;
     let ts = date.to_sql_ms(), seq = this.seq++, d = new LBuffer();
-    let topic = arg[0]?.scroll?.topic;
     assert(!this.dd[seq], 'scroll seq already exists '+seq);
-    assert(seq || ['http', 'dns'].includes(topic),
-      'invalid scroll topic '+topic);
     d.add_tail_json(assign({crypt: this.crypt, seq, ts, pub: this.pub},
       this.prev&&{prev: this.prev}));
     Array.from(arg).forEach(data=>{
@@ -100,13 +115,17 @@ class Scroll extends EventEmitter {
     let hash = b2s(xcrypto.sha256(d.to_buffer()));
     this.dd[seq] = {d, hash};
     this.prev = hash;
+    let topic = this.scroll_topic();
+    assert(['http', 'dns'].includes(topic), 'invalid scroll topic '+topic);
     return etask({_: this}, function*decl(){
       let _this = this._;
       let db = yield open_db('Scroll');
-      yield db.add('http', {hash, scroll: _this.scroll_hash(), seq: seq,
-          pub: _this.pub,
-          json: d.to_json(),
-          decl: d.to_buffer()});
+      let o = assign({hash, scroll: _this.scroll_hash(), seq: seq},
+        _this.scroll_default());
+      if (topic=='http' && hash!=_this.scroll_hash())
+        o.http_record = {uri: xutil.get(decl_json(d), 'http_record.uri')};
+      assign(o, {json: d.to_json(), decl: d.to_buffer()});
+      yield db.add('http', o);
       _this.emit('decl', d);
       return d;
     });
@@ -124,5 +143,13 @@ class Scrolls extends EventEmitter {
   });
 }
 
+E.http_get_uri = (domain, uri)=>etask(function*http_lookup_uri(){
+  let db = yield open_db('Scroll');
+  let dd = yield db.getAllFromIndex('http', 'domain-uri',
+    IDBKeyRange.only([domain, uri]));
+  console.log('XXX http_lookup_uri %o', dd);
+});
+
 E.Scroll = Scroll;
 E.scrolls = new Scrolls();
+

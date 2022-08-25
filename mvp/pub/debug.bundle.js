@@ -39,6 +39,8 @@ var _lbuffer = _interopRequireDefault(require("../peer-relay/lbuffer.js"));
 
 var _crypto = _interopRequireDefault(require("../util/crypto.js"));
 
+var _util = _interopRequireDefault(require("../util/util.js"));
+
 var _xerr = _interopRequireDefault(require("../util/xerr.js"));
 
 var _buf_util = _interopRequireDefault(require("../peer-relay/buf_util.js"));
@@ -124,11 +126,10 @@ var open_db = function open_db(db_name) {
                 var store = db.createObjectStore('http', {
                   keyPath: 'hash'
                 });
-                store.createIndex('scroll-seq', ['scroll', 'seq']);
+                store.createIndex('domain-uri', ['scroll.domain', 'http_record.uri']);
                 store = db.createObjectStore('dns', {
                   keyPath: 'hash'
                 });
-                store.createIndex('scroll-seq', ['scroll', 'seq']);
               }
             });
 
@@ -144,6 +145,14 @@ var open_db = function open_db(db_name) {
     }, open_db);
   }));
 };
+
+function decl_meta(d) {
+  return d.get_json(1);
+}
+
+function decl_json(d) {
+  return d.get_json(2);
+}
 
 var Scroll = /*#__PURE__*/function (_EventEmitter) {
   (0, _inherits2["default"])(Scroll, _EventEmitter);
@@ -174,19 +183,43 @@ var Scroll = /*#__PURE__*/function (_EventEmitter) {
       return (_this$dd$ = this.dd[0]) === null || _this$dd$ === void 0 ? void 0 : _this$dd$.hash;
     }
   }, {
+    key: "scroll_decl",
+    value: function scroll_decl() {
+      var _this$dd$2;
+
+      return (_this$dd$2 = this.dd[0]) === null || _this$dd$2 === void 0 ? void 0 : _this$dd$2.d;
+    }
+  }, {
+    key: "scroll_topic",
+    value: function scroll_topic() {
+      return _util["default"].get(decl_json(this.scroll_decl()), 'scroll.topic');
+    }
+  }, {
+    key: "scroll_default",
+    value: function scroll_default() {
+      var d = this.scroll_decl();
+
+      var def = _util["default"].get(decl_json(d), 'scroll.default');
+
+      if (!(def !== null && def !== void 0 && def.length) || !Array.isArray(def)) return;
+      var o = {}; // XXX: need decl_meta and decl_json
+
+      def.forEach(function (name) {
+        return _util["default"].set(o, name, _util["default"].get(decl_meta(d), name) || _util["default"].get(decl_json(d), name));
+      });
+      console.log('XXX def %o', o);
+      return o;
+    }
+  }, {
     key: "decl",
     value: function decl() {
-      var _arg$, _arg$$scroll;
-
       var arg = arguments;
 
       var ts = _date["default"].to_sql_ms(),
           seq = this.seq++,
           d = new _lbuffer["default"]();
 
-      var topic = (_arg$ = arg[0]) === null || _arg$ === void 0 ? void 0 : (_arg$$scroll = _arg$.scroll) === null || _arg$$scroll === void 0 ? void 0 : _arg$$scroll.topic;
       (0, _assert["default"])(!this.dd[seq], 'scroll seq already exists ' + seq);
-      (0, _assert["default"])(seq || ['http', 'dns'].includes(topic), 'invalid scroll topic ' + topic);
       d.add_tail_json(assign({
         crypt: this.crypt,
         seq: seq,
@@ -206,10 +239,12 @@ var Scroll = /*#__PURE__*/function (_EventEmitter) {
         hash: hash
       };
       this.prev = hash;
+      var topic = this.scroll_topic();
+      (0, _assert["default"])(['http', 'dns'].includes(topic), 'invalid scroll topic ' + topic);
       return (0, _etask["default"])({
         _: this
       }, /*#__PURE__*/_regenerator["default"].mark(function decl() {
-        var _this, db;
+        var _this, db, o;
 
         return _regenerator["default"].wrap(function decl$(_context2) {
           while (1) {
@@ -221,22 +256,27 @@ var Scroll = /*#__PURE__*/function (_EventEmitter) {
 
               case 3:
                 db = _context2.sent;
-                _context2.next = 6;
-                return db.add('http', {
+                o = assign({
                   hash: hash,
                   scroll: _this.scroll_hash(),
-                  seq: seq,
-                  pub: _this.pub,
+                  seq: seq
+                }, _this.scroll_default());
+                if (topic == 'http' && hash != _this.scroll_hash()) o.http_record = {
+                  uri: _util["default"].get(decl_json(d), 'http_record.uri')
+                };
+                assign(o, {
                   json: d.to_json(),
                   decl: d.to_buffer()
                 });
+                _context2.next = 9;
+                return db.add('http', o);
 
-              case 6:
+              case 9:
                 _this.emit('decl', d);
 
                 return _context2.abrupt("return", d);
 
-              case 8:
+              case 11:
               case "end":
                 return _context2.stop();
             }
@@ -293,11 +333,39 @@ var Scrolls = /*#__PURE__*/function (_EventEmitter2) {
   return (0, _createClass2["default"])(Scrolls);
 }(_events.EventEmitter);
 
+E.http_get_uri = function (domain, uri) {
+  return (0, _etask["default"])( /*#__PURE__*/_regenerator["default"].mark(function http_lookup_uri() {
+    var db, dd;
+    return _regenerator["default"].wrap(function http_lookup_uri$(_context4) {
+      while (1) {
+        switch (_context4.prev = _context4.next) {
+          case 0:
+            _context4.next = 2;
+            return open_db('Scroll');
+
+          case 2:
+            db = _context4.sent;
+            _context4.next = 5;
+            return db.getAllFromIndex('http', 'domain-uri', IDBKeyRange.only([domain, uri]));
+
+          case 5:
+            dd = _context4.sent;
+            console.log('XXX http_lookup_uri %o', dd);
+
+          case 7:
+          case "end":
+            return _context4.stop();
+        }
+      }
+    }, http_lookup_uri);
+  }));
+};
+
 E.Scroll = Scroll;
 E.scrolls = new Scrolls();
 
 }).call(this)}).call(this,require('_process'))
-},{"../peer-relay/buf_util.js":293,"../peer-relay/lbuffer.js":294,"../util/crypto.js":297,"../util/date.js":298,"../util/etask.js":300,"../util/xerr.js":305,"@babel/runtime/helpers/assertThisInitialized":3,"@babel/runtime/helpers/classCallCheck":4,"@babel/runtime/helpers/createClass":5,"@babel/runtime/helpers/defineProperty":6,"@babel/runtime/helpers/getPrototypeOf":7,"@babel/runtime/helpers/inherits":8,"@babel/runtime/helpers/interopRequireDefault":9,"@babel/runtime/helpers/possibleConstructorReturn":10,"@babel/runtime/helpers/typeof":12,"@babel/runtime/regenerator":14,"_process":200,"assert":30,"events":135,"idb":175}],2:[function(require,module,exports){
+},{"../peer-relay/buf_util.js":293,"../peer-relay/lbuffer.js":294,"../util/crypto.js":297,"../util/date.js":298,"../util/etask.js":300,"../util/util.js":304,"../util/xerr.js":305,"@babel/runtime/helpers/assertThisInitialized":3,"@babel/runtime/helpers/classCallCheck":4,"@babel/runtime/helpers/createClass":5,"@babel/runtime/helpers/defineProperty":6,"@babel/runtime/helpers/getPrototypeOf":7,"@babel/runtime/helpers/inherits":8,"@babel/runtime/helpers/interopRequireDefault":9,"@babel/runtime/helpers/possibleConstructorReturn":10,"@babel/runtime/helpers/typeof":12,"@babel/runtime/regenerator":14,"_process":200,"assert":30,"events":135,"idb":175}],2:[function(require,module,exports){
 // author: derry. coder: arik.
 'use strict';
 /*jslint node:true, browser:true*/
@@ -353,9 +421,6 @@ var DebugPage = /*#__PURE__*/function (_React$Component) {
     (0, _defineProperty2["default"])((0, _assertThisInitialized2["default"])(_this), "state", {
       dd: []
     });
-    (0, _defineProperty2["default"])((0, _assertThisInitialized2["default"])(_this), "on_get_scrolls", function () {
-      _lif["default"].scrolls.load_all();
-    });
     (0, _defineProperty2["default"])((0, _assertThisInitialized2["default"])(_this), "on_new_scroll", function () {
       var keys = _this.state.keys;
       var scroll = new _lif["default"].Scroll({
@@ -375,6 +440,12 @@ var DebugPage = /*#__PURE__*/function (_React$Component) {
           mime: 'html'
         }
       }, '<html><body>derry</body></html>');
+      scroll.decl({
+        http_record: {
+          uri: '/about',
+          mime: 'html'
+        }
+      }, '<html><body>about derry</body></html>');
     });
     (0, _defineProperty2["default"])((0, _assertThisInitialized2["default"])(_this), "on_new_decl", function (l) {
       _this.setState(function (state) {
@@ -382,6 +453,9 @@ var DebugPage = /*#__PURE__*/function (_React$Component) {
           dd: state.dd.concat(l)
         };
       });
+    });
+    (0, _defineProperty2["default"])((0, _assertThisInitialized2["default"])(_this), "on_http_get_uri", function () {
+      _lif["default"].http_get_uri('derry.lif.zone', '/');
     });
     return _this;
   }
@@ -414,10 +488,14 @@ var DebugPage = /*#__PURE__*/function (_React$Component) {
           dd = _this$state.dd;
       if (!keys) return /*#__PURE__*/_react["default"].createElement("div", null, "Loading keys...");
       return /*#__PURE__*/_react["default"].createElement("div", null, /*#__PURE__*/_react["default"].createElement("h1", null, "LIF Debug Page"), /*#__PURE__*/_react["default"].createElement("div", null, /*#__PURE__*/_react["default"].createElement("button", {
-        onClick: this.on_get_scrolls
-      }, "Show scrolls"), /*#__PURE__*/_react["default"].createElement("button", {
         onClick: this.on_new_scroll
-      }, "New scroll")), /*#__PURE__*/_react["default"].createElement("table", null, /*#__PURE__*/_react["default"].createElement("tbody", null, /*#__PURE__*/_react["default"].createElement("tr", null, /*#__PURE__*/_react["default"].createElement("td", null, "pub:"), /*#__PURE__*/_react["default"].createElement("td", null, /*#__PURE__*/_react["default"].createElement("pre", null, b2s(keys.pub)))), /*#__PURE__*/_react["default"].createElement("tr", null, /*#__PURE__*/_react["default"].createElement("td", null, "key:"), /*#__PURE__*/_react["default"].createElement("td", null, /*#__PURE__*/_react["default"].createElement("pre", null, b2s(keys.key)))))), /*#__PURE__*/_react["default"].createElement("div", null, /*#__PURE__*/_react["default"].createElement("div", null, "scroll:"), dd.map(function (item) {
+      }, "New scroll")), /*#__PURE__*/_react["default"].createElement("div", null, "http_get_uri domain: ", /*#__PURE__*/_react["default"].createElement("input", {
+        defaultValue: "derry.lif.zone"
+      }), "uri: ", /*#__PURE__*/_react["default"].createElement("input", {
+        defaultValue: "/"
+      }), /*#__PURE__*/_react["default"].createElement("button", {
+        onClick: this.on_http_get_uri
+      }, "go")), /*#__PURE__*/_react["default"].createElement("table", null, /*#__PURE__*/_react["default"].createElement("tbody", null, /*#__PURE__*/_react["default"].createElement("tr", null, /*#__PURE__*/_react["default"].createElement("td", null, "pub:"), /*#__PURE__*/_react["default"].createElement("td", null, /*#__PURE__*/_react["default"].createElement("pre", null, b2s(keys.pub)))), /*#__PURE__*/_react["default"].createElement("tr", null, /*#__PURE__*/_react["default"].createElement("td", null, "key:"), /*#__PURE__*/_react["default"].createElement("td", null, /*#__PURE__*/_react["default"].createElement("pre", null, b2s(keys.key)))))), /*#__PURE__*/_react["default"].createElement("div", null, /*#__PURE__*/_react["default"].createElement("div", null, "scroll:"), dd.map(function (item) {
         return /*#__PURE__*/_react["default"].createElement("div", {
           key: item.to_str()
         }, item.to_str());

@@ -30,8 +30,12 @@ class DebugPage extends React.Component {
     return <div>
       <h1>LIF Debug Page</h1>
       <div>
-        <button onClick={this.on_get_scrolls}>Show scrolls</button>
         <button onClick={this.on_new_scroll}>New scroll</button>
+      </div>
+      <div>
+        http_get_uri domain: <input defaultValue='derry.lif.zone'></input>
+        uri: <input defaultValue='/'></input>
+        <button onClick={this.on_http_get_uri}>go</button>
       </div>
       <table>
         <tbody>
@@ -45,9 +49,6 @@ class DebugPage extends React.Component {
       </div>
     </div>;
   }
-  on_get_scrolls = ()=>{
-    LIF.scrolls.load_all();
-  };
   on_new_scroll = ()=>{
     let {keys} = this.state;
     let scroll = new LIF.Scroll({keys});
@@ -57,12 +58,17 @@ class DebugPage extends React.Component {
       default: ['crypt', 'pub', 'scroll.topic', 'scroll.domain']}});
     scroll.decl({http_record: {uri: '/', mime: 'html'}},
       '<html><body>derry</body></html>');
+    scroll.decl({http_record: {uri: '/about', mime: 'html'}},
+      '<html><body>about derry</body></html>');
   };
   on_new_decl = l=>{
     this.setState(state=>{
       return {dd: state.dd.concat(l)};
     });
   };
+  on_http_get_uri = ()=>{
+    LIF.http_get_uri('derry.lif.zone', '/');
+  }
 }
 
 function init(){

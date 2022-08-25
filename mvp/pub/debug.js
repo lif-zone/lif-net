@@ -70,8 +70,7 @@ class DebugPage extends React.Component {
     let {keys} = this.state;
     let scroll = new LIF.Scroll({keys});
     scroll.on('decl', this.on_new_decl);
-    scroll.decl({scroll: {topic: 'http',
-      domain: 'derry.lif.zone',
+    scroll.decl({scroll: {topic: 'http', domain: 'derry.lif.zone',
       default: ['crypt', 'pub', 'scroll.topic', 'scroll.domain']}});
     scroll.decl({http_record: {uri: '/', mime: 'html'}},
       '<html><body>derry</body></html>');

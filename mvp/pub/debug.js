@@ -76,6 +76,16 @@ class DebugPage extends React.Component {
       '<html><body>derry</body></html>');
     scroll.decl({http_record: {uri: '/about', mime: 'html'}},
       '<html><body>about derry</body></html>');
+    /* XXX: new api
+      let pen = LIF.pen.init({keys});
+      let s = yield pen.decl_scroll(
+        {scroll: {topic: 'http', domain: 'derry.lif.zone',
+        default: ['crypt', 'pub', 'scroll.topic', 'scroll.domain']}});
+      yield LIF.pen.decl(s.hash(), {http_record: {uri: '/', mime: 'html'}},
+        '<html><body>derry</body></html>');
+      yield LIF.pen.decl(s.hash(), {http_record: {uri: '/info', mime: 'html'}},
+        '<html><body>derry info</body></html>');
+    */
   };
   on_new_dns_scroll = ()=>{
     let {keys} = this.state;

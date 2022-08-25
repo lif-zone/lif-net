@@ -5,11 +5,17 @@ import React from 'react';
 import ReactDOM from 'react-dom';
 import LIF from '../lif.js';
 import crypto from '../../util/crypto.js';
+import etask from '../../util/etask.js';
 import buf_util from '../../peer-relay/buf_util.js';
 const b2s = buf_util.buf_to_str;
 
 class DebugPage extends React.Component {
   state = {dd: []};
+  constructor(props){
+    super(props);
+    this.ref_http_domain = React.createRef();
+    this.ref_http_uri = React.createRef();
+  }
   componentDidMount(){
     let keys, keys_str = localStorage.getItem('lif_keypair');
     if (keys_str){
@@ -33,8 +39,10 @@ class DebugPage extends React.Component {
         <button onClick={this.on_new_scroll}>New scroll</button>
       </div>
       <div>
-        http_get_uri domain: <input defaultValue='derry.lif.zone'></input>
-        uri: <input defaultValue='/'></input>
+        http_get_uri domain:
+        <input ref={this.ref_http_domain} defaultValue='derry.lif.zone'>
+        </input>
+        uri: <input ref={this.ref_http_uri} defaultValue='/'></input>
         <button onClick={this.on_http_get_uri}>go</button>
       </div>
       <table>
@@ -66,9 +74,12 @@ class DebugPage extends React.Component {
       return {dd: state.dd.concat(l)};
     });
   };
-  on_http_get_uri = ()=>{
-    LIF.http_get_uri('derry.lif.zone', '/');
-  }
+  on_http_get_uri = ()=>etask({_: this}, function*on_http_get_uri(){
+    let _this = this._;
+    let domain = _this.ref_http_domain?.current?.value;
+    let uri = _this.ref_http_uri?.current?.value;
+    yield LIF.http_get_uri(domain, uri);
+  });
 }
 
 function init(){

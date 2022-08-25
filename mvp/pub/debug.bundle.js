@@ -13,10 +13,6 @@ Object.defineProperty(exports, "__esModule", {
 });
 exports["default"] = void 0;
 
-var _assertThisInitialized2 = _interopRequireDefault(require("@babel/runtime/helpers/assertThisInitialized"));
-
-var _defineProperty2 = _interopRequireDefault(require("@babel/runtime/helpers/defineProperty"));
-
 var _typeof2 = _interopRequireDefault(require("@babel/runtime/helpers/typeof"));
 
 var _classCallCheck2 = _interopRequireDefault(require("@babel/runtime/helpers/classCallCheck"));
@@ -288,73 +284,28 @@ var Scroll = /*#__PURE__*/function (_EventEmitter) {
   return Scroll;
 }(_events.EventEmitter);
 
-var Scrolls = /*#__PURE__*/function (_EventEmitter2) {
-  (0, _inherits2["default"])(Scrolls, _EventEmitter2);
-
-  var _super2 = _createSuper(Scrolls);
-
-  function Scrolls(opt) {
-    var _this3;
-
-    (0, _classCallCheck2["default"])(this, Scrolls);
-    _this3 = _super2.call(this);
-    (0, _defineProperty2["default"])((0, _assertThisInitialized2["default"])(_this3), "load_all", function () {
-      return (0, _etask["default"])({
-        _: (0, _assertThisInitialized2["default"])(_this3)
-      }, /*#__PURE__*/_regenerator["default"].mark(function load_all() {
-        var db, xxx;
-        return _regenerator["default"].wrap(function load_all$(_context3) {
-          while (1) {
-            switch (_context3.prev = _context3.next) {
-              case 0:
-                _context3.next = 2;
-                return open_db('Scroll');
-
-              case 2:
-                db = _context3.sent;
-                _context3.next = 5;
-                return db.getAllKeysFromIndex('http', 'scroll-seq');
-
-              case 5:
-                xxx = _context3.sent;
-                console.log('XXX keys2 %o', xxx);
-
-              case 7:
-              case "end":
-                return _context3.stop();
-            }
-          }
-        }, load_all);
-      }));
-    });
-    return _this3;
-  }
-
-  return (0, _createClass2["default"])(Scrolls);
-}(_events.EventEmitter);
-
 E.http_get_uri = function (domain, uri) {
   return (0, _etask["default"])( /*#__PURE__*/_regenerator["default"].mark(function http_lookup_uri() {
     var db, dd;
-    return _regenerator["default"].wrap(function http_lookup_uri$(_context4) {
+    return _regenerator["default"].wrap(function http_lookup_uri$(_context3) {
       while (1) {
-        switch (_context4.prev = _context4.next) {
+        switch (_context3.prev = _context3.next) {
           case 0:
-            _context4.next = 2;
+            _context3.next = 2;
             return open_db('Scroll');
 
           case 2:
-            db = _context4.sent;
-            _context4.next = 5;
+            db = _context3.sent;
+            _context3.next = 5;
             return db.getAllFromIndex('http', 'domain-uri', IDBKeyRange.only([domain, uri]));
 
           case 5:
-            dd = _context4.sent;
+            dd = _context3.sent;
             console.log('XXX http_lookup_uri %o', dd);
 
           case 7:
           case "end":
-            return _context4.stop();
+            return _context3.stop();
         }
       }
     }, http_lookup_uri);
@@ -362,10 +313,9 @@ E.http_get_uri = function (domain, uri) {
 };
 
 E.Scroll = Scroll;
-E.scrolls = new Scrolls();
 
 }).call(this)}).call(this,require('_process'))
-},{"../peer-relay/buf_util.js":293,"../peer-relay/lbuffer.js":294,"../util/crypto.js":297,"../util/date.js":298,"../util/etask.js":300,"../util/util.js":304,"../util/xerr.js":305,"@babel/runtime/helpers/assertThisInitialized":3,"@babel/runtime/helpers/classCallCheck":4,"@babel/runtime/helpers/createClass":5,"@babel/runtime/helpers/defineProperty":6,"@babel/runtime/helpers/getPrototypeOf":7,"@babel/runtime/helpers/inherits":8,"@babel/runtime/helpers/interopRequireDefault":9,"@babel/runtime/helpers/possibleConstructorReturn":10,"@babel/runtime/helpers/typeof":12,"@babel/runtime/regenerator":14,"_process":200,"assert":30,"events":135,"idb":175}],2:[function(require,module,exports){
+},{"../peer-relay/buf_util.js":293,"../peer-relay/lbuffer.js":294,"../util/crypto.js":297,"../util/date.js":298,"../util/etask.js":300,"../util/util.js":304,"../util/xerr.js":305,"@babel/runtime/helpers/classCallCheck":4,"@babel/runtime/helpers/createClass":5,"@babel/runtime/helpers/getPrototypeOf":7,"@babel/runtime/helpers/inherits":8,"@babel/runtime/helpers/interopRequireDefault":9,"@babel/runtime/helpers/possibleConstructorReturn":10,"@babel/runtime/helpers/typeof":12,"@babel/runtime/regenerator":14,"_process":200,"assert":30,"events":135,"idb":175}],2:[function(require,module,exports){
 // author: derry. coder: arik.
 'use strict';
 /*jslint node:true, browser:true*/
@@ -408,16 +358,11 @@ var DebugPage = /*#__PURE__*/function (_React$Component) {
 
   var _super = _createSuper(DebugPage);
 
-  function DebugPage() {
+  function DebugPage(props) {
     var _this;
 
     (0, _classCallCheck2["default"])(this, DebugPage);
-
-    for (var _len = arguments.length, args = new Array(_len), _key = 0; _key < _len; _key++) {
-      args[_key] = arguments[_key];
-    }
-
-    _this = _super.call.apply(_super, [this].concat(args));
+    _this = _super.call(this, props);
     (0, _defineProperty2["default"])((0, _assertThisInitialized2["default"])(_this), "state", {
       dd: []
     });
@@ -455,8 +400,15 @@ var DebugPage = /*#__PURE__*/function (_React$Component) {
       });
     });
     (0, _defineProperty2["default"])((0, _assertThisInitialized2["default"])(_this), "on_http_get_uri", function () {
-      _lif["default"].http_get_uri('derry.lif.zone', '/');
+      var _this$ref_http_domain, _this$ref_http_domain2, _this$ref_http_uri, _this$ref_http_uri$cu;
+
+      var domain = (_this$ref_http_domain = _this.ref_http_domain) === null || _this$ref_http_domain === void 0 ? void 0 : (_this$ref_http_domain2 = _this$ref_http_domain.current) === null || _this$ref_http_domain2 === void 0 ? void 0 : _this$ref_http_domain2.value;
+      var uri = (_this$ref_http_uri = _this.ref_http_uri) === null || _this$ref_http_uri === void 0 ? void 0 : (_this$ref_http_uri$cu = _this$ref_http_uri.current) === null || _this$ref_http_uri$cu === void 0 ? void 0 : _this$ref_http_uri$cu.value;
+
+      _lif["default"].http_get_uri(domain, uri);
     });
+    _this.ref_http_domain = /*#__PURE__*/_react["default"].createRef();
+    _this.ref_http_uri = /*#__PURE__*/_react["default"].createRef();
     return _this;
   }
 
@@ -489,9 +441,11 @@ var DebugPage = /*#__PURE__*/function (_React$Component) {
       if (!keys) return /*#__PURE__*/_react["default"].createElement("div", null, "Loading keys...");
       return /*#__PURE__*/_react["default"].createElement("div", null, /*#__PURE__*/_react["default"].createElement("h1", null, "LIF Debug Page"), /*#__PURE__*/_react["default"].createElement("div", null, /*#__PURE__*/_react["default"].createElement("button", {
         onClick: this.on_new_scroll
-      }, "New scroll")), /*#__PURE__*/_react["default"].createElement("div", null, "http_get_uri domain: ", /*#__PURE__*/_react["default"].createElement("input", {
+      }, "New scroll")), /*#__PURE__*/_react["default"].createElement("div", null, "http_get_uri domain:", /*#__PURE__*/_react["default"].createElement("input", {
+        ref: this.ref_http_domain,
         defaultValue: "derry.lif.zone"
       }), "uri: ", /*#__PURE__*/_react["default"].createElement("input", {
+        ref: this.ref_http_uri,
         defaultValue: "/"
       }), /*#__PURE__*/_react["default"].createElement("button", {
         onClick: this.on_http_get_uri

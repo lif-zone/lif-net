@@ -132,17 +132,6 @@ class Scroll extends EventEmitter {
   }
 }
 
-class Scrolls extends EventEmitter {
-  constructor(opt){
-    super();
-  }
-  load_all = ()=>etask({_: this}, function*load_all(){
-    let db = yield open_db('Scroll');
-    let xxx = yield db.getAllKeysFromIndex('http', 'scroll-seq');
-    console.log('XXX keys2 %o', xxx);
-  });
-}
-
 E.http_get_uri = (domain, uri)=>etask(function*http_lookup_uri(){
   let db = yield open_db('Scroll');
   let dd = yield db.getAllFromIndex('http', 'domain-uri',
@@ -151,5 +140,3 @@ E.http_get_uri = (domain, uri)=>etask(function*http_lookup_uri(){
 });
 
 E.Scroll = Scroll;
-E.scrolls = new Scrolls();
-

@@ -3379,15 +3379,15 @@ describe('api', function(){
       const t = exp=>assert.equal(lbuffer.to_str(), exp);
       let lbuffer = new LBuffer();
       t('\0');
-      lbuffer.add('a');
+      lbuffer.add_data('a');
       t('\0a');
-      lbuffer.add('bb');
+      lbuffer.add_data('bb');
       t('[2,1]\0bba');
-      lbuffer.add('ccc');
+      lbuffer.add_data('ccc');
       t('[3,2,1]\0cccbba');
-      lbuffer.add('');
+      lbuffer.add_data('');
       t('[0,3,2,1]\0cccbba');
-      lbuffer.add('abcdefghijk');
+      lbuffer.add_data('abcdefghijk');
       t('[11,0,3,2,1]\0abcdefghijkcccbba');
     });
     it('from_str', ()=>{

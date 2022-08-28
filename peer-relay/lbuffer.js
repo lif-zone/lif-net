@@ -1,11 +1,10 @@
 // author: derry. coder: arik.
 'use strict'; /*jslint node:true, browser:true*/
-import xutil from '../util/util.js';
 import xcrypto from '../util/crypto.js';
 import NodeId from './node_id.js';
-import buf_util from './buf_util.js';
-import {Buffer} from 'buffer';
 const stringify = JSON.stringify;
+import buf_util from './buf_util.js';
+const b2s= buf_util.buf_to_str;
 
 export default class LBuffer {
   constructor(opt){
@@ -13,27 +12,39 @@ export default class LBuffer {
     if (typeof opt=='object')
       this.add_json(opt);
     else if (opt)
-      this.add(opt);
+      this.add_data(opt);
   }
   // XXX: change internal structure. just save long string and indexes to
   // data start/end to avoid expensive parsing when caling LBuffer.from
-  add(data){
+  add_data(data){
     let o = {data};
     this.array.unshift(o);
     return this.get(0);
   }
-  add_tail(data){
+  add_tail_data(data){
     let o = {data};
     this.array.push(o);
     return this.get(this.array.length-1);
   }
   add_json(o){
-    this.add(stringify(o));
+    this.add_data(stringify(o));
     return this.get_json(0);
   }
   add_tail_json(o){
-    this.add_tail(stringify(o));
+    this.add_tail_data(stringify(o));
     return this.get_json(this.array.length-1);
+  }
+  add(o){
+    if (typeof o=='object')
+      this.add_json(o);
+    else
+      this.add_data(o);
+  }
+  add_tail(o){
+    if (typeof o=='object')
+      this.add_tail_json(o);
+    else
+      this.add_tail_data(o);
   }
   size(){ return this.array.length; }
   get(i){ return this.array[i].data; }
@@ -60,7 +71,7 @@ export default class LBuffer {
     this.array.forEach(o=>a.push(o.json||o.data));
     return a;
   }
-  to_buffer(){ return Buffer.from(this.to_str()) }
+  to_buffer(){ return Buffer.from(this.to_str()); }
   path(){
     let o, p = [];
     for (let i=0; i<this.size() && (o=this.get_json(i)) && o.type=='fwd'; i++)
@@ -76,12 +87,14 @@ export default class LBuffer {
     }
   }
   sign(key){
-    let {header, data} = this._to_str();
+    let {data} = this._to_str();
     // XXX: need to_buffer api
     let sig = xcrypto.sign(Buffer.from(data), key);
     this.add_json({sig: NodeId.from(sig).s});
     return sig;
   }
+  // XXX: cache it if buffer didn't change
+  hash(){ return b2s(xcrypto.sha256(this.to_buffer())); }
 }
 
 LBuffer.from = function(s){
@@ -95,7 +108,7 @@ LBuffer.from = function(s){
   catch(err){ throw new Error('invalid buffer'); }
   i++;
   if (!h || a&&a.length==0){
-    lbuffer.add(s.substr(i, Infinity));
+    lbuffer.add_data(s.substr(i, Infinity));
     return lbuffer;
   }
   if (!Array.isArray(a))
@@ -103,7 +116,7 @@ LBuffer.from = function(s){
   a.forEach(len=>{
     if (typeof len!='number')
       throw new Error('invalid buffer');
-    lbuffer.add_tail(s.substr(i, len));
+    lbuffer.add_tail_data(s.substr(i, len));
     i += len;
   });
   if (i != s.length)

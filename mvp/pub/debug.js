@@ -66,35 +66,24 @@ class DebugPage extends React.Component {
     </div>;
   }
   on_new_decl = l=>this.setState(state=>({dd: state.dd.concat(l)}));
-  on_new_http_scroll = ()=>{
-    let {keys} = this.state;
-    let scroll = new LIF.Scroll({keys});
-    scroll.on('decl', this.on_new_decl);
-    scroll.decl({scroll: {topic: 'http', domain: 'derry.lif.zone',
+  on_new_http_scroll = ()=>etask({_: this}, function*on_new_http_scroll(){
+    let _this = this._, {keys} = _this.state, pen = new LIF.Pen({keys});
+    let s = yield pen.decl_scroll(
+      {scroll: {topic: 'http', domain: 'derry.lif.zone',
       default: ['crypt', 'pub', 'scroll.topic', 'scroll.domain']}});
-    scroll.decl({http_record: {uri: '/', mime: 'html'}},
+    yield pen.decl(s.hash(), {http_record: {uri: '/', mime: 'html'}},
       '<html><body>derry</body></html>');
-    scroll.decl({http_record: {uri: '/about', mime: 'html'}},
-      '<html><body>about derry</body></html>');
-    /* XXX: new api
-      let pen = LIF.pen.init({keys});
-      let s = yield pen.decl_scroll(
-        {scroll: {topic: 'http', domain: 'derry.lif.zone',
-        default: ['crypt', 'pub', 'scroll.topic', 'scroll.domain']}});
-      yield LIF.pen.decl(s.hash(), {http_record: {uri: '/', mime: 'html'}},
-        '<html><body>derry</body></html>');
-      yield LIF.pen.decl(s.hash(), {http_record: {uri: '/info', mime: 'html'}},
-        '<html><body>derry info</body></html>');
-    */
-  };
-  on_new_dns_scroll = ()=>{
-    let {keys} = this.state;
-    let scroll = new LIF.Scroll({keys});
-    scroll.on('decl', this.on_new_decl);
+    yield pen.decl(s.hash(), {http_record: {uri: '/info', mime: 'html'}},
+      '<html><body>derry info</body></html>');
+  });
+  on_new_dns_scroll = ()=>etask({_: this}, function*on_new_dns_scroll(){
+    let _this = this._, {keys} = _this.state, pen = new LIF.Pen({keys});
     // XXX: 1. do we need struct: 'table' 2. any defaults?
-    scroll.decl({scroll: {topic: 'dns', default: ['crypt', 'pub']}});
-    scroll.decl({dns_record: {domain: 'derry.lif.zone', pub: b2s(keys.pub)}});
-  };
+    let s = yield pen.decl_scroll({scroll: {topic: 'dns',
+      default: ['crypt', 'pub']}});
+    yield pen.decl(s.hash(), {dns_record:
+      {domain: 'derry.lif.zone', pub: b2s(keys.pub)}});
+  });
   on_http_get_uri = ()=>etask({_: this}, function*on_http_get_uri(){
     let _this = this._;
     let domain = _this.ref_http_domain?.current?.value;

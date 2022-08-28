@@ -6,24 +6,24 @@
 
 var _interopRequireDefault = require("@babel/runtime/helpers/interopRequireDefault");
 
-var _typeof3 = require("@babel/runtime/helpers/typeof");
+var _typeof = require("@babel/runtime/helpers/typeof");
 
 Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports["default"] = void 0;
 
-var _typeof2 = _interopRequireDefault(require("@babel/runtime/helpers/typeof"));
-
-var _classCallCheck2 = _interopRequireDefault(require("@babel/runtime/helpers/classCallCheck"));
-
-var _createClass2 = _interopRequireDefault(require("@babel/runtime/helpers/createClass"));
-
 var _inherits2 = _interopRequireDefault(require("@babel/runtime/helpers/inherits"));
 
 var _possibleConstructorReturn2 = _interopRequireDefault(require("@babel/runtime/helpers/possibleConstructorReturn"));
 
 var _getPrototypeOf2 = _interopRequireDefault(require("@babel/runtime/helpers/getPrototypeOf"));
+
+var _classCallCheck2 = _interopRequireDefault(require("@babel/runtime/helpers/classCallCheck"));
+
+var _createClass2 = _interopRequireDefault(require("@babel/runtime/helpers/createClass"));
+
+var _defineProperty2 = _interopRequireDefault(require("@babel/runtime/helpers/defineProperty"));
 
 var _regenerator = _interopRequireDefault(require("@babel/runtime/regenerator"));
 
@@ -32,8 +32,6 @@ var _assert = _interopRequireDefault(require("assert"));
 var _events = require("events");
 
 var _lbuffer = _interopRequireDefault(require("../peer-relay/lbuffer.js"));
-
-var _crypto = _interopRequireDefault(require("../util/crypto.js"));
 
 var _util = _interopRequireDefault(require("../util/util.js"));
 
@@ -49,7 +47,7 @@ var idb = _interopRequireWildcard(require("idb"));
 
 function _getRequireWildcardCache(nodeInterop) { if (typeof WeakMap !== "function") return null; var cacheBabelInterop = new WeakMap(); var cacheNodeInterop = new WeakMap(); return (_getRequireWildcardCache = function _getRequireWildcardCache(nodeInterop) { return nodeInterop ? cacheNodeInterop : cacheBabelInterop; })(nodeInterop); }
 
-function _interopRequireWildcard(obj, nodeInterop) { if (!nodeInterop && obj && obj.__esModule) { return obj; } if (obj === null || _typeof3(obj) !== "object" && typeof obj !== "function") { return { "default": obj }; } var cache = _getRequireWildcardCache(nodeInterop); if (cache && cache.has(obj)) { return cache.get(obj); } var newObj = {}; var hasPropertyDescriptor = Object.defineProperty && Object.getOwnPropertyDescriptor; for (var key in obj) { if (key !== "default" && Object.prototype.hasOwnProperty.call(obj, key)) { var desc = hasPropertyDescriptor ? Object.getOwnPropertyDescriptor(obj, key) : null; if (desc && (desc.get || desc.set)) { Object.defineProperty(newObj, key, desc); } else { newObj[key] = obj[key]; } } } newObj["default"] = obj; if (cache) { cache.set(obj, newObj); } return newObj; }
+function _interopRequireWildcard(obj, nodeInterop) { if (!nodeInterop && obj && obj.__esModule) { return obj; } if (obj === null || _typeof(obj) !== "object" && typeof obj !== "function") { return { "default": obj }; } var cache = _getRequireWildcardCache(nodeInterop); if (cache && cache.has(obj)) { return cache.get(obj); } var newObj = {}; var hasPropertyDescriptor = Object.defineProperty && Object.getOwnPropertyDescriptor; for (var key in obj) { if (key !== "default" && Object.prototype.hasOwnProperty.call(obj, key)) { var desc = hasPropertyDescriptor ? Object.getOwnPropertyDescriptor(obj, key) : null; if (desc && (desc.get || desc.set)) { Object.defineProperty(newObj, key, desc); } else { newObj[key] = obj[key]; } } } newObj["default"] = obj; if (cache) { cache.set(obj, newObj); } return newObj; }
 
 function _createSuper(Derived) { var hasNativeReflectConstruct = _isNativeReflectConstruct(); return function _createSuperInternal() { var Super = (0, _getPrototypeOf2["default"])(Derived), result; if (hasNativeReflectConstruct) { var NewTarget = (0, _getPrototypeOf2["default"])(this).constructor; result = Reflect.construct(Super, arguments, NewTarget); } else { result = Super.apply(this, arguments); } return (0, _possibleConstructorReturn2["default"])(this, result); }; }
 
@@ -72,6 +70,8 @@ function err_handler(err) {
   console.error(err);
   var err2 = new Error('err_handler');
   err2.err_orig = err;
+  debugger; // eslint-disable-line no-debugger
+
   throw err2;
 }
 /* XXX WIP
@@ -106,17 +106,69 @@ scroll.decl({http_record: {uri: '/derry.jpg', mime_type: 'image/jpeg'},
 var E = {};
 var _default = E;
 exports["default"] = _default;
-var g_db;
+E.lock = {};
 
-var open_db = function open_db(db_name) {
-  return (0, _etask["default"])( /*#__PURE__*/_regenerator["default"].mark(function open_db() {
-    return _regenerator["default"].wrap(function open_db$(_context) {
+E.lock_scroll = function (scroll) {
+  return (0, _etask["default"])( /*#__PURE__*/_regenerator["default"].mark(function lock_scroll() {
+    return _regenerator["default"].wrap(function lock_scroll$(_context) {
       while (1) {
         switch (_context.prev = _context.next) {
           case 0:
-            _assert["default"].equal(db_name, 'Scroll', 'unknown db ' + db_name);
+            if (!E.lock[scroll]) {
+              _context.next = 5;
+              break;
+            }
 
             _context.next = 3;
+            return this.wait_ext(E.lock[scroll]);
+
+          case 3:
+            _context.next = 0;
+            break;
+
+          case 5:
+            E.lock[scroll] = _etask["default"].wait();
+
+          case 6:
+          case "end":
+            return _context.stop();
+        }
+      }
+    }, lock_scroll, this);
+  }));
+};
+
+E.unlock_scroll = function () {
+  var lock = E.lock[scroll];
+  if (!lock) return;
+  E.lock[scroll] = undefined;
+  lock["continue"]();
+};
+
+function scroll_default(sd) {
+  var def = _util["default"].get(decl_json(sd), 'scroll.default');
+
+  if (!(def !== null && def !== void 0 && def.length) || !Array.isArray(def)) return;
+  var o = {}; // XXX: mv decl_meta and decl_json to lbuffer;
+
+  def.forEach(function (name) {
+    return _util["default"].set(o, name, _util["default"].get(decl_meta(sd), name) || _util["default"].get(decl_json(sd), name));
+  });
+  console.log('XXX def %o', o);
+  return o;
+}
+
+var g_db; // XXX cache db
+
+var open_db = function open_db(db_name) {
+  return (0, _etask["default"])( /*#__PURE__*/_regenerator["default"].mark(function open_db() {
+    return _regenerator["default"].wrap(function open_db$(_context2) {
+      while (1) {
+        switch (_context2.prev = _context2.next) {
+          case 0:
+            _assert["default"].equal(db_name, 'Scroll', 'unknown db ' + db_name);
+
+            _context2.next = 3;
             return idb.openDB(db_name, 1, {
               upgrade: function upgrade(db) {
                 var store = db.createObjectStore('http', {
@@ -131,12 +183,12 @@ var open_db = function open_db(db_name) {
             });
 
           case 3:
-            g_db = _context.sent;
-            return _context.abrupt("return", g_db);
+            g_db = _context2.sent;
+            return _context2.abrupt("return", g_db);
 
           case 5:
           case "end":
-            return _context.stop();
+            return _context2.stop();
         }
       }
     }, open_db);
@@ -150,6 +202,248 @@ function decl_meta(d) {
 function decl_json(d) {
   return d.get_json(2);
 }
+
+function decl_default(sd) {
+  (0, _assert["default"])(decl_meta(sd).seq == 0, 'invalid scroll ' + sd.to_str());
+
+  var def = _util["default"].get(decl_json(sd), 'scroll.default');
+
+  if (!(def !== null && def !== void 0 && def.length) || !Array.isArray(def)) return;
+  var o = {};
+  def.forEach(function (name) {
+    return _util["default"].set(o, name, _util["default"].get(decl_meta(sd), name) || _util["default"].get(decl_json(sd), name));
+  });
+  return o;
+}
+
+var Pen = /*#__PURE__*/function () {
+  function Pen(opt) {
+    (0, _classCallCheck2["default"])(this, Pen);
+    (0, _defineProperty2["default"])(this, "lock_get_scroll", function (scroll) {
+      return (0, _etask["default"])( /*#__PURE__*/_regenerator["default"].mark(function lock_get_scroll() {
+        var db, o, sd;
+        return _regenerator["default"].wrap(function lock_get_scroll$(_context3) {
+          while (1) {
+            switch (_context3.prev = _context3.next) {
+              case 0:
+                _context3.next = 2;
+                return E.lock_scroll(scroll);
+
+              case 2:
+                this.on('uncaught', function () {
+                  return E.unlock_scroll(scroll);
+                });
+                _context3.next = 5;
+                return open_db('Scroll');
+
+              case 5:
+                db = _context3.sent;
+                _context3.next = 8;
+                return db.get('http', scroll);
+
+              case 8:
+                _context3.t0 = _context3.sent;
+
+                if (_context3.t0) {
+                  _context3.next = 13;
+                  break;
+                }
+
+                _context3.next = 12;
+                return db.get('dns', scroll);
+
+              case 12:
+                _context3.t0 = _context3.sent;
+
+              case 13:
+                o = _context3.t0;
+                sd = _lbuffer["default"].from(o.decl);
+                return _context3.abrupt("return", sd);
+
+              case 16:
+              case "end":
+                return _context3.stop();
+            }
+          }
+        }, lock_get_scroll, this);
+      }));
+    });
+    (0, _defineProperty2["default"])(this, "get_decl_last", function (scroll, topic) {
+      return (0, _etask["default"])( /*#__PURE__*/_regenerator["default"].mark(function get_decl_last() {
+        var db, cursor;
+        return _regenerator["default"].wrap(function get_decl_last$(_context4) {
+          while (1) {
+            switch (_context4.prev = _context4.next) {
+              case 0:
+                _context4.next = 2;
+                return open_db('Scroll');
+
+              case 2:
+                db = _context4.sent;
+                _context4.next = 5;
+                return db.transaction(topic).store.openCursor(null, 'prev');
+
+              case 5:
+                cursor = _context4.sent;
+                return _context4.abrupt("return", _lbuffer["default"].from(cursor.value.decl));
+
+              case 7:
+              case "end":
+                return _context4.stop();
+            }
+          }
+        }, get_decl_last);
+      }));
+    });
+    this.keys = opt.keys;
+    this.crypt = opt.crypt || 'ed25519';
+    this.pub = b2s(opt.keys.pub);
+
+    _assert["default"].equal(this.crypt, 'ed25519', 'unsupported crypt');
+  }
+
+  (0, _createClass2["default"])(Pen, [{
+    key: "decl_scroll",
+    value: function decl_scroll() {
+      var arg = arguments;
+
+      var ts = _date["default"].to_sql_ms(),
+          seq = 0,
+          sd = new _lbuffer["default"]();
+
+      sd.add_tail_json({
+        crypt: this.crypt,
+        seq: seq,
+        ts: ts,
+        pub: this.pub
+      });
+      Array.from(arg).forEach(function (data) {
+        return sd.add_tail(data);
+      });
+      sd.sign(this.keys.key);
+      var hash = sd.hash();
+
+      var topic = _util["default"].get(decl_json(sd), 'scroll.topic');
+
+      (0, _assert["default"])(['http', 'dns'].includes(topic), 'invalid topic ' + topic);
+      return (0, _etask["default"])( /*#__PURE__*/_regenerator["default"].mark(function decl() {
+        var db, o;
+        return _regenerator["default"].wrap(function decl$(_context5) {
+          while (1) {
+            switch (_context5.prev = _context5.next) {
+              case 0:
+                _context5.next = 2;
+                return open_db('Scroll');
+
+              case 2:
+                db = _context5.sent;
+                o = assign({
+                  hash: hash,
+                  scroll: hash,
+                  seq: seq
+                }, decl_default(sd));
+                assign(o, {
+                  json: sd.to_json(),
+                  decl: sd.to_buffer()
+                });
+                _context5.next = 7;
+                return db.add(topic, o);
+
+              case 7:
+                return _context5.abrupt("return", sd);
+
+              case 8:
+              case "end":
+                return _context5.stop();
+            }
+          }
+        }, decl);
+      }));
+    } // XXX: unite decl_scroll/decl similar code
+    // XXX: unlock scroll on error
+
+  }, {
+    key: "decl",
+    value: function decl() {
+      var arg = Array.from(arguments),
+          scroll = arg[0];
+      arg.shift();
+      return (0, _etask["default"])({
+        _: this
+      }, /*#__PURE__*/_regenerator["default"].mark(function decl() {
+        var _this, sd, topic, ts, d, last, seq, prev, hash, db, o;
+
+        return _regenerator["default"].wrap(function decl$(_context6) {
+          while (1) {
+            switch (_context6.prev = _context6.next) {
+              case 0:
+                _this = this._;
+                _context6.next = 3;
+                return _this.lock_get_scroll(scroll);
+
+              case 3:
+                sd = _context6.sent;
+                this.on('finally', function () {
+                  return E.unlock_scroll(scroll);
+                });
+                topic = _util["default"].get(decl_json(sd), 'scroll.topic');
+                (0, _assert["default"])(['http', 'dns'].includes(topic), 'invalid scroll topic ' + topic);
+                ts = _date["default"].to_sql_ms(), d = new _lbuffer["default"]();
+                _context6.next = 10;
+                return _this.get_decl_last(scroll, topic);
+
+              case 10:
+                last = _context6.sent;
+                seq = decl_meta(last).seq + 1, prev = last.hash();
+                d.add_tail_json({
+                  crypt: _this.crypt,
+                  seq: seq,
+                  ts: ts,
+                  pub: _this.pub,
+                  prev: prev
+                });
+                Array.from(arg).forEach(function (data) {
+                  return d.add_tail(data);
+                });
+                d.sign(_this.keys.key);
+                hash = d.hash();
+                _context6.next = 18;
+                return open_db('Scroll');
+
+              case 18:
+                db = _context6.sent;
+                o = assign({
+                  hash: hash,
+                  scroll: scroll,
+                  seq: seq
+                }, scroll_default(sd));
+                if (topic == 'http') o.http_record = {
+                  uri: _util["default"].get(decl_json(d), 'http_record.uri')
+                };
+                if (topic == 'dns') o.dns_record = {
+                  domain: _util["default"].get(decl_json(d), 'dns_record.domain')
+                };
+                assign(o, {
+                  json: d.to_json(),
+                  decl: d.to_buffer()
+                });
+                _context6.next = 25;
+                return db.add(topic, o);
+
+              case 25:
+                return _context6.abrupt("return", d);
+
+              case 26:
+              case "end":
+                return _context6.stop();
+            }
+          }
+        }, decl, this);
+      }));
+    }
+  }]);
+  return Pen;
+}();
 
 var Scroll = /*#__PURE__*/function (_EventEmitter) {
   (0, _inherits2["default"])(Scroll, _EventEmitter);
@@ -226,11 +520,11 @@ var Scroll = /*#__PURE__*/function (_EventEmitter) {
         prev: this.prev
       }));
       Array.from(arg).forEach(function (data) {
-        if ((0, _typeof2["default"])(data) == 'object') d.add_tail_json(data);else d.add_tail(data);
+        return d.add_tail(data);
       });
       d.sign(this.keys.key); // XXX: wrap it in LBuffer.hash()
 
-      var hash = b2s(_crypto["default"].sha256(d.to_buffer()));
+      var hash = d.hash();
       this.dd[seq] = {
         d: d,
         hash: hash
@@ -243,16 +537,16 @@ var Scroll = /*#__PURE__*/function (_EventEmitter) {
       }, /*#__PURE__*/_regenerator["default"].mark(function decl() {
         var _this, db, o;
 
-        return _regenerator["default"].wrap(function decl$(_context2) {
+        return _regenerator["default"].wrap(function decl$(_context7) {
           while (1) {
-            switch (_context2.prev = _context2.next) {
+            switch (_context7.prev = _context7.next) {
               case 0:
                 _this = this._;
-                _context2.next = 3;
+                _context7.next = 3;
                 return open_db('Scroll');
 
               case 3:
-                db = _context2.sent;
+                db = _context7.sent;
                 o = assign({
                   hash: hash,
                   scroll: _this.scroll_hash(),
@@ -268,17 +562,17 @@ var Scroll = /*#__PURE__*/function (_EventEmitter) {
                   json: d.to_json(),
                   decl: d.to_buffer()
                 });
-                _context2.next = 10;
+                _context7.next = 10;
                 return db.add(topic, o);
 
               case 10:
                 _this.emit('decl', d);
 
-                return _context2.abrupt("return", d);
+                return _context7.abrupt("return", d);
 
               case 12:
               case "end":
-                return _context2.stop();
+                return _context7.stop();
             }
           }
         }, decl, this);
@@ -293,25 +587,25 @@ E.http = {};
 E.http.get_uri = function (domain, uri) {
   return (0, _etask["default"])( /*#__PURE__*/_regenerator["default"].mark(function http_lookup_uri() {
     var db, dd;
-    return _regenerator["default"].wrap(function http_lookup_uri$(_context3) {
+    return _regenerator["default"].wrap(function http_lookup_uri$(_context8) {
       while (1) {
-        switch (_context3.prev = _context3.next) {
+        switch (_context8.prev = _context8.next) {
           case 0:
-            _context3.next = 2;
+            _context8.next = 2;
             return open_db('Scroll');
 
           case 2:
-            db = _context3.sent;
-            _context3.next = 5;
+            db = _context8.sent;
+            _context8.next = 5;
             return db.getAllFromIndex('http', 'domain-uri', IDBKeyRange.only([domain, uri]));
 
           case 5:
-            dd = _context3.sent;
+            dd = _context8.sent;
             console.log('XXX http.get_uri %o', dd);
 
           case 7:
           case "end":
-            return _context3.stop();
+            return _context8.stop();
         }
       }
     }, http_lookup_uri);
@@ -323,35 +617,36 @@ E.dns = {};
 E.dns.resolve = function (domain) {
   return (0, _etask["default"])( /*#__PURE__*/_regenerator["default"].mark(function dns_resolve() {
     var db, dd;
-    return _regenerator["default"].wrap(function dns_resolve$(_context4) {
+    return _regenerator["default"].wrap(function dns_resolve$(_context9) {
       while (1) {
-        switch (_context4.prev = _context4.next) {
+        switch (_context9.prev = _context9.next) {
           case 0:
-            _context4.next = 2;
+            _context9.next = 2;
             return open_db('Scroll');
 
           case 2:
-            db = _context4.sent;
-            _context4.next = 5;
+            db = _context9.sent;
+            _context9.next = 5;
             return db.getAllFromIndex('dns', 'domain', IDBKeyRange.only(domain));
 
           case 5:
-            dd = _context4.sent;
+            dd = _context9.sent;
             console.log('XXX dns.resolve %o', dd);
 
           case 7:
           case "end":
-            return _context4.stop();
+            return _context9.stop();
         }
       }
     }, dns_resolve);
   }));
 };
 
+E.Pen = Pen;
 E.Scroll = Scroll;
 
 }).call(this)}).call(this,require('_process'))
-},{"../peer-relay/buf_util.js":293,"../peer-relay/lbuffer.js":294,"../util/crypto.js":297,"../util/date.js":298,"../util/etask.js":300,"../util/util.js":304,"../util/xerr.js":305,"@babel/runtime/helpers/classCallCheck":4,"@babel/runtime/helpers/createClass":5,"@babel/runtime/helpers/getPrototypeOf":7,"@babel/runtime/helpers/inherits":8,"@babel/runtime/helpers/interopRequireDefault":9,"@babel/runtime/helpers/possibleConstructorReturn":10,"@babel/runtime/helpers/typeof":12,"@babel/runtime/regenerator":14,"_process":200,"assert":30,"events":135,"idb":175}],2:[function(require,module,exports){
+},{"../peer-relay/buf_util.js":293,"../peer-relay/lbuffer.js":294,"../util/date.js":298,"../util/etask.js":300,"../util/util.js":304,"../util/xerr.js":305,"@babel/runtime/helpers/classCallCheck":4,"@babel/runtime/helpers/createClass":5,"@babel/runtime/helpers/defineProperty":6,"@babel/runtime/helpers/getPrototypeOf":7,"@babel/runtime/helpers/inherits":8,"@babel/runtime/helpers/interopRequireDefault":9,"@babel/runtime/helpers/possibleConstructorReturn":10,"@babel/runtime/helpers/typeof":12,"@babel/runtime/regenerator":14,"_process":200,"assert":30,"events":135,"idb":175}],2:[function(require,module,exports){
 // author: derry. coder: arik.
 'use strict';
 /*jslint node:true, browser:true*/
@@ -414,50 +709,93 @@ var DebugPage = /*#__PURE__*/function (_React$Component) {
       });
     });
     (0, _defineProperty2["default"])((0, _assertThisInitialized2["default"])(_this2), "on_new_http_scroll", function () {
-      var keys = _this2.state.keys;
-      var scroll = new _lif["default"].Scroll({
-        keys: keys
-      });
-      scroll.on('decl', _this2.on_new_decl);
-      scroll.decl({
-        scroll: {
-          topic: 'http',
-          domain: 'derry.lif.zone',
-          "default": ['crypt', 'pub', 'scroll.topic', 'scroll.domain']
-        }
-      });
-      scroll.decl({
-        http_record: {
-          uri: '/',
-          mime: 'html'
-        }
-      }, '<html><body>derry</body></html>');
-      scroll.decl({
-        http_record: {
-          uri: '/about',
-          mime: 'html'
-        }
-      }, '<html><body>about derry</body></html>');
+      return (0, _etask["default"])({
+        _: (0, _assertThisInitialized2["default"])(_this2)
+      }, /*#__PURE__*/_regenerator["default"].mark(function on_new_http_scroll() {
+        var _this, keys, pen, s;
+
+        return _regenerator["default"].wrap(function on_new_http_scroll$(_context) {
+          while (1) {
+            switch (_context.prev = _context.next) {
+              case 0:
+                _this = this._, keys = _this.state.keys, pen = new _lif["default"].Pen({
+                  keys: keys
+                });
+                _context.next = 3;
+                return pen.decl_scroll({
+                  scroll: {
+                    topic: 'http',
+                    domain: 'derry.lif.zone',
+                    "default": ['crypt', 'pub', 'scroll.topic', 'scroll.domain']
+                  }
+                });
+
+              case 3:
+                s = _context.sent;
+                _context.next = 6;
+                return pen.decl(s.hash(), {
+                  http_record: {
+                    uri: '/',
+                    mime: 'html'
+                  }
+                }, '<html><body>derry</body></html>');
+
+              case 6:
+                _context.next = 8;
+                return pen.decl(s.hash(), {
+                  http_record: {
+                    uri: '/info',
+                    mime: 'html'
+                  }
+                }, '<html><body>derry info</body></html>');
+
+              case 8:
+              case "end":
+                return _context.stop();
+            }
+          }
+        }, on_new_http_scroll, this);
+      }));
     });
     (0, _defineProperty2["default"])((0, _assertThisInitialized2["default"])(_this2), "on_new_dns_scroll", function () {
-      var keys = _this2.state.keys;
-      var scroll = new _lif["default"].Scroll({
-        keys: keys
-      });
-      scroll.on('decl', _this2.on_new_decl); // XXX: 1. do we need struct: 'table' 2. any defaults?
+      return (0, _etask["default"])({
+        _: (0, _assertThisInitialized2["default"])(_this2)
+      }, /*#__PURE__*/_regenerator["default"].mark(function on_new_dns_scroll() {
+        var _this, keys, pen, s;
 
-      scroll.decl({
-        scroll: {
-          topic: 'dns',
-          "default": ['crypt', 'pub']
-        }
-      });
-      scroll.decl({
-        dns_record: {
-          domain: 'derry.lif.zone',
-          pub: b2s(keys.pub)
-        }
-      });
+        return _regenerator["default"].wrap(function on_new_dns_scroll$(_context2) {
+          while (1) {
+            switch (_context2.prev = _context2.next) {
+              case 0:
+                _this = this._, keys = _this.state.keys, pen = new _lif["default"].Pen({
+                  keys: keys
+                }); // XXX: 1. do we need struct: 'table' 2. any defaults?
+
+                _context2.next = 3;
+                return pen.decl_scroll({
+                  scroll: {
+                    topic: 'dns',
+                    "default": ['crypt', 'pub']
+                  }
+                });
+
+              case 3:
+                s = _context2.sent;
+                _context2.next = 6;
+                return pen.decl(s.hash(), {
+                  dns_record: {
+                    domain: 'derry.lif.zone',
+                    pub: b2s(keys.pub)
+                  }
+                });
+
+              case 6:
+              case "end":
+                return _context2.stop();
+            }
+          }
+        }, on_new_dns_scroll, this);
+      }));
     });
     (0, _defineProperty2["default"])((0, _assertThisInitialized2["default"])(_this2), "on_http_get_uri", function () {
       return (0, _etask["default"])({
@@ -467,19 +805,19 @@ var DebugPage = /*#__PURE__*/function (_React$Component) {
 
         var _this, domain, uri;
 
-        return _regenerator["default"].wrap(function on_http_get_uri$(_context) {
+        return _regenerator["default"].wrap(function on_http_get_uri$(_context3) {
           while (1) {
-            switch (_context.prev = _context.next) {
+            switch (_context3.prev = _context3.next) {
               case 0:
                 _this = this._;
                 domain = (_this$ref_http_domain = _this.ref_http_domain) === null || _this$ref_http_domain === void 0 ? void 0 : (_this$ref_http_domain2 = _this$ref_http_domain.current) === null || _this$ref_http_domain2 === void 0 ? void 0 : _this$ref_http_domain2.value;
                 uri = (_this$ref_http_uri = _this.ref_http_uri) === null || _this$ref_http_uri === void 0 ? void 0 : (_this$ref_http_uri$cu = _this$ref_http_uri.current) === null || _this$ref_http_uri$cu === void 0 ? void 0 : _this$ref_http_uri$cu.value;
-                _context.next = 5;
+                _context3.next = 5;
                 return _lif["default"].http.get_uri(domain, uri);
 
               case 5:
               case "end":
-                return _context.stop();
+                return _context3.stop();
             }
           }
         }, on_http_get_uri, this);
@@ -493,26 +831,26 @@ var DebugPage = /*#__PURE__*/function (_React$Component) {
 
         var _this, domain;
 
-        return _regenerator["default"].wrap(function on_dns_resolve$(_context2) {
+        return _regenerator["default"].wrap(function on_dns_resolve$(_context4) {
           while (1) {
-            switch (_context2.prev = _context2.next) {
+            switch (_context4.prev = _context4.next) {
               case 0:
                 _this = this._;
                 domain = (_this$ref_dns_domain = _this.ref_dns_domain) === null || _this$ref_dns_domain === void 0 ? void 0 : (_this$ref_dns_domain$ = _this$ref_dns_domain.current) === null || _this$ref_dns_domain$ === void 0 ? void 0 : _this$ref_dns_domain$.value;
-                _context2.next = 4;
+                _context4.next = 4;
                 return _lif["default"].dns.resolve(domain);
 
               case 4:
               case "end":
-                return _context2.stop();
+                return _context4.stop();
             }
           }
         }, on_dns_resolve, this);
       }));
     });
-    _this2.ref_http_domain = /*#__PURE__*/_react["default"].createRef();
-    _this2.ref_http_uri = /*#__PURE__*/_react["default"].createRef();
-    _this2.ref_dns_domain = /*#__PURE__*/_react["default"].createRef();
+    _this2.ref_http_domain = _react["default"].createRef();
+    _this2.ref_http_uri = _react["default"].createRef();
+    _this2.ref_dns_domain = _react["default"].createRef();
     return _this2;
   }
 
@@ -68050,6 +68388,7 @@ E.buf_from_str = function (s) {
 };
 
 },{"buffer":92}],294:[function(require,module,exports){
+(function (Buffer){(function (){
 // author: derry. coder: arik.
 'use strict';
 /*jslint node:true, browser:true*/
@@ -68067,30 +68406,27 @@ var _classCallCheck2 = _interopRequireDefault(require("@babel/runtime/helpers/cl
 
 var _createClass2 = _interopRequireDefault(require("@babel/runtime/helpers/createClass"));
 
-var _util = _interopRequireDefault(require("../util/util.js"));
-
 var _crypto = _interopRequireDefault(require("../util/crypto.js"));
 
 var _node_id = _interopRequireDefault(require("./node_id.js"));
 
 var _buf_util = _interopRequireDefault(require("./buf_util.js"));
 
-var _buffer = require("buffer");
-
 var stringify = JSON.stringify;
+var b2s = _buf_util["default"].buf_to_str;
 
 var LBuffer = /*#__PURE__*/function () {
   function LBuffer(opt) {
     (0, _classCallCheck2["default"])(this, LBuffer);
     this.array = [];
-    if ((0, _typeof2["default"])(opt) == 'object') this.add_json(opt);else if (opt) this.add(opt);
+    if ((0, _typeof2["default"])(opt) == 'object') this.add_json(opt);else if (opt) this.add_data(opt);
   } // XXX: change internal structure. just save long string and indexes to
   // data start/end to avoid expensive parsing when caling LBuffer.from
 
 
   (0, _createClass2["default"])(LBuffer, [{
-    key: "add",
-    value: function add(data) {
+    key: "add_data",
+    value: function add_data(data) {
       var o = {
         data: data
       };
@@ -68098,8 +68434,8 @@ var LBuffer = /*#__PURE__*/function () {
       return this.get(0);
     }
   }, {
-    key: "add_tail",
-    value: function add_tail(data) {
+    key: "add_tail_data",
+    value: function add_tail_data(data) {
       var o = {
         data: data
       };
@@ -68109,14 +68445,24 @@ var LBuffer = /*#__PURE__*/function () {
   }, {
     key: "add_json",
     value: function add_json(o) {
-      this.add(stringify(o));
+      this.add_data(stringify(o));
       return this.get_json(0);
     }
   }, {
     key: "add_tail_json",
     value: function add_tail_json(o) {
-      this.add_tail(stringify(o));
+      this.add_tail_data(stringify(o));
       return this.get_json(this.array.length - 1);
+    }
+  }, {
+    key: "add",
+    value: function add(o) {
+      if ((0, _typeof2["default"])(o) == 'object') this.add_json(o);else this.add_data(o);
+    }
+  }, {
+    key: "add_tail",
+    value: function add_tail(o) {
+      if ((0, _typeof2["default"])(o) == 'object') this.add_tail_json(o);else this.add_tail_data(o);
     }
   }, {
     key: "size",
@@ -68170,7 +68516,7 @@ var LBuffer = /*#__PURE__*/function () {
   }, {
     key: "to_buffer",
     value: function to_buffer() {
-      return _buffer.Buffer.from(this.to_str());
+      return Buffer.from(this.to_str());
     }
   }, {
     key: "path",
@@ -68201,16 +68547,21 @@ var LBuffer = /*#__PURE__*/function () {
     key: "sign",
     value: function sign(key) {
       var _this$_to_str2 = this._to_str(),
-          header = _this$_to_str2.header,
           data = _this$_to_str2.data; // XXX: need to_buffer api
 
 
-      var sig = _crypto["default"].sign(_buffer.Buffer.from(data), key);
+      var sig = _crypto["default"].sign(Buffer.from(data), key);
 
       this.add_json({
         sig: _node_id["default"].from(sig).s
       });
       return sig;
+    } // XXX: cache it if buffer didn't change
+
+  }, {
+    key: "hash",
+    value: function hash() {
+      return b2s(_crypto["default"].sha256(this.to_buffer()));
     }
   }]);
   return LBuffer;
@@ -68219,6 +68570,7 @@ var LBuffer = /*#__PURE__*/function () {
 exports["default"] = LBuffer;
 
 LBuffer.from = function (s) {
+  if (s instanceof Uint8Array || s instanceof Buffer) return LBuffer.from(Buffer.from(s).toString());
   if (typeof s != 'string') throw new Error('invalid buffer');
   var i = s.search('\0');
   if (i == -1) throw new Error('invalid buffer');
@@ -68235,21 +68587,22 @@ LBuffer.from = function (s) {
   i++;
 
   if (!h || a && a.length == 0) {
-    lbuffer.add(s.substr(i, Infinity));
+    lbuffer.add_data(s.substr(i, Infinity));
     return lbuffer;
   }
 
   if (!Array.isArray(a)) throw new Error('invalid buffer');
   a.forEach(function (len) {
     if (typeof len != 'number') throw new Error('invalid buffer');
-    lbuffer.add_tail(s.substr(i, len));
+    lbuffer.add_tail_data(s.substr(i, len));
     i += len;
   });
   if (i != s.length) throw new Error('invalid buffer');
   return lbuffer;
 };
 
-},{"../util/crypto.js":297,"../util/util.js":304,"./buf_util.js":293,"./node_id.js":295,"@babel/runtime/helpers/classCallCheck":4,"@babel/runtime/helpers/createClass":5,"@babel/runtime/helpers/interopRequireDefault":9,"@babel/runtime/helpers/typeof":12,"buffer":92}],295:[function(require,module,exports){
+}).call(this)}).call(this,require("buffer").Buffer)
+},{"../util/crypto.js":297,"./buf_util.js":293,"./node_id.js":295,"@babel/runtime/helpers/classCallCheck":4,"@babel/runtime/helpers/createClass":5,"@babel/runtime/helpers/interopRequireDefault":9,"@babel/runtime/helpers/typeof":12,"buffer":92}],295:[function(require,module,exports){
 // author: derry. coder: arik.
 'use strict';
 /*jslint node:true, browser:true*/

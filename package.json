@@ -16,6 +16,7 @@
     "@babel/preset-env": "7.16.5",
     "@babel/preset-react": "7.16.5",
     "@babel/plugin-transform-runtime": "7.18.10",
+    "@babel/plugin-transform-react-jsx": "7.18.10",
     "assertion": "1.2.18",
     "avl": "1.5.3",
     "babelify": "10.0.0",
@@ -81,10 +82,12 @@
         "babelify",
         {
           "presets": [
-            "@babel/env",
-            "@babel/react"
+            "@babel/env"
           ],
-          "plugins": ["@babel/plugin-transform-runtime"]
+          "plugins": [
+            "@babel/plugin-transform-runtime",
+            "@babel/plugin-transform-react-jsx"
+          ]
         }
       ]
     ]

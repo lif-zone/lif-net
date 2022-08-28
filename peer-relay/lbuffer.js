@@ -98,6 +98,8 @@ export default class LBuffer {
 }
 
 LBuffer.from = function(s){
+  if (s instanceof Uint8Array || s instanceof Buffer)
+    return LBuffer.from(Buffer.from(s).toString());
   if (typeof s!='string')
     throw new Error('invalid buffer');
   let i = s.search('\0');

@@ -72,6 +72,11 @@ export default class LBuffer {
     return a;
   }
   to_buffer(){ return Buffer.from(this.to_str()); }
+  to_array(){
+    let a = [];
+    this.array.forEach(o=>a.push(o.data));
+    return a;
+  }
   path(){
     let o, p = [];
     for (let i=0; i<this.size() && (o=this.get_json(i)) && o.type=='fwd'; i++)
@@ -98,6 +103,11 @@ export default class LBuffer {
 }
 
 LBuffer.from = function(s){
+  if (Array.isArray(s)){
+    let lbuffer = new LBuffer();
+    s.forEach(data=>lbuffer.add_tail(data));
+    return lbuffer;
+  }
   if (s instanceof Uint8Array || s instanceof Buffer)
     return LBuffer.from(Buffer.from(s).toString());
   if (typeof s!='string')

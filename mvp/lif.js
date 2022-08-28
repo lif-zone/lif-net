@@ -130,7 +130,7 @@ class Pen {
     return etask(function*decl(){
       let db = yield open_db('Scroll');
       let o = assign({hash, scroll: hash, seq: seq}, decl_default(sd));
-      assign(o, {json: sd.to_json(), decl: sd.to_buffer()});
+      assign(o, {json: sd.to_json(), decl: sd.to_array()});
       yield db.add(topic, o);
       return sd;
     });
@@ -158,7 +158,7 @@ class Pen {
         o.http_record = {uri: xutil.get(decl_json(d), 'http_record.uri')};
       if (topic=='dns')
         o.dns_record = {domain: xutil.get(decl_json(d), 'dns_record.domain')};
-      assign(o, {json: d.to_json(), decl: d.to_buffer()});
+      assign(o, {json: d.to_json(), decl: d.to_array()});
       yield db.add(topic, o);
       return d;
     });
@@ -228,7 +228,7 @@ class Scroll extends EventEmitter {
         o.http_record = {uri: xutil.get(decl_json(d), 'http_record.uri')};
       if (topic=='dns' && hash!=_this.scroll_hash())
         o.dns_record = {domain: xutil.get(decl_json(d), 'dns_record.domain')};
-      assign(o, {json: d.to_json(), decl: d.to_buffer()});
+      assign(o, {json: d.to_json(), decl: d.to_array()});
       yield db.add(topic, o);
       _this.emit('decl', d);
       return d;

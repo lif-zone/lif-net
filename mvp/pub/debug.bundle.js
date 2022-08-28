@@ -344,7 +344,7 @@ var Pen = /*#__PURE__*/function () {
                 }, decl_default(sd));
                 assign(o, {
                   json: sd.to_json(),
-                  decl: sd.to_buffer()
+                  decl: sd.to_array()
                 });
                 _context5.next = 7;
                 return db.add(topic, o);
@@ -425,7 +425,7 @@ var Pen = /*#__PURE__*/function () {
                 };
                 assign(o, {
                   json: d.to_json(),
-                  decl: d.to_buffer()
+                  decl: d.to_array()
                 });
                 _context6.next = 25;
                 return db.add(topic, o);
@@ -560,7 +560,7 @@ var Scroll = /*#__PURE__*/function (_EventEmitter) {
                 };
                 assign(o, {
                   json: d.to_json(),
-                  decl: d.to_buffer()
+                  decl: d.to_array()
                 });
                 _context7.next = 10;
                 return db.add(topic, o);
@@ -68519,6 +68519,15 @@ var LBuffer = /*#__PURE__*/function () {
       return Buffer.from(this.to_str());
     }
   }, {
+    key: "to_array",
+    value: function to_array() {
+      var a = [];
+      this.array.forEach(function (o) {
+        return a.push(o.data);
+      });
+      return a;
+    }
+  }, {
     key: "path",
     value: function path() {
       var o,
@@ -68570,6 +68579,15 @@ var LBuffer = /*#__PURE__*/function () {
 exports["default"] = LBuffer;
 
 LBuffer.from = function (s) {
+  if (Array.isArray(s)) {
+    var _lbuffer = new LBuffer();
+
+    s.forEach(function (data) {
+      return _lbuffer.add_tail(data);
+    });
+    return _lbuffer;
+  }
+
   if (s instanceof Uint8Array || s instanceof Buffer) return LBuffer.from(Buffer.from(s).toString());
   if (typeof s != 'string') throw new Error('invalid buffer');
   var i = s.search('\0');

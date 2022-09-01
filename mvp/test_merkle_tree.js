@@ -1,6 +1,7 @@
-const test = require('brittle')
-const Tree = require('../lib/merkle-tree')
-const RAM = require('random-access-memory')
+import test from 'brittle';
+import RAM from 'random-access-memory';
+import Tree from './merkle_tree.js';
+import flat from 'flat-tree';
 
 test('nodes', async function (t) {
   const tree = await create()
@@ -513,7 +514,6 @@ test('check if a length is upgradeable', async function (t) {
 })
 
 async function audit (tree) {
-  const flat = require('flat-tree')
   const expectedRoots = flat.fullRoots(tree.length * 2)
 
   for (const root of tree.roots) {

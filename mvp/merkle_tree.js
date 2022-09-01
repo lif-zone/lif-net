@@ -1,9 +1,9 @@
-const flat = require('flat-tree')
-const crypto = require('hypercore-crypto')
-const c = require('compact-encoding')
-const Xache = require('xache')
-const b4a = require('b4a')
-const caps = require('./caps')
+import flat from 'flat-tree';
+import crypto from 'hypercore-crypto';
+import c from 'compact-encoding';
+import Xache from 'xache';
+import b4a from 'b4a';
+import caps from './caps.js';
 
 const BLANK_HASH = b4a.alloc(32)
 const OLD_TREE = b4a.from([5, 2, 87, 2, 0, 0, 40, 7, 66, 76, 65, 75, 69, 50, 98])
@@ -342,7 +342,7 @@ class ByteSeeker {
   }
 }
 
-module.exports = class MerkleTree {
+export default class MerkleTree {
   constructor (storage, roots, fork, signature) {
     this.crypto = crypto
     this.fork = fork

@@ -5,6 +5,8 @@ import string from '../util/string.js';
 const E = {};
 export default E;
 
+function space(s){ return s ? ' '+s : ''; }
+
 E.parse_get_next = function(curr){
   let i=0, s=curr, state='pre', done=false, exp='', parentesis = [];
   let at;
@@ -49,15 +51,17 @@ E.parse_get_next = function(curr){
   }
   if (!exp)
     return;
+  if (at===undefined)
+    at = s.length;
   if (exp=='//'){
-    let nl = s.search('\n');
+debugger;
+    let nl = s.substr(at).search('\n');
     if (nl==-1){
-      if (at!==undefined)
-        exp = exp+' '+s.substr(at);
+      exp += space(s.substr(at));
       at = undefined;
     } else {
-      exp = exp+' '+s.substr(at, nl-at);
-      at = nl+1;
+      exp += space(s.substr(at, nl));
+      at += nl+1;
     }
     return {exp, s, at};
   }
@@ -67,7 +71,7 @@ E.parse_get_next = function(curr){
 E.parse_exp = function(s){
   s = s.trim();
   let c, parentesis = [], first;
-  if ('//'==s.substr(0,2))
+  if ('//'==s.substr(0, 2))
     return {comment: s};
   for (let i=0; i<s.length; i++){
     c = s.charAt(i);

@@ -5,6 +5,7 @@ import xutil from '../util/util.js';
 import xerr from '../util/xerr.js';
 import tparser from './test_parser.js';
 import xtest from '../util/test_lib.js';
+import etask from '../util/etask.js';
 
 // XXX: make it automatic for all node/browser in proc.js
 xerr.set_exception_catch_all(true);
@@ -27,9 +28,8 @@ afterEach(function(){
 describe('parser', ()=>{
   it('parse_get_next', ()=>{
     const t = (s, exp)=>{
-      for (let curr = tparser.parse_get_next(s); curr;
-        curr = tparser.parse_get_next(curr)){
-        debugger;
+      let curr = s;
+      while (curr = tparser.parse_get_next(curr)){
         assert(exp.length, 'unexpected '+curr.exp);
         assert.equal(curr.exp, exp[0]);
         exp.shift();
@@ -66,6 +66,8 @@ describe('parser', ()=>{
       c`, ['a', '// XXX b', 'c']);
     t(`a // XXX b
       `, ['a', '// XXX b']);
+    t(`a
+      // XXX`, ['a', '// XXX']);
   });
   it('parse_exp', ()=>{
     const t = (s, exp)=>assert.deepEqual(tparser.parse_exp(s), exp);
@@ -84,15 +86,7 @@ describe('parser', ()=>{
     t('//', {comment: '//'});
     t('// XXX', {comment: '// XXX'});
   });
-/* XXX: TODO
-  it('op_valid', ()=>{
-    [{cmd: 'scroll', arg: 'prev:prev_scroll1'},
-    {cmd: 'decl', arg: '1 2 3'},
-    {cmd: 'decl', arg: '1==3'},
-    {op: '==', l: 'd0', r: 'A1234'},
-    {op: '==', l: 'm0', r: 'h(d0+sig0)'}];
-  });
-*/
+  // XXX: test invalid parsing
 });
 
 /* XXX: tree
@@ -106,23 +100,37 @@ d6
 d7, d6-7, d4-7, d0-7
 */
 
+const test_run = test=>etask(function*test_run(){
+  let curr = test;
+  while (curr = tparser.parse_get_next(curr)){
+    let t = tparser.parse_exp(curr.exp);
+    console.log('XXX exp %s', t);
+  }
+});
+
 // implemented: transport of lif
 // in progress: data structure of lif
 // later: transport and storage of lif (mem<->net/db)
 // 0.0 0.1 0.2 0.3 0.4 0.5
 //     1.1 1.2
 describe('basic', ()=>{
-  it('test', ()=>{
+  describe('test', ()=>{
     // default test configuration
     // genesis_scroll(0 1) prev_scroll(based on genesis_scroll(1))
     // genesis_scroll = genesis_scroll0.1
     // prev_scroll = prev_scroll0.1
-    const t = ()=>{};
+    const t = (name, test)=>it(name, ()=>test_run(test));
+    t('simple', `scroll(prev:prev_scroll1) decl(1 2 3)
+      // XXX rdecl(5) rdecl(1.5 err)
+      d0==A1234 sig0==B1234 m0==C1234
+      sig0==sign(d0+prev_scroll) m0==h(d0+sig0)
+    `);
+    if (true) return; // XXX WIP
     t(`scroll decl(1 2 3) rdecl(5) rdecl(1.5 err)`);
     t(`scroll decl(1 2 3) rdecl(5) rdecl(1.5 err)`);
     t(`scroll(prev:prev_scroll1) decl(1 2 3) // XXX rdecl(5) rdecl(1.5 err)
       d0==A1234 sig0==B1234 m0==C1234
-      m0==h(d0+sig0) sig0==sign(d0+prev_scroll) m0=h(d
+      sig0==sign(d0+prev_scroll) m0==h(d0+sig0)
       sig1==sign(d1) m0=h(d
     `);
     t(`tree append(D0)

@@ -49,12 +49,26 @@ E.parse_get_next = function(curr){
   }
   if (!exp)
     return;
+  if (exp=='//'){
+    let nl = s.search('\n');
+    if (nl==-1){
+      if (at!==undefined)
+        exp = exp+' '+s.substr(at);
+      at = undefined;
+    } else {
+      exp = exp+' '+s.substr(at, nl-at);
+      at = nl+1;
+    }
+    return {exp, s, at};
+  }
   return {exp, s, at};
 };
 
 E.parse_exp = function(s){
   s = s.trim();
   let c, parentesis = [], first;
+  if ('//'==s.substr(0,2))
+    return {comment: s};
   for (let i=0; i<s.length; i++){
     c = s.charAt(i);
     if (c=='('){

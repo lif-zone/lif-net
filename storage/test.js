@@ -59,6 +59,13 @@ describe('parser', ()=>{
     t('a(1)==b(2)', ['a(1)==b(2)']);
     t('a==b(c==d)', ['a==b(c==d)']);
     t('a b(c) d==e', ['a', 'b(c)', 'd==e']);
+    t('a //', ['a', '//']);
+    t('a // XXX', ['a', '// XXX']);
+    t('a // XXX b', ['a', '// XXX b']);
+    t(`a // XXX b
+      c`, ['a', '// XXX b', 'c']);
+    t(`a // XXX b
+      `, ['a', '// XXX b']);
   });
   it('parse_exp', ()=>{
     const t = (s, exp)=>assert.deepEqual(tparser.parse_exp(s), exp);
@@ -74,6 +81,8 @@ describe('parser', ()=>{
     t('a=b(2)', {op: '=', l: 'a', r: 'b(2)'});
     t('a(1)==b(2)', {op: '==', l: 'a(1)', r: 'b(2)'});
     t('a1==b(c+d)', {op: '==', l: 'a1', r: 'b(c+d)'});
+    t('//', {comment: '//'});
+    t('// XXX', {comment: '// XXX'});
   });
 /* XXX: TODO
   it('op_valid', ()=>{

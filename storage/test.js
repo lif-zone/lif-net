@@ -23,5 +23,30 @@ afterEach(function(){
 });
 
 describe('basic', ()=>{
-  it('test', ()=>{});
+  it('test', ()=>{
+    const t = ()=>{};
+    t(`tree b=batch
+      b.append(D0) b.commit
+      h0==A1234 sig0==B1234 m0==C1234
+      m0==h(d0+sig0) sig0==sign(d0) m0==h(d0+sig0) t#tree(sz:1 mroot:m0)
+      b.append(D1) b.commit
+      m1==h(d1+sig1) sig1==sign(d1+sig1) m1==h(d0+sig0)
+      t#tree(sz:2 mroot:hroot(m1 m0-1))
+    `);
+  });
+/* XXX: rm
+test('nodes', async function (t) {
+  const tree = await create()
+
+  const b = tree.batch()
+
+  for (let i = 0; i < 8; i++) {
+    b.append(Buffer.from([i]))
+  }
+
+  b.commit()
+
+  t.is(await tree.nodes(0), 0)
+})
+*/
 });

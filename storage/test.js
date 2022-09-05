@@ -71,20 +71,20 @@ describe('parser', ()=>{
   });
   it('parse_exp', ()=>{
     const t = (s, exp)=>assert.deepEqual(tparser.parse_exp(s), exp);
-    t(' a ', {cmd: 'a', arg: ''});
-    t('a(b)', {cmd: 'a', arg: 'b'});
-    t('a(b c)', {cmd: 'a', arg: 'b c'});
-    t('a(b+c)', {cmd: 'a', arg: 'b+c'});
-    t('a(b==c)', {cmd: 'a', arg: 'b==c'});
-    t('a==b', {op: '==', l: 'a', r: 'b'});
-    t('a:b', {op: ':', l: 'a', r: 'b'});
-    t('a=b', {op: '=', l: 'a', r: 'b'});
-    t('a+b', {op: '+', l: 'a', r: 'b'});
-    t('a=b(2)', {op: '=', l: 'a', r: 'b(2)'});
-    t('a(1)==b(2)', {op: '==', l: 'a(1)', r: 'b(2)'});
-    t('a1==b(c+d)', {op: '==', l: 'a1', r: 'b(c+d)'});
-    t('//', {comment: '//'});
-    t('// XXX', {comment: '// XXX'});
+    t(' a ', {cmd: 'a', l: '', r: ''});
+    t('a(b)', {cmd: 'a', l: '', r: 'b'});
+    t('a(b c)', {cmd: 'a', l: '', r: 'b c'});
+    t('a(b+c)', {cmd: 'a', l: '', r: 'b+c'});
+    t('a(b==c)', {cmd: 'a', l: '', r: 'b==c'});
+    t('a==b', {cmd: '==', l: 'a', r: 'b'});
+    t('a:b', {cmd: ':', l: 'a', r: 'b'});
+    t('a=b', {cmd: '=', l: 'a', r: 'b'});
+    t('a+b', {cmd: '+', l: 'a', r: 'b'});
+    t('a=b(2)', {cmd: '=', l: 'a', r: 'b(2)'});
+    t('a(1)==b(2)', {cmd: '==', l: 'a(1)', r: 'b(2)'});
+    t('a1==b(c+d)', {cmd: '==', l: 'a1', r: 'b(c+d)'});
+    t('//', {cmd: '//', l: '', r: ''});
+    t('// XXX', {cmd: '//', l: '', r: 'XXX'});
   });
   // XXX: test invalid parsing
 });

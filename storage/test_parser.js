@@ -72,7 +72,7 @@ E.parse_exp = function(s){
   s = s.trim();
   let c, parentesis = [], first;
   if ('//'==s.substr(0, 2))
-    return {comment: s};
+    return {cmd: '//', l: '', r: s.substr(2).trim()};
   for (let i=0; i<s.length; i++){
     c = s.charAt(i);
     if (c=='('){
@@ -84,13 +84,14 @@ E.parse_exp = function(s){
     else if (!parentesis.length && ['+', '-', ':', '='].includes(c)){
       let cn = s.charAt(i+1);
       if (cn=='=')
-        return {op: c+cn, l: s.substr(0, i), r: s.substr(i+2)};
-      return {op: c, l: s.substr(0, i), r: s.substr(i+1)};
+        return {cmd: c+cn, l: s.substr(0, i), r: s.substr(i+2)};
+      return {cmd: c, l: s.substr(0, i), r: s.substr(i+1)};
     }
   }
   assert.equal(parentesis.length, 0);
   if (first==undefined)
-    return {cmd: s, arg: ''};
+    return {cmd: s, l: '', r: ''};
   assert.equal(s[s.length-1], ')');
-  return {cmd: s.substr(0, first), arg: s.substr(first+1, s.length-first-2)};
+  return {cmd: s.substr(0, first), l: '',
+    r: s.substr(first+1, s.length-first-2)};
 };

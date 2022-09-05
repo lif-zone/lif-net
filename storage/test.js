@@ -3,6 +3,8 @@
 import assert from 'assert';
 import xutil from '../util/util.js';
 import xerr from '../util/xerr.js';
+import tparser from './test_parser.js';
+import xtest from '../util/test_lib.js';
 
 // XXX: make it automatic for all node/browser in proc.js
 xerr.set_exception_catch_all(true);
@@ -22,11 +24,99 @@ afterEach(function(){
   xerr.set_buffered(false);
 });
 
+describe('parser', ()=>{
+  it('parse_get_next', ()=>{
+    const t = (s, exp)=>{
+      for (let curr = tparser.parse_get_next(s); curr;
+        curr = tparser.parse_get_next(curr)){
+        debugger;
+        assert(exp.length, 'unexpected '+curr.exp);
+        assert.equal(curr.exp, exp[0]);
+        exp.shift();
+      }
+      assert(!exp.length, 'missing '+exp.join(' ')+' for "'+s+'"');
+    };
+    t('', []);
+    t(' ', []);
+    t('a', ['a']);
+    t(' a', ['a']);
+    t('a ', ['a']);
+    t('a\n', ['a']);
+    t(' a ', ['a']);
+    t('ab', ['ab']);
+    t('a:b', ['a:b']);
+    t('a b', ['a', 'b']);
+    t('a  b', ['a', 'b']);
+    t('a\nb', ['a', 'b']);
+    t('a(b)', ['a(b)']);
+    t('a[b]', ['a[b]']);
+    t('a{b}', ['a{b}']);
+    t('a(b c)', ['a(b c)']);
+    t('a(b(c))', ['a(b(c))']);
+    t('a(b(c) d(e))', ['a(b(c) d(e))']);
+    t('a[b(c) d{e}]', ['a[b(c) d{e}]']);
+    t('a==b', ['a==b']);
+    t('a(1)==b(2)', ['a(1)==b(2)']);
+    t('a==b(c==d)', ['a==b(c==d)']);
+    t('a b(c) d==e', ['a', 'b(c)', 'd==e']);
+  });
+  it('parse_exp', ()=>{
+    const t = (s, exp)=>assert.deepEqual(tparser.parse_exp(s), exp);
+    t(' a ', {cmd: 'a', arg: ''});
+    t('a(b)', {cmd: 'a', arg: 'b'});
+    t('a(b c)', {cmd: 'a', arg: 'b c'});
+    t('a(b+c)', {cmd: 'a', arg: 'b+c'});
+    t('a(b==c)', {cmd: 'a', arg: 'b==c'});
+    t('a==b', {op: '==', l: 'a', r: 'b'});
+    t('a:b', {op: ':', l: 'a', r: 'b'});
+    t('a=b', {op: '=', l: 'a', r: 'b'});
+    t('a+b', {op: '+', l: 'a', r: 'b'});
+    t('a=b(2)', {op: '=', l: 'a', r: 'b(2)'});
+    t('a(1)==b(2)', {op: '==', l: 'a(1)', r: 'b(2)'});
+    t('a1==b(c+d)', {op: '==', l: 'a1', r: 'b(c+d)'});
+  });
+/* XXX: TODO
+  it('op_valid', ()=>{
+    [{cmd: 'scroll', arg: 'prev:prev_scroll1'},
+    {cmd: 'decl', arg: '1 2 3'},
+    {cmd: 'decl', arg: '1==3'},
+    {op: '==', l: 'd0', r: 'A1234'},
+    {op: '==', l: 'm0', r: 'h(d0+sig0)'}];
+  });
+*/
+});
+
+/* XXX: tree
+d0
+d1, d0-1
+d2
+d3, d2-3, d0-3
+d4
+d5, d4-5
+d6
+d7, d6-7, d4-7, d0-7
+*/
+
+// implemented: transport of lif
+// in progress: data structure of lif
+// later: transport and storage of lif (mem<->net/db)
+// 0.0 0.1 0.2 0.3 0.4 0.5
+//     1.1 1.2
 describe('basic', ()=>{
   it('test', ()=>{
+    // default test configuration
+    // genesis_scroll(0 1) prev_scroll(based on genesis_scroll(1))
+    // genesis_scroll = genesis_scroll0.1
+    // prev_scroll = prev_scroll0.1
     const t = ()=>{};
-    t(`tree b=batch
-      b.append(D0) b.commit
+    t(`scroll decl(1 2 3) rdecl(5) rdecl(1.5 err)`);
+    t(`scroll decl(1 2 3) rdecl(5) rdecl(1.5 err)`);
+    t(`scroll(prev:prev_scroll1) decl(1 2 3) // XXX rdecl(5) rdecl(1.5 err)
+      d0==A1234 sig0==B1234 m0==C1234
+      m0==h(d0+sig0) sig0==sign(d0+prev_scroll) m0=h(d
+      sig1==sign(d1) m0=h(d
+    `);
+    t(`tree append(D0)
       h0==A1234 sig0==B1234 m0==C1234
       m0==h(d0+sig0) sig0==sign(d0) m0==h(d0+sig0) t#tree(sz:1 mroot:m0)
       b.append(D1) b.commit

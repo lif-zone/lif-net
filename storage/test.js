@@ -6,6 +6,7 @@ import xerr from '../util/xerr.js';
 import tparser from './test_parser.js';
 import xtest from '../util/test_lib.js';
 import etask from '../util/etask.js';
+const assign = Object.assign;
 
 // XXX: make it automatic for all node/browser in proc.js
 xerr.set_exception_catch_all(true);
@@ -70,7 +71,8 @@ describe('parser', ()=>{
       // XXX`, ['a', '// XXX']);
   });
   it('parse_exp', ()=>{
-    const t = (s, exp)=>assert.deepEqual(tparser.parse_exp(s), exp);
+    const t = (s, exp)=>assert.deepEqual(tparser.parse_exp(s),
+      assign({}, exp, {meta: {s: s.trim()}}));
     t(' a ', {cmd: 'a', l: '', r: ''});
     t('a(b)', {cmd: 'a', l: '', r: 'b'});
     t('a(b c)', {cmd: 'a', l: '', r: 'b c'});

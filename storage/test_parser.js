@@ -70,9 +70,9 @@ debugger;
 
 E.parse_exp = function(s){
   s = s.trim();
-  let c, parentesis = [], first;
+  let c, parentesis = [], first, meta = {s};
   if ('//'==s.substr(0, 2))
-    return {cmd: '//', l: '', r: s.substr(2).trim()};
+    return {cmd: '//', l: '', r: s.substr(2).trim(), meta};
   for (let i=0; i<s.length; i++){
     c = s.charAt(i);
     if (c=='('){
@@ -84,14 +84,14 @@ E.parse_exp = function(s){
     else if (!parentesis.length && ['+', '-', ':', '='].includes(c)){
       let cn = s.charAt(i+1);
       if (cn=='=')
-        return {cmd: c+cn, l: s.substr(0, i), r: s.substr(i+2)};
-      return {cmd: c, l: s.substr(0, i), r: s.substr(i+1)};
+        return {cmd: c+cn, l: s.substr(0, i), r: s.substr(i+2), meta};
+      return {cmd: c, l: s.substr(0, i), r: s.substr(i+1), meta};
     }
   }
   assert.equal(parentesis.length, 0);
   if (first==undefined)
-    return {cmd: s, l: '', r: ''};
+    return {cmd: s, l: '', r: '', meta};
   assert.equal(s[s.length-1], ')');
   return {cmd: s.substr(0, first), l: '',
-    r: s.substr(first+1, s.length-first-2)};
+    r: s.substr(first+1, s.length-first-2), meta};
 };

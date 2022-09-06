@@ -220,27 +220,40 @@ const test_run = test=>etask(function*test_run(){
 describe('scroll', ()=>{
   describe('decl', ()=>{
     const t = (name, test)=>it(name, ()=>test_run(test));
-    t('no_prev_scroll', `scroll(!prev_scroll) decl(1)
+    let sig0='0x157bbdddd869ade81a1d55db89d3e011575ccc08e0c29aa1c7fbb27609b8'+
+      '886efc7afadc29570af1bac56a528af21cd30fae0c32ad2e474fff849c76f60e640f';
+    t('no_prev_scroll', `scroll(!prev_scroll) decl(1) sig0==${sig0}
       d0==0x8a74603fce8e81356c0d4d95b5e991d25f2e03974ff14c4caa6cae36bb9a7f87
-      sig0==0x157bbdddd869ade81a1d55db89d3e011575ccc08e0c29aa1c7fbb27609b8886efc7afadc29570af1bac56a528af21cd30fae0c32ad2e474fff849c76f60e640f
       m0==0xd6c8e98ebf695b1709e5977b49746d9054154fe1ceafc7fc9203ba75c7f79519
       m0==h(d0+sig0) sig0==sign(d0) M0==m0
       m1==h(d1+sig1) sig1==sign(d1+M0) M1==m0_1 m0_1==h(m0+m1)`);
-    t('with_prev_scroll', `scroll decl(1)
+    sig0 = '0xb3e730b7199b547bfb43f3e0d30d49f811f0e53eece394c7091974c692afbd'+
+      '41957188d313ddc3ca63d6d7194f46d02ad8737e73e7f7d7d9b14ae0dba435cd0c';
+    t('with_prev_scroll', `scroll decl(1) sig0==${sig0}
       d0==0x8a74603fce8e81356c0d4d95b5e991d25f2e03974ff14c4caa6cae36bb9a7f87
-      sig0==0xb3e730b7199b547bfb43f3e0d30d49f811f0e53eece394c7091974c692afbd41957188d313ddc3ca63d6d7194f46d02ad8737e73e7f7d7d9b14ae0dba435cd0c
       m0==0xb6fd516305407a6e2a3ee5f1070f62a315f93c1456c76e0edd132c883cf2c709
       m0==h(d0+sig0) sig0==sign(d0+prev_scroll1) M0==m0
       m1==h(d1+sig1) sig1==sign(d1+M0) M1==m0_1 m0_1==h(m0+m1)`);
-    t('size_1', `scroll m0==h(d0+sig0) sig0==sign(d0+prev_scroll1) M0==m0`);
-    t('size_2', `scroll decl(1)
-      m0==h(d0+sig0) sig0==sign(d0+prev_scroll1) M0==m0
-      m1==h(d1+sig1) sig1==sign(d1+M0) M1==m0_1 m0_1==h(m0+m1)`);
     if (true) return; // XXX WIP
-    t('size_3', `scroll decl(1 2)
+    t('merkel', `scroll decl(1-32)
       m0==h(d0+sig0) sig0==sign(d0+prev_scroll1) M0==m0
-      m1==h(d1+sig1) sig1==sign(d1+M0) M1==h(m0+m1)
-      m2==h(d2+sig2) sig2==sign(d2+M1) M2==h(m2+m0_1)
+      m1==h(d1+sig1) sig1==sign(d1+M0) M1==m0_1
+      m2==h(d2+sig2) sig2==sign(d2+M1) M2==h(m0_1+m2)
+      m3==h(d3+sig3) sig3==sign(d3+M2) M3==m0_3
+      m4==h(d4+sig4) sig4==sign(d4+M3) M4==h(m0_3+m4)
+      m5==h(d5+sig5) sig5==sign(d5+M4) M5==h(m0_3+m4_5)
+      m6==h(d6+sig6) sig6==sign(d6+M5) M6==h(m0_3+m4_5+m6)
+      m7==h(d7+sig7) sig7==sign(d7+M6) M7==m0_7
+      m8==h(d8+sig8) sig8==sign(d8+M7) M8==h(m0_7+m8)
+      m9==h(d9+sig9) sig9==sign(d9+M8) M9==h(m0_7+m8_9)
+      m10==h(d10+sig10) sig10==sign(d10+M9) M10==h(m0_7+m8_9+m10)
+      m11==h(d11+sig11) sig11==sign(d11+M10) M11==h(m0_7+m8_11)
+      m15==h(d15+sig15) sig15==sign(d15+M14) M15==m0_15
+      m16==h(d16+sig16) sig16==sign(d16+M15) M16==h(m0_15+m16)
+      m30==h(d30+sig30) sig30==sign(d30+M29)
+        M30==h(m0_15+m16_23+m24_27+m28_29+m30)
+      m31==h(d31+sig31) sig31==sign(d31+M30) M31==m0_31
+      m32==h(d32+sig32) sig32==sign(d32+M31) M32==h(m0_31+m32)
     `);
     if (true) return; // XXX WIP
     t('simple', `

@@ -47,6 +47,24 @@ function fbuf_hash(fbuf){
 
 function hash_concat(a, b){ return crypto.sha256(Buffer.concat([a, b])); }
 
+function calc_roots(size){
+  let roots = [];
+  let n=1, s=0;
+  while (s+n<=size){
+    if (s+n==size){
+      roots.push({s, e: s+n-1, name: n>1 ? s+'_'+(s+n-1) : ''+s});
+      return roots;
+    }
+    if (s+2*n-1 < size){
+      n *= 2;
+      continue;
+    }
+    roots.push({s, e: s+n-1, name: s+'_'+(s+n-1)});
+    s += n;
+    n=1;
+  }
+}
+
 export default class Scroll {
   constructor(opt){
     assert(opt.pub, 'missing pub key');
@@ -86,6 +104,7 @@ export default class Scroll {
     return crypto.sign(crypto.sha256(buf), this.key);
   }
   update_root_hash = ()=>etask({_: this}, function update_root_hash(){
+    // let roots = calc_roots(size);
     // XXX: WIP
     let _this = this._;
     if (_this.size==1)
@@ -112,3 +131,4 @@ Scroll.create = (opt, d)=>etask(function*scroll_create(){
 
 // XXX need test
 Scroll.hash_concat = hash_concat;
+Scroll.calc_roots = calc_roots;

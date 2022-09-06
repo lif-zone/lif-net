@@ -218,6 +218,36 @@ const test_run = test=>etask(function*test_run(){
 // 0.0 0.1 0.2 0.3 0.4 0.5
 //     1.1 1.2
 describe('scroll', ()=>{
+  describe('util', ()=>{
+    const t = (size, exp)=>{
+      let roots = Scroll.calc_roots(size);
+      let a = [];
+      roots.forEach(o=>{
+        assert.equal(o.s==o.e ? ''+o.s : o.s+'_'+o.e, o.name);
+        a.push(o.name);
+      });
+      assert.equal(a.join(' '), exp);
+    };
+    t(1, '0');
+    t(2, '0_1');
+    t(3, '0_1 2');
+    t(4, '0_3');
+    t(5, '0_3 4');
+    t(6, '0_3 4_5');
+    t(7, '0_3 4_5 6');
+    t(8, '0_7');
+    t(9, '0_7 8');
+    t(10, '0_7 8_9');
+    t(11, '0_7 8_9 10');
+    t(12, '0_7 8_11');
+    t(13, '0_7 8_11 12');
+    t(14, '0_7 8_11 12_13');
+    t(15, '0_7 8_11 12_13 14');
+    t(16, '0_15');
+    t(31, '0_15 16_23 24_27 28_29 30');
+    t(32, '0_31');
+    t(33, '0_31 32');
+  });
   describe('decl', ()=>{
     const t = (name, test)=>it(name, ()=>test_run(test));
     let sig0='0x157bbdddd869ade81a1d55db89d3e011575ccc08e0c29aa1c7fbb27609b8'+
@@ -234,10 +264,13 @@ describe('scroll', ()=>{
       m0==0xb6fd516305407a6e2a3ee5f1070f62a315f93c1456c76e0edd132c883cf2c709
       m0==h(d0+sig0) sig0==sign(d0+prev_scroll1) M0==m0
       m1==h(d1+sig1) sig1==sign(d1+M0) M1==m0_1 m0_1==h(m0+m1)`);
+    // XXX change crypt: {sig, hash, lif: lif1}
+    // XXX fix test to use hypercore left/parent/root hashing
+    // XXX change hasing to blake2b by default
     if (true) return; // XXX WIP
     t('merkel', `scroll decl(1-32)
       m0==h(d0+sig0) sig0==sign(d0+prev_scroll1) M0==m0
-      m1==h(d1+sig1) sig1==sign(d1+M0) M1==m0_1
+      m1==h(d1+sig1) sig1==sign(d1+M0) M1==h(m0_1)
       m2==h(d2+sig2) sig2==sign(d2+M1) M2==h(m0_1+m2)
       m3==h(d3+sig3) sig3==sign(d3+M2) M3==m0_3
       m4==h(d4+sig4) sig4==sign(d4+M3) M4==h(m0_3+m4)

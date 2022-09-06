@@ -39,6 +39,10 @@ function get_val(exp){
     return t_scroll.seq_sig(m[1]);
   if (m = exp.match(/^m(\d+)$/)) // m10
     return t_scroll.seq_m(m[1]);
+  if (m = exp.match(/^M(\d+)$/)) // M10
+    return t_scroll.seq_M(m[1]);
+  if (m = exp.match(/^M$/)) // M
+    return t_scroll.seq_M();
   if (m = exp.match(/^d(\d+)$/)) // d10
     return t_scroll.seq_d(m[1]);
   if (m = exp.match(/^h\((.*)\+(.*)\)$/)) // h(d10+sig11)
@@ -136,6 +140,11 @@ const cmd_scroll = o=>etask(function*cmd_scroll(){
 });
 
 const cmd_decl = o=>etask(function*cmd_decl(){
+  assert(!o.l, 'invalid left arg '+o.meta.s);
+  assert(o.r, 'missing arg '+o.meta.s);
+  assert(t_scroll, 'scroll not found');
+  for (let curr=o.r, i=0; curr = tparser.parse_get_next(curr); i++)
+    yield t_scroll.decl(curr.exp);
 });
 
 function cmd_eq(o){
@@ -179,11 +188,12 @@ describe('basic', ()=>{
     const t = (name, test)=>it(name, ()=>test_run(test));
     t('scroll', `
       // XXX scroll -> scroll(!prev_scroll)
-      scroll
+      scroll decl(1)
       d0==0x8a74603fce8e81356c0d4d95b5e991d25f2e03974ff14c4caa6cae36bb9a7f87
       sig0==0x157bbdddd869ade81a1d55db89d3e011575ccc08e0c29aa1c7fbb27609b8886efc7afadc29570af1bac56a528af21cd30fae0c32ad2e474fff849c76f60e640f
       m0==0xd6c8e98ebf695b1709e5977b49746d9054154fe1ceafc7fc9203ba75c7f79519
-      m0==h(d0+sig0) sig0==sign(d0) // XXX M0==m0
+      m0==h(d0+sig0) sig0==sign(d0) M0==m0
+      m1==h(d1+sig1) sig1==sign(d1) M1==h(m0+m1)
     `);
     t('simple', `
       // XXX TODO scroll(prev:prev_scroll1)

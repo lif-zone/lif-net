@@ -66,17 +66,18 @@ export default class Scroll {
     let d = fbuf_hash(fbuf);
     let sig = _this.sign(seq, d);
     fbuf_unshift(fbuf, {sig});
-    let node = {seq, d, sig, fbuf, m: {}};
+    let node = {seq, d, sig, fbuf, m: {}, M: null};
     node.m[''+seq] = hash_concat(d, sig);
     _this.nodes.set(''+seq, node);
-    // XXX _this.M = _this.root_hash();
     _this.size++;
+    yield _this.update_root_hash();
+    node.M = _this.M;
     // XXX: update M_prev, size
     return node;
   });
   sign(seq, d){
     let buf;
-    if (seq)
+    if (false && seq) // XXX: fixme
       buf = Buffer.concat([d, this.M]);
     else if (this.prev_scroll)
       buf = Buffer.concat([d, this.prev_scroll]);
@@ -84,11 +85,22 @@ export default class Scroll {
       buf = d;
     return crypto.sign(crypto.sha256(buf), this.key);
   }
+  update_root_hash = ()=>etask({_: this}, function update_root_hash(){
+    // XXX: WIP
+    let _this = this._;
+    if (_this.size==1)
+      _this.M = _this.seq_m('0');
+    else if (_this.size==2)
+      _this.M = hash_concat(_this.seq_m('0'), _this.seq_m('1'));
+    else
+      assert.fail('XXX TODO');
+  });
   lock(){} // XXX: TODO
   unlock(){} // XXX: TODO
   seq_sig(seq){ return this.get_node(seq)?.sig; }
   seq_d(seq){ return this.get_node(seq)?.d; }
   seq_m(seq){ return this.get_node(seq)?.m[''+seq]; }
+  seq_M(seq){ return seq ? this.get_node(seq)?.M : this.M; }
   get_node(seq){ return this.nodes.get(''+seq); }
 }
 

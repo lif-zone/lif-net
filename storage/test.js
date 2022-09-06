@@ -33,12 +33,30 @@ afterEach(function(){
   xerr.set_buffered(false);
 });
 
+function calc_m(s, e){
+  assert(Number.isInteger(Math.log2(e-s+1)), 'invalid merkel range '+s+'_'+e);
+  let q = [];
+  for (let i=s; i<=e; i++)
+    q.push({s: i, e: i, m: t_scroll.seq_m(i)});
+  while (q.length!=1){
+    let q2 = [];
+    for (let i=0; i<q.length/2; i++){
+      q2.push({s: q[2*i].s, e: q[2*i+1].e,
+        m: Scroll.hash_concat(q[2*i].m, q[2*i+1].m)});
+    }
+    q = q2;
+  }
+  return q[0].m;
+}
+
 function get_val(exp){
   let m;
   if (m = exp.match(/^sig(\d+)$/)) // sig10
     return t_scroll.seq_sig(m[1]);
   if (m = exp.match(/^m(\d+)$/)) // m10
     return t_scroll.seq_m(m[1]);
+  if (m = exp.match(/^m(\d+)_(\d+)$/)) // m0_1
+    return calc_m(+m[1], +m[2]);
   if (m = exp.match(/^M(\d+)$/)) // M10
     return t_scroll.seq_M(m[1]);
   if (m = exp.match(/^M$/)) // M
@@ -150,7 +168,7 @@ const cmd_scroll = t=>etask(function*cmd_scroll(){
   assert(!t_scroll, 'scroll already exists');
   for (let curr=t.r, i=0; curr = tparser.parse_get_next(curr); i++){
     let tt = tparser.parse_exp(curr.exp);
-    switch(tt.cmd){
+    switch (tt.cmd){
     case '!prev_scroll': prev_scroll = null; break;
     default: assert.fail('invalid arg '+tt.cmd+' in '+t.meta.s);
     }
@@ -207,14 +225,22 @@ describe('scroll', ()=>{
       sig0==0x157bbdddd869ade81a1d55db89d3e011575ccc08e0c29aa1c7fbb27609b8886efc7afadc29570af1bac56a528af21cd30fae0c32ad2e474fff849c76f60e640f
       m0==0xd6c8e98ebf695b1709e5977b49746d9054154fe1ceafc7fc9203ba75c7f79519
       m0==h(d0+sig0) sig0==sign(d0) M0==m0
-      m1==h(d1+sig1) sig1==sign(d1+M0) M1==h(m0+m1)
-    `);
+      m1==h(d1+sig1) sig1==sign(d1+M0) M1==m0_1 m0_1==h(m0+m1)`);
     t('with_prev_scroll', `scroll decl(1)
       d0==0x8a74603fce8e81356c0d4d95b5e991d25f2e03974ff14c4caa6cae36bb9a7f87
       sig0==0xb3e730b7199b547bfb43f3e0d30d49f811f0e53eece394c7091974c692afbd41957188d313ddc3ca63d6d7194f46d02ad8737e73e7f7d7d9b14ae0dba435cd0c
       m0==0xb6fd516305407a6e2a3ee5f1070f62a315f93c1456c76e0edd132c883cf2c709
       m0==h(d0+sig0) sig0==sign(d0+prev_scroll1) M0==m0
+      m1==h(d1+sig1) sig1==sign(d1+M0) M1==m0_1 m0_1==h(m0+m1)`);
+    t('size_1', `scroll m0==h(d0+sig0) sig0==sign(d0+prev_scroll1) M0==m0`);
+    t('size_2', `scroll decl(1)
+      m0==h(d0+sig0) sig0==sign(d0+prev_scroll1) M0==m0
+      m1==h(d1+sig1) sig1==sign(d1+M0) M1==m0_1 m0_1==h(m0+m1)`);
+    if (true) return; // XXX WIP
+    t('size_3', `scroll decl(1 2)
+      m0==h(d0+sig0) sig0==sign(d0+prev_scroll1) M0==m0
       m1==h(d1+sig1) sig1==sign(d1+M0) M1==h(m0+m1)
+      m2==h(d2+sig2) sig2==sign(d2+M1) M2==h(m2+m0_1)
     `);
     if (true) return; // XXX WIP
     t('simple', `

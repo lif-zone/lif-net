@@ -67,7 +67,7 @@ export default class Scroll {
     let d = fbuf_hash(fbuf);
     let sig = _this.sign(seq, d);
     fbuf_unshift(fbuf, {sig});
-    let node = {seq, fbuf, m: {}};
+    let node = {seq, d, sig, fbuf, m: {}};
     node.m[''+seq] = hash_concat(d, sig);
     _this.nodes.set(''+seq, node);
     // XXX _this.M = _this.root_hash();
@@ -87,10 +87,16 @@ export default class Scroll {
   }
   lock(){} // XXX: TODO
   unlock(){} // XXX: TODO
+  seq_sig(seq){ return this.get_node(seq)?.sig; }
+  seq_d(seq){ return this.get_node(seq)?.d; }
+  seq_m(seq){ return this.get_node(seq)?.m[''+seq]; }
+  get_node(seq){ return this.nodes.get(''+seq); }
 }
 
 Scroll.create = (opt, d)=>etask(function*scroll_create(){
   let scroll = new Scroll(opt);
-  return yield scroll.decl(d);
+  yield scroll.decl(d);
+  return scroll;
 });
 
+Scroll.hash_concat = hash_concat;

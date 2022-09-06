@@ -9,6 +9,8 @@ import etask from '../util/etask.js';
 import crypto from '../util/crypto.js';
 import xsinon from '../util/sinon.js';
 import Scroll from './scroll.js';
+import buf_util from '../peer-relay/buf_util.js';
+const b2s = buf_util.buf_to_str, s2b = buf_util.buf_from_str;
 const assign = Object.assign.bind(Object);
 
 let t_scroll, t_keypair;
@@ -31,9 +33,27 @@ afterEach(function(){
   xerr.set_buffered(false);
 });
 
+function get_val(exp){
+  let m;
+  if (m = exp.match(/^sig(\d+)$/)) // sig10
+    return t_scroll.seq_sig(m[1]);
+  if (m = exp.match(/^m(\d+)$/)) // m10
+    return t_scroll.seq_m(m[1]);
+  if (m = exp.match(/^d(\d+)$/)) // d10
+    return t_scroll.seq_d(m[1]);
+  if (m = exp.match(/^h\((.*)\+(.*)\)$/)) // h(d10+sig11)
+    return Scroll.hash_concat(get_val(m[1]), get_val(m[2]))
+  if (m = exp.match(/^0x([0-9a-f]+)$/))
+    return s2b(m[1]);
+  assert.fail('invalid val exp '+exp);
+}
+
 function test_start(){
   t_scroll = null;
-  t_keypair = crypto.keypair();
+  t_keypair = {pub: s2b('44659cb51dec397ea66085679442505345e159940762c15ef75'+
+    'ad279ecf05033'),
+    key: s2b('46f45a62f4c5971228747aa2d8ee66bd669ebd805c725286ee385b1d4a06dd'+
+      'bc44659cb51dec397ea66085679442505345e159940762c15ef75ad279ecf05033')};
   xsinon.clock_set({now: 0});
 }
 
@@ -116,6 +136,17 @@ const cmd_scroll = o=>etask(function*cmd_scroll(){
 const cmd_decl = o=>etask(function*cmd_decl(){
 });
 
+function cmd_eq(o){
+  assert(o.l, 'missing left '+o.meta.s);
+  assert(o.r, 'missing right '+o.meta.s);
+  let l = get_val(o.l);
+  let r = get_val(o.r);
+  if (Buffer.isBuffer(l) && Buffer.isBuffer(r))
+    assert.equal(b2s(l), b2s(r), 'failed '+o.meta.s);
+  else
+    assert.equal(l, r, 'failed '+o.meta.s);
+}
+
 const test_run = test=>etask(function*test_run(){
   yield test_start();
   for (let curr=test, i=0; curr = tparser.parse_get_next(curr); i++){
@@ -125,6 +156,7 @@ const test_run = test=>etask(function*test_run(){
     case 'scroll': yield cmd_scroll(o); break;
     case 'decl': yield cmd_decl(o); break;
     case '//': break;
+    case '==': yield cmd_eq(o); break;
     default: assert.fail('invalid cmd "'+o.cmd+'" in '+o.meta.s);
     }
   }
@@ -143,7 +175,14 @@ describe('basic', ()=>{
     // genesis_scroll = genesis_scroll0.1
     // prev_scroll = prev_scroll0.1
     const t = (name, test)=>it(name, ()=>test_run(test));
-    t('scroll', `scroll`);
+    t('scroll', `
+      // XXX scroll -> scroll(!prev_scroll)
+      scroll
+      d0==0x8a74603fce8e81356c0d4d95b5e991d25f2e03974ff14c4caa6cae36bb9a7f87
+      sig0==0x157bbdddd869ade81a1d55db89d3e011575ccc08e0c29aa1c7fbb27609b8886efc7afadc29570af1bac56a528af21cd30fae0c32ad2e474fff849c76f60e640f
+      m0==0xd6c8e98ebf695b1709e5977b49746d9054154fe1ceafc7fc9203ba75c7f79519
+      m0==h(d0+sig0)
+    `);
     t('simple', `
       // XXX TODO scroll(prev:prev_scroll1)
       // decl(1 2 3)

@@ -6,7 +6,12 @@ import xerr from '../util/xerr.js';
 import tparser from './test_parser.js';
 import xtest from '../util/test_lib.js';
 import etask from '../util/etask.js';
-const assign = Object.assign;
+import crypto from '../util/crypto.js';
+import xsinon from '../util/sinon.js';
+import Scroll from './scroll.js';
+const assign = Object.assign.bind(Object);
+
+let t_scroll, t_keypair;
 
 // XXX: make it automatic for all node/browser in proc.js
 xerr.set_exception_catch_all(true);
@@ -14,7 +19,7 @@ process.on('uncaughtException', err=>xerr.xexit(err));
 process.on('unhandledRejection', err=>xerr.xexit(err));
 xerr.set_exception_handler('test', (prefix, o, err)=>xerr.xexit(err));
 
-if (!xutil.is_inspect())
+if (false && !xutil.is_inspect())
   beforeEach(function(){ xerr.set_buffered(true, 1000); });
 
 afterEach(function(){
@@ -25,6 +30,15 @@ afterEach(function(){
   xerr.clear();
   xerr.set_buffered(false);
 });
+
+function test_start(){
+  t_scroll = null;
+  t_keypair = crypto.keypair();
+  xsinon.clock_set({now: 0});
+}
+
+function test_end(){
+}
 
 describe('parser', ()=>{
   it('parse_get_next', ()=>{
@@ -91,25 +105,19 @@ describe('parser', ()=>{
   // XXX: test invalid parsing
 });
 
-/* XXX: tree
-d0
-d1, d0-1
-d2
-d3, d2-3, d0-3
-d4
-d5, d4-5
-d6
-d7, d6-7, d4-7, d0-7
-*/
-
 const cmd_scroll = o=>etask(function*cmd_scroll(){
+  let prev_scroll, ts=Date.now();
+  assert(!o.l && !o.r, o.cmd+' invalid arg '+o.meta.s);
+  assert(!t_scroll, 'scroll already exists');
+  t_scroll = yield Scroll.create({key: t_keypair.key, pub: t_keypair.pub,
+    ts, prev_scroll}, {topic: 'test'});
 });
 
 const cmd_decl = o=>etask(function*cmd_decl(){
 });
 
-
 const test_run = test=>etask(function*test_run(){
+  yield test_start();
   for (let curr=test, i=0; curr = tparser.parse_get_next(curr); i++){
     let o = tparser.parse_exp(curr.exp);
     xerr.notice('cmd %s %s', i, o.meta.s);
@@ -120,6 +128,7 @@ const test_run = test=>etask(function*test_run(){
     default: assert.fail('invalid cmd "'+o.cmd+'" in '+o.meta.s);
     }
   }
+  yield test_end();
 });
 
 // implemented: transport of lif
@@ -134,7 +143,10 @@ describe('basic', ()=>{
     // genesis_scroll = genesis_scroll0.1
     // prev_scroll = prev_scroll0.1
     const t = (name, test)=>it(name, ()=>test_run(test));
-    t('simple', `scroll(prev:prev_scroll1) decl(1 2 3)
+    t('scroll', `scroll`);
+    t('simple', `
+      // XXX TODO scroll(prev:prev_scroll1)
+      // decl(1 2 3)
       // XXX rdecl(5) rdecl(1.5 err)
       // d0==A1234 sig0==B1234 m0==C1234
       // sig0==sign(d0+prev_scroll) m0==h(d0+sig0)

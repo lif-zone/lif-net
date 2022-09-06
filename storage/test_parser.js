@@ -54,7 +54,6 @@ E.parse_get_next = function(curr){
   if (at===undefined)
     at = s.length;
   if (exp=='//'){
-debugger;
     let nl = s.substr(at).search('\n');
     if (nl==-1){
       exp += space(s.substr(at));

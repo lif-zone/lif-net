@@ -68,7 +68,7 @@ debugger;
   return {exp, s, at};
 };
 
-E.parse_exp = function(s){
+E._parse_exp = function(s){
   s = s.trim();
   let c, parentesis = [], first, meta = {s};
   if ('//'==s.substr(0, 2))
@@ -94,4 +94,10 @@ E.parse_exp = function(s){
   assert.equal(s[s.length-1], ')');
   return {cmd: s.substr(0, first), l: '',
     r: s.substr(first+1, s.length-first-2), meta};
+};
+
+E.parse_exp = function(s){
+  let o = E._parse_exp(s);
+  assert(o?.cmd, 'invalid experssion');
+  return o;
 };

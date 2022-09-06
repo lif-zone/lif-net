@@ -102,11 +102,23 @@ d6
 d7, d6-7, d4-7, d0-7
 */
 
+const cmd_scroll = o=>etask(function*cmd_scroll(){
+});
+
+const cmd_decl = o=>etask(function*cmd_decl(){
+});
+
+
 const test_run = test=>etask(function*test_run(){
-  let curr = test;
-  while (curr = tparser.parse_get_next(curr)){
-    let t = tparser.parse_exp(curr.exp);
-    console.log('XXX exp %s', t);
+  for (let curr=test, i=0; curr = tparser.parse_get_next(curr); i++){
+    let o = tparser.parse_exp(curr.exp);
+    xerr.notice('cmd %s %s', i, o.meta.s);
+    switch (o.cmd){
+    case 'scroll': yield cmd_scroll(o); break;
+    case 'decl': yield cmd_decl(o); break;
+    case '//': break;
+    default: assert.fail('invalid cmd "'+o.cmd+'" in '+o.meta.s);
+    }
   }
 });
 
@@ -124,8 +136,8 @@ describe('basic', ()=>{
     const t = (name, test)=>it(name, ()=>test_run(test));
     t('simple', `scroll(prev:prev_scroll1) decl(1 2 3)
       // XXX rdecl(5) rdecl(1.5 err)
-      d0==A1234 sig0==B1234 m0==C1234
-      sig0==sign(d0+prev_scroll) m0==h(d0+sig0)
+      // d0==A1234 sig0==B1234 m0==C1234
+      // sig0==sign(d0+prev_scroll) m0==h(d0+sig0)
     `);
     if (true) return; // XXX WIP
     t(`scroll decl(1 2 3) rdecl(5) rdecl(1.5 err)`);

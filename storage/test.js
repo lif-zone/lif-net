@@ -13,7 +13,7 @@ import buf_util from '../peer-relay/buf_util.js';
 const b2s = buf_util.buf_to_str, s2b = buf_util.buf_from_str;
 const assign = Object.assign.bind(Object);
 
-let t_scroll, t_keypair;
+let t_scroll, t_genesis_scroll, t_prev_scroll, t_keypair;
 
 // XXX: make it automatic for all node/browser in proc.js
 xerr.set_exception_catch_all(true);
@@ -47,21 +47,34 @@ function get_val(exp){
     return t_scroll.seq_d(m[1]);
   if (m = exp.match(/^h\((.*)\+(.*)\)$/)) // h(d10+sig11)
     return Scroll.hash_concat(get_val(m[1]), get_val(m[2]));
+  if (m = exp.match(/^sign\((.*)\+(.*)\)$/)){ // sign(d10+M9)
+    return crypto.sign(Scroll.hash_concat(get_val(m[1]), get_val(m[2])),
+      t_keypair.key);
+  }
   if (m = exp.match(/^sign\((.*)\)$/)) // sign(d10)
     return crypto.sign(crypto.sha256(get_val(m[1])), t_keypair.key);
   if (m = exp.match(/^0x([0-9a-f]+)$/))
     return s2b(m[1]);
+  if ('prev_scroll1'==exp)
+    return t_prev_scroll.seq_M(1);
   assert.fail('invalid val exp '+exp);
 }
 
-function test_start(){
+const test_start = ()=>etask(function*test_start(){
   t_scroll = null;
   t_keypair = {pub: s2b('44659cb51dec397ea66085679442505345e159940762c15ef75'+
     'ad279ecf05033'),
     key: s2b('46f45a62f4c5971228747aa2d8ee66bd669ebd805c725286ee385b1d4a06dd'+
       'bc44659cb51dec397ea66085679442505345e159940762c15ef75ad279ecf05033')};
   xsinon.clock_set({now: 0});
-}
+  t_genesis_scroll = yield Scroll.create({key: t_keypair.key,
+    pub: t_keypair.pub}, {scroll: {topic: 'genesis'}});
+  yield t_genesis_scroll.decl('1');
+  t_prev_scroll = yield Scroll.create({key: t_keypair.key,
+    pub: t_keypair.pub, prev_scroll: t_genesis_scroll.seq_M(1)},
+    {scroll: {topic: 'prev_scroll'}});
+  yield t_prev_scroll.decl('1');
+});
 
 function test_end(){
 }
@@ -131,19 +144,26 @@ describe('parser', ()=>{
   // XXX: test invalid parsing
 });
 
-const cmd_scroll = o=>etask(function*cmd_scroll(){
-  let prev_scroll;
-  assert(!o.l && !o.r, o.cmd+' invalid arg '+o.meta.s);
+const cmd_scroll = t=>etask(function*cmd_scroll(){
+  let prev_scroll = t_prev_scroll.seq_M(1);
+  assert(!t.l, 'invalid arg '+t.meta.s);
   assert(!t_scroll, 'scroll already exists');
+  for (let curr=t.r, i=0; curr = tparser.parse_get_next(curr); i++){
+    let tt = tparser.parse_exp(curr.exp);
+    switch(tt.cmd){
+    case '!prev_scroll': prev_scroll = null; break;
+    default: assert.fail('invalid arg '+tt.cmd+' in '+t.meta.s);
+    }
+  }
   t_scroll = yield Scroll.create({key: t_keypair.key, pub: t_keypair.pub,
     prev_scroll}, {scroll: {topic: 'test'}});
 });
 
-const cmd_decl = o=>etask(function*cmd_decl(){
-  assert(!o.l, 'invalid left arg '+o.meta.s);
-  assert(o.r, 'missing arg '+o.meta.s);
+const cmd_decl = t=>etask(function*cmd_decl(){
+  assert(!t.l, 'invalid left arg '+t.meta.s);
+  assert(t.r, 'missing arg '+t.meta.s);
   assert(t_scroll, 'scroll not found');
-  for (let curr=o.r, i=0; curr = tparser.parse_get_next(curr); i++)
+  for (let curr=t.r, i=0; curr = tparser.parse_get_next(curr); i++)
     yield t_scroll.decl(curr.exp);
 });
 
@@ -161,14 +181,14 @@ function cmd_eq(o){
 const test_run = test=>etask(function*test_run(){
   yield test_start();
   for (let curr=test, i=0; curr = tparser.parse_get_next(curr); i++){
-    let o = tparser.parse_exp(curr.exp);
-    xerr.notice('cmd %s %s', i, o.meta.s);
-    switch (o.cmd){
-    case 'scroll': yield cmd_scroll(o); break;
-    case 'decl': yield cmd_decl(o); break;
+    let t = tparser.parse_exp(curr.exp);
+    xerr.notice('cmd %s %s', i, t.meta.s);
+    switch (t.cmd){
+    case 'scroll': yield cmd_scroll(t); break;
+    case 'decl': yield cmd_decl(t); break;
     case '//': break;
-    case '==': yield cmd_eq(o); break;
-    default: assert.fail('invalid cmd "'+o.cmd+'" in '+o.meta.s);
+    case '==': yield cmd_eq(t); break;
+    default: assert.fail('invalid cmd "'+t.cmd+'" in '+t.meta.s);
     }
   }
   yield test_end();
@@ -179,22 +199,24 @@ const test_run = test=>etask(function*test_run(){
 // later: transport and storage of lif (mem<->net/db)
 // 0.0 0.1 0.2 0.3 0.4 0.5
 //     1.1 1.2
-describe('basic', ()=>{
-  describe('test', ()=>{
-    // default test configuration
-    // genesis_scroll(0 1) prev_scroll(based on genesis_scroll(1))
-    // genesis_scroll = genesis_scroll0.1
-    // prev_scroll = prev_scroll0.1
+describe('scroll', ()=>{
+  describe('decl', ()=>{
     const t = (name, test)=>it(name, ()=>test_run(test));
-    t('scroll', `
-      // XXX scroll -> scroll(!prev_scroll)
-      scroll decl(1)
+    t('no_prev_scroll', `scroll(!prev_scroll) decl(1)
       d0==0x8a74603fce8e81356c0d4d95b5e991d25f2e03974ff14c4caa6cae36bb9a7f87
       sig0==0x157bbdddd869ade81a1d55db89d3e011575ccc08e0c29aa1c7fbb27609b8886efc7afadc29570af1bac56a528af21cd30fae0c32ad2e474fff849c76f60e640f
       m0==0xd6c8e98ebf695b1709e5977b49746d9054154fe1ceafc7fc9203ba75c7f79519
       m0==h(d0+sig0) sig0==sign(d0) M0==m0
-      m1==h(d1+sig1) sig1==sign(d1) M1==h(m0+m1)
+      m1==h(d1+sig1) sig1==sign(d1+M0) M1==h(m0+m1)
     `);
+    t('with_prev_scroll', `scroll decl(1)
+      d0==0x8a74603fce8e81356c0d4d95b5e991d25f2e03974ff14c4caa6cae36bb9a7f87
+      sig0==0xb3e730b7199b547bfb43f3e0d30d49f811f0e53eece394c7091974c692afbd41957188d313ddc3ca63d6d7194f46d02ad8737e73e7f7d7d9b14ae0dba435cd0c
+      m0==0xb6fd516305407a6e2a3ee5f1070f62a315f93c1456c76e0edd132c883cf2c709
+      m0==h(d0+sig0) sig0==sign(d0+prev_scroll1) M0==m0
+      m1==h(d1+sig1) sig1==sign(d1+M0) M1==h(m0+m1)
+    `);
+    if (true) return; // XXX WIP
     t('simple', `
       // XXX TODO scroll(prev:prev_scroll1)
       // decl(1 2 3)
@@ -202,7 +224,6 @@ describe('basic', ()=>{
       // d0==A1234 sig0==B1234 m0==C1234
       // sig0==sign(d0+prev_scroll) m0==h(d0+sig0)
     `);
-    if (true) return; // XXX WIP
     t(`scroll decl(1 2 3) rdecl(5) rdecl(1.5 err)`);
     t(`scroll decl(1 2 3) rdecl(5) rdecl(1.5 err)`);
     t(`scroll(prev:prev_scroll1) decl(1 2 3) // XXX rdecl(5) rdecl(1.5 err)

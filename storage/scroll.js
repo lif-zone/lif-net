@@ -77,7 +77,7 @@ export default class Scroll {
   });
   sign(seq, d){
     let buf;
-    if (false && seq) // XXX: fixme
+    if (seq)
       buf = Buffer.concat([d, this.M]);
     else if (this.prev_scroll)
       buf = Buffer.concat([d, this.prev_scroll]);

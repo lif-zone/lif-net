@@ -4,7 +4,7 @@ import assert from 'assert';
 import xutil from '../util/util.js';
 import xerr from '../util/xerr.js';
 import tparser from './test_parser.js';
-import xtest from '../util/test_lib.js';
+import xtest from '../util/test_lib.js'; // eslint-disable-line no-unused-vars
 import etask from '../util/etask.js';
 import crypto from '../util/crypto.js';
 import xsinon from '../util/sinon.js';
@@ -106,11 +106,11 @@ describe('parser', ()=>{
 });
 
 const cmd_scroll = o=>etask(function*cmd_scroll(){
-  let prev_scroll, ts=Date.now();
+  let prev_scroll;
   assert(!o.l && !o.r, o.cmd+' invalid arg '+o.meta.s);
   assert(!t_scroll, 'scroll already exists');
   t_scroll = yield Scroll.create({key: t_keypair.key, pub: t_keypair.pub,
-    ts, prev_scroll}, {topic: 'test'});
+    prev_scroll}, {scroll: {topic: 'test'}});
 });
 
 const cmd_decl = o=>etask(function*cmd_decl(){

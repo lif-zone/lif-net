@@ -21,7 +21,7 @@ process.on('uncaughtException', err=>xerr.xexit(err));
 process.on('unhandledRejection', err=>xerr.xexit(err));
 xerr.set_exception_handler('test', (prefix, o, err)=>xerr.xexit(err));
 
-if (false && !xutil.is_inspect())
+if (!xutil.is_inspect())
   beforeEach(function(){ xerr.set_buffered(true, 1000); });
 
 afterEach(function(){
@@ -42,7 +42,9 @@ function get_val(exp){
   if (m = exp.match(/^d(\d+)$/)) // d10
     return t_scroll.seq_d(m[1]);
   if (m = exp.match(/^h\((.*)\+(.*)\)$/)) // h(d10+sig11)
-    return Scroll.hash_concat(get_val(m[1]), get_val(m[2]))
+    return Scroll.hash_concat(get_val(m[1]), get_val(m[2]));
+  if (m = exp.match(/^sign\((.*)\)$/)) // sign(d10)
+    return crypto.sign(crypto.sha256(get_val(m[1])), t_keypair.key);
   if (m = exp.match(/^0x([0-9a-f]+)$/))
     return s2b(m[1]);
   assert.fail('invalid val exp '+exp);
@@ -181,7 +183,7 @@ describe('basic', ()=>{
       d0==0x8a74603fce8e81356c0d4d95b5e991d25f2e03974ff14c4caa6cae36bb9a7f87
       sig0==0x157bbdddd869ade81a1d55db89d3e011575ccc08e0c29aa1c7fbb27609b8886efc7afadc29570af1bac56a528af21cd30fae0c32ad2e474fff849c76f60e640f
       m0==0xd6c8e98ebf695b1709e5977b49746d9054154fe1ceafc7fc9203ba75c7f79519
-      m0==h(d0+sig0)
+      m0==h(d0+sig0) sig0==sign(d0) // XXX M0==m0
     `);
     t('simple', `
       // XXX TODO scroll(prev:prev_scroll1)

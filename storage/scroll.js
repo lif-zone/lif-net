@@ -39,7 +39,6 @@ function fbuf_unshift(fbuf, o){ fbuf.frames.unshift(to_frame(o)); }
 function fbuf_hash(fbuf){
   let buf;
   fbuf.frames.forEach(f=>{
-    debugger;
     let h = crypto.sha256(f.buf);
     buf = buf ? Buffer.concat([buf, h]) : h;
   });
@@ -99,4 +98,5 @@ Scroll.create = (opt, d)=>etask(function*scroll_create(){
   return scroll;
 });
 
+// XXX need test
 Scroll.hash_concat = hash_concat;

@@ -302,8 +302,10 @@ describe('scroll', ()=>{
     // XXX branch support
     t('merkel', `scroll decl(1-32)
       m0==hleaf(d0+sig0) sig0==sign(d0+prev_scroll1) M0==hroot(m0)
-      m1==hleaf(d1+sig1) sig1==sign(d1+M0) M1==hroot(m0_1)
+      M0==h(2+m0+0+1)
+      m1==hleaf(d1+sig1) sig1==sign(d1+M0) M1==hroot(m0_1) M1==h(2+m0_1+0+2)
       m2==hleaf(d2+sig2) sig2==sign(d2+M1) M2==hroot(m0_1+m2)
+      M2==h(2+m0_1+0+2+m2+2+1)
       m3==hleaf(d3+sig3) sig3==sign(d3+M2) M3==hroot(m0_3)
       m4==hleaf(d4+sig4) sig4==sign(d4+M3) M4==hroot(m0_3+m4)
       m5==hleaf(d5+sig5) sig5==sign(d5+M4) M5==hroot(m0_3+m4_5)
@@ -319,7 +321,6 @@ describe('scroll', ()=>{
         M30==hroot(m0_15+m16_23+m24_27+m28_29+m30)
       m31==hleaf(d31+sig31) sig31==sign(d31+M30) M31==hroot(m0_31)
       m32==hleaf(d32+sig32) sig32==sign(d32+M31) M32==hroot(m0_31+m32)
-      M2==h(2+m0_1+0+2+m2+2+1)
     `);
   });
 });

@@ -45,7 +45,13 @@ function fbuf_hash(fbuf){
   return crypto.sha256(buf);
 }
 
-function hash_concat(a, b){ return crypto.sha256(Buffer.concat([a, b])); }
+function hash_concat(a){ return crypto.sha256(Buffer.concat(a)); }
+
+function parse_seq_range(range){
+  range = ''+range;
+  let m = range.match(/^(\d+)(_(\d+))?$/); // 10 or 10_15
+  return {seq: m[1], seq2: m[3]||m[1]};
+}
 
 function calc_roots(size){
   let roots = [];
@@ -85,7 +91,6 @@ export default class Scroll {
     let sig = _this.sign(seq, d);
     fbuf_unshift(fbuf, {sig});
     let node = {seq, d, sig, fbuf, m: {}, M: null};
-    node.m[''+seq] = hash_concat(d, sig);
     _this.nodes.set(''+seq, node);
     _this.size++;
     yield _this.update_root_hash();
@@ -104,21 +109,40 @@ export default class Scroll {
     return crypto.sign(crypto.sha256(buf), this.key);
   }
   update_root_hash = ()=>etask({_: this}, function update_root_hash(){
-    // let roots = calc_roots(size);
-    // XXX: WIP
-    let _this = this._;
-    if (_this.size==1)
-      _this.M = _this.seq_m('0');
-    else if (_this.size==2)
-      _this.M = hash_concat(_this.seq_m('0'), _this.seq_m('1'));
-    else
-      assert.fail('XXX TODO');
+    let _this = this._, roots=calc_roots(_this.size), h=[];
+    for (let i=0; i<roots.length; i++){
+      let o = roots[i];
+      h.push(_this._seq_m(o.s, o.e));
+    }
+    _this.M = h.length==1 ? h[0] : hash_concat(h);
   });
   lock(){} // XXX: TODO
   unlock(){} // XXX: TODO
   seq_sig(seq){ return this.get_node(seq)?.sig; }
   seq_d(seq){ return this.get_node(seq)?.d; }
-  seq_m(seq){ return this.get_node(seq)?.m[''+seq]; }
+  _seq_m(seq, seq2){
+    seq = +seq;
+    seq2 = +seq2;
+    let node = this.get_node(seq);
+    if (seq==seq2){
+      let m = node.m[''+seq];
+      if (!m)
+        m = node.m[''+seq] = hash_concat([node.d, node.sig]);
+      return m;
+    }
+    let range = seq+'_'+seq2;
+    let m = node.m[range];
+    if (m)
+      return m;
+    let d = (seq2-seq+1)/2;
+    m = node.m[range] = hash_concat([this._seq_m(seq, seq+d-1),
+      this._seq_m(seq+d, seq2)]);
+    return m;
+  }
+  seq_m(range){
+    let {seq, seq2} = parse_seq_range(range);
+    return this._seq_m(seq, seq2);
+  }
   seq_M(seq){ return seq ? this.get_node(seq)?.M : this.M; }
   get_node(seq){ return this.nodes.get(''+seq); }
 }
@@ -129,6 +153,6 @@ Scroll.create = (opt, d)=>etask(function*scroll_create(){
   return scroll;
 });
 
-// XXX need test
-Scroll.hash_concat = hash_concat;
+Scroll.hash_concat = hash_concat; // XXX need test
 Scroll.calc_roots = calc_roots;
+Scroll.parse_seq_range = parse_seq_range;

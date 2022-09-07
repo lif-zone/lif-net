@@ -42,7 +42,7 @@ function calc_m(s, e){
     let q2 = [];
     for (let i=0; i<q.length/2; i++){
       q2.push({s: q[2*i].s, e: q[2*i+1].e,
-        m: Scroll.hash_concat(q[2*i].m, q[2*i+1].m)});
+        m: Scroll.hash_concat([q[2*i].m, q[2*i+1].m])});
     }
     q = q2;
   }
@@ -63,10 +63,13 @@ function get_val(exp){
     return t_scroll.seq_M();
   if (m = exp.match(/^d(\d+)$/)) // d10
     return t_scroll.seq_d(m[1]);
-  if (m = exp.match(/^h\((.*)\+(.*)\)$/)) // h(d10+sig11)
-    return Scroll.hash_concat(get_val(m[1]), get_val(m[2]));
+  if (m = exp.match(/^h\((.*)\)$/)){ // h(d10+sig11)
+    let a=[];
+    m[1].split('+').forEach(v=>a.push(get_val(v)));
+    return Scroll.hash_concat(a);
+  }
   if (m = exp.match(/^sign\((.*)\+(.*)\)$/)){ // sign(d10+M9)
-    return crypto.sign(Scroll.hash_concat(get_val(m[1]), get_val(m[2])),
+    return crypto.sign(Scroll.hash_concat([get_val(m[1]), get_val(m[2])]),
       t_keypair.key);
   }
   if (m = exp.match(/^sign\((.*)\)$/)) // sign(d10)
@@ -181,8 +184,14 @@ const cmd_decl = t=>etask(function*cmd_decl(){
   assert(!t.l, 'invalid left arg '+t.meta.s);
   assert(t.r, 'missing arg '+t.meta.s);
   assert(t_scroll, 'scroll not found');
-  for (let curr=t.r, i=0; curr = tparser.parse_get_next(curr); i++)
-    yield t_scroll.decl(curr.exp);
+  for (let curr=t.r, i=0; curr = tparser.parse_get_next(curr); i++){
+    let m=curr.exp.match(/^(\d+)-(\d+)$/);
+    if (m){
+      for (let j=+m[1]; j<=+m[2]; j++)
+        yield t_scroll.decl(''+j);
+    } else
+      yield t_scroll.decl(curr.exp);
+  }
 });
 
 function cmd_eq(o){
@@ -219,34 +228,42 @@ const test_run = test=>etask(function*test_run(){
 //     1.1 1.2
 describe('scroll', ()=>{
   describe('util', ()=>{
-    const t = (size, exp)=>{
-      let roots = Scroll.calc_roots(size);
-      let a = [];
-      roots.forEach(o=>{
-        assert.equal(o.s==o.e ? ''+o.s : o.s+'_'+o.e, o.name);
-        a.push(o.name);
-      });
-      assert.equal(a.join(' '), exp);
-    };
-    t(1, '0');
-    t(2, '0_1');
-    t(3, '0_1 2');
-    t(4, '0_3');
-    t(5, '0_3 4');
-    t(6, '0_3 4_5');
-    t(7, '0_3 4_5 6');
-    t(8, '0_7');
-    t(9, '0_7 8');
-    t(10, '0_7 8_9');
-    t(11, '0_7 8_9 10');
-    t(12, '0_7 8_11');
-    t(13, '0_7 8_11 12');
-    t(14, '0_7 8_11 12_13');
-    t(15, '0_7 8_11 12_13 14');
-    t(16, '0_15');
-    t(31, '0_15 16_23 24_27 28_29 30');
-    t(32, '0_31');
-    t(33, '0_31 32');
+    it('parse_seq_range', ()=>{
+      const t = (val, exp)=>assert.deepEqual(Scroll.parse_seq_range(val), exp);
+      t('1', {seq: '1', seq2: '1'});
+      t('10', {seq: '10', seq2: '10'});
+      t('10_100', {seq: '10', seq2: '100'});
+    });
+    it('calc_roots', ()=>{
+      const t = (size, exp)=>{
+        let roots = Scroll.calc_roots(size);
+        let a = [];
+        roots.forEach(o=>{
+          assert.equal(o.s==o.e ? ''+o.s : o.s+'_'+o.e, o.name);
+          a.push(o.name);
+        });
+        assert.equal(a.join(' '), exp);
+      };
+      t(1, '0');
+      t(2, '0_1');
+      t(3, '0_1 2');
+      t(4, '0_3');
+      t(5, '0_3 4');
+      t(6, '0_3 4_5');
+      t(7, '0_3 4_5 6');
+      t(8, '0_7');
+      t(9, '0_7 8');
+      t(10, '0_7 8_9');
+      t(11, '0_7 8_9 10');
+      t(12, '0_7 8_11');
+      t(13, '0_7 8_11 12');
+      t(14, '0_7 8_11 12_13');
+      t(15, '0_7 8_11 12_13 14');
+      t(16, '0_15');
+      t(31, '0_15 16_23 24_27 28_29 30');
+      t(32, '0_31');
+      t(33, '0_31 32');
+    });
   });
   describe('decl', ()=>{
     const t = (name, test)=>it(name, ()=>test_run(test));
@@ -267,10 +284,10 @@ describe('scroll', ()=>{
     // XXX change crypt: {sig, hash, lif: lif1}
     // XXX fix test to use hypercore left/parent/root hashing
     // XXX change hasing to blake2b by default
-    if (true) return; // XXX WIP
+//    if (true) return; // XXX WIP
     t('merkel', `scroll decl(1-32)
       m0==h(d0+sig0) sig0==sign(d0+prev_scroll1) M0==m0
-      m1==h(d1+sig1) sig1==sign(d1+M0) M1==h(m0_1)
+      m1==h(d1+sig1) sig1==sign(d1+M0) M1==m0_1
       m2==h(d2+sig2) sig2==sign(d2+M1) M2==h(m0_1+m2)
       m3==h(d3+sig3) sig3==sign(d3+M2) M3==m0_3
       m4==h(d4+sig4) sig4==sign(d4+M3) M4==h(m0_3+m4)
@@ -288,46 +305,5 @@ describe('scroll', ()=>{
       m31==h(d31+sig31) sig31==sign(d31+M30) M31==m0_31
       m32==h(d32+sig32) sig32==sign(d32+M31) M32==h(m0_31+m32)
     `);
-    if (true) return; // XXX WIP
-    t('simple', `
-      // XXX TODO scroll(prev:prev_scroll1)
-      // decl(1 2 3)
-      // XXX rdecl(5) rdecl(1.5 err)
-      // d0==A1234 sig0==B1234 m0==C1234
-      // sig0==sign(d0+prev_scroll) m0==h(d0+sig0)
-    `);
-    t(`scroll decl(1 2 3) rdecl(5) rdecl(1.5 err)`);
-    t(`scroll decl(1 2 3) rdecl(5) rdecl(1.5 err)`);
-    t(`scroll(prev:prev_scroll1) decl(1 2 3) // XXX rdecl(5) rdecl(1.5 err)
-      d0==A1234 sig0==B1234 m0==C1234
-      sig0==sign(d0+prev_scroll) m0==h(d0+sig0)
-      sig1==sign(d1) m0=h(d
-    `);
-    t(`tree append(D0)
-      h0==A1234 sig0==B1234 m0==C1234
-      m0==h(d0+sig0) sig0==sign(d0) m0==h(d0+sig0) t#tree(sz:1 mroot:m0)
-      b.append(D1) b.commit
-      m1==h(d1+sig1) sig1==sign(d1+sig1) m1==h(d0+sig0) M1==hroot(m1 m0-1))
-      t#tree(sz:2 mroot:M1)
-    `);
-    t(`tree(sz:10) c=tree p=t.proof(8-10) b=c.clone(p) b.commit
-      c#node(8 data:D8) c#node(9 data:D9) c#node(10 data:D10)
-      c#tree(sz:10 avail:3 mroot:M10)
-    `);
   });
-/* XXX: rm
-test('nodes', async function (t) {
-  const tree = await create()
-
-  const b = tree.batch()
-
-  for (let i = 0; i < 8; i++) {
-    b.append(Buffer.from([i]))
-  }
-
-  b.commit()
-
-  t.is(await tree.nodes(0), 0)
-})
-*/
 });

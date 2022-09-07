@@ -300,6 +300,8 @@ describe('scroll', ()=>{
       m0==hleaf(d0+sig0) sig0==sign(d0+prev_scroll1) M0==hroot(m0)
       m1==hleaf(d1+sig1) sig1==sign(d1+M0) M1==hroot(m0_1)`);
     // XXX branch support
+    // XXX api delete data
+    // for testing: t('s0 s1(m1 m0_1) s3
     t('merkel', `scroll decl(1-32)
       m0==hleaf(d0+sig0) sig0==sign(d0+prev_scroll1) M0==hroot(m0)
       M0==h(2+m0+0+1)

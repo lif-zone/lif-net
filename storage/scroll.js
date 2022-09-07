@@ -18,9 +18,9 @@ function enc_u64(v){ return enc.encode(enc.uint64, v); }
 function to_frame(o){
   if (Buffer.isBuffer(o))
     return {buf: o};
-  else if (typeof o=='object')
+  if (typeof o=='object')
     return {buf: Buffer.from(stringify(o))};
-  else if (typeof o=='string')
+  if (typeof o=='string')
     return {buf: Buffer.from(o)};
   assert.fail('invalid frame data '+o);
 }
@@ -84,6 +84,7 @@ export default class Scroll {
     let args = Array.from(arguments);
     return etask({_: this}, function*(){
       let _this = this._;
+      // XXX new Scroll.FrameBuffer
       let fbuf = fbuf_from_arg(args);
       yield _this.lock();
       let seq = _this.size, ts = Date.now();
@@ -91,6 +92,21 @@ export default class Scroll {
       let d = fbuf_hash(fbuf);
       let sig = _this.sign(seq, d);
       fbuf_unshift(fbuf, {sig});
+      /* XXX: change m to be array and make every hash a class
+        (can be empty/in_progress)
+        m['0_1']'2_3'
+        m['1.5_6']
+        m1   = s[1].m[0] = s[1].d[0]+s[1].d[1]... // self
+        m0_1 = s[1].m[1] = s[1].m[0]+s[1].m[0] // if (seq & 0x1)
+        m3   = s[3].m[0] = s[3].d[0]+s[3].d[1]... // self
+        m2_3 = s[3].m[1] = s[2].m[0]+s[3].m[0] // if (seq & 0x1)
+        m0_3 = s[3].m[2] = s[1].m[1]+s[3].m[1] // if (seq & 0x3)
+        m[0] = self always exits
+        m[1] = if seq & 0x1
+        m[2] = if seq & 0x3
+        m[3] = if seq & 0x7
+      */
+      // XXX  new Scroll.Node
       let node = {seq, d, sig, fbuf, m: {}, M: null};
       _this.nodes.set(''+seq, node);
       _this.size++;
@@ -152,6 +168,7 @@ export default class Scroll {
 
 Scroll.create = (opt, d)=>etask(function*scroll_create(){
   let scroll = new Scroll(opt);
+  // XXX: assign --> {d...} XXX TODO
   yield scroll.decl({scroll: assign({crypt: Scroll.supported_crypt,
     pub: b2s(opt.pub)}, d)});
   return scroll;

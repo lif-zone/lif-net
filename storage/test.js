@@ -322,5 +322,13 @@ describe('scroll', ()=>{
       m31=hleaf(d31+sig31) sig31=sign(d31+M30) M31=hroot(m0_31)
       m32=hleaf(d32+sig32) sig32=sign(d32+M31) M32=hroot(m0_31+m32)
     `);
+    if (true) return; // XXX WIP
+    // XXX: make the last scroll used the default
+    t('xxx', `s:scroll(def) decl(1-32) // s.decl
+      s2:scroll(M0:s.M0)
+      s2.push(1(m0_1:m0_1) 2(m2:m2) 3(m3:m3 M3:M3))
+      s2.push(1(m0_1:m0_1) 2(m2:m2) 3(m3:m3 M3:M3) branch:ok)
+      s2.push(1(m0_1:m0_1) 2(m2:m2) 3(sig3:sig3 M3:M3) fail(xxx missing...))
+    `);
   });
 });

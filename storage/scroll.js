@@ -4,18 +4,10 @@ import assert from 'assert';
 import etask from '../util/etask.js';
 import crypto from '../util/crypto.js';
 import {Buffer} from 'buffer';
+import buf_util from '../peer-relay/buf_util.js';
+const b2s = buf_util.buf_to_str;
 const stringify = JSON.stringify.bind(JSON);
-
-/* XXX: tree
-d0
-d1, d0-1
-d2
-d3, d2-3, d0-3
-d4
-d5, d4-5
-d6
-d7, d6-7, d4-7, d0-7
-*/
+const assign = Object.assign.bind(Object);
 
 function to_frame(o){
   if (Buffer.isBuffer(o))
@@ -39,13 +31,13 @@ function fbuf_unshift(fbuf, o){ fbuf.frames.unshift(to_frame(o)); }
 function fbuf_hash(fbuf){
   let buf;
   fbuf.frames.forEach(f=>{
-    let h = crypto.sha256(f.buf);
+    let h = crypto.blake2b(f.buf);
     buf = buf ? Buffer.concat([buf, h]) : h;
   });
-  return crypto.sha256(buf);
+  return crypto.blake2b(buf);
 }
 
-function hash_concat(a){ return crypto.sha256(Buffer.concat(a)); }
+function hash_concat(a){ return crypto.blake2b(Buffer.concat(a)); }
 
 function parse_seq_range(range){
   range = ''+range;
@@ -76,28 +68,32 @@ export default class Scroll {
     assert(opt.pub, 'missing pub key');
     this.pub = opt.pub;
     this.key = opt.key;
-    this.crypt = opt.crypt||'ed25519';
+    this.crypt = opt.crypt||Scroll.supported_crypt[0];
+    assert.deepEqual(this.crypt, Scroll.supported_crypt[0], 'unsupported');
     this.prev_scroll = opt.prev_scroll;
     this.size = 0;
     this.nodes = new Map();
   }
-  decl = ()=>etask({_: this}, function*(){
-    let _this = this._;
-    let fbuf = fbuf_from_arg(Array.from(arguments));
-    yield _this.lock();
-    let seq = _this.size, ts = Date.now();
-    fbuf_unshift(fbuf, {seq, ts});
-    let d = fbuf_hash(fbuf);
-    let sig = _this.sign(seq, d);
-    fbuf_unshift(fbuf, {sig});
-    let node = {seq, d, sig, fbuf, m: {}, M: null};
-    _this.nodes.set(''+seq, node);
-    _this.size++;
-    yield _this.update_root_hash();
-    node.M = _this.M;
-    // XXX: update M_prev, size
-    return node;
-  });
+  decl(){
+    let args = Array.from(arguments);
+    return etask({_: this}, function*(){
+      let _this = this._;
+      let fbuf = fbuf_from_arg(args);
+      yield _this.lock();
+      let seq = _this.size, ts = Date.now();
+      fbuf_unshift(fbuf, {seq, ts});
+      let d = fbuf_hash(fbuf);
+      let sig = _this.sign(seq, d);
+      fbuf_unshift(fbuf, {sig});
+      let node = {seq, d, sig, fbuf, m: {}, M: null};
+      _this.nodes.set(''+seq, node);
+      _this.size++;
+      yield _this.update_root_hash();
+      node.M = _this.M;
+      // XXX: update M_prev, size
+      return node;
+    });
+  }
   sign(seq, d){
     let buf;
     if (seq)
@@ -106,7 +102,7 @@ export default class Scroll {
       buf = Buffer.concat([d, this.prev_scroll]);
     else
       buf = d;
-    return crypto.sign(crypto.sha256(buf), this.key);
+    return crypto.sign(crypto.blake2b(buf), this.key);
   }
   update_root_hash = ()=>etask({_: this}, function update_root_hash(){
     let _this = this._, roots=calc_roots(_this.size), h=[];
@@ -130,6 +126,7 @@ export default class Scroll {
         m = node.m[''+seq] = hash_concat([node.d, node.sig]);
       return m;
     }
+    node = this.get_node(seq2);
     let range = seq+'_'+seq2;
     let m = node.m[range];
     if (m)
@@ -149,10 +146,12 @@ export default class Scroll {
 
 Scroll.create = (opt, d)=>etask(function*scroll_create(){
   let scroll = new Scroll(opt);
-  yield scroll.decl(d);
+  yield scroll.decl({scroll: assign({crypt: Scroll.supported_crypt,
+    pub: b2s(opt.pub)}, d)});
   return scroll;
 });
 
+Scroll.supported_crypt = [{sig: 'ed25519', hash: 'blake2b', lif: 'lif1'}];
 Scroll.hash_concat = hash_concat; // XXX need test
 Scroll.calc_roots = calc_roots;
 Scroll.parse_seq_range = parse_seq_range;

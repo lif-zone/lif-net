@@ -73,7 +73,7 @@ function get_val(exp){
       t_keypair.key);
   }
   if (m = exp.match(/^sign\((.*)\)$/)) // sign(d10)
-    return crypto.sign(crypto.sha256(get_val(m[1])), t_keypair.key);
+    return crypto.sign(crypto.blake2b(get_val(m[1])), t_keypair.key);
   if (m = exp.match(/^0x([0-9a-f]+)$/))
     return s2b(m[1]);
   if ('prev_scroll1'==exp)
@@ -89,11 +89,11 @@ const test_start = ()=>etask(function*test_start(){
       'bc44659cb51dec397ea66085679442505345e159940762c15ef75ad279ecf05033')};
   xsinon.clock_set({now: 0});
   t_genesis_scroll = yield Scroll.create({key: t_keypair.key,
-    pub: t_keypair.pub}, {scroll: {topic: 'genesis'}});
+    pub: t_keypair.pub}, {topic: 'genesis'});
   yield t_genesis_scroll.decl('1');
   t_prev_scroll = yield Scroll.create({key: t_keypair.key,
     pub: t_keypair.pub, prev_scroll: t_genesis_scroll.seq_M(1)},
-    {scroll: {topic: 'prev_scroll'}});
+    {topic: 'prev_scroll'});
   yield t_prev_scroll.decl('1');
 });
 
@@ -177,7 +177,7 @@ const cmd_scroll = t=>etask(function*cmd_scroll(){
     }
   }
   t_scroll = yield Scroll.create({key: t_keypair.key, pub: t_keypair.pub,
-    prev_scroll}, {scroll: {topic: 'test'}});
+    prev_scroll}, {topic: 'test'});
 });
 
 const cmd_decl = t=>etask(function*cmd_decl(){
@@ -267,24 +267,19 @@ describe('scroll', ()=>{
   });
   describe('decl', ()=>{
     const t = (name, test)=>it(name, ()=>test_run(test));
-    let sig0='0x157bbdddd869ade81a1d55db89d3e011575ccc08e0c29aa1c7fbb27609b8'+
-      '886efc7afadc29570af1bac56a528af21cd30fae0c32ad2e474fff849c76f60e640f';
+    let sig0='0x9d73f19857885309cb311a8ec7d635ca2898da1b1fb8e31e9b7e01bbbc6de68a5b9d756ff02462a3b2f8900e46a496ace5d3acb4f3e73180be515e936009e70c';
     t('no_prev_scroll', `scroll(!prev_scroll) decl(1) sig0==${sig0}
-      d0==0x8a74603fce8e81356c0d4d95b5e991d25f2e03974ff14c4caa6cae36bb9a7f87
-      m0==0xd6c8e98ebf695b1709e5977b49746d9054154fe1ceafc7fc9203ba75c7f79519
+      d0==0x750e42c4c40d2914db1fd0cdfa2ea853d00b468d78f23df882fe9cc1839b71b8
+      m0==0x568ba7f7b8282bd7165c9f671bcb1beabd2d96143568da78b3dd9b2179b75a2b
       m0==h(d0+sig0) sig0==sign(d0) M0==m0
       m1==h(d1+sig1) sig1==sign(d1+M0) M1==m0_1 m0_1==h(m0+m1)`);
-    sig0 = '0xb3e730b7199b547bfb43f3e0d30d49f811f0e53eece394c7091974c692afbd'+
-      '41957188d313ddc3ca63d6d7194f46d02ad8737e73e7f7d7d9b14ae0dba435cd0c';
+    sig0 = '0x7f86934ccdab2c26da5a0ca0435514835a65f85bdf657a9f6c570a55cff0d5ab0cb1fdb2f5319959d173a3e56594ee738a5188fd1a59a92e88476b571c15c803';
     t('with_prev_scroll', `scroll decl(1) sig0==${sig0}
-      d0==0x8a74603fce8e81356c0d4d95b5e991d25f2e03974ff14c4caa6cae36bb9a7f87
-      m0==0xb6fd516305407a6e2a3ee5f1070f62a315f93c1456c76e0edd132c883cf2c709
+      d0==0x750e42c4c40d2914db1fd0cdfa2ea853d00b468d78f23df882fe9cc1839b71b8
+      m0==0xd89dba20129e9c4fbf3f4fcace826b6e9b948e59ec8d0bf6b7b77f9505266acf
       m0==h(d0+sig0) sig0==sign(d0+prev_scroll1) M0==m0
       m1==h(d1+sig1) sig1==sign(d1+M0) M1==m0_1 m0_1==h(m0+m1)`);
-    // XXX change crypt: {sig, hash, lif: lif1}
     // XXX fix test to use hypercore left/parent/root hashing
-    // XXX change hasing to blake2b by default
-//    if (true) return; // XXX WIP
     t('merkel', `scroll decl(1-32)
       m0==h(d0+sig0) sig0==sign(d0+prev_scroll1) M0==m0
       m1==h(d1+sig1) sig1==sign(d1+M0) M1==m0_1

@@ -56,8 +56,7 @@ function parse_seq_range(range){
 
 function calc_roots(size){
   let roots = [];
-  let n=1, s=0;
-  while (s+n<=size){
+  for (let n=1, s=0; s+n<=size;){
     if (s+n==size){
       roots.push({s, e: s+n-1, name: n>1 ? s+'_'+(s+n-1) : ''+s});
       return roots;

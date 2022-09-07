@@ -67,8 +67,7 @@ function calc_roots(size){
       continue;
     }
     roots.push({s, e: s+n-1, name: s+'_'+(s+n-1)});
-    s += n;
-    n=1;
+    [s, n] = [s+n, 1];
   }
 }
 

@@ -94,8 +94,7 @@ export default class Scroll {
       let node = {seq, d, sig, fbuf, m: {}, M: null};
       _this.nodes.set(''+seq, node);
       _this.size++;
-      yield _this.update_root_hash();
-      node.M = _this.M;
+      _this.M = node.M = yield _this.call_root_hash(_this.size);
       return node;
     });
   }
@@ -109,15 +108,15 @@ export default class Scroll {
       buf = d;
     return crypto.sign(crypto.blake2b(buf), this.key);
   }
-  update_root_hash = ()=>etask({_: this}, function update_root_hash(){
-    let _this = this._, roots=calc_roots(_this.size), h=[ROOT_TYPE];
+  call_root_hash = size=>etask({_: this}, function call_root_hash(){
+    let _this = this._, roots=calc_roots(size), a=[ROOT_TYPE];
     for (let i=0; i<roots.length; i++){
       let r = roots[i];
-      h.push(_this._seq_m(r.s, r.e));
-      h.push(enc_u64(r.s));
-      h.push(enc_u64(r.e-r.s+1));
+      a.push(_this._seq_m(r.s, r.e));
+      a.push(enc_u64(r.s));
+      a.push(enc_u64(r.e-r.s+1));
     }
-    _this.M = hash_concat(h);
+    return hash_concat(a);
   });
   lock(){} // XXX: TODO
   unlock(){} // XXX: TODO

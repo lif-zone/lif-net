@@ -97,7 +97,6 @@ export default class Scroll {
       _this.size++;
       yield _this.update_root_hash();
       node.M = _this.M;
-      // XXX: update M_prev, size
       return node;
     });
   }

@@ -8,7 +8,6 @@ import {Buffer} from 'buffer';
 import buf_util from '../peer-relay/buf_util.js';
 const b2s = buf_util.buf_to_str;
 const stringify = JSON.stringify.bind(JSON);
-const assign = Object.assign.bind(Object);
 // https://en.wikipedia.org/wiki/Merkle_tree#Second_preimage_attack
 const LEAF_TYPE = enc_u64(0);
 const PARENT_TYPE = enc_u64(1);
@@ -168,9 +167,8 @@ export default class Scroll {
 
 Scroll.create = (opt, d)=>etask(function*scroll_create(){
   let scroll = new Scroll(opt);
-  // XXX: assign --> {d...} XXX TODO
-  yield scroll.decl({scroll: assign({crypt: Scroll.supported_crypt,
-    pub: b2s(opt.pub)}, d)});
+  yield scroll.decl({scroll: {crypt: Scroll.supported_crypt,
+    pub: b2s(opt.pub), ...d}});
   return scroll;
 });
 

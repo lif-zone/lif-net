@@ -10,9 +10,10 @@ const b2s = buf_util.buf_to_str;
 const stringify = JSON.stringify.bind(JSON);
 const assign = Object.assign.bind(Object);
 // https://en.wikipedia.org/wiki/Merkle_tree#Second_preimage_attack
-const LEAF_TYPE = enc.encode(enc.uint64, 0);
-const PARENT_TYPE = enc.encode(enc.uint64, 1);
-const ROOT_TYPE = enc.encode(enc.uint64, 2);
+const LEAF_TYPE = enc_u64(0);
+const PARENT_TYPE = enc_u64(1);
+const ROOT_TYPE = enc_u64(2);
+function enc_u64(v){ return enc.encode(enc.uint64, v); }
 
 function to_frame(o){
   if (Buffer.isBuffer(o))
@@ -43,8 +44,8 @@ function fbuf_hash(fbuf){
 }
 
 function hash_concat(a){ return crypto.blake2b(Buffer.concat(a)); }
-function hash_parent(size, left, right){ return hash_concat(
-  [PARENT_TYPE, enc.encode(enc.uint64, size), left, right]); }
+function hash_parent(size, left, right){
+  return hash_concat([PARENT_TYPE, enc_u64(size), left, right]); }
 function hash_leaf(h, sig){ return hash_concat([LEAF_TYPE, h, sig]); }
 
 function parse_seq_range(range){
@@ -117,8 +118,8 @@ export default class Scroll {
     for (let i=0; i<roots.length; i++){
       let r = roots[i];
       h.push(_this._seq_m(r.s, r.e));
-      h.push(enc.encode(enc.uint64, r.s));
-      h.push(enc.encode(enc.uint64, r.e-r.s+1));
+      h.push(enc_u64(r.s));
+      h.push(enc_u64(r.e-r.s+1));
     }
     _this.M = hash_concat(h);
   });

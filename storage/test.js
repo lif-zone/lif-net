@@ -13,7 +13,6 @@ import Scroll from './scroll.js';
 import buf_util from '../peer-relay/buf_util.js';
 const b2s = buf_util.buf_to_str, s2b = buf_util.buf_from_str;
 const assign = Object.assign.bind(Object);
-
 function enc_u64(v){ return enc.encode(enc.uint64, v); }
 
 let t_scroll, t_genesis_scroll, t_prev_scroll, t_keypair;

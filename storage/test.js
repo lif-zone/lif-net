@@ -3,6 +3,7 @@
 import assert from 'assert';
 import xutil from '../util/util.js';
 import xerr from '../util/xerr.js';
+import enc from 'compact-encoding';
 import tparser from './test_parser.js';
 import xtest from '../util/test_lib.js'; // eslint-disable-line no-unused-vars
 import etask from '../util/etask.js';
@@ -42,7 +43,9 @@ function calc_m(s, e){
     let q2 = [];
     for (let i=0; i<q.length/2; i++){
       q2.push({s: q[2*i].s, e: q[2*i+1].e,
-        m: Scroll.hash_concat([q[2*i].m, q[2*i+1].m])});
+        m: Scroll.hash_concat([Scroll.PARENT_TYPE,
+        enc.encode(enc.uint64, q[2*i+1].e-q[2*i].s+1),
+        q[2*i].m, q[2*i+1].m])});
     }
     q = q2;
   }
@@ -268,13 +271,13 @@ describe('scroll', ()=>{
       d0==0x750e42c4c40d2914db1fd0cdfa2ea853d00b468d78f23df882fe9cc1839b71b8
       m0==0x568ba7f7b8282bd7165c9f671bcb1beabd2d96143568da78b3dd9b2179b75a2b
       m0==h(d0+sig0) sig0==sign(d0) M0==m0
-      m1==h(d1+sig1) sig1==sign(d1+M0) M1==m0_1 m0_1==h(m0+m1)`);
-    sig0 = '0x7f86934ccdab2c26da5a0ca0435514835a65f85bdf657a9f6c570a55cff0d5ab0cb1fdb2f5319959d173a3e56594ee738a5188fd1a59a92e88476b571c15c803';
+      m1==h(d1+sig1) sig1==sign(d1+M0) M1==m0_1`);
+    sig0 = '0x2b9cf4adadd09598a2f91eaf8f4d677531ea343ea1f00826d360e486d8923a74486239d356c88244d6d27b7ee2560806d9587f7523b8dec59f743f771717aa0a';
     t('with_prev_scroll', `scroll decl(1) sig0==${sig0}
       d0==0x750e42c4c40d2914db1fd0cdfa2ea853d00b468d78f23df882fe9cc1839b71b8
-      m0==0xd89dba20129e9c4fbf3f4fcace826b6e9b948e59ec8d0bf6b7b77f9505266acf
+      m0==0x701eb05c1c2b04d60c580bfe80b8c1f4ff851cbc1a38f7f4101465448450e4b8
       m0==h(d0+sig0) sig0==sign(d0+prev_scroll1) M0==m0
-      m1==h(d1+sig1) sig1==sign(d1+M0) M1==m0_1 m0_1==h(m0+m1)`);
+      m1==h(d1+sig1) sig1==sign(d1+M0) M1==m0_1`);
     // XXX fix test to use hypercore left/parent/root hashing
     // XXX branch support
     t('merkel', `scroll decl(1-32)

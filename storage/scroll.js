@@ -3,11 +3,17 @@
 import assert from 'assert';
 import etask from '../util/etask.js';
 import crypto from '../util/crypto.js';
+import enc from 'compact-encoding';
+import b4a from 'b4a';
 import {Buffer} from 'buffer';
 import buf_util from '../peer-relay/buf_util.js';
 const b2s = buf_util.buf_to_str;
 const stringify = JSON.stringify.bind(JSON);
 const assign = Object.assign.bind(Object);
+// https://en.wikipedia.org/wiki/Merkle_tree#Second_preimage_attack
+const LEAF_TYPE = b4a.from([0]);
+const PARENT_TYPE = b4a.from([1]);
+const ROOT_TYPE = b4a.from([2]);
 
 function to_frame(o){
   if (Buffer.isBuffer(o))
@@ -38,6 +44,8 @@ function fbuf_hash(fbuf){
 }
 
 function hash_concat(a){ return crypto.blake2b(Buffer.concat(a)); }
+function hash_parent(size, left, right){ return crypto.blake2b(
+  Buffer.concat([PARENT_TYPE, enc.encode(enc.uint64, size), left, right])); }
 
 function parse_seq_range(range){
   range = ''+range;
@@ -132,8 +140,8 @@ export default class Scroll {
     if (m)
       return m;
     let d = (seq2-seq+1)/2;
-    m = node.m[range] = hash_concat([this._seq_m(seq, seq+d-1),
-      this._seq_m(seq+d, seq2)]);
+    m = node.m[range] = hash_parent(2*d, this._seq_m(seq, seq+d-1),
+      this._seq_m(seq+d, seq2));
     return m;
   }
   seq_m(range){
@@ -153,5 +161,9 @@ Scroll.create = (opt, d)=>etask(function*scroll_create(){
 
 Scroll.supported_crypt = [{sig: 'ed25519', hash: 'blake2b', lif: 'lif1'}];
 Scroll.hash_concat = hash_concat; // XXX need test
+Scroll.hash_parent = hash_parent; // XXX need test
 Scroll.calc_roots = calc_roots;
 Scroll.parse_seq_range = parse_seq_range;
+Scroll.LEAF_TYPE = LEAF_TYPE;
+Scroll.PARENT_TYPE = PARENT_TYPE;
+Scroll.ROOT_TYPE = ROOT_TYPE;

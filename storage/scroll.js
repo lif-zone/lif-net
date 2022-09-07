@@ -49,8 +49,7 @@ function hash_parent(size, left, right){
 function hash_leaf(h, sig){ return hash_concat([LEAF_TYPE, h, sig]); }
 
 function parse_seq_range(range){
-  range = ''+range;
-  let m = range.match(/^(\d+)(_(\d+))?$/); // 10 or 10_15
+  let m = (''+range).match(/^(\d+)(_(\d+))?$/); // 10 or 10_15
   return {seq: m[1], seq2: m[3]||m[1]};
 }
 

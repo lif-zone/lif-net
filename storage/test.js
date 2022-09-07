@@ -46,6 +46,7 @@ function calc_m(s, e){
     }
     q = q2;
   }
+  assert.equal(b2s(t_scroll.seq_m(s+'_'+e)), b2s(q[0].m));
   return q[0].m;
 }
 

@@ -3,6 +3,7 @@
 'use strict'; /*jslint node:true,browser:true*/
 import sodium from 'sodium-universal';
 import b4a from 'b4a'; // XXX: rm
+import blake2b from 'blake2b';
 import crypto from 'crypto';
 import {Buffer} from 'buffer';
 import buf_util from '../peer-relay/buf_util.js';
@@ -37,5 +38,10 @@ E.keypair_from_str = function(keys_str){
 };
 
 E.sha256 = function(buf){
-  return Buffer.from(crypto.createHash('sha256').update(buf).digest());
+  return Buffer.from(crypto.createHash('sha256').update(buf).digest()); };
+
+E.blake2b = function(buf){
+  const out = b4a.allocUnsafe(blake2b.BYTES);
+  blake2b(blake2b.BYTES).update(buf).digest(out);
+  return Buffer.from(out);
 };

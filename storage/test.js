@@ -221,11 +221,6 @@ const test_run = test=>etask(function*test_run(){
   yield test_end();
 });
 
-// implemented: transport of lif
-// in progress: data structure of lif
-// later: transport and storage of lif (mem<->net/db)
-// 0.0 0.1 0.2 0.3 0.4 0.5
-//     1.1 1.2
 describe('scroll', ()=>{
   describe('util', ()=>{
     it('parse_seq_range', ()=>{
@@ -280,6 +275,7 @@ describe('scroll', ()=>{
       m0==h(d0+sig0) sig0==sign(d0+prev_scroll1) M0==m0
       m1==h(d1+sig1) sig1==sign(d1+M0) M1==m0_1 m0_1==h(m0+m1)`);
     // XXX fix test to use hypercore left/parent/root hashing
+    // XXX branch support
     t('merkel', `scroll decl(1-32)
       m0==h(d0+sig0) sig0==sign(d0+prev_scroll1) M0==m0
       m1==h(d1+sig1) sig1==sign(d1+M0) M1==m0_1

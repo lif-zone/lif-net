@@ -4,16 +4,15 @@ import assert from 'assert';
 import etask from '../util/etask.js';
 import crypto from '../util/crypto.js';
 import enc from 'compact-encoding';
-import b4a from 'b4a';
 import {Buffer} from 'buffer';
 import buf_util from '../peer-relay/buf_util.js';
 const b2s = buf_util.buf_to_str;
 const stringify = JSON.stringify.bind(JSON);
 const assign = Object.assign.bind(Object);
 // https://en.wikipedia.org/wiki/Merkle_tree#Second_preimage_attack
-const LEAF_TYPE = b4a.from([0]);
-const PARENT_TYPE = b4a.from([1]);
-const ROOT_TYPE = b4a.from([2]);
+const LEAF_TYPE = enc.encode(enc.uint64, 0);
+const PARENT_TYPE = enc.encode(enc.uint64, 1);
+const ROOT_TYPE = enc.encode(enc.uint64, 2);
 
 function to_frame(o){
   if (Buffer.isBuffer(o))
@@ -114,12 +113,14 @@ export default class Scroll {
     return crypto.sign(crypto.blake2b(buf), this.key);
   }
   update_root_hash = ()=>etask({_: this}, function update_root_hash(){
-    let _this = this._, roots=calc_roots(_this.size), h=[];
+    let _this = this._, roots=calc_roots(_this.size), h=[ROOT_TYPE];
     for (let i=0; i<roots.length; i++){
-      let o = roots[i];
-      h.push(_this._seq_m(o.s, o.e));
+      let r = roots[i];
+      h.push(_this._seq_m(r.s, r.e));
+      h.push(enc.encode(enc.uint64, r.s));
+      h.push(enc.encode(enc.uint64, r.e-r.s+1));
     }
-    _this.M = h.length==1 ? h[0] : hash_concat(h);
+    _this.M = hash_concat(h);
   });
   lock(){} // XXX: TODO
   unlock(){} // XXX: TODO

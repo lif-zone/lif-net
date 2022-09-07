@@ -4,7 +4,6 @@ import assert from 'assert';
 import xutil from '../util/util.js';
 import xerr from '../util/xerr.js';
 import enc from 'compact-encoding';
-import b4a from 'b4a';
 import tparser from './test_parser.js';
 import xtest from '../util/test_lib.js'; // eslint-disable-line no-unused-vars
 import etask from '../util/etask.js';
@@ -14,6 +13,8 @@ import Scroll from './scroll.js';
 import buf_util from '../peer-relay/buf_util.js';
 const b2s = buf_util.buf_to_str, s2b = buf_util.buf_from_str;
 const assign = Object.assign.bind(Object);
+
+function enc_u64(v){ return enc.encode(enc.uint64, v); }
 
 let t_scroll, t_genesis_scroll, t_prev_scroll, t_keypair;
 
@@ -59,7 +60,7 @@ function get_val(exp){
   if (m = exp.match(/^sig(\d+)$/)) // sig10
     return t_scroll.seq_sig(m[1]);
   if (m = exp.match(/^m(\d+)$/)) // m10
-    return t_scroll.seq_m(m[1]);
+    return t_scroll.seq_m(m[1]); // XXX: calc and assert it match data hash
   if (m = exp.match(/^m(\d+)_(\d+)$/)) // m0_1
     return calc_m(+m[1], +m[2]);
   if (m = exp.match(/^M(\d+)$/)) // M10
@@ -73,6 +74,22 @@ function get_val(exp){
     m[1].split('+').forEach(v=>a.push(get_val(v)));
     return Scroll.hash_concat(a);
   }
+  if (m = exp.match(/^hleaf\((.*)\)$/)){
+    let a=[Scroll.LEAF_TYPE];
+    m[1].split('+').forEach(v=>a.push(get_val(v)));
+    return Scroll.hash_concat(a);
+  }
+  if (m = exp.match(/^hroot\((.*)\)$/)){
+    let a=[Scroll.ROOT_TYPE];
+    m[1].split('+').forEach(v=>{
+      let r = Scroll.parse_seq_range(v.replace('m', ''));
+      a.push(get_val(v));
+      a.push(enc_u64(r.seq));
+      a.push(enc_u64(r.seq2-r.seq+1));
+    });
+    return Scroll.hash_concat(a);
+  }
+
   if (m = exp.match(/^sign\((.*)\+(.*)\)$/)){ // sign(d10+M9)
     return crypto.sign(Scroll.hash_concat([get_val(m[1]), get_val(m[2])]),
       t_keypair.key);
@@ -82,7 +99,7 @@ function get_val(exp){
   if (m = exp.match(/^0x([0-9a-f]+)$/))
     return s2b(m[1]);
   if (/^\d+$/.test(exp))
-    return b4a.from([+exp]);
+    return enc.encode(enc.uint64, +exp);
   if ('prev_scroll1'==exp)
     return t_prev_scroll.seq_M(1);
   assert.fail('invalid val exp '+exp);
@@ -269,39 +286,41 @@ describe('scroll', ()=>{
   });
   describe('decl', ()=>{
     const t = (name, test)=>it(name, ()=>test_run(test));
-    let sig0='0x9d73f19857885309cb311a8ec7d635ca2898da1b1fb8e31e9b7e01bbbc6de68a5b9d756ff02462a3b2f8900e46a496ace5d3acb4f3e73180be515e936009e70c';
+    let sig0='0x9d73f19857885309cb311a8ec7d635ca2898da1b1fb8e31e9b7e01bbbc6de'+
+      '68a5b9d756ff02462a3b2f8900e46a496ace5d3acb4f3e73180be515e936009e70c';
     t('no_prev_scroll', `scroll(!prev_scroll) decl(1) sig0==${sig0}
       d0==0x750e42c4c40d2914db1fd0cdfa2ea853d00b468d78f23df882fe9cc1839b71b8
-      m0==0x4e6c428d6a2ca1223d67e3d24edad4f08251ef1aea706338864c2ee3be387bde
-      m0==h(0+d0+sig0) sig0==sign(d0) M0==m0
-      m1==h(0+d1+sig1) sig1==sign(d1+M0) M1==m0_1`);
-    sig0 = '0xa065dc7c0d9fdae0d57cf9460a607ed32be5b199c8e3077a2659b74dcdc6fa86789d985430447579825d9a524068ef0c3985b3a1faa2e0d284e855d65e90e00d';
+      m0==0xa0d3dfd96822872daa1351808936ebce919fd82f3af2a14abbac987446d48017
+      m0==hleaf(d0+sig0) sig0==sign(d0) M0==hroot(m0)
+      m1==hleaf(d1+sig1) sig1==sign(d1+M0) M1==hroot(m0_1)`);
+    sig0 = '0xb34dd640e4fb8f08593c91840b1175d1014a96a9e211b5f790a3639809135a3'+
+      'c26a4f98b3c7798566d7241e4f7a9e97d99b2d7e075ec1e1f4e71a28e3c0dba0c';
     t('with_prev_scroll', `scroll decl(1) sig0==${sig0}
       d0==0x750e42c4c40d2914db1fd0cdfa2ea853d00b468d78f23df882fe9cc1839b71b8
-      m0==0xf5f4be1244f1a88c3ce0a7fe8e7ebd0e46848dcd45f96afc8866e808b479e6b1
-      m0==h(0+d0+sig0) sig0==sign(d0+prev_scroll1) M0==m0
-      m1==h(0+d1+sig1) sig1==sign(d1+M0) M1==m0_1`);
-    // XXX fix test to use hypercore left/parent/root hashing
+      m0==0x0d7b0519668a3c03ba5b206d8dd92846fdb00b282d35d4b5c0a29bd230489eee
+      m0==hleaf(d0+sig0) sig0==sign(d0+prev_scroll1) M0==hroot(m0)
+      m1==hleaf(d1+sig1) sig1==sign(d1+M0) M1==hroot(m0_1)`);
     // XXX branch support
     t('merkel', `scroll decl(1-32)
-      m0==h(0+d0+sig0) sig0==sign(d0+prev_scroll1) M0==m0
-      m1==h(0+d1+sig1) sig1==sign(d1+M0) M1==m0_1
-      m2==h(0+d2+sig2) sig2==sign(d2+M1) M2==h(m0_1+m2)
-      m3==h(0+d3+sig3) sig3==sign(d3+M2) M3==m0_3
-      m4==h(0+d4+sig4) sig4==sign(d4+M3) M4==h(m0_3+m4)
-      m5==h(0+d5+sig5) sig5==sign(d5+M4) M5==h(m0_3+m4_5)
-      m6==h(0+d6+sig6) sig6==sign(d6+M5) M6==h(m0_3+m4_5+m6)
-      m7==h(0+d7+sig7) sig7==sign(d7+M6) M7==m0_7
-      m8==h(0+d8+sig8) sig8==sign(d8+M7) M8==h(m0_7+m8)
-      m9==h(0+d9+sig9) sig9==sign(d9+M8) M9==h(m0_7+m8_9)
-      m10==h(0+d10+sig10) sig10==sign(d10+M9) M10==h(m0_7+m8_9+m10)
-      m11==h(0+d11+sig11) sig11==sign(d11+M10) M11==h(m0_7+m8_11)
-      m15==h(0+d15+sig15) sig15==sign(d15+M14) M15==m0_15
-      m16==h(0+d16+sig16) sig16==sign(d16+M15) M16==h(m0_15+m16)
-      m30==h(0+d30+sig30) sig30==sign(d30+M29)
-        M30==h(m0_15+m16_23+m24_27+m28_29+m30)
-      m31==h(0+d31+sig31) sig31==sign(d31+M30) M31==m0_31
-      m32==h(0+d32+sig32) sig32==sign(d32+M31) M32==h(m0_31+m32)
+      m0==hleaf(d0+sig0) sig0==sign(d0+prev_scroll1) M0==hroot(m0)
+      m1==hleaf(d1+sig1) sig1==sign(d1+M0) M1==hroot(m0_1)
+      m2==hleaf(d2+sig2) sig2==sign(d2+M1) M2==hroot(m0_1+m2)
+      m3==hleaf(d3+sig3) sig3==sign(d3+M2) M3==hroot(m0_3)
+      m4==hleaf(d4+sig4) sig4==sign(d4+M3) M4==hroot(m0_3+m4)
+      m5==hleaf(d5+sig5) sig5==sign(d5+M4) M5==hroot(m0_3+m4_5)
+      m6==hleaf(d6+sig6) sig6==sign(d6+M5) M6==hroot(m0_3+m4_5+m6)
+      m7==hleaf(d7+sig7) sig7==sign(d7+M6) M7==hroot(m0_7)
+      m8==hleaf(d8+sig8) sig8==sign(d8+M7) M8==hroot(m0_7+m8)
+      m9==hleaf(d9+sig9) sig9==sign(d9+M8) M9==hroot(m0_7+m8_9)
+      m10==hleaf(d10+sig10) sig10==sign(d10+M9) M10==hroot(m0_7+m8_9+m10)
+      m11==hleaf(d11+sig11) sig11==sign(d11+M10) M11==hroot(m0_7+m8_11)
+      m15==hleaf(d15+sig15) sig15==sign(d15+M14) M15==hroot(m0_15)
+      m16==hleaf(d16+sig16) sig16==sign(d16+M15) M16==hroot(m0_15+m16)
+      m30==hleaf(d30+sig30) sig30==sign(d30+M29)
+        M30==hroot(m0_15+m16_23+m24_27+m28_29+m30)
+      m31==hleaf(d31+sig31) sig31==sign(d31+M30) M31==hroot(m0_31)
+      m32==hleaf(d32+sig32) sig32==sign(d32+M31) M32==hroot(m0_31+m32)
+      M2==h(2+m0_1+0+2+m2+2+1)
     `);
   });
 });

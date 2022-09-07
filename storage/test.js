@@ -4,6 +4,7 @@ import assert from 'assert';
 import xutil from '../util/util.js';
 import xerr from '../util/xerr.js';
 import enc from 'compact-encoding';
+import b4a from 'b4a';
 import tparser from './test_parser.js';
 import xtest from '../util/test_lib.js'; // eslint-disable-line no-unused-vars
 import etask from '../util/etask.js';
@@ -80,6 +81,8 @@ function get_val(exp){
     return crypto.sign(crypto.blake2b(get_val(m[1])), t_keypair.key);
   if (m = exp.match(/^0x([0-9a-f]+)$/))
     return s2b(m[1]);
+  if (/^\d+$/.test(exp))
+    return b4a.from([+exp]);
   if ('prev_scroll1'==exp)
     return t_prev_scroll.seq_M(1);
   assert.fail('invalid val exp '+exp);
@@ -269,36 +272,36 @@ describe('scroll', ()=>{
     let sig0='0x9d73f19857885309cb311a8ec7d635ca2898da1b1fb8e31e9b7e01bbbc6de68a5b9d756ff02462a3b2f8900e46a496ace5d3acb4f3e73180be515e936009e70c';
     t('no_prev_scroll', `scroll(!prev_scroll) decl(1) sig0==${sig0}
       d0==0x750e42c4c40d2914db1fd0cdfa2ea853d00b468d78f23df882fe9cc1839b71b8
-      m0==0x568ba7f7b8282bd7165c9f671bcb1beabd2d96143568da78b3dd9b2179b75a2b
-      m0==h(d0+sig0) sig0==sign(d0) M0==m0
-      m1==h(d1+sig1) sig1==sign(d1+M0) M1==m0_1`);
-    sig0 = '0x2b9cf4adadd09598a2f91eaf8f4d677531ea343ea1f00826d360e486d8923a74486239d356c88244d6d27b7ee2560806d9587f7523b8dec59f743f771717aa0a';
+      m0==0x4e6c428d6a2ca1223d67e3d24edad4f08251ef1aea706338864c2ee3be387bde
+      m0==h(0+d0+sig0) sig0==sign(d0) M0==m0
+      m1==h(0+d1+sig1) sig1==sign(d1+M0) M1==m0_1`);
+    sig0 = '0xa065dc7c0d9fdae0d57cf9460a607ed32be5b199c8e3077a2659b74dcdc6fa86789d985430447579825d9a524068ef0c3985b3a1faa2e0d284e855d65e90e00d';
     t('with_prev_scroll', `scroll decl(1) sig0==${sig0}
       d0==0x750e42c4c40d2914db1fd0cdfa2ea853d00b468d78f23df882fe9cc1839b71b8
-      m0==0x701eb05c1c2b04d60c580bfe80b8c1f4ff851cbc1a38f7f4101465448450e4b8
-      m0==h(d0+sig0) sig0==sign(d0+prev_scroll1) M0==m0
-      m1==h(d1+sig1) sig1==sign(d1+M0) M1==m0_1`);
+      m0==0xf5f4be1244f1a88c3ce0a7fe8e7ebd0e46848dcd45f96afc8866e808b479e6b1
+      m0==h(0+d0+sig0) sig0==sign(d0+prev_scroll1) M0==m0
+      m1==h(0+d1+sig1) sig1==sign(d1+M0) M1==m0_1`);
     // XXX fix test to use hypercore left/parent/root hashing
     // XXX branch support
     t('merkel', `scroll decl(1-32)
-      m0==h(d0+sig0) sig0==sign(d0+prev_scroll1) M0==m0
-      m1==h(d1+sig1) sig1==sign(d1+M0) M1==m0_1
-      m2==h(d2+sig2) sig2==sign(d2+M1) M2==h(m0_1+m2)
-      m3==h(d3+sig3) sig3==sign(d3+M2) M3==m0_3
-      m4==h(d4+sig4) sig4==sign(d4+M3) M4==h(m0_3+m4)
-      m5==h(d5+sig5) sig5==sign(d5+M4) M5==h(m0_3+m4_5)
-      m6==h(d6+sig6) sig6==sign(d6+M5) M6==h(m0_3+m4_5+m6)
-      m7==h(d7+sig7) sig7==sign(d7+M6) M7==m0_7
-      m8==h(d8+sig8) sig8==sign(d8+M7) M8==h(m0_7+m8)
-      m9==h(d9+sig9) sig9==sign(d9+M8) M9==h(m0_7+m8_9)
-      m10==h(d10+sig10) sig10==sign(d10+M9) M10==h(m0_7+m8_9+m10)
-      m11==h(d11+sig11) sig11==sign(d11+M10) M11==h(m0_7+m8_11)
-      m15==h(d15+sig15) sig15==sign(d15+M14) M15==m0_15
-      m16==h(d16+sig16) sig16==sign(d16+M15) M16==h(m0_15+m16)
-      m30==h(d30+sig30) sig30==sign(d30+M29)
+      m0==h(0+d0+sig0) sig0==sign(d0+prev_scroll1) M0==m0
+      m1==h(0+d1+sig1) sig1==sign(d1+M0) M1==m0_1
+      m2==h(0+d2+sig2) sig2==sign(d2+M1) M2==h(m0_1+m2)
+      m3==h(0+d3+sig3) sig3==sign(d3+M2) M3==m0_3
+      m4==h(0+d4+sig4) sig4==sign(d4+M3) M4==h(m0_3+m4)
+      m5==h(0+d5+sig5) sig5==sign(d5+M4) M5==h(m0_3+m4_5)
+      m6==h(0+d6+sig6) sig6==sign(d6+M5) M6==h(m0_3+m4_5+m6)
+      m7==h(0+d7+sig7) sig7==sign(d7+M6) M7==m0_7
+      m8==h(0+d8+sig8) sig8==sign(d8+M7) M8==h(m0_7+m8)
+      m9==h(0+d9+sig9) sig9==sign(d9+M8) M9==h(m0_7+m8_9)
+      m10==h(0+d10+sig10) sig10==sign(d10+M9) M10==h(m0_7+m8_9+m10)
+      m11==h(0+d11+sig11) sig11==sign(d11+M10) M11==h(m0_7+m8_11)
+      m15==h(0+d15+sig15) sig15==sign(d15+M14) M15==m0_15
+      m16==h(0+d16+sig16) sig16==sign(d16+M15) M16==h(m0_15+m16)
+      m30==h(0+d30+sig30) sig30==sign(d30+M29)
         M30==h(m0_15+m16_23+m24_27+m28_29+m30)
-      m31==h(d31+sig31) sig31==sign(d31+M30) M31==m0_31
-      m32==h(d32+sig32) sig32==sign(d32+M31) M32==h(m0_31+m32)
+      m31==h(0+d31+sig31) sig31==sign(d31+M30) M31==m0_31
+      m32==h(0+d32+sig32) sig32==sign(d32+M31) M32==h(m0_31+m32)
     `);
   });
 });

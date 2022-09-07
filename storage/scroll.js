@@ -44,8 +44,9 @@ function fbuf_hash(fbuf){
 }
 
 function hash_concat(a){ return crypto.blake2b(Buffer.concat(a)); }
-function hash_parent(size, left, right){ return crypto.blake2b(
-  Buffer.concat([PARENT_TYPE, enc.encode(enc.uint64, size), left, right])); }
+function hash_parent(size, left, right){ return hash_concat(
+  [PARENT_TYPE, enc.encode(enc.uint64, size), left, right]); }
+function hash_leaf(h, sig){ return hash_concat([LEAF_TYPE, h, sig]); }
 
 function parse_seq_range(range){
   range = ''+range;
@@ -131,7 +132,7 @@ export default class Scroll {
     if (seq==seq2){
       let m = node.m[''+seq];
       if (!m)
-        m = node.m[''+seq] = hash_concat([node.d, node.sig]);
+        m = node.m[''+seq] = hash_leaf(node.d, node.sig);
       return m;
     }
     node = this.get_node(seq2);
@@ -162,6 +163,7 @@ Scroll.create = (opt, d)=>etask(function*scroll_create(){
 Scroll.supported_crypt = [{sig: 'ed25519', hash: 'blake2b', lif: 'lif1'}];
 Scroll.hash_concat = hash_concat; // XXX need test
 Scroll.hash_parent = hash_parent; // XXX need test
+Scroll.hash_parent = hash_leaf; // XXX need test
 Scroll.calc_roots = calc_roots;
 Scroll.parse_seq_range = parse_seq_range;
 Scroll.LEAF_TYPE = LEAF_TYPE;

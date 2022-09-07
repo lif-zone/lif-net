@@ -236,7 +236,7 @@ const test_run = test=>etask(function*test_run(){
     case 'scroll': yield cmd_scroll(t); break;
     case 'decl': yield cmd_decl(t); break;
     case '//': break;
-    case '==': yield cmd_eq(t); break;
+    case '=': yield cmd_eq(t); break;
     default: assert.fail('invalid cmd "'+t.cmd+'" in '+t.meta.s);
     }
   }
@@ -286,42 +286,42 @@ describe('scroll', ()=>{
     const t = (name, test)=>it(name, ()=>test_run(test));
     let sig0='0x9d73f19857885309cb311a8ec7d635ca2898da1b1fb8e31e9b7e01bbbc6de'+
       '68a5b9d756ff02462a3b2f8900e46a496ace5d3acb4f3e73180be515e936009e70c';
-    t('no_prev_scroll', `scroll(!prev_scroll) decl(1) sig0==${sig0}
-      d0==0x750e42c4c40d2914db1fd0cdfa2ea853d00b468d78f23df882fe9cc1839b71b8
-      m0==0xa0d3dfd96822872daa1351808936ebce919fd82f3af2a14abbac987446d48017
-      m0==hleaf(d0+sig0) sig0==sign(d0) M0==hroot(m0)
-      m1==hleaf(d1+sig1) sig1==sign(d1+M0) M1==hroot(m0_1)`);
+    t('no_prev_scroll', `scroll(!prev_scroll) decl(1) sig0=${sig0}
+      d0=0x750e42c4c40d2914db1fd0cdfa2ea853d00b468d78f23df882fe9cc1839b71b8
+      m0=0xa0d3dfd96822872daa1351808936ebce919fd82f3af2a14abbac987446d48017
+      m0=hleaf(d0+sig0) sig0=sign(d0) M0=hroot(m0)
+      m1=hleaf(d1+sig1) sig1=sign(d1+M0) M1=hroot(m0_1)`);
     sig0 = '0xb34dd640e4fb8f08593c91840b1175d1014a96a9e211b5f790a3639809135a3'+
       'c26a4f98b3c7798566d7241e4f7a9e97d99b2d7e075ec1e1f4e71a28e3c0dba0c';
-    t('with_prev_scroll', `scroll decl(1) sig0==${sig0}
-      d0==0x750e42c4c40d2914db1fd0cdfa2ea853d00b468d78f23df882fe9cc1839b71b8
-      m0==0x0d7b0519668a3c03ba5b206d8dd92846fdb00b282d35d4b5c0a29bd230489eee
-      m0==hleaf(d0+sig0) sig0==sign(d0+prev_scroll1) M0==hroot(m0)
-      m1==hleaf(d1+sig1) sig1==sign(d1+M0) M1==hroot(m0_1)`);
+    t('with_prev_scroll', `scroll decl(1) sig0=${sig0}
+      d0=0x750e42c4c40d2914db1fd0cdfa2ea853d00b468d78f23df882fe9cc1839b71b8
+      m0=0x0d7b0519668a3c03ba5b206d8dd92846fdb00b282d35d4b5c0a29bd230489eee
+      m0=hleaf(d0+sig0) sig0=sign(d0+prev_scroll1) M0=hroot(m0)
+      m1=hleaf(d1+sig1) sig1=sign(d1+M0) M1=hroot(m0_1)`);
     // XXX branch support
     // XXX api delete data
     // for testing: t('s0 s1(m1 m0_1) s3
     t('merkel', `scroll decl(1-32)
-      m0==hleaf(d0+sig0) sig0==sign(d0+prev_scroll1) M0==hroot(m0)
-      M0==h(2+m0+0+1)
-      m1==hleaf(d1+sig1) sig1==sign(d1+M0) M1==hroot(m0_1) M1==h(2+m0_1+0+2)
-      m2==hleaf(d2+sig2) sig2==sign(d2+M1) M2==hroot(m0_1+m2)
-      M2==h(2+m0_1+0+2+m2+2+1)
-      m3==hleaf(d3+sig3) sig3==sign(d3+M2) M3==hroot(m0_3)
-      m4==hleaf(d4+sig4) sig4==sign(d4+M3) M4==hroot(m0_3+m4)
-      m5==hleaf(d5+sig5) sig5==sign(d5+M4) M5==hroot(m0_3+m4_5)
-      m6==hleaf(d6+sig6) sig6==sign(d6+M5) M6==hroot(m0_3+m4_5+m6)
-      m7==hleaf(d7+sig7) sig7==sign(d7+M6) M7==hroot(m0_7)
-      m8==hleaf(d8+sig8) sig8==sign(d8+M7) M8==hroot(m0_7+m8)
-      m9==hleaf(d9+sig9) sig9==sign(d9+M8) M9==hroot(m0_7+m8_9)
-      m10==hleaf(d10+sig10) sig10==sign(d10+M9) M10==hroot(m0_7+m8_9+m10)
-      m11==hleaf(d11+sig11) sig11==sign(d11+M10) M11==hroot(m0_7+m8_11)
-      m15==hleaf(d15+sig15) sig15==sign(d15+M14) M15==hroot(m0_15)
-      m16==hleaf(d16+sig16) sig16==sign(d16+M15) M16==hroot(m0_15+m16)
-      m30==hleaf(d30+sig30) sig30==sign(d30+M29)
-        M30==hroot(m0_15+m16_23+m24_27+m28_29+m30)
-      m31==hleaf(d31+sig31) sig31==sign(d31+M30) M31==hroot(m0_31)
-      m32==hleaf(d32+sig32) sig32==sign(d32+M31) M32==hroot(m0_31+m32)
+      m0=hleaf(d0+sig0) sig0=sign(d0+prev_scroll1) M0=hroot(m0)
+      M0=h(2+m0+0+1)
+      m1=hleaf(d1+sig1) sig1=sign(d1+M0) M1=hroot(m0_1) M1=h(2+m0_1+0+2)
+      m2=hleaf(d2+sig2) sig2=sign(d2+M1) M2=hroot(m0_1+m2)
+      M2=h(2+m0_1+0+2+m2+2+1)
+      m3=hleaf(d3+sig3) sig3=sign(d3+M2) M3=hroot(m0_3)
+      m4=hleaf(d4+sig4) sig4=sign(d4+M3) M4=hroot(m0_3+m4)
+      m5=hleaf(d5+sig5) sig5=sign(d5+M4) M5=hroot(m0_3+m4_5)
+      m6=hleaf(d6+sig6) sig6=sign(d6+M5) M6=hroot(m0_3+m4_5+m6)
+      m7=hleaf(d7+sig7) sig7=sign(d7+M6) M7=hroot(m0_7)
+      m8=hleaf(d8+sig8) sig8=sign(d8+M7) M8=hroot(m0_7+m8)
+      m9=hleaf(d9+sig9) sig9=sign(d9+M8) M9=hroot(m0_7+m8_9)
+      m10=hleaf(d10+sig10) sig10=sign(d10+M9) M10=hroot(m0_7+m8_9+m10)
+      m11=hleaf(d11+sig11) sig11=sign(d11+M10) M11=hroot(m0_7+m8_11)
+      m15=hleaf(d15+sig15) sig15=sign(d15+M14) M15=hroot(m0_15)
+      m16=hleaf(d16+sig16) sig16=sign(d16+M15) M16=hroot(m0_15+m16)
+      m30=hleaf(d30+sig30) sig30=sign(d30+M29)
+      M30=hroot(m0_15+m16_23+m24_27+m28_29+m30)
+      m31=hleaf(d31+sig31) sig31=sign(d31+M30) M31=hroot(m0_31)
+      m32=hleaf(d32+sig32) sig32=sign(d32+M31) M32=hroot(m0_31+m32)
     `);
   });
 });

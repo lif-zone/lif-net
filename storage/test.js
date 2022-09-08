@@ -49,7 +49,7 @@ function calc_m(s, e){
     }
     q = q2;
   }
-  assert.equal(b2s(t_scroll.seq_m(s+'_'+e)), b2s(q[0].m));
+  assert.equal(b2s(t_scroll.seq_m([s, e])), b2s(q[0].m));
   return q[0].m;
 }
 
@@ -58,7 +58,7 @@ function get_val(exp){
   if (m = exp.match(/^sig(\d+)$/)) // sig10
     return t_scroll.seq_sig(m[1]);
   if (m = exp.match(/^m(\d+)$/)) // m10
-    return t_scroll.seq_m(m[1]); // XXX: calc and assert it match data hash
+    return t_scroll.seq_m(+m[1]); // XXX: calc and assert it match data hash
   if (m = exp.match(/^m(\d+)_(\d+)$/)) // m0_1
     return calc_m(+m[1], +m[2]);
   if (m = exp.match(/^M(\d+)$/)) // M10

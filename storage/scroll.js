@@ -58,10 +58,18 @@ function seq_merkel_array_size(seq){
   return n;
 }
 
-function merkel_array_pos(range){
+function range_fix(range){
   assert(typeof range=='number' || Array.isArray(range), 'invalid '+range);
-  if (typeof range=='number' || range.length==1)
-    return 0;
+  if (typeof range=='number')
+    return [range, range];
+  if (range.length==1)
+    return [range[0], range[0]];
+  assert(range.length==2);
+  return range;
+}
+
+function merkel_array_pos(range){
+  range = range_fix(range);
   return seq_merkel_array_size(range[1]-range[0])-1;
 }
 
@@ -156,7 +164,7 @@ for (i=1, n=0; val&i; i*=2, n++);
     let roots=calc_roots(size), a=[ROOT_TYPE];
     for (let i=0; i<roots.length; i++){
       let r = roots[i];
-      a.push(this._seq_m(r.s, r.e));
+      a.push(this.seq_m([r.s, r.e]));
       a.push(enc_u64(r.s));
       a.push(enc_u64(r.e-r.s+1));
     }
@@ -166,7 +174,8 @@ for (i=1, n=0; val&i; i*=2, n++);
   unlock(){} // XXX: TODO
   seq_sig(seq){ return this.get_node(seq)?.sig; }
   seq_d(seq){ return this.get_node(seq)?.d; }
-  _seq_m(s, e){
+  seq_m(range){
+    let [s, e] = range = range_fix(range);
     let node = this.get_node(e);
     if (s==e){
       let m = node.merkel_get(s);
@@ -174,18 +183,13 @@ for (i=1, n=0; val&i; i*=2, n++);
         m = node.merkel_set(s, hash_leaf(node.d, node.sig));
       return m;
     }
-    let range = [s, e];
     let m = node.merkel_get(range);
     if (m)
       return m;
     let d = (e-s+1)/2;
     m = node.merkel_set(range, hash_parent(2*d,
-      this._seq_m(s, s+d-1), this._seq_m(s+d, e)));
+      this.seq_m([s, s+d-1]), this.seq_m([s+d, e])));
     return m;
-  }
-  seq_m(range){ // XXX: rm api
-    let [s, e] = range_from_str(range);
-    return this._seq_m(s, e);
   }
   seq_M(seq){ return seq ? this.get_node(seq)?.M : this.M; }
   get_node(seq){ return this.nodes.get(''+seq); }

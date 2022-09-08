@@ -167,15 +167,13 @@ for (i=1, n=0; val&i; i*=2, n++);
   seq_sig(seq){ return this.get_node(seq)?.sig; }
   seq_d(seq){ return this.get_node(seq)?.d; }
   _seq_m(s, e){
-    [s, e] = [+s, +e];
-    let node = this.get_node(s);
+    let node = this.get_node(e);
     if (s==e){
       let m = node.merkel_get(s);
       if (!m)
         m = node.merkel_set(s, hash_leaf(node.d, node.sig));
       return m;
     }
-    node = this.get_node(e);
     let range = [s, e];
     let m = node.merkel_get(range);
     if (m)
@@ -187,7 +185,7 @@ for (i=1, n=0; val&i; i*=2, n++);
   }
   seq_m(range){ // XXX: rm api
     let {seq, seq2} = parse_seq_range(range);
-    return this._seq_m(seq, seq2);
+    return this._seq_m(+seq, +seq2);
   }
   seq_M(seq){ return seq ? this.get_node(seq)?.M : this.M; }
   get_node(seq){ return this.nodes.get(''+seq); }

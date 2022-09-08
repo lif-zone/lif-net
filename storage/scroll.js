@@ -3,6 +3,7 @@
 import assert from 'assert';
 import etask from '../util/etask.js';
 import crypto from '../util/crypto.js';
+import xerr from '../util/xerr.js';
 import enc from 'compact-encoding';
 import {Buffer} from 'buffer';
 import buf_util from '../peer-relay/buf_util.js';
@@ -143,7 +144,7 @@ for (i=1, n=0; val&i; i*=2, n++);
        14: m14
        15: m15 m14_15 m12_15 m_8_15 m0_15 // 1111
       */
-      let node = new Node({seq, d, sig, fbuf});
+      let node = new Node({scroll: _this, seq, d, sig, fbuf});
       _this.nodes.set(''+seq, node); // XXX: change to int
       _this.size++;
       _this.M = node.M = _this.call_root_hash(_this.size);
@@ -177,17 +178,7 @@ for (i=1, n=0; val&i; i*=2, n++);
   seq_m(range){
     let [s, e] = range = range_fix(range);
     let node = this.get_node(e);
-    let m = node.merkel_get(range);
-    if (m)
-      return m;
-    if (s==e)
-      m = node.merkel_set(s, hash_leaf(node.d, node.sig));
-    else {
-      let d = (e-s+1)/2;
-      m = node.merkel_set(range, hash_parent(2*d,
-        this.seq_m([s, s+d-1]), this.seq_m([s+d, e])));
-    }
-    return m;
+    return node.merkel_get_val(range);
   }
   seq_M(seq){ return seq ? this.get_node(seq)?.M : this.M; }
   get_node(seq){ return this.nodes.get(''+seq); }
@@ -196,7 +187,9 @@ for (i=1, n=0; val&i; i*=2, n++);
 class Node {
   constructor(opt){
     assert(opt.seq>=0, 'must provide Node seq');
+    assert(opt.scroll, 'must provide Scroll');
     let seq = this.seq = opt.seq;
+    this.scroll = opt.scroll;
     this.d = opt.d;
     this.sig = opt.sig;
     this.fbuf = opt.fbuf;
@@ -214,6 +207,22 @@ class Node {
     assert(i<this.m.length);
     this.m[i] = val;
     return val;
+  }
+  merkel_get_val(range){
+    let [s, e] = range = range_fix(range);
+    let m = this.merkel_get(range);
+    if (m)
+      return m;
+    if (s==e)
+      m = this.merkel_set(s, hash_leaf(this.d, this.sig));
+    else {
+      let d = (e-s+1)/2;
+      let node = this.scroll.get_node(s+d-1);
+      let node2 = this.scroll.get_node(e);
+      m = this.merkel_set(range, hash_parent(2*d,
+        node.merkel_get_val([s, s+d-1]), node2.merkel_get_val([s+d, e])));
+    }
+    return m;
   }
 }
 

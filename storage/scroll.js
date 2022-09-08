@@ -58,8 +58,9 @@ function seq_merkel_array_size(seq){
   return n;
 }
 
-function range_merkel_array_pos(range){
-  if (range.length==1)
+function merkel_array_pos(range){
+  assert(typeof range=='number' || Array.isArray(range), 'invalid '+range);
+  if (typeof range=='number' || range.length==1)
     return 0;
   return seq_merkel_array_size(range[1]-range[0])-1;
 }
@@ -165,24 +166,23 @@ for (i=1, n=0; val&i; i*=2, n++);
   unlock(){} // XXX: TODO
   seq_sig(seq){ return this.get_node(seq)?.sig; }
   seq_d(seq){ return this.get_node(seq)?.d; }
-  _seq_m(seq, seq2){
-    seq = +seq;
-    seq2 = +seq2;
-    let node = this.get_node(seq);
-    if (seq==seq2){
-      let m = node.merkel_get(seq);
+  _seq_m(s, e){
+    [s, e] = [+s, +e];
+    let node = this.get_node(s);
+    if (s==e){
+      let m = node.merkel_get(s);
       if (!m)
-        m = node.merkel_set(''+seq, hash_leaf(node.d, node.sig));
+        m = node.merkel_set(s, hash_leaf(node.d, node.sig));
       return m;
     }
-    node = this.get_node(seq2);
-    let range = seq+'_'+seq2;
+    node = this.get_node(e);
+    let range = [s, e];
     let m = node.merkel_get(range);
     if (m)
       return m;
-    let d = (seq2-seq+1)/2;
-    m = node.merkel_set(range,
-      hash_parent(2*d, this._seq_m(seq, seq+d-1), this._seq_m(seq+d, seq2)));
+    let d = (e-s+1)/2;
+    m = node.merkel_set(range, hash_parent(2*d,
+      this._seq_m(s, s+d-1), this._seq_m(s+d, e)));
     return m;
   }
   seq_m(range){ // XXX: rm api
@@ -196,17 +196,23 @@ for (i=1, n=0; val&i; i*=2, n++);
 class Node {
   constructor(opt){
     assert(opt.seq>=0, 'must provide Node seq');
-    this.seq = opt.seq;
+    let seq = this.seq = opt.seq;
     this.d = opt.d;
     this.sig = opt.sig;
     this.fbuf = opt.fbuf;
-    this.m = {}; // XXX: replace with array
+    this.m = [null];
+    for (let i=1; seq&i; i*=2)
+      this.m.push(null); // XXX: push hash class
   }
   merkel_get(range){
-    return this.m[''+range];
+    let i = merkel_array_pos(range);
+    assert(i<this.m.length);
+    return this.m[i];
   }
   merkel_set(range, val){
-    this.m[''+range] = val;
+    let i = merkel_array_pos(range);
+    assert(i<this.m.length);
+    this.m[i] = val;
     return val;
   }
 }
@@ -225,7 +231,7 @@ Scroll.hash_parent = hash_leaf; // XXX need test
 Scroll.calc_roots = calc_roots;
 Scroll.parse_seq_range = parse_seq_range;
 Scroll.seq_merkel_array_size = seq_merkel_array_size;
-Scroll.range_merkel_array_pos = range_merkel_array_pos;
+Scroll.merkel_array_pos = merkel_array_pos;
 Scroll.LEAF_TYPE = LEAF_TYPE;
 Scroll.PARENT_TYPE = PARENT_TYPE;
 Scroll.ROOT_TYPE = ROOT_TYPE;

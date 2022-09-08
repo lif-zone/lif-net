@@ -265,9 +265,13 @@ describe('scroll', ()=>{
       t(14, 1);
       t(15, 5);
     });
-    it('range_merkel_array_pos', ()=>{
+    it('merkel_array_pos', ()=>{
       const t = (range, exp)=>assert.equal(
-        Scroll.range_merkel_array_pos(range), exp, 'range '+range);
+        Scroll.merkel_array_pos(range), exp, 'range '+range);
+      t(0, 0);
+      t(1, 0);
+      t(2, 0);
+      t(3, 0);
       t([3], 0);
       t([3, 3], 0);
       t([2, 3], 1);

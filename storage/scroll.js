@@ -206,6 +206,7 @@ class Node { // XXX: rename to Decl
     let i = merkel_array_pos(range);
     assert.deepEqual(this.m[i].range, range_fix(range));
     assert(i<this.m.length);
+    assert(!this.m[i].h);
     this.m[i].h = h;
     return this.m[i];
   }

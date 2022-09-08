@@ -98,7 +98,7 @@ export default class Scroll {
     assert.deepEqual(this.crypt, Scroll.supported_crypt[0], 'unsupported');
     this.prev_scroll = opt.prev_scroll;
     this.size = 0;
-    this.nodes = new Map();
+    this.decl_map = new Map();
   }
   decl(){
     let args = Array.from(arguments);
@@ -143,11 +143,11 @@ for (i=1, n=0; val&i; i*=2, n++);
        14: m14
        15: m15 m14_15 m12_15 m_8_15 m0_15 // 1111
       */
-      let node = new Node({scroll: _this, seq, d, sig, fbuf});
-      _this.nodes.set(''+seq, node); // XXX: change to int
+      let decl = new Decl({scroll: _this, seq, d, sig, fbuf});
+      _this.decl_map.set(''+seq, decl); // XXX: change to int
       _this.size++;
-      _this.M = node.M = _this.call_root_hash(_this.size);
-      return node;
+      _this.M = decl.M = _this.call_root_hash(_this.size);
+      return decl;
     });
   }
   sign(seq, d){
@@ -172,29 +172,29 @@ for (i=1, n=0; val&i; i*=2, n++);
   }
   lock(){} // XXX: TODO
   unlock(){} // XXX: TODO
-  seq_sig(seq){ return this.get_node(seq)?.sig; }
-  seq_d(seq){ return this.get_node(seq)?.d; }
+  seq_sig(seq){ return this.get_decl(seq)?.sig; }
+  seq_d(seq){ return this.get_decl(seq)?.d; }
   seq_m(range){
     let [, e] = range = range_fix(range);
-    let node = this.get_node(e);
-    return node.merkel_get_hash(range);
+    let decl = this.get_decl(e);
+    return decl.merkel_get_hash(range);
   }
-  seq_M(seq){ return seq ? this.get_node(seq)?.M : this.M; }
-  get_node(seq){ return this.nodes.get(''+seq); }
+  seq_M(seq){ return seq ? this.get_decl(seq)?.M : this.M; }
+  get_decl(seq){ return this.decl_map.get(''+seq); }
 }
 
-class Node { // XXX: rename to Decl
+class Decl {
   constructor(opt){
-    assert(opt.seq>=0, 'must provide Node seq');
+    assert(opt.seq>=0, 'must provide Decl seq');
     assert(opt.scroll, 'must provide Scroll');
     let seq = this.seq = opt.seq;
     this.scroll = opt.scroll;
     this.d = opt.d;
     this.sig = opt.sig;
     this.fbuf = opt.fbuf;
-    this.m = [new Merkel_node({node: this, range: seq})];
+    this.m = [new Merkel_node({decl: this, range: seq})];
     for (let i=1, s=seq-i; seq&i; i*=2, s-=i)
-      this.m.push(new Merkel_node({node: this, range: [s, seq]}));
+      this.m.push(new Merkel_node({decl: this, range: [s, seq]}));
   }
   merkel_get(range){
     let i = merkel_array_pos(range);
@@ -213,20 +213,20 @@ class Node { // XXX: rename to Decl
 class Merkel_node {
   constructor(opt){
     this.range = range_fix(opt.range);
-    this.node = opt.node;
+    this.decl = opt.decl;
   }
   calc_hash(){
     if (this.h)
       return;
-    let [s, e] = this.range, node = this.node;
+    let [s, e] = this.range, decl = this.decl;
     if (s==e)
-      this.h = hash_leaf(node.d, node.sig);
+      this.h = hash_leaf(decl.d, decl.sig);
     else {
       let d = (e-s+1)/2;
-      let node1 = node.scroll.get_node(s+d-1);
-      let node2 = node.scroll.get_node(e);
-      this.h = hash_parent(2*d, node1.merkel_get_hash([s, s+d-1]),
-        node2.merkel_get_hash([s+d, e]));
+      let decl1 = decl.scroll.get_decl(s+d-1);
+      let decl2 = decl.scroll.get_decl(e);
+      this.h = hash_parent(2*d, decl1.merkel_get_hash([s, s+d-1]),
+        decl2.merkel_get_hash([s+d, e]));
     }
   }
 }

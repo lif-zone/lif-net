@@ -112,40 +112,10 @@ export default class Scroll {
       let d = fbuf_hash(fbuf);
       let sig = _this.sign(seq, d);
       fbuf_unshift(fbuf, {sig});
-      /* XXX: change m to be array and make every hash a class
-        (can be empty/in_progress)
-for (i=1, n=0; val&i; i*=2, n++);
-        m['0_1']'2_3'
-        m['1.5_6']
-        m1   = s[1].m[0] = s[1].d[0]+s[1].d[1]... // self
-        m0_1 = s[1].m[1] = s[1].m[0]+s[1].m[0] // if (seq & 0x1)
-        m3   = s[3].m[0] = s[3].d[0]+s[3].d[1]... // self
-        m2_3 = s[3].m[1] = s[2].m[0]+s[3].m[0] // if (seq & 0x1)
-        m0_3 = s[3].m[2] = s[1].m[1]+s[3].m[1] // if (seq & 0x3)
-        m[0] = self always exits
-        m[1] = if seq & 0x1
-        m[2] = if seq & 0x3
-        m[3] = if seq & 0x7
-        0: m0
-        1: m1 m0_1
-        2: m2
-        3: m3 m2_3 m0_3 // 011
-        4: m4
-        5: m5 m4_5  // 101
-        6: m6
-        7: m7 m6_7 m4_7 m0_7 // 111
-        8: m8
-        9: m9 m8_9
-       10: m10
-       11: m11 m10_11 m8_11 // 1011
-       12: m12
-       13: m13 m12_13 // 1101
-       14: m14
-       15: m15 m14_15 m12_15 m_8_15 m0_15 // 1111
-      */
       let decl = new Decl({scroll: _this, seq, d, sig, fbuf});
       _this.decl_map.set(''+seq, decl); // XXX: change to int
       _this.size++;
+      // XXX: new Merkel_root and _this.M -> merkel_root()
       _this.M = decl.M = _this.call_root_hash(_this.size);
       return decl;
     });
@@ -189,9 +159,9 @@ class Decl {
     assert(opt.scroll, 'must provide Scroll');
     let seq = this.seq = opt.seq;
     this.scroll = opt.scroll;
-    this.d = opt.d;
-    this.sig = opt.sig;
-    this.fbuf = opt.fbuf;
+    this.d = opt.d; // XXX new DataHash()
+    this.sig = opt.sig; // XXX: remove from here and get it from fbuf
+    this.fbuf = opt.fbuf; // new FrameBuffer()
     this.m = [new Merkel_node({decl: this, range: seq})];
     for (let i=1, s=seq-i; seq&i; i*=2, s-=i)
       this.m.push(new Merkel_node({decl: this, range: [s, seq]}));

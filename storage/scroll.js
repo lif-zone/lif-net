@@ -3,7 +3,6 @@
 import assert from 'assert';
 import etask from '../util/etask.js';
 import crypto from '../util/crypto.js';
-import xerr from '../util/xerr.js';
 import enc from 'compact-encoding';
 import {Buffer} from 'buffer';
 import buf_util from '../peer-relay/buf_util.js';
@@ -176,15 +175,15 @@ for (i=1, n=0; val&i; i*=2, n++);
   seq_sig(seq){ return this.get_node(seq)?.sig; }
   seq_d(seq){ return this.get_node(seq)?.d; }
   seq_m(range){
-    let [s, e] = range = range_fix(range);
+    let [, e] = range = range_fix(range);
     let node = this.get_node(e);
-    return node.merkel_get_val(range);
+    return node.merkel_get_hash(range);
   }
   seq_M(seq){ return seq ? this.get_node(seq)?.M : this.M; }
   get_node(seq){ return this.nodes.get(''+seq); }
 }
 
-class Node {
+class Node { // XXX: rename to Decl
   constructor(opt){
     assert(opt.seq>=0, 'must provide Node seq');
     assert(opt.scroll, 'must provide Scroll');
@@ -193,36 +192,49 @@ class Node {
     this.d = opt.d;
     this.sig = opt.sig;
     this.fbuf = opt.fbuf;
-    this.m = [null];
-    for (let i=1; seq&i; i*=2)
-      this.m.push(null); // XXX: push hash class
+    this.m = [new Merkel_node({node: this, range: seq})];
+    for (let i=1, s=seq-i; seq&i; i*=2, s-=i)
+      this.m.push(new Merkel_node({node: this, range: [s, seq]}));
   }
   merkel_get(range){
     let i = merkel_array_pos(range);
+    assert.deepEqual(this.m[i].range, range_fix(range));
     assert(i<this.m.length);
     return this.m[i];
   }
-  merkel_set(range, val){
+  merkel_set_hash(range, h){
     let i = merkel_array_pos(range);
+    assert.deepEqual(this.m[i].range, range_fix(range));
     assert(i<this.m.length);
-    this.m[i] = val;
-    return val;
+    this.m[i].h = h;
+    return this.m[i];
   }
-  merkel_get_val(range){
-    let [s, e] = range = range_fix(range);
+  merkel_get_hash(range){
     let m = this.merkel_get(range);
-    if (m)
-      return m;
+    if (!m.h)
+      m.calc_hash();
+    return m.h;
+  }
+}
+
+class Merkel_node {
+  constructor(opt){
+    this.range = range_fix(opt.range);
+    this.node = opt.node;
+  }
+  calc_hash(){
+    if (this.h)
+      return;
+    let [s, e] = this.range, node = this.node;
     if (s==e)
-      m = this.merkel_set(s, hash_leaf(this.d, this.sig));
+      this.h = hash_leaf(node.d, node.sig);
     else {
       let d = (e-s+1)/2;
-      let node = this.scroll.get_node(s+d-1);
-      let node2 = this.scroll.get_node(e);
-      m = this.merkel_set(range, hash_parent(2*d,
-        node.merkel_get_val([s, s+d-1]), node2.merkel_get_val([s+d, e])));
+      let node1 = node.scroll.get_node(s+d-1);
+      let node2 = node.scroll.get_node(e);
+      node.merkel_set_hash(this.range, hash_parent(2*d,
+        node1.merkel_get_hash([s, s+d-1]), node2.merkel_get_hash([s+d, e])));
     }
-    return m;
   }
 }
 

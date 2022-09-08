@@ -202,14 +202,6 @@ class Node { // XXX: rename to Decl
     assert(i<this.m.length);
     return this.m[i];
   }
-  merkel_set_hash(range, h){
-    let i = merkel_array_pos(range);
-    assert.deepEqual(this.m[i].range, range_fix(range));
-    assert(i<this.m.length);
-    assert(!this.m[i].h);
-    this.m[i].h = h;
-    return this.m[i];
-  }
   merkel_get_hash(range){
     let m = this.merkel_get(range);
     if (!m.h)
@@ -233,8 +225,8 @@ class Merkel_node {
       let d = (e-s+1)/2;
       let node1 = node.scroll.get_node(s+d-1);
       let node2 = node.scroll.get_node(e);
-      node.merkel_set_hash(this.range, hash_parent(2*d,
-        node1.merkel_get_hash([s, s+d-1]), node2.merkel_get_hash([s+d, e])));
+      this.h = hash_parent(2*d, node1.merkel_get_hash([s, s+d-1]),
+        node2.merkel_get_hash([s+d, e]));
     }
   }
 }

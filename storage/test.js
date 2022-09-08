@@ -245,6 +245,40 @@ const test_run = test=>etask(function*test_run(){
 
 describe('scroll', ()=>{
   describe('util', ()=>{
+    it('seq_merkel_array_size', ()=>{
+      const t = (seq, exp)=>assert.equal(Scroll.seq_merkel_array_size(seq),
+        exp, 'seq '+seq);
+      t(0, 1);
+      t(1, 2);
+      t(2, 1);
+      t(3, 3);
+      t(4, 1);
+      t(5, 2);
+      t(6, 1);
+      t(7, 4);
+      t(8, 1);
+      t(9, 2);
+      t(10, 1);
+      t(11, 3);
+      t(12, 1);
+      t(13, 2);
+      t(14, 1);
+      t(15, 5);
+    });
+    it('range_merkel_array_pos', ()=>{
+      const t = (range, exp)=>assert.equal(
+        Scroll.range_merkel_array_pos(range), exp, 'range '+range);
+      t([3], 0);
+      t([3, 3], 0);
+      t([2, 3], 1);
+      t([0, 3], 2);
+      t([15], 0);
+      t([15, 15], 0);
+      t([14, 15], 1);
+      t([12, 15], 2);
+      t([8, 15], 3);
+      t([0, 15], 4);
+    });
     it('parse_seq_range', ()=>{
       const t = (val, exp)=>assert.deepEqual(Scroll.parse_seq_range(val), exp);
       t('1', {seq: '1', seq2: '1'});

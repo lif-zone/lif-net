@@ -52,6 +52,18 @@ function parse_seq_range(range){
   return {seq: m[1], seq2: m[3]||m[1]};
 }
 
+function seq_merkel_array_size(seq){
+  let n=1;
+  for (let i=1; seq&i; i*=2, n++);
+  return n;
+}
+
+function range_merkel_array_pos(range){
+  if (range.length==1)
+    return 0;
+  return seq_merkel_array_size(range[1]-range[0])-1;
+}
+
 function calc_roots(size){
   let roots = [];
   for (let n=1, s=0; s+n<=size;){
@@ -93,6 +105,7 @@ export default class Scroll {
       fbuf_unshift(fbuf, {sig});
       /* XXX: change m to be array and make every hash a class
         (can be empty/in_progress)
+for (i=1, n=0; val&i; i*=2, n++);
         m['0_1']'2_3'
         m['1.5_6']
         m1   = s[1].m[0] = s[1].d[0]+s[1].d[1]... // self
@@ -104,10 +117,25 @@ export default class Scroll {
         m[1] = if seq & 0x1
         m[2] = if seq & 0x3
         m[3] = if seq & 0x7
+        0: m0
+        1: m1 m0_1
+        2: m2
+        3: m3 m2_3 m0_3 // 011
+        4: m4
+        5: m5 m4_5  // 101
+        6: m6
+        7: m7 m6_7 m4_7 m0_7 // 111
+        8: m8
+        9: m9 m8_9
+       10: m10
+       11: m11 m10_11 m8_11 // 1011
+       12: m12
+       13: m13 m12_13 // 1101
+       14: m14
+       15: m15 m14_15 m12_15 m_8_15 m0_15 // 1111
       */
-      // XXX  new Scroll.Node
-      let node = {seq, d, sig, fbuf, m: {}, M: null};
-      _this.nodes.set(''+seq, node);
+      let node = new Node({seq, d, sig, fbuf});
+      _this.nodes.set(''+seq, node); // XXX: change to int
       _this.size++;
       _this.M = node.M = _this.call_root_hash(_this.size);
       return node;
@@ -142,27 +170,45 @@ export default class Scroll {
     seq2 = +seq2;
     let node = this.get_node(seq);
     if (seq==seq2){
-      let m = node.m[''+seq];
+      let m = node.merkel_get(seq);
       if (!m)
-        m = node.m[''+seq] = hash_leaf(node.d, node.sig);
+        m = node.merkel_set(''+seq, hash_leaf(node.d, node.sig));
       return m;
     }
     node = this.get_node(seq2);
     let range = seq+'_'+seq2;
-    let m = node.m[range];
+    let m = node.merkel_get(range);
     if (m)
       return m;
     let d = (seq2-seq+1)/2;
-    m = node.m[range] = hash_parent(2*d, this._seq_m(seq, seq+d-1),
-      this._seq_m(seq+d, seq2));
+    m = node.merkel_set(range,
+      hash_parent(2*d, this._seq_m(seq, seq+d-1), this._seq_m(seq+d, seq2)));
     return m;
   }
-  seq_m(range){
+  seq_m(range){ // XXX: rm api
     let {seq, seq2} = parse_seq_range(range);
     return this._seq_m(seq, seq2);
   }
   seq_M(seq){ return seq ? this.get_node(seq)?.M : this.M; }
   get_node(seq){ return this.nodes.get(''+seq); }
+}
+
+class Node {
+  constructor(opt){
+    assert(opt.seq>=0, 'must provide Node seq');
+    this.seq = opt.seq;
+    this.d = opt.d;
+    this.sig = opt.sig;
+    this.fbuf = opt.fbuf;
+    this.m = {}; // XXX: replace with array
+  }
+  merkel_get(range){
+    return this.m[''+range];
+  }
+  merkel_set(range, val){
+    this.m[''+range] = val;
+    return val;
+  }
 }
 
 Scroll.create = (opt, d)=>etask(function*scroll_create(){
@@ -178,6 +224,8 @@ Scroll.hash_parent = hash_parent; // XXX need test
 Scroll.hash_parent = hash_leaf; // XXX need test
 Scroll.calc_roots = calc_roots;
 Scroll.parse_seq_range = parse_seq_range;
+Scroll.seq_merkel_array_size = seq_merkel_array_size;
+Scroll.range_merkel_array_pos = range_merkel_array_pos;
 Scroll.LEAF_TYPE = LEAF_TYPE;
 Scroll.PARENT_TYPE = PARENT_TYPE;
 Scroll.ROOT_TYPE = ROOT_TYPE;

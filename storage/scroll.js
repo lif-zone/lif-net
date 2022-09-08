@@ -47,9 +47,9 @@ function hash_parent(size, left, right){
   return hash_concat([PARENT_TYPE, enc_u64(size), left, right]); }
 function hash_leaf(h, sig){ return hash_concat([LEAF_TYPE, h, sig]); }
 
-function parse_seq_range(range){
+function range_from_str(range){
   let m = (''+range).match(/^(\d+)(_(\d+))?$/); // 10 or 10_15
-  return {seq: m[1], seq2: m[3]||m[1]};
+  return [+m[1], m[3]!==undefined ? +m[3] : +m[1]];
 }
 
 function seq_merkel_array_size(seq){
@@ -184,8 +184,8 @@ for (i=1, n=0; val&i; i*=2, n++);
     return m;
   }
   seq_m(range){ // XXX: rm api
-    let {seq, seq2} = parse_seq_range(range);
-    return this._seq_m(+seq, +seq2);
+    let [s, e] = range_from_str(range);
+    return this._seq_m(s, e);
   }
   seq_M(seq){ return seq ? this.get_node(seq)?.M : this.M; }
   get_node(seq){ return this.nodes.get(''+seq); }
@@ -227,7 +227,7 @@ Scroll.hash_concat = hash_concat; // XXX need test
 Scroll.hash_parent = hash_parent; // XXX need test
 Scroll.hash_parent = hash_leaf; // XXX need test
 Scroll.calc_roots = calc_roots;
-Scroll.parse_seq_range = parse_seq_range;
+Scroll.range_from_str = range_from_str;
 Scroll.seq_merkel_array_size = seq_merkel_array_size;
 Scroll.merkel_array_pos = merkel_array_pos;
 Scroll.LEAF_TYPE = LEAF_TYPE;

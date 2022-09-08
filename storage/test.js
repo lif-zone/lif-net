@@ -80,10 +80,10 @@ function get_val(exp){
   if (m = exp.match(/^hroot\((.*)\)$/)){
     let a=[Scroll.ROOT_TYPE];
     m[1].split('+').forEach(v=>{
-      let r = Scroll.parse_seq_range(v.replace('m', ''));
+      let r = Scroll.range_from_str(v.replace('m', ''));
       a.push(get_val(v));
-      a.push(enc_u64(r.seq));
-      a.push(enc_u64(r.seq2-r.seq+1));
+      a.push(enc_u64(r[0]));
+      a.push(enc_u64(r[1]-r[0]+1));
     });
     return Scroll.hash_concat(a);
   }
@@ -283,11 +283,11 @@ describe('scroll', ()=>{
       t([8, 15], 3);
       t([0, 15], 4);
     });
-    it('parse_seq_range', ()=>{
-      const t = (val, exp)=>assert.deepEqual(Scroll.parse_seq_range(val), exp);
-      t('1', {seq: '1', seq2: '1'});
-      t('10', {seq: '10', seq2: '10'});
-      t('10_100', {seq: '10', seq2: '100'});
+    it('range_from_str', ()=>{
+      const t = (val, exp)=>assert.deepEqual(Scroll.range_from_str(val), exp);
+      t('1', [1, 1]);
+      t('10', [10, 10]);
+      t('10_100', [10, 100]);
     });
     it('calc_roots', ()=>{
       const t = (size, exp)=>{

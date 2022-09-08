@@ -177,18 +177,16 @@ for (i=1, n=0; val&i; i*=2, n++);
   seq_m(range){
     let [s, e] = range = range_fix(range);
     let node = this.get_node(e);
-    if (s==e){
-      let m = node.merkel_get(s);
-      if (!m)
-        m = node.merkel_set(s, hash_leaf(node.d, node.sig));
-      return m;
-    }
     let m = node.merkel_get(range);
     if (m)
       return m;
-    let d = (e-s+1)/2;
-    m = node.merkel_set(range, hash_parent(2*d,
-      this.seq_m([s, s+d-1]), this.seq_m([s+d, e])));
+    if (s==e)
+      m = node.merkel_set(s, hash_leaf(node.d, node.sig));
+    else {
+      let d = (e-s+1)/2;
+      m = node.merkel_set(range, hash_parent(2*d,
+        this.seq_m([s, s+d-1]), this.seq_m([s+d, e])));
+    }
     return m;
   }
   seq_M(seq){ return seq ? this.get_node(seq)?.M : this.M; }

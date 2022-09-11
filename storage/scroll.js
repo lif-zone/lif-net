@@ -25,22 +25,22 @@ function to_frame(o){
   assert.fail('invalid frame data '+o);
 }
 
-// XXX wrap as FrameBuffer and move to fbug.js
-function fbuf_from_arg(arg){
-  let fbuf = {frames: []};
-  arg.forEach(o=>fbuf.frames.push(to_frame(o)));
-  return fbuf;
-}
-
-function fbuf_unshift(fbuf, o){ fbuf.frames.unshift(to_frame(o)); }
-
-function fbuf_hash(fbuf){
-  let buf;
-  fbuf.frames.forEach(f=>{
-    let h = crypto.blake2b(f.buf);
-    buf = buf ? Buffer.concat([buf, h]) : h;
-  });
-  return crypto.blake2b(buf);
+class FrameBuffer {
+  constructor(opt){
+    let {frames} = opt;
+    this.frames = [];
+    for (let i=0; i<frames.length; i++)
+      this.frames.push(to_frame(frames[i]));
+  }
+  unshift(o){ this.frames.unshift(to_frame(o)); }
+  calc_hash(){
+    let buf;
+    this.frames.forEach(f=>{
+      let h = crypto.blake2b(f.buf);
+      buf = buf ? Buffer.concat([buf, h]) : h;
+    });
+    return crypto.blake2b(buf);
+  }
 }
 
 function hash_concat(a){ return crypto.blake2b(Buffer.concat(a)); }
@@ -102,13 +102,12 @@ export default class Scroll {
     this.decl_map = new Map();
   }
   decl(){
-    let args = Array.from(arguments);
+    let frames = arguments;
     return etask({_: this}, function*(){
       let _this = this._;
-      // XXX new Scroll.FrameBuffer
-      let fbuf = fbuf_from_arg(args);
+      let fbuf = new FrameBuffer({frames});
       let seq = _this.size, ts = Date.now();
-      fbuf_unshift(fbuf, {seq, ts});
+      fbuf.unshift({seq, ts});
       let decl = new Decl({scroll: _this, seq, fbuf});
       yield decl.sign();
       _this.decl_map.set(seq, decl);
@@ -152,7 +151,7 @@ class Decl {
     let seq = this.seq = opt.seq;
     this.scroll = opt.scroll;
     this.fbuf = opt.fbuf; // XXX new FrameBuffer()
-    this.d = fbuf_hash(this.fbuf); // XXX new DataHash?
+    this.d = this.fbuf.calc_hash(); // XXX new DataHash?
     this.M = new Merkel_root({decl: this});
     this.m = [new Merkel_node({decl: this, range: seq})];
     for (let i=1, s=seq-i; seq&i; i*=2, s-=i)
@@ -168,7 +167,7 @@ class Decl {
     else
       buf = this.d;
     let sig = crypto.sign(crypto.blake2b(buf), scroll.key);
-    fbuf_unshift(this.fbuf, {sig});
+    this.fbuf.unshift({sig});
     this.sig = sig; // XXX: rm
   }
   m_get(range){

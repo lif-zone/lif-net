@@ -117,14 +117,15 @@ export default class Scroll {
       _this.decl_map.set(seq, decl);
       _this.size++;
       // XXX: new Merkel_root and _this.M -> merkel_root()
-      _this.M = decl.M = _this.call_root_hash(_this.size);
+      decl.M = _this.call_root_hash(_this.size);
       return decl;
     });
   }
   sign(seq, d){
+    // XXX: mv to Decl
     let buf;
     if (seq)
-      buf = Buffer.concat([d, this.M]);
+      buf = Buffer.concat([d, this.seq_M(seq-1)]);
     else if (this.prev_scroll)
       buf = Buffer.concat([d, this.prev_scroll]);
     else
@@ -150,7 +151,8 @@ export default class Scroll {
     let decl = this.get_decl(e);
     return decl.merkel_get_hash(range);
   }
-  seq_M(seq){ return seq===undefined ? this.M : this.get_decl(seq)?.M }
+  seq_M(seq){ return seq===undefined ? this.get_decl(this.size-1)?.M :
+    this.get_decl(seq)?.M }
   get_decl(seq){
     assert(typeof seq=='number', 'invalid seq '+seq);
     return this.decl_map.get(seq);

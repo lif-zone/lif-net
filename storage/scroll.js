@@ -215,8 +215,8 @@ class Merkel_root {
   }
   calc_hash(){
     if (this.h)
-      return this.h
-    return (this.h = this.decl.scroll.calc_root_hash(this.decl.seq));
+      return this.h;
+    return this.h = this.decl.scroll.calc_root_hash(this.decl.seq);
   }
 }
 

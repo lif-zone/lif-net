@@ -230,6 +230,9 @@ const cmd_decl = t=>etask(function*cmd_decl(){
   }
 });
 
+const cmd_push = t=>etask(function*cmd_push(){
+});
+
 const cmd_eq = o=>etask(function*cmd_eq(){
   assert(o.l, 'missing left '+o.meta.s);
   assert(o.r, 'missing right '+o.meta.s);
@@ -246,6 +249,7 @@ const test_run_single = o=>etask(function*_test_run_single(){
   switch (o.cmd){
   case 'scroll': yield cmd_scroll(o); break;
   case 'decl': yield cmd_decl(o); break;
+  case 'push': yield cmd_push(o); break;
   case '//': break;
   case '=': yield cmd_eq(o); break;
   case '.':
@@ -387,6 +391,7 @@ describe('scroll', ()=>{
     `);
     if (1) t('xxx', `s.scroll s.decl(1-32)
       s2.scroll(M0:s.M0)
+      s2.push(0(sig0:sig0 d0:d0))
     `);
     if (true) return; // XXX WIP
     // XXX: make the last scroll used the default

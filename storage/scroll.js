@@ -243,7 +243,6 @@ Scroll.open = opt=>etask(function*scroll_create(){
   assert(opt.M0, 'scroll.open requires M0');
   let decl = yield scroll.get_decl(0, {create: true});
   yield decl.M.set(opt.M0);
-  // XXX TODO
   return scroll;
 });
 

@@ -107,21 +107,18 @@ export default class Scroll {
       let _this = this._;
       // XXX new Scroll.FrameBuffer
       let fbuf = fbuf_from_arg(args);
-      yield _this.lock();
       let seq = _this.size, ts = Date.now();
       fbuf_unshift(fbuf, {seq, ts});
       let d = fbuf_hash(fbuf);
       let decl = new Decl({scroll: _this, seq, d, fbuf});
-      decl.sign();
+      yield decl.sign();
       _this.decl_map.set(seq, decl);
       _this.size++;
-      // XXX: new Merkel_root and _this.M -> merkel_root()
-      decl.M = _this.call_root_hash(_this.size);
       return decl;
     });
   }
-  call_root_hash(size){
-    let roots=calc_roots(size), a=[ROOT_TYPE];
+  calc_root_hash(seq){
+    let roots=calc_roots(seq+1), a=[ROOT_TYPE];
     for (let i=0; i<roots.length; i++){
       let r = roots[i];
       a.push(this.seq_m([r.s, r.e]));
@@ -137,10 +134,12 @@ export default class Scroll {
   seq_m(range){
     let [, e] = range = range_fix(range);
     let decl = this.get_decl(e);
-    return decl.merkel_get_hash(range);
+    return decl.m_get_hash(range);
   }
-  seq_M(seq){ return seq===undefined ? this.get_decl(this.size-1)?.M :
-    this.get_decl(seq)?.M; }
+  seq_M(seq){
+    let decl = this.get_decl(seq===undefined ? this.size-1 : seq);
+    return decl.M_get_hash();
+  }
   get_decl(seq){
     assert(typeof seq=='number', 'invalid seq '+seq);
     return this.decl_map.get(seq);
@@ -155,6 +154,7 @@ class Decl {
     this.scroll = opt.scroll;
     this.d = opt.d; // XXX new DataHash()
     this.fbuf = opt.fbuf; // new FrameBuffer()
+    this.M = new Merkel_root({decl: this});
     this.m = [new Merkel_node({decl: this, range: seq})];
     for (let i=1, s=seq-i; seq&i; i*=2, s-=i)
       this.m.push(new Merkel_node({decl: this, range: [s, seq]}));
@@ -172,17 +172,23 @@ class Decl {
     fbuf_unshift(this.fbuf, {sig});
     this.sig = sig; // XXX: rm
   }
-  merkel_get(range){
+  m_get(range){
     let i = merkel_array_pos(range);
     assert.deepEqual(this.m[i].range, range_fix(range));
     assert(i<this.m.length);
     return this.m[i];
   }
-  merkel_get_hash(range){
-    let m = this.merkel_get(range);
+  m_get_hash(range){
+    let m = this.m_get(range);
     if (!m.h)
       m.calc_hash();
     return m.h;
+  }
+  M_get_hash(){
+    let M = this.M;
+    if (!M.h)
+      M.calc_hash();
+    return M.h;
   }
 }
 
@@ -201,9 +207,20 @@ class Merkel_node {
       let d = (e-s+1)/2;
       let decl1 = decl.scroll.get_decl(s+d-1);
       let decl2 = decl.scroll.get_decl(e);
-      this.h = hash_parent(2*d, decl1.merkel_get_hash([s, s+d-1]),
-        decl2.merkel_get_hash([s+d, e]));
+      this.h = hash_parent(2*d, decl1.m_get_hash([s, s+d-1]),
+        decl2.m_get_hash([s+d, e]));
     }
+  }
+}
+
+class Merkel_root {
+  constructor(opt){
+    this.decl = opt.decl;
+  }
+  calc_hash(){
+    if (this.h)
+      return;
+    this.h = this.decl.scroll.calc_root_hash(this.decl.seq);
   }
 }
 

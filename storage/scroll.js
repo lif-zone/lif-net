@@ -120,7 +120,7 @@ export default class Scroll {
     let roots=calc_roots(seq+1), a=[ROOT_TYPE];
     for (let i=0; i<roots.length; i++){
       let r = roots[i];
-      a.push(this.seq_m([r.s, r.e]));
+      a.push(this.m_hash([r.s, r.e]));
       a.push(enc_u64(r.s));
       a.push(enc_u64(r.e-r.s+1));
     }
@@ -130,12 +130,12 @@ export default class Scroll {
   unlock(){} // XXX: TODO
   seq_sig(seq){ return this.get_decl(seq)?.sig; }
   seq_d(seq){ return this.get_decl(seq)?.d; }
-  seq_m(range){
+  m_hash(range){
     let [, e] = range = range_fix(range);
     let decl = this.get_decl(e);
     return decl.m_hash(range);
   }
-  seq_M(seq){
+  M_hash(seq){
     let decl = this.get_decl(seq===undefined ? this.size-1 : seq);
     return decl.M_hash();
   }
@@ -162,7 +162,7 @@ class Decl {
     let buf, scroll = this.scroll;
     assert(this.scroll.key, 'cannot sign without key');
     if (this.seq)
-      buf = Buffer.concat([this.d, scroll.seq_M(this.seq-1)]);
+      buf = Buffer.concat([this.d, scroll.M_hash(this.seq-1)]);
     else if (scroll.prev_scroll)
       buf = Buffer.concat([this.d, scroll.prev_scroll]);
     else

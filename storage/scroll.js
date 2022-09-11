@@ -2,7 +2,6 @@
 'use strict'; /*jslint node:true, browser:true*/
 import assert from 'assert';
 import etask from '../util/etask.js';
-import xerr from '../util/xerr.js';
 import crypto from '../util/crypto.js';
 import enc from 'compact-encoding';
 import {Buffer} from 'buffer';
@@ -106,7 +105,7 @@ export default class Scroll {
     this.size = 0;
     this.decl_map = new Map();
   }
-  decl(){
+  decl(){ // XXX: arguments -> {frames: []}
     let frames = arguments;
     return etask({_: this}, function*(){
       let _this = this._;
@@ -125,9 +124,7 @@ export default class Scroll {
     let roots=calc_roots(seq+1), a=[ROOT_TYPE];
     for (let i=0; i<roots.length; i++){
       let r = roots[i];
-      a.push(this.m_hash([r.s, r.e]));
-      a.push(enc_u64(r.s));
-      a.push(enc_u64(r.e-r.s+1));
+      a.push(this.m_hash([r.s, r.e]), enc_u64(r.s), enc_u64(r.e-r.s+1));
     }
     return hash_concat(a);
   }
@@ -160,7 +157,7 @@ class Decl {
     assert(opt.scroll, 'must provide Scroll');
     let seq = this.seq = opt.seq;
     this.scroll = opt.scroll;
-    this.fbuf = opt.fbuf; // XXX new FrameBuffer()
+    this.fbuf = opt.fbuf;
     this.M = new Merkel_root({decl: this});
     this.m = [new Merkel_node({decl: this, range: seq})];
     for (let i=1, s=seq-i; seq&i; i*=2, s-=i)
@@ -200,14 +197,12 @@ class Merkel_node {
       return this.h;
     let [s, e] = this.range, decl = this.decl;
     if (s==e)
-      this.h = hash_leaf(decl.fbuf.calc_hash(), decl.sig);
-    else {
-      let d = (e-s+1)/2;
-      let decl1 = decl.scroll.get_decl(s+d-1);
-      let decl2 = decl.scroll.get_decl(e);
-      this.h = hash_parent(2*d, decl1.m_hash([s, s+d-1]),
-        decl2.m_hash([s+d, e]));
-    }
+      return this.h = hash_leaf(decl.fbuf.calc_hash(), decl.sig);
+    let d = (e-s+1)/2;
+    let decl1 = decl.scroll.get_decl(s+d-1);
+    let decl2 = decl.scroll.get_decl(e);
+    this.h = hash_parent(2*d, decl1.m_hash([s, s+d-1]),
+      decl2.m_hash([s+d, e]));
     return this.h;
   }
 }

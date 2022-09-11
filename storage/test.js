@@ -364,8 +364,8 @@ describe('scroll', ()=>{
     `);
     if (true) return; // XXX WIP
     // XXX: make the last scroll used the default
-    t('xxx', `s:scroll(def) decl(1-32) // s.decl
-      s2:scroll(M0:s.M0)
+    t('xxx', `s.scroll(def) decl(1-32) // s.decl
+      s2.scroll(M0:s.M0)
       s2.push(1(m0_1:m0_1) 2(m2:m2) 3(m3:m3 M3:M3))
       s2.push(1(m0_1:m0_1) 2(m2:m2) 3(m3:m3 M3:M3) branch:ok)
       s2.push(1(m0_1:m0_1) 2(m2:m2) 3(sig3:sig3 M3:M3) fail(xxx missing...))

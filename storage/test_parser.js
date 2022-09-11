@@ -80,7 +80,7 @@ E._parse_exp = function(s){
     }
     else if (c==')')
       assert.equal(parentesis.pop(), '(');
-    else if (!parentesis.length && ['+', '-', ':', '='].includes(c)){
+    else if (!parentesis.length && ['+', '-', ':', '=', '.'].includes(c)){
       let cn = s.charAt(i+1);
       if (cn=='=')
         return {cmd: c+cn, l: s.substr(0, i), r: s.substr(i+2), meta};

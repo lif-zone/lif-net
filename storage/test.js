@@ -177,12 +177,14 @@ describe('parser', ()=>{
     t('a(b+c)', {cmd: 'a', l: '', r: 'b+c'});
     t('a(b==c)', {cmd: 'a', l: '', r: 'b==c'});
     t('a==b', {cmd: '==', l: 'a', r: 'b'});
+    t('a.b', {cmd: '.', l: 'a', r: 'b'});
     t('a:b', {cmd: ':', l: 'a', r: 'b'});
     t('a=b', {cmd: '=', l: 'a', r: 'b'});
     t('a+b', {cmd: '+', l: 'a', r: 'b'});
     t('a=b(2)', {cmd: '=', l: 'a', r: 'b(2)'});
     t('a(1)==b(2)', {cmd: '==', l: 'a(1)', r: 'b(2)'});
     t('a1==b(c+d)', {cmd: '==', l: 'a1', r: 'b(c+d)'});
+    t('a.b(c)', {cmd: '.', l: 'a', r: 'b(c)'});
     t('//', {cmd: '//', l: '', r: ''});
     t('// XXX', {cmd: '//', l: '', r: 'XXX'});
   });
@@ -362,6 +364,7 @@ describe('scroll', ()=>{
       m31=hleaf(d31+sig31) sig31=sign(d31+M30) M31=hroot(m0_31)
       m32=hleaf(d32+sig32) sig32=sign(d32+M31) M32=hroot(m0_31+m32)
     `);
+    if (0) t('xxx', `s.scroll(def) decl(1-32)`);
     if (true) return; // XXX WIP
     // XXX: make the last scroll used the default
     t('xxx', `s.scroll(def) decl(1-32) // s.decl

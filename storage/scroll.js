@@ -109,8 +109,7 @@ export default class Scroll {
       let fbuf = fbuf_from_arg(args);
       let seq = _this.size, ts = Date.now();
       fbuf_unshift(fbuf, {seq, ts});
-      let d = fbuf_hash(fbuf);
-      let decl = new Decl({scroll: _this, seq, d, fbuf});
+      let decl = new Decl({scroll: _this, seq, fbuf});
       yield decl.sign();
       _this.decl_map.set(seq, decl);
       _this.size++;
@@ -134,11 +133,11 @@ export default class Scroll {
   seq_m(range){
     let [, e] = range = range_fix(range);
     let decl = this.get_decl(e);
-    return decl.m_get_hash(range);
+    return decl.m_hash(range);
   }
   seq_M(seq){
     let decl = this.get_decl(seq===undefined ? this.size-1 : seq);
-    return decl.M_get_hash();
+    return decl.M_hash();
   }
   get_decl(seq){
     assert(typeof seq=='number', 'invalid seq '+seq);
@@ -152,8 +151,8 @@ class Decl {
     assert(opt.scroll, 'must provide Scroll');
     let seq = this.seq = opt.seq;
     this.scroll = opt.scroll;
-    this.d = opt.d; // XXX new DataHash()
-    this.fbuf = opt.fbuf; // new FrameBuffer()
+    this.fbuf = opt.fbuf; // XXX new FrameBuffer()
+    this.d = fbuf_hash(this.fbuf); // XXX new DataHash?
     this.M = new Merkel_root({decl: this});
     this.m = [new Merkel_node({decl: this, range: seq})];
     for (let i=1, s=seq-i; seq&i; i*=2, s-=i)
@@ -178,17 +177,13 @@ class Decl {
     assert(i<this.m.length);
     return this.m[i];
   }
-  m_get_hash(range){
+  m_hash(range){
     let m = this.m_get(range);
-    if (!m.h)
-      m.calc_hash();
-    return m.h;
+    return m.h || m.calc_hash();
   }
-  M_get_hash(){
+  M_hash(){
     let M = this.M;
-    if (!M.h)
-      M.calc_hash();
-    return M.h;
+    return M.h || M.calc_hash();
   }
 }
 
@@ -199,7 +194,7 @@ class Merkel_node {
   }
   calc_hash(){
     if (this.h)
-      return;
+      return this.h;
     let [s, e] = this.range, decl = this.decl;
     if (s==e)
       this.h = hash_leaf(decl.d, decl.sig);
@@ -207,9 +202,10 @@ class Merkel_node {
       let d = (e-s+1)/2;
       let decl1 = decl.scroll.get_decl(s+d-1);
       let decl2 = decl.scroll.get_decl(e);
-      this.h = hash_parent(2*d, decl1.m_get_hash([s, s+d-1]),
-        decl2.m_get_hash([s+d, e]));
+      this.h = hash_parent(2*d, decl1.m_hash([s, s+d-1]),
+        decl2.m_hash([s+d, e]));
     }
+    return this.h;
   }
 }
 
@@ -219,8 +215,8 @@ class Merkel_root {
   }
   calc_hash(){
     if (this.h)
-      return;
-    this.h = this.decl.scroll.calc_root_hash(this.decl.seq);
+      return this.h
+    return (this.h = this.decl.scroll.calc_root_hash(this.decl.seq));
   }
 }
 

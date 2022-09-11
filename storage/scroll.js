@@ -2,6 +2,7 @@
 'use strict'; /*jslint node:true, browser:true*/
 import assert from 'assert';
 import etask from '../util/etask.js';
+import xerr from '../util/xerr.js';
 import crypto from '../util/crypto.js';
 import enc from 'compact-encoding';
 import {Buffer} from 'buffer';
@@ -113,7 +114,7 @@ export default class Scroll {
       let sig = _this.sign(seq, d);
       fbuf_unshift(fbuf, {sig});
       let decl = new Decl({scroll: _this, seq, d, sig, fbuf});
-      _this.decl_map.set(''+seq, decl); // XXX: change to int
+      _this.decl_map.set(seq, decl);
       _this.size++;
       // XXX: new Merkel_root and _this.M -> merkel_root()
       _this.M = decl.M = _this.call_root_hash(_this.size);
@@ -149,8 +150,11 @@ export default class Scroll {
     let decl = this.get_decl(e);
     return decl.merkel_get_hash(range);
   }
-  seq_M(seq){ return seq ? this.get_decl(seq)?.M : this.M; }
-  get_decl(seq){ return this.decl_map.get(''+seq); }
+  seq_M(seq){ return seq===undefined ? this.M : this.get_decl(seq)?.M }
+  get_decl(seq){
+    assert(typeof seq=='number', 'invalid seq '+seq);
+    return this.decl_map.get(seq);
+  }
 }
 
 class Decl {

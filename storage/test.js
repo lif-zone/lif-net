@@ -56,17 +56,17 @@ function calc_m(s, e){
 function get_val(exp){
   let m;
   if (m = exp.match(/^sig(\d+)$/)) // sig10
-    return t_scroll.seq_sig(m[1]);
+    return t_scroll.seq_sig(+m[1]);
   if (m = exp.match(/^m(\d+)$/)) // m10
     return t_scroll.seq_m(+m[1]); // XXX: calc and assert it match data hash
   if (m = exp.match(/^m(\d+)_(\d+)$/)) // m0_1
     return calc_m(+m[1], +m[2]);
   if (m = exp.match(/^M(\d+)$/)) // M10
-    return t_scroll.seq_M(m[1]);
+    return t_scroll.seq_M(+m[1]);
   if (m = exp.match(/^M$/)) // M
     return t_scroll.seq_M();
   if (m = exp.match(/^d(\d+)$/)) // d10
-    return t_scroll.seq_d(m[1]);
+    return t_scroll.seq_d(+m[1]);
   if (m = exp.match(/^h\((.*)\)$/)){ // h(d10+sig11)
     let a=[];
     m[1].split('+').forEach(v=>a.push(get_val(v)));

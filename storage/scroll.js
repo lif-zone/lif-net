@@ -45,7 +45,7 @@ class FrameBuffer {
     }
     return this.h = crypto.blake2b(buf);
   }
-  get_sig(){ return this.frames[0].sig; }
+  get_sig(){ return this.frames[0]?.sig; }
 }
 
 function hash_concat(a){ return crypto.blake2b(Buffer.concat(a)); }

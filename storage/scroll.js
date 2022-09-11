@@ -233,6 +233,13 @@ Scroll.create = (opt, d)=>etask(function*scroll_create(){
   return scroll;
 });
 
+Scroll.open = opt=>etask(function*scroll_create(){
+  let scroll = new Scroll(opt);
+  assert(opt.M0, 'scroll.open requires M0');
+  // XXX TODO
+  return scroll;
+});
+
 Scroll.supported_crypt = [{sig: 'ed25519', hash: 'blake2b', lif: 'lif1'}];
 Scroll.hash_concat = hash_concat; // XXX need test
 Scroll.hash_parent = hash_parent; // XXX need test

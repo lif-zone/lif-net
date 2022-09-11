@@ -100,3 +100,13 @@ E.parse_exp = function(s){
   assert(o?.cmd, 'invalid experssion');
   return o;
 };
+
+// XXX: need test
+E.parse_exp_arg = function(exp){
+  let t = E.parse_exp(exp);
+  if (t.cmd!=':')
+    return t;
+  t.cmd = t.l;
+  t.l = '';
+  return t;
+};

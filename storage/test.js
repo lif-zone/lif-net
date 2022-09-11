@@ -34,11 +34,11 @@ afterEach(function(){
   xerr.set_buffered(false);
 });
 
-const calc_m = (s, e)=>etask(function*calc_m(){
+const calc_m = (scroll, s, e)=>etask(function*calc_m(){
   assert(Number.isInteger(Math.log2(e-s+1)), 'invalid merkel range '+s+'_'+e);
   let q = [];
   for (let i=s; i<=e; i++)
-    q.push({s: i, e: i, m: yield t_scroll.m_hash(i)});
+    q.push({s: i, e: i, m: yield scroll.m_hash(i)});
   while (q.length!=1){
     let q2 = [];
     for (let i=0; i<q.length/2; i++){
@@ -49,24 +49,26 @@ const calc_m = (s, e)=>etask(function*calc_m(){
     }
     q = q2;
   }
-  assert.equal(b2s(yield t_scroll.m_hash([s, e])), b2s(q[0].m));
+  assert.equal(b2s(yield scroll.m_hash([s, e])), b2s(q[0].m));
   return q[0].m;
 });
 
 const get_val = exp=>etask(function*_get_val(){
-  let m;
+  let m = exp.match(/^([a-zA-Z]\d*)\.(.*)$/);
+  let name = m ? m[1] : 's', scroll = t_scroll[name];
+  exp = m ? m[2] : exp;
   if (m = exp.match(/^sig(\d+)$/)) // sig10
-    return t_scroll.seq_sig(+m[1]);
+    return scroll.seq_sig(+m[1]);
   if (m = exp.match(/^m(\d+)$/)) // m10
-    return t_scroll.m_hash(+m[1]); // XXX: calc and assert it match data hash
+    return scroll.m_hash(+m[1]); // XXX: calc and assert it match data hash
   if (m = exp.match(/^m(\d+)_(\d+)$/)) // m0_1
-    return calc_m(+m[1], +m[2]);
+    return calc_m(scroll, +m[1], +m[2]);
   if (m = exp.match(/^M(\d+)$/)) // M10
-    return t_scroll.M_hash(+m[1]);
+    return scroll.M_hash(+m[1]);
   if (m = exp.match(/^M$/)) // M
-    return t_scroll.M_hash();
+    return scroll.M_hash();
   if (m = exp.match(/^d(\d+)$/)) // d10
-    return t_scroll.seq_d(+m[1]);
+    return scroll.seq_d(+m[1]);
   if (m = exp.match(/^h\((.*)\)$/)){ // h(d10+sig11)
     let a=[], vars = m[1].split('+');
     for (let i=0; i<vars.length; i++)
@@ -106,7 +108,7 @@ const get_val = exp=>etask(function*_get_val(){
 });
 
 const test_start = ()=>etask(function*test_start(){
-  t_scroll = null;
+  t_scroll = {};
   t_keypair = {pub: s2b('44659cb51dec397ea66085679442505345e159940762c15ef75'+
     'ad279ecf05033'),
     key: s2b('46f45a62f4c5971228747aa2d8ee66bd669ebd805c725286ee385b1d4a06dd'+
@@ -193,30 +195,38 @@ describe('parser', ()=>{
 
 const cmd_scroll = t=>etask(function*cmd_scroll(){
   let prev_scroll = yield t_prev_scroll.M_hash(1);
+  let name = t.ctx||'s', M0, scroll;
   assert(!t.l, 'invalid arg '+t.meta.s);
-  assert(!t_scroll, 'scroll already exists');
+  assert(!t_scroll[name], 'scroll already exist '+name);
   for (let curr=t.r, i=0; curr = tparser.parse_get_next(curr); i++){
-    let tt = tparser.parse_exp(curr.exp);
+    let tt = tparser.parse_exp_arg(curr.exp);
     switch (tt.cmd){
     case '!prev_scroll': prev_scroll = null; break;
+    case 'M0': M0 = yield get_val(tt.r); break;
     default: assert.fail('invalid arg '+tt.cmd+' in '+t.meta.s);
     }
   }
-  t_scroll = yield Scroll.create({key: t_keypair.key, pub: t_keypair.pub,
-    prev_scroll}, {topic: 'test'});
+  if (M0)
+   scroll = yield Scroll.open({pub: t_keypair.pub, M0});
+  else {
+    scroll = yield Scroll.create({key: t_keypair.key, pub: t_keypair.pub,
+        prev_scroll}, {topic: 'test'});
+  }
+  t_scroll[name] = scroll;
 });
 
 const cmd_decl = t=>etask(function*cmd_decl(){
+  let name = t.ctx||'s', scroll = t_scroll[name];
   assert(!t.l, 'invalid left arg '+t.meta.s);
   assert(t.r, 'missing arg '+t.meta.s);
-  assert(t_scroll, 'scroll not found');
+  assert(scroll, 'scroll not found');
   for (let curr=t.r, i=0; curr = tparser.parse_get_next(curr); i++){
     let m=curr.exp.match(/^(\d+)-(\d+)$/);
     if (m){
       for (let j=+m[1]; j<=+m[2]; j++)
-        yield t_scroll.decl(''+j);
+        yield scroll.decl(''+j);
     } else
-      yield t_scroll.decl(curr.exp);
+      yield scroll.decl(curr.exp);
   }
 });
 
@@ -231,18 +241,29 @@ const cmd_eq = o=>etask(function*cmd_eq(){
     assert.equal(l, r, 'failed '+o.meta.s);
 });
 
+const test_run_single = o=>etask(function*_test_run_single(){
+  let o2;
+  switch (o.cmd){
+  case 'scroll': yield cmd_scroll(o); break;
+  case 'decl': yield cmd_decl(o); break;
+  case '//': break;
+  case '=': yield cmd_eq(o); break;
+  case '.':
+    assert(o.l, 'invalid "." operator');
+    o2 = tparser.parse_exp(o.r);
+    o2.ctx = o.l;
+    yield test_run_single(o2);
+    break;
+  default: assert.fail('invalid cmd "'+o.cmd+'" in '+o.meta.s);
+  }
+});
+
 const test_run = test=>etask(function*test_run(){
   yield test_start();
   for (let curr=test, i=0; curr = tparser.parse_get_next(curr); i++){
-    let t = tparser.parse_exp(curr.exp);
-    xerr.notice('cmd %s %s', i, t.meta.s);
-    switch (t.cmd){
-    case 'scroll': yield cmd_scroll(t); break;
-    case 'decl': yield cmd_decl(t); break;
-    case '//': break;
-    case '=': yield cmd_eq(t); break;
-    default: assert.fail('invalid cmd "'+t.cmd+'" in '+t.meta.s);
-    }
+    let o = tparser.parse_exp(curr.exp);
+    xerr.notice('cmd %s %s', i, o.meta.s);
+    yield test_run_single(o);
   }
   yield test_end();
 });
@@ -364,7 +385,9 @@ describe('scroll', ()=>{
       m31=hleaf(d31+sig31) sig31=sign(d31+M30) M31=hroot(m0_31)
       m32=hleaf(d32+sig32) sig32=sign(d32+M31) M32=hroot(m0_31+m32)
     `);
-    if (0) t('xxx', `s.scroll(def) decl(1-32)`);
+    if (1) t('xxx', `s.scroll s.decl(1-32)
+      s2.scroll(M0:s.M0)
+    `);
     if (true) return; // XXX WIP
     // XXX: make the last scroll used the default
     t('xxx', `s.scroll(def) decl(1-32) // s.decl

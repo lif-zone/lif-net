@@ -26,7 +26,7 @@ function to_frame(o){
 }
 
 class FrameBuffer {
-  constructor(opt){
+  constructor(opt={}){
     let {frames} = opt;
     this.frames = [];
     for (let i=0; i<frames.length; i++)
@@ -45,6 +45,7 @@ class FrameBuffer {
     }
     return this.h = crypto.blake2b(buf);
   }
+  get_sig(){ return this.frames[0].sig; }
 }
 
 function hash_concat(a){ return crypto.blake2b(Buffer.concat(a)); }
@@ -111,6 +112,7 @@ export default class Scroll {
       let _this = this._;
       let fbuf = new FrameBuffer({frames});
       let seq = _this.size, ts = Date.now();
+      assert(!_this.decl_map.get(seq), 'XXX TODO'); // XXX: support branch
       fbuf.unshift({seq, ts});
       let decl = new Decl({scroll: _this, seq, fbuf});
       yield decl.sign();
@@ -142,9 +144,13 @@ export default class Scroll {
     let decl = this.get_decl(seq===undefined ? this.size-1 : seq);
     return decl.M_hash();
   }
-  get_decl(seq){
+  get_decl(seq, opt){
     assert(typeof seq=='number', 'invalid seq '+seq);
-    return this.decl_map.get(seq);
+    let decl = this.decl_map.get(seq);
+    if (decl || !opt.create)
+      return decl;
+    decl = new Decl({scroll: this, seq, fbuf: new FrameBuffer});
+    this.decl_map.set(seq, decl);
   }
 }
 
@@ -165,9 +171,8 @@ class Decl {
     assert(scroll.key, 'cannot sign without key');
     let buf = this.seq ? Buffer.concat([d, scroll.M_hash(this.seq-1)]) :
       scroll.prev_scroll ? Buffer.concat([d, scroll.prev_scroll]) : d;
-    let sig = crypto.sign(crypto.blake2b(buf), scroll.key);
+    let sig = this.sig = crypto.sign(crypto.blake2b(buf), scroll.key);
     this.fbuf.unshift({sig});
-    this.sig = sig; // XXX: rm
   }
   m_get(range){
     let i = merkel_array_pos(range);

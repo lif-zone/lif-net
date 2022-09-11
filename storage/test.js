@@ -53,7 +53,7 @@ function calc_m(s, e){
   return q[0].m;
 }
 
-function get_val(exp){
+const get_val = exp=>etask(function*_get_val(){
   let m;
   if (m = exp.match(/^sig(\d+)$/)) // sig10
     return t_scroll.seq_sig(+m[1]);
@@ -68,32 +68,34 @@ function get_val(exp){
   if (m = exp.match(/^d(\d+)$/)) // d10
     return t_scroll.seq_d(+m[1]);
   if (m = exp.match(/^h\((.*)\)$/)){ // h(d10+sig11)
-    let a=[];
-    m[1].split('+').forEach(v=>a.push(get_val(v)));
+    let a=[], vars = m[1].split('+');
+    for (let i=0; i<vars.length; i++)
+      a.push(yield get_val(vars[i]));
     return Scroll.hash_concat(a);
   }
   if (m = exp.match(/^hleaf\((.*)\)$/)){
-    let a=[Scroll.LEAF_TYPE];
-    m[1].split('+').forEach(v=>a.push(get_val(v)));
+    let a=[Scroll.LEAF_TYPE], vars = m[1].split('+');
+    for (let i=0; i<vars.length; i++)
+      a.push(yield get_val(vars[i]));
     return Scroll.hash_concat(a);
   }
   if (m = exp.match(/^hroot\((.*)\)$/)){
-    let a=[Scroll.ROOT_TYPE];
-    m[1].split('+').forEach(v=>{
+    let a=[Scroll.ROOT_TYPE], vars = m[1].split('+');
+    for (let i=0; i<vars.length; i++){
+      let v = vars[i];
       let r = Scroll.range_from_str(v.replace('m', ''));
-      a.push(get_val(v));
+      a.push(yield get_val(v));
       a.push(enc_u64(r[0]));
       a.push(enc_u64(r[1]-r[0]+1));
-    });
+    }
     return Scroll.hash_concat(a);
   }
-
   if (m = exp.match(/^sign\((.*)\+(.*)\)$/)){ // sign(d10+M9)
-    return crypto.sign(Scroll.hash_concat([get_val(m[1]), get_val(m[2])]),
-      t_keypair.key);
+    return crypto.sign(Scroll.hash_concat([yield get_val(m[1]),
+      yield get_val(m[2])]), t_keypair.key);
   }
   if (m = exp.match(/^sign\((.*)\)$/)) // sign(d10)
-    return crypto.sign(crypto.blake2b(get_val(m[1])), t_keypair.key);
+    return crypto.sign(crypto.blake2b(yield get_val(m[1])), t_keypair.key);
   if (m = exp.match(/^0x([0-9a-f]+)$/))
     return s2b(m[1]);
   if (/^\d+$/.test(exp))
@@ -101,7 +103,7 @@ function get_val(exp){
   if ('prev_scroll1'==exp)
     return t_prev_scroll.M_hash(1);
   assert.fail('invalid val exp '+exp);
-}
+});
 
 const test_start = ()=>etask(function*test_start(){
   t_scroll = null;
@@ -216,16 +218,16 @@ const cmd_decl = t=>etask(function*cmd_decl(){
   }
 });
 
-function cmd_eq(o){
+const cmd_eq = o=>etask(function*cmd_eq(){
   assert(o.l, 'missing left '+o.meta.s);
   assert(o.r, 'missing right '+o.meta.s);
-  let l = get_val(o.l);
-  let r = get_val(o.r);
+  let l = yield get_val(o.l);
+  let r = yield get_val(o.r);
   if (Buffer.isBuffer(l) && Buffer.isBuffer(r))
     assert.equal(b2s(l), b2s(r), 'failed '+o.meta.s);
   else
     assert.equal(l, r, 'failed '+o.meta.s);
-}
+});
 
 const test_run = test=>etask(function*test_run(){
   yield test_start();

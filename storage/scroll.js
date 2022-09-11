@@ -111,26 +111,14 @@ export default class Scroll {
       let seq = _this.size, ts = Date.now();
       fbuf_unshift(fbuf, {seq, ts});
       let d = fbuf_hash(fbuf);
-      let sig = _this.sign(seq, d);
-      fbuf_unshift(fbuf, {sig});
-      let decl = new Decl({scroll: _this, seq, d, sig, fbuf});
+      let decl = new Decl({scroll: _this, seq, d, fbuf});
+      decl.sign();
       _this.decl_map.set(seq, decl);
       _this.size++;
       // XXX: new Merkel_root and _this.M -> merkel_root()
       decl.M = _this.call_root_hash(_this.size);
       return decl;
     });
-  }
-  sign(seq, d){
-    // XXX: mv to Decl
-    let buf;
-    if (seq)
-      buf = Buffer.concat([d, this.seq_M(seq-1)]);
-    else if (this.prev_scroll)
-      buf = Buffer.concat([d, this.prev_scroll]);
-    else
-      buf = d;
-    return crypto.sign(crypto.blake2b(buf), this.key);
   }
   call_root_hash(size){
     let roots=calc_roots(size), a=[ROOT_TYPE];
@@ -152,7 +140,7 @@ export default class Scroll {
     return decl.merkel_get_hash(range);
   }
   seq_M(seq){ return seq===undefined ? this.get_decl(this.size-1)?.M :
-    this.get_decl(seq)?.M }
+    this.get_decl(seq)?.M; }
   get_decl(seq){
     assert(typeof seq=='number', 'invalid seq '+seq);
     return this.decl_map.get(seq);
@@ -166,11 +154,23 @@ class Decl {
     let seq = this.seq = opt.seq;
     this.scroll = opt.scroll;
     this.d = opt.d; // XXX new DataHash()
-    this.sig = opt.sig; // XXX: remove from here and get it from fbuf
     this.fbuf = opt.fbuf; // new FrameBuffer()
     this.m = [new Merkel_node({decl: this, range: seq})];
     for (let i=1, s=seq-i; seq&i; i*=2, s-=i)
       this.m.push(new Merkel_node({decl: this, range: [s, seq]}));
+  }
+  sign(){
+    let buf, scroll = this.scroll;
+    assert(this.scroll.key, 'cannot sign without key');
+    if (this.seq)
+      buf = Buffer.concat([this.d, scroll.seq_M(this.seq-1)]);
+    else if (scroll.prev_scroll)
+      buf = Buffer.concat([this.d, scroll.prev_scroll]);
+    else
+      buf = this.d;
+    let sig = crypto.sign(crypto.blake2b(buf), scroll.key);
+    fbuf_unshift(this.fbuf, {sig});
+    this.sig = sig; // XXX: rm
   }
   merkel_get(range){
     let i = merkel_array_pos(range);

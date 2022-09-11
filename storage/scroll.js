@@ -127,8 +127,11 @@ export default class Scroll {
   }
   lock(){} // XXX: TODO
   unlock(){} // XXX: TODO
-  seq_sig(seq){ return this.get_decl(seq)?.sig; }
-  seq_d(seq){ return this.get_decl(seq).fbuf.calc_hash(); }
+  seq_sig = seq=>etask({_: this}, function*seq_sig(){
+    return (yield this._.get_decl(seq))?.sig; });
+  seq_d = seq=>etask({_: this}, function*seq_d(){
+    return yield (yield this._.get_decl(seq)).fbuf.calc_hash();
+  });
   m_hash(range){
     let [, e] = range = range_fix(range);
     let decl = this.get_decl(e);

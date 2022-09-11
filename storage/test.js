@@ -56,7 +56,7 @@ function calc_m(s, e){
 const get_val = exp=>etask(function*_get_val(){
   let m;
   if (m = exp.match(/^sig(\d+)$/)) // sig10
-    return t_scroll.seq_sig(+m[1]);
+    return yield t_scroll.seq_sig(+m[1]);
   if (m = exp.match(/^m(\d+)$/)) // m10
     return t_scroll.m_hash(+m[1]); // XXX: calc and assert it match data hash
   if (m = exp.match(/^m(\d+)_(\d+)$/)) // m0_1
@@ -66,7 +66,7 @@ const get_val = exp=>etask(function*_get_val(){
   if (m = exp.match(/^M$/)) // M
     return t_scroll.M_hash();
   if (m = exp.match(/^d(\d+)$/)) // d10
-    return t_scroll.seq_d(+m[1]);
+    return yield t_scroll.seq_d(+m[1]);
   if (m = exp.match(/^h\((.*)\)$/)){ // h(d10+sig11)
     let a=[], vars = m[1].split('+');
     for (let i=0; i<vars.length; i++)

@@ -105,21 +105,18 @@ export default class Scroll {
     this.size = 0;
     this.decl_map = new Map();
   }
-  decl(){ // XXX: arguments -> {frames: []}
-    let frames = arguments;
-    return etask({_: this}, function*(){
-      let _this = this._;
-      let fbuf = new FrameBuffer({frames});
-      let seq = _this.size, ts = Date.now();
-      assert(!_this.decl_map.get(seq), 'XXX TODO'); // XXX: support branch
-      fbuf.unshift({seq, ts});
-      let decl = new Decl({scroll: _this, seq, fbuf});
-      yield decl.sign();
-      _this.decl_map.set(seq, decl);
-      _this.size++;
-      return decl;
-    });
-  }
+  decl = frames=>etask({_: this}, function*(){
+    let _this = this._;
+    let fbuf = new FrameBuffer({frames});
+    let seq = _this.size, ts = Date.now();
+    assert(!_this.decl_map.get(seq), 'XXX TODO'); // XXX: support branch
+    fbuf.unshift({seq, ts});
+    let decl = new Decl({scroll: _this, seq, fbuf});
+    yield decl.sign();
+    _this.decl_map.set(seq, decl);
+    _this.size++;
+    return decl;
+  });
   calc_root_hash(seq){
     let roots=calc_roots(seq+1), a=[ROOT_TYPE];
     for (let i=0; i<roots.length; i++){
@@ -220,8 +217,8 @@ class Merkel_root {
 
 Scroll.create = (opt, d)=>etask(function*scroll_create(){
   let scroll = new Scroll(opt);
-  yield scroll.decl({scroll: {crypt: Scroll.supported_crypt,
-    pub: b2s(opt.pub), ...d}});
+  yield scroll.decl([{scroll: {crypt: Scroll.supported_crypt,
+    pub: b2s(opt.pub), ...d}}]);
   return scroll;
 });
 

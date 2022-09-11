@@ -28,7 +28,7 @@ class FrameBuffer {
   constructor(opt={}){
     let {frames} = opt;
     this.frames = [];
-    for (let i=0; i<frames.length; i++)
+    for (let i=0; i<frames?.length; i++)
       this.frames.push(to_frame(frames[i]));
   }
   unshift(o){ this.frames.unshift(to_frame(o)); }
@@ -144,14 +144,15 @@ export default class Scroll {
     let decl = yield _this.get_decl(seq===undefined ? this.size-1 : seq);
     return decl.M_hash();
   });
-  get_decl = (seq, opt)=>etask({_: this}, function get_decl(){
+  get_decl = (seq, opt={})=>etask({_: this}, function get_decl(){
     let _this = this._;
     assert(typeof seq=='number', 'invalid seq '+seq);
     let decl = _this.decl_map.get(seq);
     if (decl || !opt.create)
       return decl;
     decl = new Decl({scroll: _this, seq, fbuf: new FrameBuffer});
-    this.decl_map.set(seq, decl);
+    _this.decl_map.set(seq, decl);
+    return decl;
   });
 }
 
@@ -222,8 +223,12 @@ class Merkel_root {
     let _this = this._;
     if (_this.h)
       return _this.h;
-    return _this.h = yield _this.decl.scroll.calc_root_hash(_this.decl.seq);
+    return _this.set(yield _this.decl.scroll.calc_root_hash(_this.decl.seq));
   });
+  set(h){
+    assert(!this.h);
+    return this.h = h;
+  }
 }
 
 Scroll.create = (opt, d)=>etask(function*scroll_create(){
@@ -236,6 +241,8 @@ Scroll.create = (opt, d)=>etask(function*scroll_create(){
 Scroll.open = opt=>etask(function*scroll_create(){
   let scroll = new Scroll(opt);
   assert(opt.M0, 'scroll.open requires M0');
+  let decl = yield scroll.get_decl(0, {create: true});
+  yield decl.M.set(opt.M0);
   // XXX TODO
   return scroll;
 });

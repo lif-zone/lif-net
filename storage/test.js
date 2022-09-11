@@ -34,11 +34,11 @@ afterEach(function(){
   xerr.set_buffered(false);
 });
 
-function calc_m(s, e){
+const calc_m = (s, e)=>etask(function*calc_m(){
   assert(Number.isInteger(Math.log2(e-s+1)), 'invalid merkel range '+s+'_'+e);
   let q = [];
   for (let i=s; i<=e; i++)
-    q.push({s: i, e: i, m: t_scroll.m_hash(i)});
+    q.push({s: i, e: i, m: yield t_scroll.m_hash(i)});
   while (q.length!=1){
     let q2 = [];
     for (let i=0; i<q.length/2; i++){
@@ -49,14 +49,14 @@ function calc_m(s, e){
     }
     q = q2;
   }
-  assert.equal(b2s(t_scroll.m_hash([s, e])), b2s(q[0].m));
+  assert.equal(b2s(yield t_scroll.m_hash([s, e])), b2s(q[0].m));
   return q[0].m;
-}
+});
 
 const get_val = exp=>etask(function*_get_val(){
   let m;
   if (m = exp.match(/^sig(\d+)$/)) // sig10
-    return yield t_scroll.seq_sig(+m[1]);
+    return t_scroll.seq_sig(+m[1]);
   if (m = exp.match(/^m(\d+)$/)) // m10
     return t_scroll.m_hash(+m[1]); // XXX: calc and assert it match data hash
   if (m = exp.match(/^m(\d+)_(\d+)$/)) // m0_1
@@ -66,7 +66,7 @@ const get_val = exp=>etask(function*_get_val(){
   if (m = exp.match(/^M$/)) // M
     return t_scroll.M_hash();
   if (m = exp.match(/^d(\d+)$/)) // d10
-    return yield t_scroll.seq_d(+m[1]);
+    return t_scroll.seq_d(+m[1]);
   if (m = exp.match(/^h\((.*)\)$/)){ // h(d10+sig11)
     let a=[], vars = m[1].split('+');
     for (let i=0; i<vars.length; i++)
@@ -116,7 +116,7 @@ const test_start = ()=>etask(function*test_start(){
     pub: t_keypair.pub}, {topic: 'genesis'});
   yield t_genesis_scroll.decl('1');
   t_prev_scroll = yield Scroll.create({key: t_keypair.key,
-    pub: t_keypair.pub, prev_scroll: t_genesis_scroll.M_hash(1)},
+    pub: t_keypair.pub, prev_scroll: yield t_genesis_scroll.M_hash(1)},
     {topic: 'prev_scroll'});
   yield t_prev_scroll.decl('1');
 });
@@ -190,7 +190,7 @@ describe('parser', ()=>{
 });
 
 const cmd_scroll = t=>etask(function*cmd_scroll(){
-  let prev_scroll = t_prev_scroll.M_hash(1);
+  let prev_scroll = yield t_prev_scroll.M_hash(1);
   assert(!t.l, 'invalid arg '+t.meta.s);
   assert(!t_scroll, 'scroll already exists');
   for (let curr=t.r, i=0; curr = tparser.parse_get_next(curr); i++){

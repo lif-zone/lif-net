@@ -117,38 +117,41 @@ export default class Scroll {
     _this.size++;
     return decl;
   });
-  calc_root_hash(seq){
+  calc_root_hash = seq=>etask({_: this}, function*calc_root_hash(){
+    let _this = this._;
     let roots=calc_roots(seq+1), a=[ROOT_TYPE];
     for (let i=0; i<roots.length; i++){
       let r = roots[i];
-      a.push(this.m_hash([r.s, r.e]), enc_u64(r.s), enc_u64(r.e-r.s+1));
+      a.push(yield _this.m_hash([r.s, r.e]), enc_u64(r.s), enc_u64(r.e-r.s+1));
     }
     return hash_concat(a);
-  }
+  });
   lock(){} // XXX: TODO
   unlock(){} // XXX: TODO
   seq_sig = seq=>etask({_: this}, function*seq_sig(){
     return (yield this._.get_decl(seq))?.sig; });
   seq_d = seq=>etask({_: this}, function*seq_d(){
-    return yield (yield this._.get_decl(seq)).fbuf.calc_hash();
-  });
-  m_hash(range){
+    return (yield this._.get_decl(seq)).fbuf.calc_hash(); });
+  m_hash = range=>etask({_: this}, function*m_hash(){
+    let _this = this._;
     let [, e] = range = range_fix(range);
-    let decl = this.get_decl(e);
+    let decl = yield _this.get_decl(e);
     return decl.m_hash(range);
-  }
-  M_hash(seq){
-    let decl = this.get_decl(seq===undefined ? this.size-1 : seq);
+  });
+  M_hash = seq=>etask({_: this}, function*M_hash(){
+    let _this = this._;
+    let decl = yield _this.get_decl(seq===undefined ? this.size-1 : seq);
     return decl.M_hash();
-  }
-  get_decl(seq, opt){
+  });
+  get_decl = (seq, opt)=>etask({_: this}, function get_decl(){
+    let _this = this._;
     assert(typeof seq=='number', 'invalid seq '+seq);
-    let decl = this.decl_map.get(seq);
+    let decl = _this.decl_map.get(seq);
     if (decl || !opt.create)
       return decl;
-    decl = new Decl({scroll: this, seq, fbuf: new FrameBuffer});
+    decl = new Decl({scroll: _this, seq, fbuf: new FrameBuffer});
     this.decl_map.set(seq, decl);
-  }
+  });
 }
 
 class Decl {
@@ -163,14 +166,15 @@ class Decl {
     for (let i=1, s=seq-i; seq&i; i*=2, s-=i)
       this.m.push(new Merkel_node({decl: this, range: [s, seq]}));
   }
-  sign(){
-    let scroll = this.scroll, d = this.fbuf.calc_hash();
+  sign = ()=>etask({_: this}, function*sign(){
+    let _this = this._;
+    let scroll = _this.scroll, d = yield _this.fbuf.calc_hash();
     assert(scroll.key, 'cannot sign without key');
-    let buf = this.seq ? Buffer.concat([d, scroll.M_hash(this.seq-1)]) :
-      scroll.prev_scroll ? Buffer.concat([d, scroll.prev_scroll]) : d;
-    let sig = this.sig = crypto.sign(crypto.blake2b(buf), scroll.key);
-    this.fbuf.unshift({sig});
-  }
+    let buf = _this.seq ? Buffer.concat([d, yield scroll.M_hash(_this.seq-1)])
+      : scroll.prev_scroll ? Buffer.concat([d, scroll.prev_scroll]) : d;
+    let sig = _this.sig = crypto.sign(crypto.blake2b(buf), scroll.key);
+    _this.fbuf.unshift({sig});
+  });
   m_get(range){
     let i = merkel_array_pos(range);
     assert.deepEqual(this.m[i].range, range_fix(range));
@@ -192,30 +196,32 @@ class Merkel_node {
     this.range = range_fix(opt.range);
     this.decl = opt.decl;
   }
-  calc_hash(){
-    if (this.h)
-      return this.h;
-    let [s, e] = this.range, decl = this.decl;
+  calc_hash = ()=>etask({_: this}, function*calc_hash(){
+    let _this = this._;
+    if (_this.h)
+      return _this.h;
+    let [s, e] = _this.range, decl = _this.decl;
     if (s==e)
-      return this.h = hash_leaf(decl.fbuf.calc_hash(), decl.sig);
+      return _this.h = yield hash_leaf(yield decl.fbuf.calc_hash(), decl.sig);
     let d = (e-s+1)/2;
-    let decl1 = decl.scroll.get_decl(s+d-1);
-    let decl2 = decl.scroll.get_decl(e);
-    this.h = hash_parent(2*d, decl1.m_hash([s, s+d-1]),
-      decl2.m_hash([s+d, e]));
-    return this.h;
-  }
+    let decl1 = yield decl.scroll.get_decl(s+d-1);
+    let decl2 = yield decl.scroll.get_decl(e);
+    _this.h = hash_parent(2*d, yield decl1.m_hash([s, s+d-1]),
+      yield decl2.m_hash([s+d, e]));
+    return _this.h;
+  });
 }
 
 class Merkel_root {
   constructor(opt){
     this.decl = opt.decl;
   }
-  calc_hash(){
-    if (this.h)
-      return this.h;
-    return this.h = this.decl.scroll.calc_root_hash(this.decl.seq);
-  }
+  calc_hash = ()=>etask({_: this}, function*calc_hash(){
+    let _this = this._;
+    if (_this.h)
+      return _this.h;
+    return _this.h = yield _this.decl.scroll.calc_root_hash(_this.decl.seq);
+  });
 }
 
 Scroll.create = (opt, d)=>etask(function*scroll_create(){

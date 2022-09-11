@@ -34,12 +34,16 @@ class FrameBuffer {
   }
   unshift(o){ this.frames.unshift(to_frame(o)); }
   calc_hash(){
-    let buf;
-    this.frames.forEach(f=>{
-      let h = crypto.blake2b(f.buf);
+    if (this.h)
+      return this.h;
+    let buf, frames = this.frames;
+    for (let i = frames[0].sig ? 1 : 0; i<frames.length; i++){
+      let f = frames[i], h = f.h;
+      if (!h)
+        h = f.h = crypto.blake2b(f.buf);
       buf = buf ? Buffer.concat([buf, h]) : h;
-    });
-    return crypto.blake2b(buf);
+    }
+    return this.h = crypto.blake2b(buf);
   }
 }
 
@@ -128,7 +132,7 @@ export default class Scroll {
   lock(){} // XXX: TODO
   unlock(){} // XXX: TODO
   seq_sig(seq){ return this.get_decl(seq)?.sig; }
-  seq_d(seq){ return this.get_decl(seq)?.d; }
+  seq_d(seq){ return this.get_decl(seq).fbuf.calc_hash(); }
   m_hash(range){
     let [, e] = range = range_fix(range);
     let decl = this.get_decl(e);
@@ -151,21 +155,16 @@ class Decl {
     let seq = this.seq = opt.seq;
     this.scroll = opt.scroll;
     this.fbuf = opt.fbuf; // XXX new FrameBuffer()
-    this.d = this.fbuf.calc_hash(); // XXX new DataHash?
     this.M = new Merkel_root({decl: this});
     this.m = [new Merkel_node({decl: this, range: seq})];
     for (let i=1, s=seq-i; seq&i; i*=2, s-=i)
       this.m.push(new Merkel_node({decl: this, range: [s, seq]}));
   }
   sign(){
-    let buf, scroll = this.scroll;
-    assert(this.scroll.key, 'cannot sign without key');
-    if (this.seq)
-      buf = Buffer.concat([this.d, scroll.M_hash(this.seq-1)]);
-    else if (scroll.prev_scroll)
-      buf = Buffer.concat([this.d, scroll.prev_scroll]);
-    else
-      buf = this.d;
+    let scroll = this.scroll, d = this.fbuf.calc_hash();
+    assert(scroll.key, 'cannot sign without key');
+    let buf = this.seq ? Buffer.concat([d, scroll.M_hash(this.seq-1)]) :
+      scroll.prev_scroll ? Buffer.concat([d, scroll.prev_scroll]) : d;
     let sig = crypto.sign(crypto.blake2b(buf), scroll.key);
     this.fbuf.unshift({sig});
     this.sig = sig; // XXX: rm
@@ -196,7 +195,7 @@ class Merkel_node {
       return this.h;
     let [s, e] = this.range, decl = this.decl;
     if (s==e)
-      this.h = hash_leaf(decl.d, decl.sig);
+      this.h = hash_leaf(decl.fbuf.calc_hash(), decl.sig);
     else {
       let d = (e-s+1)/2;
       let decl1 = decl.scroll.get_decl(s+d-1);

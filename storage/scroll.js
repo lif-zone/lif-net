@@ -122,6 +122,7 @@ export default class Scroll {
     let roots=calc_roots(seq+1), a=[ROOT_TYPE];
     for (let i=0; i<roots.length; i++){
       let r = roots[i];
+      // XXX: get in parallel
       a.push(yield _this.m_hash([r.s, r.e]), enc_u64(r.s), enc_u64(r.e-r.s+1));
     }
     return hash_concat(a);
@@ -201,8 +202,9 @@ class Merkel_node {
     if (_this.h)
       return _this.h;
     let [s, e] = _this.range, decl = _this.decl;
-    if (s==e)
+    if (s==e) // XXX: need to get sig async?
       return _this.h = yield hash_leaf(yield decl.fbuf.calc_hash(), decl.sig);
+    // XXX: get in parallel
     let d = (e-s+1)/2;
     let decl1 = yield decl.scroll.get_decl(s+d-1);
     let decl2 = yield decl.scroll.get_decl(e);

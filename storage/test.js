@@ -54,6 +54,7 @@ const calc_m = (scroll, s, e)=>etask(function*calc_m(){
 });
 
 const get_val = exp=>etask(function*_get_val(){
+  assert(typeof exp=='string', 'invalid get_val '+exp);
   let m = exp.match(/^([a-zA-Z]\d*)\.(.*)$/);
   let name = m ? m[1] : 's', scroll = t_scroll[name];
   exp = m ? m[2] : exp;
@@ -231,6 +232,25 @@ const cmd_decl = t=>etask(function*cmd_decl(){
 });
 
 const cmd_push = t=>etask(function*cmd_push(){
+  let name = t.ctx||'s', scroll = t_scroll[name];
+  let diff = {seq: {}};
+  for (let curr=t.r; curr = tparser.parse_get_next(curr);){
+    let t2 = tparser.parse_exp_arg(curr.exp), seq = t2.cmd;
+    assert(/^\d+$/.test(seq), 'invalid seq '+seq);
+    assert(!diff.seq[seq], 'seq already defined '+seq);
+    let seq_o = diff.seq[seq] = {};
+    assert(!t2.l);
+    for (let curr2=t2.r; curr2 = tparser.parse_get_next(curr2);){
+      let t3 = tparser.parse_exp_arg(curr2.exp);
+      let type = t3.cmd, val = yield get_val(t3.r);
+      assert(['sig', 'd'].includes(type), 'inavlid type '+type);
+      seq_o[type] = val;
+    }
+  }
+  // XXX diff:
+  // {seq: {7: {M, sig, d, D, m: {7:0xa, 6:0xb, 4:0xc, 0:0xd}}, 8:{}}}
+  scroll.push(diff);
+  xerr('XXX push %s %s', name, JSON.stringify(diff));
 });
 
 const cmd_eq = o=>etask(function*cmd_eq(){
@@ -389,10 +409,22 @@ describe('scroll', ()=>{
       m31=hleaf(d31+sig31) sig31=sign(d31+M30) M31=hroot(m0_31)
       m32=hleaf(d32+sig32) sig32=sign(d32+M31) M32=hroot(m0_31+m32)
     `);
-    if (1) t('xxx', `s.scroll s.decl(1-32)
-      s2.scroll(M0:s.M0)
-      s2.push(0(sig0:sig0 d0:d0))
-    `);
+    describe('push', ()=>{
+      if (true) return; // XXX WIP
+      // XXX derry: review test
+      // XXX push(0(sig:sig0)) => push(sig0:sig0) or push(sig0:sig1)
+      // == push(sig0:s.sig0) or push(sig0:s.sig1)
+      // XXX diff format
+      // XXX parallel etask
+      // XXX using etask in class methods x
+      let s = 's.scroll(!prev_scroll) s.decl(1) s2.scroll(M0:s.M0)';
+      // XXX: test also prev_scroll
+      t('sig_ok', `${s} s2.push(sig0 d0) s2.test(0 M0 sig0 d0 m0)`);
+      t('sig_err', `${s} s2.push(sig0:sig1 d0) err(invalid sig0))
+        s2.test(0 M0)`);
+      t('sig_err2', `${s} s2.push(0(sig0 d1) err(invalid sig0))
+        s2.test(0 M0)`);
+    });
     if (true) return; // XXX WIP
     // XXX: make the last scroll used the default
     t('xxx', `s.scroll(def) decl(1-32) // s.decl

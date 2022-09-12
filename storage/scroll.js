@@ -105,6 +105,7 @@ export default class Scroll {
     this.size = 0;
     this.decl_map = new Map();
   }
+  // XXX: use return =>
   decl = frames=>etask({_: this}, function*(){
     let _this = this._;
     let fbuf = new FrameBuffer({frames});
@@ -116,6 +117,28 @@ export default class Scroll {
     _this.decl_map.set(seq, decl);
     _this.size++;
     return decl;
+  });
+  push = diff=>etask({_: this}, function*push(){
+    if (true) return; // XXX WIP
+    let _this = this._;
+    for (let seq in diff.seq){
+      let seq_o = diff.seq[seq];
+      assert(/^\d+$/.test(seq), 'invalid seq '+seq);
+      seq = +seq;
+      console.log('XXX %s %s', seq, seq_o);
+      let decl = yield _this.get_decl(seq, {create: true});
+      for (let type in seq_o){
+        switch(type){
+        case 'd':
+          break;
+        case 'sig':
+          if (decl.sig && Buffer.isBuffer(seq_o.sig) && decl.equal(seq_o.sig))
+            continue;
+          break;
+        default: throw new Error('invalid type '+seq+':'+type);
+        }
+      }
+    }
   });
   calc_root_hash = seq=>etask({_: this}, function*calc_root_hash(){
     let _this = this._;

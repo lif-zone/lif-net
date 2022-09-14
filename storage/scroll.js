@@ -119,6 +119,7 @@ export default class Scroll {
     return decl;
   });
   push = diff=>etask({_: this}, function*push(){
+    // m10=hleaf(d10+sig10) sig10=sign(d10+M9) M10=hroot(m0_7+m8_9+m10)
     if (true) return; // XXX WIP
     let _this = this._;
     for (let seq in diff.seq){

@@ -47,10 +47,10 @@ class FrameBuffer {
   get_sig(){ return this.frames[0]?.sig; }
 }
 
-function hash_concat(a){ return crypto.blake2b(Buffer.concat(a)); }
-function hash_parent(size, left, right){
-  return hash_concat([PARENT_TYPE, enc_u64(size), left, right]); }
-function hash_leaf(h, sig){ return hash_concat([LEAF_TYPE, h, sig]); }
+function hconcat(a){ return crypto.blake2b(Buffer.concat(a)); }
+function hparent(size, left, right){
+  return hconcat([PARENT_TYPE, enc_u64(size), left, right]); }
+function hleaf(h, sig){ return hconcat([LEAF_TYPE, h, sig]); }
 
 function range_from_str(range){
   let m = (''+range).match(/^(\d+)(_(\d+))?$/); // 10 or 10_15
@@ -119,9 +119,32 @@ export default class Scroll {
     return decl;
   });
   push = diff=>etask({_: this}, function*push(){
-    // m10=hleaf(d10+sig10) sig10=sign(d10+M9) M10=hroot(m0_7+m8_9+m10)
-    if (true) return; // XXX WIP
     let _this = this._;
+    // m0=hleaf(d0+sig0) sig0=sign(d0+prev_scroll1) M0=hroot(m0) M0=h(2+m0+0+1)
+    // prepare:
+    // M0
+    // m10=hleaf(d10+sig10) sig10=sign(d10+M9) M10=hroot(m0_7+m8_9+m10)
+    let nodes = {};
+    for (let seq in diff.seq){
+      if (!/^\d+$/.test(seq))
+        throw new Error('inavlid seq '+seq);
+      seq = +seq;
+      // XXX: implement hash_all (it loads all hashes to memory)
+      nodes[seq] = yield _this.get_decl(seq, {create: true, hash_all: true});
+    }
+    for (let seq in diff.seq){
+      let seq_o = diff.seq[seq], node = nodes[seq];
+      if (seq_o.sig){
+        if (node.M.h && (node.fbuf.h||seq_o.d)){ // XXX: or calc d from seq_o.D
+          let m = hleaf(node.fbuf.h||seq_o.d, seq_o.sig);
+          // let M = hroot(m); // XXX TODO calc_root_hash
+          let M = hconcat([ROOT_TYPE, m, enc_u64(0), enc_u64(1)]);
+          if (!node.M.h.equals(M))
+             throw new Error('invalid sig'+seq);
+        }
+      }
+    }
+    if (true) return; // XXX WIP
     for (let seq in diff.seq){
       let seq_o = diff.seq[seq];
       assert(/^\d+$/.test(seq), 'invalid seq '+seq);
@@ -129,7 +152,7 @@ export default class Scroll {
       console.log('XXX %s %s', seq, seq_o);
       let decl = yield _this.get_decl(seq, {create: true});
       for (let type in seq_o){
-        switch(type){
+        switch (type){
         case 'd':
           break;
         case 'sig':
@@ -149,7 +172,7 @@ export default class Scroll {
       // XXX: get in parallel
       a.push(yield _this.m_hash([r.s, r.e]), enc_u64(r.s), enc_u64(r.e-r.s+1));
     }
-    return hash_concat(a);
+    return hconcat(a);
   });
   lock(){} // XXX: TODO
   unlock(){} // XXX: TODO
@@ -228,12 +251,12 @@ class Merkel_node {
       return _this.h;
     let [s, e] = _this.range, decl = _this.decl;
     if (s==e) // XXX: need to get sig async?
-      return _this.h = yield hash_leaf(yield decl.fbuf.calc_hash(), decl.sig);
+      return _this.h = yield hleaf(yield decl.fbuf.calc_hash(), decl.sig);
     // XXX: get in parallel
     let d = (e-s+1)/2;
     let decl1 = yield decl.scroll.get_decl(s+d-1);
     let decl2 = yield decl.scroll.get_decl(e);
-    _this.h = hash_parent(2*d, yield decl1.m_hash([s, s+d-1]),
+    _this.h = hparent(2*d, yield decl1.m_hash([s, s+d-1]),
       yield decl2.m_hash([s+d, e]));
     return _this.h;
   });
@@ -271,9 +294,9 @@ Scroll.open = opt=>etask(function*scroll_create(){
 });
 
 Scroll.supported_crypt = [{sig: 'ed25519', hash: 'blake2b', lif: 'lif1'}];
-Scroll.hash_concat = hash_concat; // XXX need test
-Scroll.hash_parent = hash_parent; // XXX need test
-Scroll.hash_parent = hash_leaf; // XXX need test
+Scroll.hconcat = hconcat; // XXX need test
+Scroll.hparent = hparent; // XXX need test
+Scroll.hleaf = hleaf; // XXX need test
 Scroll.calc_roots = calc_roots;
 Scroll.range_from_str = range_from_str;
 Scroll.seq_merkel_array_size = seq_merkel_array_size;

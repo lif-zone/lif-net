@@ -17,7 +17,7 @@ function enc_u64(v){ return enc.encode(enc.uint64, v); }
 let t_scroll, t_genesis_scroll, t_prev_scroll, t_keypair;
 
 // XXX: make it automatic for all node/browser in proc.js
-xerr.set_exception_catch_all(true);
+// XXX: check if to enable xerr.set_exception_catch_all(true);
 process.on('uncaughtException', err=>xerr.xexit(err));
 process.on('unhandledRejection', err=>xerr.xexit(err));
 xerr.set_exception_handler('test', (prefix, o, err)=>xerr.xexit(err));
@@ -43,7 +43,7 @@ const calc_m = (scroll, s, e)=>etask(function*calc_m(){
     let q2 = [];
     for (let i=0; i<q.length/2; i++){
       q2.push({s: q[2*i].s, e: q[2*i+1].e,
-        m: Scroll.hash_concat([Scroll.PARENT_TYPE,
+        m: Scroll.hconcat([Scroll.PARENT_TYPE,
         enc.encode(enc.uint64, q[2*i+1].e-q[2*i].s+1),
         q[2*i].m, q[2*i+1].m])});
     }
@@ -74,13 +74,13 @@ const get_val = exp=>etask(function*_get_val(){
     let a=[], vars = m[1].split('+');
     for (let i=0; i<vars.length; i++)
       a.push(yield get_val(vars[i]));
-    return Scroll.hash_concat(a);
+    return Scroll.hconcat(a);
   }
   if (m = exp.match(/^hleaf\((.*)\)$/)){
     let a=[Scroll.LEAF_TYPE], vars = m[1].split('+');
     for (let i=0; i<vars.length; i++)
       a.push(yield get_val(vars[i]));
-    return Scroll.hash_concat(a);
+    return Scroll.hconcat(a);
   }
   if (m = exp.match(/^hroot\((.*)\)$/)){
     let a=[Scroll.ROOT_TYPE], vars = m[1].split('+');
@@ -91,10 +91,10 @@ const get_val = exp=>etask(function*_get_val(){
       a.push(enc_u64(r[0]));
       a.push(enc_u64(r[1]-r[0]+1));
     }
-    return Scroll.hash_concat(a);
+    return Scroll.hconcat(a);
   }
   if (m = exp.match(/^sign\((.*)\+(.*)\)$/)){ // sign(d10+M9)
-    return crypto.sign(Scroll.hash_concat([yield get_val(m[1]),
+    return crypto.sign(Scroll.hconcat([yield get_val(m[1]),
       yield get_val(m[2])]), t_keypair.key);
   }
   if (m = exp.match(/^sign\((.*)\)$/)) // sign(d10)
@@ -233,10 +233,15 @@ const cmd_decl = t=>etask(function*cmd_decl(){
 
 const cmd_push = t=>etask(function*cmd_push(){
   let name = t.ctx||'s', scroll = t_scroll[name];
-  let diff = {seq: {}};
+  let diff = {seq: {}}, err;
   for (let curr=t.r; curr = tparser.parse_get_next(curr);){
     let t2 = tparser.parse_exp_arg(curr.exp);
     assert(!t2.l, 'invalid push exp '+curr.exp);
+    if (t2.cmd=='err'){
+      assert(!err, 'err already defined');
+      err = t2.r||true;
+      continue;
+    }
     let val = yield get_val(t2.r||t2.cmd);
     let m = t2.cmd.match(/^([a-zA-Z]+)(\d+)$/);
     assert.equal(m?.length, 3, 'invalid push exp '+curr.exp);
@@ -248,7 +253,11 @@ const cmd_push = t=>etask(function*cmd_push(){
   // xerr('XXX push %s %s', name, JSON.stringify(diff));
   // XXX diff:
   // {seq: {7: {M, sig, d, D, m: {7:0xa, 6:0xb, 4:0xc, 0:0xd}}, 8:{}}}
-  scroll.push(diff);
+  try {
+    yield scroll.push(diff);
+    assert(!err, 'missing error '+err);
+  }
+  catch(e){ assert.equal(''+e, 'Error: '+err, 'error mismatch'); }
 });
 
 const cmd_eq = o=>etask(function*cmd_eq(){
@@ -409,8 +418,10 @@ describe('scroll', ()=>{
     `);
     describe('push', ()=>{
       let s = 's.scroll(!prev_scroll) s.decl(1) s2.scroll(M0:s.M0)';
-      if (true) return; // XXX WIP
       t('sig', `${s} s2.push(sig0 d0)`);
+      t('sig_err1', `${s} s2.push(sig0 d0:d1 err(invalid sig0))`);
+      t('sig_err2', `${s} s2.push(sig0:sig1 d0:d0 err(invalid sig0))`);
+      if (true) return; // XXX WIP
       // XXX derry: review test
       // XXX push(0(sig:sig0)) => push(sig0:sig0) or push(sig0:sig1)
       // == push(sig0:s.sig0) or push(sig0:s.sig1)

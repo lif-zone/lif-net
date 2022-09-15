@@ -127,7 +127,7 @@ export default class Scroll {
     let nodes = {};
     for (let seq in diff.seq){
       if (!/^\d+$/.test(seq))
-        throw new Error('inavlid seq '+seq);
+        throw new Error('invalid seq '+seq);
       seq = +seq;
       // XXX: implement hash_all (it loads all hashes to memory)
       nodes[seq] = yield _this.get_decl(seq, {create: true, hash_all: true});

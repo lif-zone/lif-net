@@ -34,6 +34,14 @@ afterEach(function(){
   xerr.set_buffered(false);
 });
 
+function assert_buffer(a, b, meta){
+  if (Buffer.isBuffer(a) && Buffer.isBuffer(b))
+    assert.equal(b2s(a), b2s(b), 'failed '+meta.s);
+  else
+    assert.equal(a, b, 'failed '+meta.s);
+
+}
+
 const calc_m = (scroll, s, e)=>etask(function*calc_m(){
   assert(Number.isInteger(Math.log2(e-s+1)), 'invalid merkel range '+s+'_'+e);
   let q = [];
@@ -247,7 +255,7 @@ const cmd_push = t=>etask(function*cmd_push(){
     assert.equal(m?.length, 3, 'invalid push exp '+curr.exp);
     let type = m[1], seq = +m[2];
     let seq_o = diff.seq[seq] = diff.seq[seq]||{};
-    assert(['sig', 'd'].includes(type), 'inavlid type '+type);
+    assert(['sig', 'd', 'm'].includes(type), 'invalid type '+type);
     seq_o[type] = val;
   }
   // xerr('XXX push %s %s', name, JSON.stringify(diff));
@@ -260,15 +268,24 @@ const cmd_push = t=>etask(function*cmd_push(){
   catch(e){ assert.equal(''+e, 'Error: '+err, 'error mismatch'); }
 });
 
+const cmd_test = t=>etask(function*cmd_test(){
+  let name = t.ctx||'s';
+  for (let curr=t.r; curr = tparser.parse_get_next(curr);){
+    let t2 = tparser.parse_exp_arg(curr.exp);
+    assert(!t2.l, 'invalid test exp '+curr.exp);
+    let exp = yield get_val(t2.r||t2.cmd);
+    let val = yield get_val(name+'.'+t2.cmd);
+    assert_buffer(val, exp, t2.meta);
+    // xerr('XXX val %s exp %s', val, exp);
+  }
+});
+
 const cmd_eq = o=>etask(function*cmd_eq(){
   assert(o.l, 'missing left '+o.meta.s);
   assert(o.r, 'missing right '+o.meta.s);
   let l = yield get_val(o.l);
   let r = yield get_val(o.r);
-  if (Buffer.isBuffer(l) && Buffer.isBuffer(r))
-    assert.equal(b2s(l), b2s(r), 'failed '+o.meta.s);
-  else
-    assert.equal(l, r, 'failed '+o.meta.s);
+  assert_buffer(l, r, o.meta);
 });
 
 const test_run_single = o=>etask(function*_test_run_single(){
@@ -277,6 +294,7 @@ const test_run_single = o=>etask(function*_test_run_single(){
   case 'scroll': yield cmd_scroll(o); break;
   case 'decl': yield cmd_decl(o); break;
   case 'push': yield cmd_push(o); break;
+  case 'test': yield cmd_test(o); break;
   case '//': break;
   case '=': yield cmd_eq(o); break;
   case '.':
@@ -417,10 +435,14 @@ describe('scroll', ()=>{
       m32=hleaf(d32+sig32) sig32=sign(d32+M31) M32=hroot(m0_31+m32)
     `);
     describe('push', ()=>{
+      // XXX: test with prev_scroll
       let s = 's.scroll(!prev_scroll) s.decl(1) s2.scroll(M0:s.M0)';
-      t('sig', `${s} s2.push(sig0 d0)`);
-      t('sig_err1', `${s} s2.push(sig0 d0:d1 err(invalid sig0))`);
-      t('sig_err2', `${s} s2.push(sig0:sig1 d0:d0 err(invalid sig0))`);
+      // XXX: test that all rest is null
+      t('sig0_d0', `${s} s2.push(sig0 d0)
+        s2.test(M0) // XXX  sig0:s.sig0 d0:s.d0)`);
+      t('sig0_d0_err1', `${s} s2.push(sig0 d0:d1 err(invalid sig0))`);
+      t('sig0_d0_err2', `${s} s2.push(sig0:sig1 d0:d0 err(invalid sig0))`);
+      t('m0', `${s} s2.push(m0)`);
       if (true) return; // XXX WIP
       // XXX derry: review test
       // XXX push(0(sig:sig0)) => push(sig0:sig0) or push(sig0:sig1)

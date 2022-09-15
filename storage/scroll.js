@@ -124,23 +124,40 @@ export default class Scroll {
     // prepare:
     // M0
     // m10=hleaf(d10+sig10) sig10=sign(d10+M9) M10=hroot(m0_7+m8_9+m10)
-    let nodes = {};
+    let nodes = {}, verified = {};
     for (let seq in diff.seq){
       if (!/^\d+$/.test(seq))
         throw new Error('invalid seq '+seq);
       seq = +seq;
       // XXX: implement hash_all (it loads all hashes to memory)
       nodes[seq] = yield _this.get_decl(seq, {create: true, hash_all: true});
+      verified[seq] = verified[seq]||{};
     }
     for (let seq in diff.seq){
       let seq_o = diff.seq[seq], node = nodes[seq];
       if (seq_o.sig){
-        if (node.M.h && (node.fbuf.h||seq_o.d)){ // XXX: or calc d from seq_o.D
-          let m = hleaf(node.fbuf.h||seq_o.d, seq_o.sig);
+        let sig = seq_o.sig, d = node.fbuf.h||seq_o.d; // XXX: d from seq_o.D
+        if (node.M.h && d){
+          let m = hleaf(d, sig);
+          // XXX derry: we don't verify sig, just that it matches M
           // let M = hroot(m); // XXX TODO calc_root_hash
           let M = hconcat([ROOT_TYPE, m, enc_u64(0), enc_u64(1)]);
           if (!node.M.h.equals(M))
              throw new Error('invalid sig'+seq);
+           verified[seq].sig = sig;
+           verified[seq].d = d;
+        }
+      }
+    }
+    // XXX wrap it as verified_merge()
+    for (let seq in verified){
+      let v =  verified[seq], node = nodes[seq];
+      for (let type in v){
+        let val = v[type];
+        switch (type){
+        case 'sig': node.sig = val; break; // XXX: need node.set_sig()
+        case 'd': node.fbuf.h = val; break; // XXX: need node.fbuf.set_hash()
+        default: assert.fail('invalid verified type '+type);
         }
       }
     }
@@ -221,7 +238,9 @@ class Decl {
     assert(scroll.key, 'cannot sign without key');
     let buf = _this.seq ? Buffer.concat([d, yield scroll.M_hash(_this.seq-1)])
       : scroll.prev_scroll ? Buffer.concat([d, scroll.prev_scroll]) : d;
-    let sig = _this.sig = crypto.sign(crypto.blake2b(buf), scroll.key);
+    let sig = crypto.sign(crypto.blake2b(buf), scroll.key);
+    assert(!_this.sig || _this.sig.equals(sig), 'sig mismatch');
+    _this.sig = sig;
     _this.fbuf.unshift({sig});
   });
   m_get(range){

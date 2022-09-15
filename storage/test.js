@@ -63,6 +63,7 @@ const calc_m = (scroll, s, e)=>etask(function*calc_m(){
 
 const get_val = exp=>etask(function*_get_val(){
   assert(typeof exp=='string', 'invalid get_val '+exp);
+  xerr.notice('XXX val %s', exp);
   let m = exp.match(/^([a-zA-Z]\d*)\.(.*)$/);
   let name = m ? m[1] : 's', scroll = t_scroll[name];
   exp = m ? m[2] : exp;
@@ -438,8 +439,7 @@ describe('scroll', ()=>{
       // XXX: test with prev_scroll
       let s = 's.scroll(!prev_scroll) s.decl(1) s2.scroll(M0:s.M0)';
       // XXX: test that all rest is null
-      t('sig0_d0', `${s} s2.push(sig0 d0)
-        s2.test(M0) // XXX  sig0:s.sig0 d0:s.d0)`);
+      t('sig0_d0', `${s} s2.push(sig0 d0) s2.test(M0 sig0 d0)`);
       t('sig0_d0_err1', `${s} s2.push(sig0 d0:d1 err(invalid sig0))`);
       t('sig0_d0_err2', `${s} s2.push(sig0:sig1 d0:d0 err(invalid sig0))`);
       t('m0', `${s} s2.push(m0)`);

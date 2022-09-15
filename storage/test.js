@@ -269,15 +269,43 @@ const cmd_push = t=>etask(function*cmd_push(){
   catch(e){ assert.equal(''+e, 'Error: '+err, 'error mismatch'); }
 });
 
+function split_var(v){
+  let m = v.match(/^(sig|m|M|d)((\d+)|((\d)_(\d)))$/);
+  assert.equal(m?.length, 7, 'invalid var '+v);
+  let type = m[1], range = Scroll.range_from_str(m[2]), seq = range[1];
+  assert(type=='m' || range[0]==range[1], 'invalid range '+v);
+  return {seq, type, range};
+}
+
 const cmd_test = t=>etask(function*cmd_test(){
-  let name = t.ctx||'s';
+  let name = t.ctx||'s', scroll = t_scroll[name];
+  let tested = {};
   for (let curr=t.r; curr = tparser.parse_get_next(curr);){
     let t2 = tparser.parse_exp_arg(curr.exp);
     assert(!t2.l, 'invalid test exp '+curr.exp);
-    let exp = yield get_val(t2.r||t2.cmd);
-    let val = yield get_val(name+'.'+t2.cmd);
+    let v = t2.cmd;
+    let o = split_var(v);
+    tested[o.seq] = tested[o.seq]||{M: false, sig: false, d: false};
+    assert(o.range[0]==o.range[1], 'XXX TODO');
+    tested[o.seq][o.type] = true;
+    let exp = yield get_val(t2.r||v);
+    let val = yield get_val(name+'.'+v);
     assert_buffer(val, exp, t2.meta);
     // xerr('XXX val %s exp %s', val, exp);
+  }
+  for (let seq in tested){
+    let decl = yield scroll.get_decl(+seq);
+    for (let type in tested[seq]){
+      if (tested[seq][type])
+        continue;
+      switch (type){
+      case 'sig': assert(!decl.sig, 'sig'+seq+' exists '+t.meta.s); break;
+      case 'd': assert(!decl.fbuf.h, 'd'+seq+' exists '+t.meta.s); break;
+      case 'm': assert(!decl.m.h, 'm'+seq+' exists '+t.meta.s); break;
+      case 'M': assert(!decl.M.h, 'M'+seq+' exists '+t.meta.s); break;
+      default: assert.fail('invalid type '+type);
+      }
+    }
   }
 });
 
@@ -440,9 +468,11 @@ describe('scroll', ()=>{
       let s = `s.scroll(!prev_scroll) s.decl(1) s2.scroll(M0:s.M0)
         s2.test(M0)`; // XXX: s2.test: verify rest is null
       t('sig0_d0', `${s} s2.push(sig0 d0) s2.test(M0 sig0 d0)`);
-      t('sig0_d0_err1', `${s} s2.push(sig0 d0:d1 err(invalid sig0))`);
-      t('sig0_d0_err2', `${s} s2.push(sig0:sig1 d0 err(invalid sig0))`);
-      t('m0', `${s} s2.push(m0)`);
+      t('sig0_d0_err1', `${s} s2.push(sig0 d0:d1 err(invalid sig0))
+        s2.test(M0)`);
+      t('sig0_d0_err2', `${s} s2.push(sig0:sig1 d0 err(invalid sig0))
+        s2.test(M0)`);
+      t('m0', `${s} s2.push(m0) // XXX TODO: s2.test(M0 m0)`);
       if (true) return; // XXX WIP
       // XXX derry: review test
       // XXX push(0(sig:sig0)) => push(sig0:sig0) or push(sig0:sig1)

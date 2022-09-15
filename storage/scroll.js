@@ -36,6 +36,8 @@ class FrameBuffer {
     if (this.h)
       return this.h;
     let buf, frames = this.frames;
+    if (!frames.length)
+      return null;
     for (let i = frames[0].sig ? 1 : 0; i<frames.length; i++){
       let f = frames[i], h = f.h;
       if (!h)
@@ -269,8 +271,12 @@ class Merkel_node {
     if (_this.h)
       return _this.h;
     let [s, e] = _this.range, decl = _this.decl;
-    if (s==e) // XXX: need to get sig async?
-      return _this.h = yield hleaf(yield decl.fbuf.calc_hash(), decl.sig);
+    if (s==e){ // XXX: need to get sig async?
+      let d = yield decl.fbuf.calc_hash(), sig = decl.sig;
+      if (!d || !sig)
+        return null;
+      return _this.h = yield hleaf(d, sig);
+    }
     // XXX: get in parallel
     let d = (e-s+1)/2;
     let decl1 = yield decl.scroll.get_decl(s+d-1);

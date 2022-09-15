@@ -256,8 +256,13 @@ const cmd_push = t=>etask(function*cmd_push(){
     assert.equal(m?.length, 3, 'invalid push exp '+curr.exp);
     let type = m[1], seq = +m[2];
     let seq_o = diff.seq[seq] = diff.seq[seq]||{};
-    assert(['sig', 'd', 'm'].includes(type), 'invalid type '+type);
-    seq_o[type] = val;
+    assert(['sig', 'd', 'm', 'M'].includes(type), 'invalid type '+type);
+    if (type=='m'){
+      seq_o.m = seq_o.m||{};
+      seq_o.m[seq] = val;
+    }
+    else
+      seq_o[type] = val;
   }
   // xerr('XXX push %s %s', name, JSON.stringify(diff));
   // XXX diff:
@@ -293,6 +298,7 @@ const cmd_test = t=>etask(function*cmd_test(){
     assert_buffer(val, exp, t2.meta);
     // xerr('XXX val %s exp %s', val, exp);
   }
+  // XXX TODO: verify that all other seq are null;
   for (let seq in tested){
     let decl = yield scroll.get_decl(+seq);
     for (let type in tested[seq]){
@@ -466,13 +472,14 @@ describe('scroll', ()=>{
     describe('push', ()=>{
       // XXX: test with prev_scroll
       let s = `s.scroll(!prev_scroll) s.decl(1) s2.scroll(M0:s.M0)
-        s2.test(M0)`; // XXX: s2.test: verify rest is null
+        s2.test(M0)`;
       t('sig0_d0', `${s} s2.push(sig0 d0) s2.test(M0 sig0 d0)`);
       t('sig0_d0_err1', `${s} s2.push(sig0 d0:d1 err(invalid sig0))
         s2.test(M0)`);
       t('sig0_d0_err2', `${s} s2.push(sig0:sig1 d0 err(invalid sig0))
         s2.test(M0)`);
-      t('m0', `${s} s2.push(m0) // XXX TODO: s2.test(M0 m0)`);
+      t('m0', `${s} s2.push(m0) s2.test(M0 m0)`);
+      t('m0_err', `${s} s2.push(m0:m1 err(invalid m0)) s2.test(M0)`);
       if (true) return; // XXX WIP
       // XXX derry: review test
       // XXX push(0(sig:sig0)) => push(sig0:sig0) or push(sig0:sig1)

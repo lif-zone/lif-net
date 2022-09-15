@@ -2,6 +2,7 @@
 'use strict'; /*jslint node:true, browser:true*/
 import assert from 'assert';
 import etask from '../util/etask.js';
+import xerr from '../util/xerr.js';
 import crypto from '../util/crypto.js';
 import enc from 'compact-encoding';
 import {Buffer} from 'buffer';
@@ -126,39 +127,55 @@ export default class Scroll {
     // prepare:
     // M0
     // m10=hleaf(d10+sig10) sig10=sign(d10+M9) M10=hroot(m0_7+m8_9+m10)
-    let nodes = {}, verified = {};
+    let decls = {}, verified = {};
     for (let seq in diff.seq){
       if (!/^\d+$/.test(seq))
         throw new Error('invalid seq '+seq);
       seq = +seq;
       // XXX: implement hash_all (it loads all hashes to memory)
-      nodes[seq] = yield _this.get_decl(seq, {create: true, hash_all: true});
+      decls[seq] = yield _this.get_decl(seq, {create: true, hash_all: true});
       verified[seq] = verified[seq]||{};
     }
     for (let seq in diff.seq){
-      let seq_o = diff.seq[seq], node = nodes[seq];
+      let seq_o = diff.seq[seq], decl = decls[seq];
       if (seq_o.sig){
-        let sig = seq_o.sig, d = node.fbuf.h||seq_o.d; // XXX: d from seq_o.D
-        if (node.M.h && d){
+        let sig = seq_o.sig, d = decl.fbuf.h||seq_o.d; // XXX: d from seq_o.D
+        if (decl.M.h && d){
           let m = hleaf(d, sig);
           // XXX derry: we don't verify sig, just that it matches M
           // let M = hroot(m); // XXX TODO calc_root_hash
           let M = hconcat([ROOT_TYPE, m, enc_u64(0), enc_u64(1)]);
-          if (!node.M.h.equals(M))
+          if (!decl.M.h.equals(M))
              throw new Error('invalid sig'+seq);
            verified[seq].sig = sig;
            verified[seq].d = d;
+           // XXX: push m
+        }
+      }
+      if (seq_o.m){
+        let m = seq_o.m[seq];
+        if (decl.M.h && m){
+          // let M = hroot(m); // XXX TODO calc_root_hash
+          let M = hconcat([ROOT_TYPE, m, enc_u64(0), enc_u64(1)]);
+          if (!decl.M.h.equals(M))
+             throw new Error('invalid m'+seq);
+           verified[seq].m = verified[seq].m||{};
+           verified[seq].m[seq] = m;
         }
       }
     }
-    // XXX wrap it as verified_merge()
+    // XXX wrap it as push_verified
     for (let seq in verified){
-      let v =  verified[seq], node = nodes[seq];
+      let v = verified[seq], decl = decls[seq];
       for (let type in v){
         let val = v[type];
         switch (type){
-        case 'sig': node.sig = val; break; // XXX: need node.set_sig()
-        case 'd': node.fbuf.h = val; break; // XXX: need node.fbuf.set_hash()
+        case 'sig': decl.sig = val; break; // XXX: need decl.set_sig()
+        case 'd': decl.fbuf.h = val; break; // XXX: need decl.fbuf.set_hash()
+        case 'm':
+          for (let s in val)
+            decl.m_get([+s, +seq]).h = val[s];
+          break;
         default: assert.fail('invalid verified type '+type);
         }
       }

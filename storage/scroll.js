@@ -97,6 +97,11 @@ function calc_roots(size){
   }
 }
 
+function verify_sig(sig, pub, d, M_prev){
+  let buf = M_prev ? Buffer.concat([d, M_prev]) : d;
+  return crypto.verify(sig, pub, crypto.blake2b(buf));
+}
+
 export default class Scroll {
   constructor(opt){
     assert(opt.pub, 'missing pub key');
@@ -136,7 +141,9 @@ export default class Scroll {
       decls[seq] = yield _this.get_decl(seq, {create: true, hash_all: true});
       verified[seq] = verified[seq]||{};
     }
+    // XXX: fix code that everywhere we check decl we also check verified
     for (let seq in diff.seq){
+      seq = +seq;
       let seq_o = diff.seq[seq], decl = decls[seq];
       if (seq_o.sig){
         let sig = seq_o.sig, d = decl.fbuf.h||seq_o.d; // XXX: d from seq_o.D
@@ -151,6 +158,16 @@ export default class Scroll {
            verified[seq].d = d;
            verified[seq].m = verified[seq].m||{};
            verified[seq].m[seq] = m;
+        } else if (d){
+          // XXX - how to know that we need prev so we can get it from decls
+          let M_prev = !seq ? _this.prev_scroll :
+            yield _this.get_decl(seq-1, {create: true, hash_all: true});
+          if (M_prev?.M.h){
+            if (!Scroll.verify_sig(sig, _this.pub, d, M_prev.M.h))
+               throw new Error('invalid sig'+seq);
+            verified[seq].d = d;
+            verified[seq].sig = sig;
+          }
         }
       }
       if (seq_o.m){
@@ -353,6 +370,7 @@ Scroll.calc_roots = calc_roots;
 Scroll.range_from_str = range_from_str;
 Scroll.seq_merkel_array_size = seq_merkel_array_size;
 Scroll.merkel_array_pos = merkel_array_pos;
+Scroll.verify_sig = verify_sig;
 Scroll.LEAF_TYPE = LEAF_TYPE;
 Scroll.PARENT_TYPE = PARENT_TYPE;
 Scroll.ROOT_TYPE = ROOT_TYPE;

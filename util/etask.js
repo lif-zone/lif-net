@@ -844,7 +844,9 @@ E.prototype.get_info = function(){
 // light-weight efficient etask/promise error value
 function Etask_err(err){ this.error = err || new Error(); }
 E.Etask_err = Etask_err;
-E.err = function(err){ return new Etask_err(err); };
+E.err = function(err){
+  return new Etask_err(err);
+};
 E.is_err = function(v){
     return v instanceof Etask && v.error!==undefined ||
         v instanceof Etask_err;

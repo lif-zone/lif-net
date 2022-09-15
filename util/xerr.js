@@ -120,12 +120,15 @@ var in_exception;
 
 E.set_exception_catch_all = function(all){ E.exception_catch_all = all; };
 
+E.is_typeerror = function(err){ return err instanceof TypeError ||
+          err instanceof ReferenceError;
+};
+
 E.set_exception_handler = function(prefix, err_func){
     E.on_exception = function(err){
         if (in_exception)
             return;
-        let typeerror = err instanceof TypeError ||
-          err instanceof ReferenceError;
+        let typeerror = E.is_typeerror(err);
         if (!typeerror && !E.exception_catch_all)
             return;
         in_exception = 1;

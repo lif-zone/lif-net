@@ -164,6 +164,14 @@ export default class Scroll {
            verified[seq].m[seq] = m;
         }
       }
+      if (seq_o.M){
+        let M = seq_o.M;
+        if (decl.M.h){
+          if (!decl.M.h.equals(M))
+             throw new Error('invalid M'+seq);
+        } else
+          assert.fail('XXX calc M if possible');
+      }
     }
     // XXX wrap it as put_verified
     for (let seq in verified){
@@ -200,6 +208,7 @@ export default class Scroll {
         }
       }
     }
+    return {verified};
   });
   calc_root_hash = seq=>etask({_: this}, function*calc_root_hash(){
     let _this = this._;

@@ -260,8 +260,7 @@ const cmd_put = t=>etask(function*cmd_put(){
     if (type=='m'){
       seq_o.m = seq_o.m||{};
       seq_o.m[seq] = val;
-    }
-    else
+    } else
       seq_o[type] = val;
   }
   // xerr('XXX push %s %s', name, JSON.stringify(diff));
@@ -487,6 +486,8 @@ describe('scroll', ()=>{
       t('d0', `${s} s2.put(d0) s2.test(M0)`); // XXX derry
       t('m0', `${s} s2.put(m0) s2.test(M0 m0)`);
       t('m0_err', `${s} s2.put(m0:m1 err(invalid m0)) s2.test(M0)`);
+      t('M0', `${s} s2.put(M0) s2.test(M0)`);
+      t('M0_err', `${s} s2.put(M0:M1 err(invalid M0)) s2.test(M0)`);
       t('sig0_d0', `${s} s2.put(sig0 d0) s2.test(M0 sig0 d0 m0)`);
       t('sig0_d0_err1', `${s} s2.put(sig0 d0:d1 err(invalid sig0))
         s2.test(M0)`);
@@ -514,6 +515,11 @@ describe('scroll', ()=>{
         s2.test(0 M0)`);
       t('sig_err2', `${s} s2.put(0(sig0 d1) err(invalid sig0))
         s2.test(0 M0)`);
+    // XXX
+    // m0=hleaf(d0+sig0) sig0=sign(d0+prev_scroll1) M0=hroot(m0) M0=h(2+m0+0+1)
+    // m1=hleaf(d1+sig1) sig1=sign(d1+M0) M1=hroot(m0_1) M1=h(2+m0_1+0+2)
+if (0)      t('xxx', `${s} s2.put(0(m0) 1(M1 sig1 d1))
+        s2.test(M0 m0 M1 m1 m0_1 sig1 d1)`);
     });
     if (true) return; // XXX WIP
     // XXX: make the last scroll used the default

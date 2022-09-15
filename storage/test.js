@@ -441,7 +441,7 @@ describe('scroll', ()=>{
         s2.test(M0)`; // XXX: s2.test: verify rest is null
       t('sig0_d0', `${s} s2.push(sig0 d0) s2.test(M0 sig0 d0)`);
       t('sig0_d0_err1', `${s} s2.push(sig0 d0:d1 err(invalid sig0))`);
-      t('sig0_d0_err2', `${s} s2.push(sig0:sig1 d0:d0 err(invalid sig0))`);
+      t('sig0_d0_err2', `${s} s2.push(sig0:sig1 d0 err(invalid sig0))`);
       t('m0', `${s} s2.push(m0)`);
       if (true) return; // XXX WIP
       // XXX derry: review test

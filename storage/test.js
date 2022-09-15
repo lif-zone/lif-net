@@ -483,13 +483,24 @@ describe('scroll', ()=>{
       // XXX: test with prev_scroll
       let s = `s.scroll(!prev_scroll) s.decl(1) s2.scroll(M0:s.M0)
         s2.test(M0)`;
+      t('sig0', `${s} s2.put(sig0) s2.test(M0)`); // XXX derry
+      t('d0', `${s} s2.put(d0) s2.test(M0)`); // XXX derry
+      t('m0', `${s} s2.put(m0) s2.test(M0 m0)`);
+      t('m0_err', `${s} s2.put(m0:m1 err(invalid m0)) s2.test(M0)`);
       t('sig0_d0', `${s} s2.put(sig0 d0) s2.test(M0 sig0 d0 m0)`);
       t('sig0_d0_err1', `${s} s2.put(sig0 d0:d1 err(invalid sig0))
         s2.test(M0)`);
       t('sig0_d0_err2', `${s} s2.put(sig0:sig1 d0 err(invalid sig0))
         s2.test(M0)`);
-      t('m0', `${s} s2.put(m0) s2.test(M0 m0)`);
-      t('m0_err', `${s} s2.put(m0:m1 err(invalid m0)) s2.test(M0)`);
+      t('sig0_d0_m0', `${s} s2.put(sig0 d0 m0) s2.test(M0 sig0 d0 m0)`);
+      t('sig0_d0_m0_err1', `${s} s2.put(sig0 d0 m0:m1 err(invalid m0))
+        s2.test(M0)`);
+      t('sig0_d0_m0_err2', `${s} s2.put(sig0:sig1 d0 m0 err(invalid sig0))
+        s2.test(M0)`);
+      t('sig0_d0_m0_err3', `${s} s2.put(sig0 d0:d1 m0 err(invalid sig0))
+        s2.test(M0)`);
+      t('m0_sig0', `${s} s2.put(sig0 m0) s2.test(M0 m0)`);
+      t('m0_d0', `${s} s2.put(d0 m0) s2.test(M0 m0)`);
       if (true) return; // XXX WIP
       // XXX derry: review test
       // XXX put(0(sig:sig0)) => put(sig0:sig0) or put(sig0:sig1)

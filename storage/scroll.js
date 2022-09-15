@@ -149,7 +149,8 @@ export default class Scroll {
              throw new Error('invalid sig'+seq);
            verified[seq].sig = sig;
            verified[seq].d = d;
-           // XXX: verify  m
+           verified[seq].m = verified[seq].m||{};
+           verified[seq].m[seq] = m;
         }
       }
       if (seq_o.m){

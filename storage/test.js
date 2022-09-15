@@ -290,24 +290,34 @@ const cmd_test = t=>etask(function*cmd_test(){
     assert(!t2.l, 'invalid test exp '+curr.exp);
     let v = t2.cmd;
     let o = split_var(v);
-    tested[o.seq] = tested[o.seq]||{M: false, sig: false, d: false};
-    assert(o.range[0]==o.range[1], 'XXX TODO');
-    tested[o.seq][o.type] = true;
+    tested[o.seq] = tested[o.seq]||{M: false, sig: false, d: false,
+      m: {}};
+    if (o.type=='m')
+      tested[o.seq].m[o.range[0]] = true;
+    else
+      tested[o.seq][o.type] = true;
     let exp = yield get_val(t2.r||v);
     let val = yield get_val(name+'.'+v);
     assert_buffer(val, exp, t2.meta);
     // xerr('XXX val %s exp %s', val, exp);
   }
-  // XXX TODO: verify that all other seq are null;
   for (let seq in tested){
     let decl = yield scroll.get_decl(+seq);
     for (let type in tested[seq]){
+      if (type=='m'){
+        let a = [seq]; // XXX TODO support all possible
+        for (let s in a){
+          if (tested[seq].m[s])
+            continue;
+          assert(!decl.m_get(+s, +seq).h, 'm'+s+(s==seq ? '' : '_'+seq)+
+            ' exists '+t.meta.s);
+        }
+      }
       if (tested[seq][type])
         continue;
       switch (type){
       case 'sig': assert(!decl.sig, 'sig'+seq+' exists '+t.meta.s); break;
       case 'd': assert(!decl.fbuf.h, 'd'+seq+' exists '+t.meta.s); break;
-      case 'm': assert(!decl.m.h, 'm'+seq+' exists '+t.meta.s); break;
       case 'M': assert(!decl.M.h, 'M'+seq+' exists '+t.meta.s); break;
       default: assert.fail('invalid type '+type);
       }
@@ -473,7 +483,7 @@ describe('scroll', ()=>{
       // XXX: test with prev_scroll
       let s = `s.scroll(!prev_scroll) s.decl(1) s2.scroll(M0:s.M0)
         s2.test(M0)`;
-      t('sig0_d0', `${s} s2.put(sig0 d0) s2.test(M0 sig0 d0)`);
+      t('sig0_d0', `${s} s2.put(sig0 d0) s2.test(M0 sig0 d0 m0)`);
       t('sig0_d0_err1', `${s} s2.put(sig0 d0:d1 err(invalid sig0))
         s2.test(M0)`);
       t('sig0_d0_err2', `${s} s2.put(sig0:sig1 d0 err(invalid sig0))

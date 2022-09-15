@@ -437,8 +437,8 @@ describe('scroll', ()=>{
     `);
     describe('push', ()=>{
       // XXX: test with prev_scroll
-      let s = 's.scroll(!prev_scroll) s.decl(1) s2.scroll(M0:s.M0)';
-      // XXX: test that all rest is null
+      let s = `s.scroll(!prev_scroll) s.decl(1) s2.scroll(M0:s.M0)
+        s2.test(M0)`; // XXX: s2.test: verify rest is null
       t('sig0_d0', `${s} s2.push(sig0 d0) s2.test(M0 sig0 d0)`);
       t('sig0_d0_err1', `${s} s2.push(sig0 d0:d1 err(invalid sig0))`);
       t('sig0_d0_err2', `${s} s2.push(sig0:sig1 d0:d0 err(invalid sig0))`);

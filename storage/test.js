@@ -240,7 +240,7 @@ const cmd_decl = t=>etask(function*cmd_decl(){
   }
 });
 
-const cmd_push = t=>etask(function*cmd_push(){
+const cmd_put = t=>etask(function*cmd_put(){
   let name = t.ctx||'s', scroll = t_scroll[name];
   let diff = {seq: {}}, err;
   for (let curr=t.r; curr = tparser.parse_get_next(curr);){
@@ -268,7 +268,7 @@ const cmd_push = t=>etask(function*cmd_push(){
   // XXX diff:
   // {seq: {7: {M, sig, d, D, m: {7:0xa, 6:0xb, 4:0xc, 0:0xd}}, 8:{}}}
   try {
-    yield scroll.push(diff);
+    yield scroll.put(diff);
     assert(!err, 'missing error '+err);
   }
   catch(e){ assert.equal(''+e, 'Error: '+err, 'error mismatch'); }
@@ -328,7 +328,7 @@ const test_run_single = o=>etask(function*_test_run_single(){
   switch (o.cmd){
   case 'scroll': yield cmd_scroll(o); break;
   case 'decl': yield cmd_decl(o); break;
-  case 'push': yield cmd_push(o); break;
+  case 'put': yield cmd_put(o); break;
   case 'test': yield cmd_test(o); break;
   case '//': break;
   case '=': yield cmd_eq(o); break;
@@ -469,38 +469,38 @@ describe('scroll', ()=>{
       m31=hleaf(d31+sig31) sig31=sign(d31+M30) M31=hroot(m0_31)
       m32=hleaf(d32+sig32) sig32=sign(d32+M31) M32=hroot(m0_31+m32)
     `);
-    describe('push', ()=>{
+    describe('put', ()=>{
       // XXX: test with prev_scroll
       let s = `s.scroll(!prev_scroll) s.decl(1) s2.scroll(M0:s.M0)
         s2.test(M0)`;
-      t('sig0_d0', `${s} s2.push(sig0 d0) s2.test(M0 sig0 d0)`);
-      t('sig0_d0_err1', `${s} s2.push(sig0 d0:d1 err(invalid sig0))
+      t('sig0_d0', `${s} s2.put(sig0 d0) s2.test(M0 sig0 d0)`);
+      t('sig0_d0_err1', `${s} s2.put(sig0 d0:d1 err(invalid sig0))
         s2.test(M0)`);
-      t('sig0_d0_err2', `${s} s2.push(sig0:sig1 d0 err(invalid sig0))
+      t('sig0_d0_err2', `${s} s2.put(sig0:sig1 d0 err(invalid sig0))
         s2.test(M0)`);
-      t('m0', `${s} s2.push(m0) s2.test(M0 m0)`);
-      t('m0_err', `${s} s2.push(m0:m1 err(invalid m0)) s2.test(M0)`);
+      t('m0', `${s} s2.put(m0) s2.test(M0 m0)`);
+      t('m0_err', `${s} s2.put(m0:m1 err(invalid m0)) s2.test(M0)`);
       if (true) return; // XXX WIP
       // XXX derry: review test
-      // XXX push(0(sig:sig0)) => push(sig0:sig0) or push(sig0:sig1)
-      // == push(sig0:s.sig0) or push(sig0:s.sig1)
+      // XXX put(0(sig:sig0)) => put(sig0:sig0) or put(sig0:sig1)
+      // == put(sig0:s.sig0) or put(sig0:s.sig1)
       // XXX diff format
       // XXX parallel etask
       // XXX using etask in class methods x
       // XXX: test also prev_scroll
-      t('sig_ok', `${s} s2.push(sig0 d0) s2.test(0 M0 sig0 d0 m0)`);
-      t('sig_err', `${s} s2.push(sig0:sig1 d0) err(invalid sig0))
+      t('sig_ok', `${s} s2.put(sig0 d0) s2.test(0 M0 sig0 d0 m0)`);
+      t('sig_err', `${s} s2.put(sig0:sig1 d0) err(invalid sig0))
         s2.test(0 M0)`);
-      t('sig_err2', `${s} s2.push(0(sig0 d1) err(invalid sig0))
+      t('sig_err2', `${s} s2.put(0(sig0 d1) err(invalid sig0))
         s2.test(0 M0)`);
     });
     if (true) return; // XXX WIP
     // XXX: make the last scroll used the default
     t('xxx', `s.scroll(def) decl(1-32) // s.decl
       s2.scroll(M0:s.M0)
-      s2.push(1(m0_1:m0_1) 2(m2:m2) 3(m3:m3 M3:M3))
-      s2.push(1(m0_1:m0_1) 2(m2:m2) 3(m3:m3 M3:M3) branch:ok)
-      s2.push(1(m0_1:m0_1) 2(m2:m2) 3(sig3:sig3 M3:M3) fail(xxx missing...))
+      s2.put(1(m0_1:m0_1) 2(m2:m2) 3(m3:m3 M3:M3))
+      s2.put(1(m0_1:m0_1) 2(m2:m2) 3(m3:m3 M3:M3) branch:ok)
+      s2.put(1(m0_1:m0_1) 2(m2:m2) 3(sig3:sig3 M3:M3) fail(xxx missing...))
     `);
   });
 });

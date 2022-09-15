@@ -121,7 +121,7 @@ export default class Scroll {
     _this.size++;
     return decl;
   });
-  push = diff=>etask({_: this}, function*push(){
+  put = diff=>etask({_: this}, function*put(){
     let _this = this._;
     // m0=hleaf(d0+sig0) sig0=sign(d0+prev_scroll1) M0=hroot(m0) M0=h(2+m0+0+1)
     // prepare:
@@ -149,7 +149,7 @@ export default class Scroll {
              throw new Error('invalid sig'+seq);
            verified[seq].sig = sig;
            verified[seq].d = d;
-           // XXX: push m
+           // XXX: verify  m
         }
       }
       if (seq_o.m){
@@ -164,7 +164,7 @@ export default class Scroll {
         }
       }
     }
-    // XXX wrap it as push_verified
+    // XXX wrap it as put_verified
     for (let seq in verified){
       let v = verified[seq], decl = decls[seq];
       for (let type in v){

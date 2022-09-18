@@ -256,19 +256,29 @@ export default class Scroll {
           continue;
         if (!Scroll.verify_sig(seq_o.sig, _this.pub, seq_o.d, M_prev))
            throw new Error('invalid sig'+seq);
+        if (seq){
+          verified[seq-1] = verified[seq-1]||{};
+          verified[seq-1].M = M_prev;
+        }
         verified[seq].d = seq_o.d;
         verified[seq].sig = seq_o.sig;
         copy_m_hash(verified, merkel);
       }
     }
-    // XXX wrap it as put_verified
+    // XXX wrap it as put_verified and change api for all set operations
+    // (grep the code for all set operations)
+    let max;
     for (let seq in verified){
       xerr.notice('XXX seq %s', seq);
       let v = verified[seq], decl = decls[seq];
       for (let type in v){
         let val = v[type];
         switch (type){
-        case 'sig': decl.sig = val; break; // XXX: need decl.set_sig()
+        case 'M': decl.M.h = val; break; // XXX: need decl.set_M()
+        case 'sig':
+          decl.sig = val; // XXX: need decl.set_sig()
+          max = !max || max.seq<decl.seq ? decl : max;
+          break;
         case 'd': decl.fbuf.h = val; break; // XXX: need decl.fbuf.set_hash()
         case 'm':
           for (let s in val)
@@ -278,20 +288,16 @@ export default class Scroll {
         }
       }
     }
+    if (max)
+      yield max.M.calc_hash();
   });
   merkel_calc_m(opt){ return etask({_: this}, function*_merkel_calc_m(){
     let _this = this._, {r, verified, merkel, diff} = opt;
     let seq = r[1], decl = yield _this.get_decl(seq);
     let m = (yield decl.m_hash(r)) || get_m_hash(verified, r);
     let diff_m = get_m_hash(diff.seq, r);
-    if (m){
-/* XXX: needed?
-      if (diff_m){
-        if (!m.equals(diff_m))
-          throw new Error('invalid m'+range_str(r));
-*/
+    if (m)
       return {match: true, m};
-    }
     if (r[0]==r[1]){
       set_m_hash(merkel, r, diff_m);
       return {match: false, m: diff_m};

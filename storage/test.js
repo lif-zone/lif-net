@@ -66,7 +66,6 @@ const calc_m = (scroll, s, e)=>etask(function*calc_m(){
 
 const get_val = exp=>etask(function*_get_val(){
   assert(typeof exp=='string', 'invalid get_val '+exp);
-  xerr.notice('XXX val %s', exp);
   let m = exp.match(/^([a-zA-Z]\d*)\.(.*)$/);
   let name = m ? m[1] : 's', scroll = t_scroll[name];
   exp = m ? m[2] : exp;
@@ -265,9 +264,6 @@ const cmd_put = t=>etask(function*cmd_put(){
     } else
       seq_o[type] = val;
   }
-  // xerr('XXX put %s %s', name, JSON.stringify(diff));
-  // XXX diff:
-  // {seq: {7: {M, sig, d, D, m: {7:0xa, 6:0xb, 4:0xc, 0:0xd}}, 8:{}}}
   try {
     yield scroll.put(diff);
     assert(!err, 'missing error '+err);
@@ -291,8 +287,7 @@ const cmd_test = t=>etask(function*cmd_test(){
     assert(!t2.l, 'invalid test exp '+curr.exp);
     let v = t2.cmd;
     let o = split_var(v);
-    tested[o.seq] = tested[o.seq]||{M: false, sig: false, d: false,
-      m: {}};
+    tested[o.seq] = tested[o.seq]||{M: false, sig: false, d: false, m: {}};
     if (o.type=='m')
       tested[o.seq].m[o.range[0]] = true;
     else
@@ -300,31 +295,33 @@ const cmd_test = t=>etask(function*cmd_test(){
     let exp = yield get_val(t2.r||v);
     let val = yield get_val(name+'.'+v);
     assert_buffer(val, exp, t2.meta);
-    // xerr('XXX val %s exp %s', val, exp);
   }
-  for (let seq in tested){
+  for (let seq=0; seq<scroll.size; seq++){
     seq = +seq;
     let decl = yield scroll.get_decl(seq);
-    for (let type in tested[seq]){
+    ['sig', 'd', 'M', 'm'].forEach(type=>{
       if (type=='m'){
-        let a = [seq]; // XXX TODO support all possible
+        let s, a = [seq];
+        for (let i=1, s=seq-i; seq&i; i*=2, s-=i)
+          a.push(s);
         for (let i=0; i<a.length; i++){
           let s = +a[i];
-          if (tested[seq].m[s])
+          if (tested && tested[seq]?.m[s])
             continue;
-          assert(!decl.m_get(s, seq).h, 'm'+range_str([s, seq])+
+          assert(!decl.m_get([s, seq]).h, 'm'+range_str([s, seq])+
             ' exists '+t.meta.s);
         }
+        return;
       }
-      if (tested[seq][type])
-        continue;
+      if (tested[seq] && tested[seq][type])
+        return;
       switch (type){
       case 'sig': assert(!decl.sig, 'sig'+seq+' exists '+t.meta.s); break;
       case 'd': assert(!decl.fbuf.h, 'd'+seq+' exists '+t.meta.s); break;
       case 'M': assert(!decl.M.h, 'M'+seq+' exists '+t.meta.s); break;
       default: assert.fail('invalid type '+type);
       }
-    }
+    });
   }
 });
 
@@ -497,8 +494,15 @@ describe('scroll', ()=>{
       t('d0_err', `${s} s2.put(d0 sig0:sig1 err(invalid sig0)) s2.test(M0)`);
       t('d1', `${s} s2.put(d1 sig1) s2.test(M0 d1 sig1)`);
       t('d1_err', `${s} s2.put(d1 sig1:sig0 err(invalid sig1)) s2.test(M0)`);
-      t('d2', `${s} s2.put(m0 m1 M1 d2 sig2) // XXX s2.test(M0 m0 d2 sig2)`);
-      // XXX: try to give m0_1
+      t('d2', `${s} s2.put(m0 m1 M1 d2 sig2) s2.test(M0 m0 m0_1 m1 d2 sig2)`);
+      t('d2_m0_1', `${s} s2.put(m0 m1 m0_1 M1 d2 sig2)
+        s2.test(M0 m0 m0_1 m1 d2 sig2)`);
+      t('d2_missing_v1', `${s} s2.put(m1 M1 d2 sig2) s2.test(M0)`);
+      t('d2_missing_v2', `${s} s2.put(m0 m0_1 M1 d2 sig2) s2.test(M0 m0)`);
+      t('d2_err_m0', `${s} s2.put(m0:m1 m1 M1 d2 sig2 err(invalid m0))
+        s2.test(M0)`);
+      t('d2_err', `${s} s2.put(m0 m1 M1 d2 sig2:sig0 err(invalid sig2))
+        s2.test(M0)`);
       if (true) return;
       t('m0_3', `${s} s2.put(m0 m1 m2_3 M2 M3 sig3 m3 d3)
         s2.test(M0 m0 m1 m0_1 m2_3 m0_3 M2 M3 sig3 m3 d3)`);

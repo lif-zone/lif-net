@@ -86,6 +86,25 @@ function get_m_hash(data, r){
   return m && m[r[0]] || null;
 }
 
+// XXX: need test
+function set_m_hash(data, r, val){
+  let o = data[r[1]] = data[r[1]]||{};
+  o.m = o.m||{};
+  o.m[r[0]] = val;
+}
+
+// XXX: need test
+function copy_m_hash(dst, src){
+  for (let seq in src){
+    seq = +seq;
+    let m = src[seq].m;
+    if (!m)
+      continue;
+    for (let seq2 in m)
+      set_m_hash(dst, [seq2, seq], m[seq2]);
+  }
+}
+
 function seq_merkel_array_size(seq){
   let n=1;
   for (let i=1; seq&i; i*=2, n++);
@@ -239,10 +258,12 @@ export default class Scroll {
            throw new Error('invalid sig'+seq);
         verified[seq].d = seq_o.d;
         verified[seq].sig = seq_o.sig;
+        copy_m_hash(verified, merkel);
       }
     }
     // XXX wrap it as put_verified
     for (let seq in verified){
+      xerr.notice('XXX seq %s', seq);
       let v = verified[seq], decl = decls[seq];
       for (let type in v){
         let val = v[type];
@@ -257,26 +278,6 @@ export default class Scroll {
         }
       }
     }
-    if (true) return; // XXX WIP
-    for (let seq in diff.seq){
-      let seq_o = diff.seq[seq];
-      assert(/^\d+$/.test(seq), 'invalid seq '+seq);
-      seq = +seq;
-      console.log('XXX %s %s', seq, seq_o);
-      let decl = yield _this.get_decl(seq, {create: true});
-      for (let type in seq_o){
-        switch (type){
-        case 'd':
-          break;
-        case 'sig':
-          if (decl.sig && Buffer.isBuffer(seq_o.sig) && decl.equal(seq_o.sig))
-            continue;
-          break;
-        default: throw new Error('invalid type '+seq+':'+type);
-        }
-      }
-    }
-    return {verified};
   });
   merkel_calc_m(opt){ return etask({_: this}, function*_merkel_calc_m(){
     let _this = this._, {r, verified, merkel, diff} = opt;
@@ -291,13 +292,18 @@ export default class Scroll {
 */
       return {match: true, m};
     }
-    if (r[0]==r[1])
+    if (r[0]==r[1]){
+      set_m_hash(merkel, r, diff_m);
       return {match: false, m: diff_m};
+    }
     let [r1, r2] = range_split(r), decl0 = yield _this.get_decl(r1[1]);
     let m1 = (yield decl0.m_hash(r1)) || get_m_hash(verified, r1);
     let m2 = (yield decl.m_hash(r2)) || get_m_hash(verified, r2);
-    if (m1 && m2)
-      return {match: true, m: hparent_safe(r[1]-r[0]+1, m1, m2)};
+    if (m1 && m2){
+      let m = hparent_safe(r[1]-r[0]+1, m1, m2);
+      set_m_hash(merkel, r, m);
+      return {match: true, m};
+    }
     let o1 = m1 ? {match: true, m: m1} :
       yield _this.merkel_calc_m({r: r1, verified, merkel, diff});
     let o2 = m2 ? {match: true, m: m2} :
@@ -305,6 +311,7 @@ export default class Scroll {
     if (!o1.m || !o2.m)
       return {};
     m = hparent(r[1]-r[0]+1, o1.m, o2.m);
+    set_m_hash(merkel, r, m);
     return {match: o1.match || o2.match, m};
   }); }
   merkel_calc_M(opt){ return etask({_: this}, function*_merkel_calc_M(){

@@ -29,6 +29,9 @@ E.sign = function(buf, key){
   return Buffer.from(sig);
 };
 
+E.verify = function(sig, pub, buf){
+  return sodium.crypto_sign_verify_detached(sig, buf, pub); };
+
 E.keypair_to_str = function(keys){
   return stringify({pub: b2s(keys.pub), key: b2s(keys.key)}); };
 

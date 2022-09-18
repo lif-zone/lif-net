@@ -12,6 +12,7 @@ import xsinon from '../util/sinon.js';
 import Scroll from './scroll.js';
 import buf_util from '../peer-relay/buf_util.js';
 const b2s = buf_util.buf_to_str, s2b = buf_util.buf_from_str;
+const range_str = Scroll.range_str;
 function enc_u64(v){ return enc.encode(enc.uint64, v); }
 
 let t_scroll, t_genesis_scroll, t_prev_scroll, t_keypair;
@@ -43,7 +44,8 @@ function assert_buffer(a, b, meta){
 }
 
 const calc_m = (scroll, s, e)=>etask(function*calc_m(){
-  assert(Number.isInteger(Math.log2(e-s+1)), 'invalid merkel range '+s+'_'+e);
+  assert(Number.isInteger(Math.log2(e-s+1)), 'invalid merkel range '+
+  range_str([s, e]));
   let q = [];
   assert(e<scroll.size, 'scroll too small '+e+'<'+scroll.size);
   for (let i=s; i<=e; i++)
@@ -52,7 +54,7 @@ const calc_m = (scroll, s, e)=>etask(function*calc_m(){
     let q2 = [];
     for (let i=0; i<q.length/2; i++){
       q2.push({s: q[2*i].s, e: q[2*i+1].e,
-        m: Scroll.hconcat([Scroll.PARENT_TYPE,
+        m: Scroll.hconcat_safe([Scroll.PARENT_TYPE,
         enc.encode(enc.uint64, q[2*i+1].e-q[2*i].s+1),
         q[2*i].m, q[2*i+1].m])});
     }
@@ -84,7 +86,7 @@ const get_val = exp=>etask(function*_get_val(){
     let a=[], vars = m[1].split('+');
     for (let i=0; i<vars.length; i++)
       a.push(yield get_val(vars[i]));
-    return Scroll.hconcat(a);
+    return Scroll.hconcat_safe(a);
   }
   if (m = exp.match(/^hleaf\((.*)\)$/)){
     let a=[Scroll.LEAF_TYPE], vars = m[1].split('+');
@@ -259,7 +261,7 @@ const cmd_put = t=>etask(function*cmd_put(){
     assert(['sig', 'd', 'm', 'M'].includes(type), 'invalid type '+type);
     if (type=='m'){
       seq_o.m = seq_o.m||{};
-      seq_o.m[seq] = val;
+      seq_o.m[o.range[0]] = val;
     } else
       seq_o[type] = val;
   }
@@ -310,7 +312,7 @@ const cmd_test = t=>etask(function*cmd_test(){
           let s = +a[i];
           if (tested[seq].m[s])
             continue;
-          assert(!decl.m_get(s, seq).h, 'm'+s+(s==seq ? '' : '_'+seq)+
+          assert(!decl.m_get(s, seq).h, 'm'+range_str([s, seq])+
             ' exists '+t.meta.s);
         }
       }
@@ -413,10 +415,7 @@ describe('scroll', ()=>{
       const t = (size, exp)=>{
         let roots = Scroll.calc_roots(size);
         let a = [];
-        roots.forEach(r=>{
-          let name = r[0]==r[1] ? ''+r[1] : r[0]+'_'+r[1];
-          a.push(name);
-        });
+        roots.forEach(r=>a.push(Scroll.range_str(r)));
         assert.equal(a.join(' '), exp);
       };
       t(1, '0');
@@ -459,6 +458,13 @@ describe('scroll', ()=>{
     // XXX branch support
     // XXX api delete data
     // for testing: t('s0 s1(m1 m0_1) s3
+
+/* XXX derry:
+  // m7=hleaf(d7+sig7) sig7=sign(d7+M6) M7=hroot(m0_7)
+  // m8=hleaf(d8+sig8) sig8=sign(d8+M7) M8=hroot(m0_7+m8)
+  t('m0_8', `${s} s2.put(sig8 d8 M7 m0 m1 m2_3 m4_7)`);
+
+*/
     t('merkel', `scroll decl(1-32)
       m0=hleaf(d0+sig0) sig0=sign(d0+prev_scroll1) M0=hroot(m0) M0=h(2+m0+0+1)
       m1=hleaf(d1+sig1) sig1=sign(d1+M0) M1=hroot(m0_1) M1=h(2+m0_1+0+2)
@@ -481,10 +487,21 @@ describe('scroll', ()=>{
       m32=hleaf(d32+sig32) sig32=sign(d32+M31) M32=hroot(m0_31+m32)
     `);
     describe('put', ()=>{
-      let s = `s.scroll(!prev_scroll) s.decl(1-32) s2.scroll(M0:s.M0)
-        s2.test(M0)`;
       // XXX: test with prev_scroll
       // XXX make last used cmd default and last used arg default
+      let s = `s.scroll(!prev_scroll) s.decl(1-32) s2.scroll(M0:s.M0)
+        s2.test(M0)`;
+      t('m0', `${s} s2.put(m0) s2.test(M0 m0)`);
+      t('m0_err', `${s} s2.put(m0:m1 err(invalid m0)) s2.test(M0)`);
+      t('d0', `${s} s2.put(d0 sig0) s2.test(M0 d0 sig0 M0)`);
+      t('d0_err', `${s} s2.put(d0 sig0:sig1 err(invalid sig0)) s2.test(M0)`);
+      t('d1', `${s} s2.put(d1 sig1) s2.test(M0 d1 sig1)`);
+      t('d1_err', `${s} s2.put(d1 sig1:sig0 err(invalid sig1)) s2.test(M0)`);
+      t('d2', `${s} s2.put(m0 m1 M1 d2 sig2) // XXX s2.test(M0 m0 d2 sig2)`);
+      // XXX: try to give m0_1
+      if (true) return;
+      t('m0_3', `${s} s2.put(m0 m1 m2_3 M2 M3 sig3 m3 d3)
+        s2.test(M0 m0 m1 m0_1 m2_3 m0_3 M2 M3 sig3 m3 d3)`);
       t('sig0', `${s} s2.put(sig0) s2.test(M0)`); // XXX derry
       t('d0', `${s} s2.put(d0) s2.test(M0)`); // XXX derry
       t('m0', `${s} s2.put(m0) s2.test(M0 m0)`);
@@ -506,9 +523,9 @@ describe('scroll', ()=>{
       t('m0_sig0', `${s} s2.put(sig0 m0) s2.test(M0 m0)`);
       t('m0_d0', `${s} s2.put(d0 m0) s2.test(M0 m0)`);
       // XXX
-      if (true) return;
       t('m0_3', `${s} s2.put(m0 m1 m2_3 M2 M3 sig3 m3 d3)
         s2.test(M0 m0 m1 m0_1 m2_3 m0_3 M2 M3 sig3 m3 d3)`);
+      if (true) return;
       t('m0_7', `${s} s2.put(m0 m1 m2_3 m0_3 m4_7 M6 M7 sig7 m7 d7)
         s2.test(M0 m0 m1 m0_1 m2_3 m0_3 m4_7 M6 M7 sig7 m7 d7)`);
 // XXX

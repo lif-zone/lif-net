@@ -275,7 +275,7 @@ const cmd_put = t=>etask(function*cmd_put(){
 });
 
 function split_var(v){
-  let m = v.match(/^(sig|m|M|d)((\d+)|((\d)_(\d)))$/);
+  let m = v.match(/^(sig|m|M|d)((\d+)|((\d+)_(\d+)))$/);
   assert.equal(m?.length, 7, 'invalid var '+v);
   let type = m[1], range = Scroll.range_from_str(m[2]), seq = range[1];
   assert(type=='m' || range[0]==range[1], 'invalid range '+v);
@@ -301,7 +301,7 @@ const cmd_test = t=>etask(function*cmd_test(){
   }
   for (let seq=0; seq<scroll.size; seq++){
     seq = +seq;
-    let decl = yield scroll.get_decl(seq);
+    let decl = yield scroll.get_decl(seq, {create: true});
     ['sig', 'd', 'M', 'm'].forEach(type=>{
       if (type=='m'){
         let a = [seq];
@@ -498,23 +498,47 @@ describe('scroll', ()=>{
       t('d1', `${s} s2.put(d1 sig1) s2.test(M0 d1 sig1 m1)`);
       t('d1_m0', `${s} s2.put(m0 d1 sig1) s2.test(M0 m0 m0_1 d1 sig1 m1 M1)`);
       t('d1_err', `${s} s2.put(d1 sig1:sig0 err(invalid sig1)) s2.test(M0)`);
-      t('d2', `${s} s2.put(m0 m1 M1 d2 sig2)
+      t('d2', `${s} s2.put(m0 m1 d2 sig2)
         s2.test(M0 m0 m0_1 M1 m1 M2 d2 sig2 m2)`);
-      t('d2_m0_1', `${s} s2.put(m0 m1 m0_1 M1 d2 sig2)
+      t('d2_m0_1', `${s} s2.put(m0 m1 m0_1 d2 sig2)
         s2.test(M0 m0 m0_1 M1 m1 M2 d2 sig2 m2)`);
-      t('d2_missing_v1', `${s} s2.put(m1 M1 d2 sig2) s2.test(M0)`);
-      t('d2_missing_v2', `${s} s2.put(m0 m0_1 M1 d2 sig2) s2.test(M0 m0)`);
-      t('d2_err_m0', `${s} s2.put(m0:m1 m1 M1 d2 sig2 err(invalid m0))
+      t('d2_missing_v1', `${s} s2.put(m1 d2 sig2) s2.test(M0)`);
+      t('d2_missing_v2', `${s} s2.put(m0 m0_1 d2 sig2) s2.test(M0 m0)`);
+      t('d2_err_m0', `${s} s2.put(m0:m1 m1 d2 sig2 err(invalid m0))
         s2.test(M0)`);
-      t('d2_err', `${s} s2.put(m0 m1 M1 d2 sig2:sig0 err(invalid sig2))
+      t('d2_err', `${s} s2.put(m0 m1 d2 sig2:sig0 err(invalid sig2))
         s2.test(M0)`);
-      t('d3', `${s} s2.put(m0 m1 M1 m2 d3 sig3)
+      t('d3', `${s} s2.put(m0 m1 m2 d3 sig3)
         s2.test(M0 m0 m0_1 m0_3 m1 m2 m2_3 d3 sig3 M2 m3 M3)`);
       // XXX: need d3 missing/errors tests
-      t('d4', `${s} s2.put(m0 m1 m2_3 m0_3 M3 d4 sig4)
+      t('d4', `${s} s2.put(m0 m1 m2_3 m0_3 d4 sig4)
         s2.test(M0 m0 m1 m0_1 m2_3 m0_3 M3 M4 d4 sig4 m4)`);
       // XXX: need d4 missing/errors tests
-      if (true) return;
+      t('d32', `${s} s2.put(m0 m1 m2_3 m0_3 m4_7 m0_7 m8_15 m16_31 d32 sig32)
+        s2.test(M0 m0 m1 m0_1 m2_3 m0_3 m4_7 m0_7 m8_15 m0_15 m16_31 m0_31
+        M31 M32 d32 sig32 m32)`);
+      t('d32_err_m0', `${s} s2.put(m0:m1 m1 m2_3 m4_7 m0_7 m8_15 m16_31 d32
+        sig32 err(invalid m0)) s2.test(M0)`);
+      t('d32_err_m1', `${s} s2.put(m0 m1:m0 m2_3 m4_7 m0_7 m8_15 m16_31 d32
+        sig32 err(invalid sig32)) s2.test(M0)`);
+      t('d32_err_m2_3', `${s} s2.put(m0 m1 m2_3:m0 m4_7 m0_7 m8_15 m16_31 d32
+        sig32 err(invalid sig32)) s2.test(M0)`);
+      t('d32_err_m4_7', `${s} s2.put(m0 m1 m2_3 m4_7:m0 m0_7 m8_15 m16_31 d32
+        sig32 err(invalid sig32)) s2.test(M0)`);
+      t('d32_err_m8_15', `${s} s2.put(m0 m1 m2_3 m4_7 m0_7 m8_15:m0 m16_31 d32
+        sig32 err(invalid sig32)) s2.test(M0)`);
+      t('d32_err_m16_31', `${s} s2.put(m0 m1 m2_3 m4_7 m0_7 m8_15 m16_31:m0 d32
+        sig32 err(invalid sig32)) s2.test(M0)`);
+      t('d32_err_d32', `${s} s2.put(m0 m1 m2_3 m4_7 m0_7 m8_15 m16_31 d32:d0
+        sig32 err(invalid sig32)) s2.test(M0)`);
+      t('d32_err_sig32', `${s} s2.put(m0 m1 m2_3 m4_7 m0_7 m8_15 m16_31 d32
+        sig32:sig0 err(invalid sig32)) s2.test(M0)`);
+      t('d32_missing_m0', `${s} s2.put(m1 m2_3 m0_3 m4_7 m0_7 m8_15 m16_31 d32
+        sig32) s2.test(M0)`);
+      t('d32_missing_m2_3', `${s}
+        s2.put(m0 m1 m0_3 m4_7 m0_7 m8_15 m16_31 d32 sig32) s2.test(M0 m0)`);
+      // XXX: need all possible d32 missing info
+      if (true) return; // XXX: review and rm below
       t('m0_3', `${s} s2.put(m0 m1 m2_3 M2 M3 sig3 m3 d3)
         s2.test(M0 m0 m1 m0_1 m2_3 m0_3 M2 M3 sig3 m3 d3)`);
       t('sig0', `${s} s2.put(sig0) s2.test(M0)`); // XXX derry

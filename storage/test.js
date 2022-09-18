@@ -60,8 +60,11 @@ const calc_m = (scroll, s, e)=>etask(function*calc_m(){
     }
     q = q2;
   }
-  assert.equal(b2s(yield scroll.m_hash([s, e])), b2s(q[0].m));
-  return q[0].m;
+  let scroll_m = yield scroll.m_hash([s, e]);
+  let test_m = q[0].m;
+  if (scroll_m && test_m)
+    assert.equal(b2s(scroll_m), b2s(test_m));
+  return scroll_m||test_m;
 });
 
 const get_val = exp=>etask(function*_get_val(){
@@ -301,7 +304,7 @@ const cmd_test = t=>etask(function*cmd_test(){
     let decl = yield scroll.get_decl(seq);
     ['sig', 'd', 'M', 'm'].forEach(type=>{
       if (type=='m'){
-        let s, a = [seq];
+        let a = [seq];
         for (let i=1, s=seq-i; seq&i; i*=2, s-=i)
           a.push(s);
         for (let i=0; i<a.length; i++){
@@ -507,6 +510,10 @@ describe('scroll', ()=>{
         s2.test(M0)`);
       t('d3', `${s} s2.put(m0 m1 M1 m2 d3 sig3)
         s2.test(M0 m0 m0_1 m0_3 m1 m2 m2_3 d3 sig3 M2 m3 M3)`);
+      // XXX: need d3 missing/errors tests
+      t('d4', `${s} s2.put(m0 m1 m2_3 m0_3 M3 d4 sig4)
+        s2.test(M0 m0 m1 m0_1 m2_3 m0_3 M3 M4 d4 sig4 m4)`);
+      // XXX: need d4 missing/errors tests
       if (true) return;
       t('m0_3', `${s} s2.put(m0 m1 m2_3 M2 M3 sig3 m3 d3)
         s2.test(M0 m0 m1 m0_1 m2_3 m0_3 M2 M3 sig3 m3 d3)`);

@@ -172,6 +172,8 @@ export default class Scroll {
     return decl;
   });
   put = diff=>etask({_: this}, function*put(){
+    // XXX: verify all get_decl and check if we load all what is needed before
+    // we start
     let _this = this._;
     // m0=hleaf(d0+sig0) sig0=sign(d0+prev_scroll1) M0=hroot(m0) M0=h(2+m0+0+1)
     // prepare:
@@ -190,7 +192,7 @@ export default class Scroll {
     for (let seq in diff.seq){
       seq = +seq;
       let seq_o = diff.seq[seq], decl = decls[seq];
-/*
+/* XXX review and delete
       if (seq_o.sig){
         let sig = seq_o.sig, d = decl.fbuf.h||seq_o.d; // XXX: d from seq_o.D
         if (decl.M.h && d){
@@ -269,8 +271,8 @@ export default class Scroll {
     // (grep the code for all set operations)
     let max;
     for (let seq in verified){
-      xerr.notice('XXX seq %s', seq);
-      let v = verified[seq], decl = decls[seq];
+      seq = +seq;
+      let v = verified[seq], decl = yield _this.get_decl(seq, {create: true});
       for (let type in v){
         let val = v[type];
         switch (type){
@@ -314,8 +316,10 @@ export default class Scroll {
       yield _this.merkel_calc_m({r: r1, verified, merkel, diff});
     let o2 = m2 ? {match: true, m: m2} :
       yield _this.merkel_calc_m({r: r2, verified, merkel, diff});
-    if (!o1.m || !o2.m)
-      return {};
+    if (!o1.m || !o2.m){
+      set_m_hash(merkel, r, diff_m);
+      return {match: false, m: diff_m};
+    }
     m = hparent(r[1]-r[0]+1, o1.m, o2.m);
     set_m_hash(merkel, r, m);
     return {match: o1.match || o2.match, m};
@@ -432,8 +436,8 @@ class Merkel_node {
     }
     // XXX: get in parallel
     let d = (e-s+1)/2; // XXX: range_split
-    let decl1 = yield decl.scroll.get_decl(s+d-1);
-    let decl2 = yield decl.scroll.get_decl(e);
+    let decl1 = yield decl.scroll.get_decl(s+d-1, {create: true});
+    let decl2 = yield decl.scroll.get_decl(e, {create: true});
     _this.h = hparent_safe(2*d, yield decl1.m_hash([s, s+d-1]),
       yield decl2.m_hash([s+d, e]));
     return _this.h;

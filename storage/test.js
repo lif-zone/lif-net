@@ -36,15 +36,16 @@ afterEach(function(){
 
 function assert_buffer(a, b, meta){
   if (Buffer.isBuffer(a) && Buffer.isBuffer(b))
-    assert.equal(b2s(a), b2s(b), 'failed '+meta.s);
+    assert.equal(b2s(a), b2s(b), 'buffer not equal '+meta.s);
   else
-    assert.equal(a, b, 'failed '+meta.s);
+    assert.equal(a, b, 'not equal '+meta.s);
 
 }
 
 const calc_m = (scroll, s, e)=>etask(function*calc_m(){
   assert(Number.isInteger(Math.log2(e-s+1)), 'invalid merkel range '+s+'_'+e);
   let q = [];
+  assert(e<scroll.size, 'scroll too small '+e+'<'+scroll.size);
   for (let i=s; i<=e; i++)
     q.push({s: i, e: i, m: yield scroll.m_hash(i)});
   while (q.length!=1){
@@ -223,6 +224,7 @@ const cmd_scroll = t=>etask(function*cmd_scroll(){
         prev_scroll}, {topic: 'test'});
   }
   t_scroll[name] = scroll;
+  scroll.t = {name};
 });
 
 const cmd_decl = t=>etask(function*cmd_decl(){
@@ -411,9 +413,9 @@ describe('scroll', ()=>{
       const t = (size, exp)=>{
         let roots = Scroll.calc_roots(size);
         let a = [];
-        roots.forEach(o=>{
-          assert.equal(o.s==o.e ? ''+o.s : o.s+'_'+o.e, o.name);
-          a.push(o.name);
+        roots.forEach(r=>{
+          let name = r[0]==r[1] ? ''+r[1] : r[0]+'_'+r[1];
+          a.push(name);
         });
         assert.equal(a.join(' '), exp);
       };
@@ -479,9 +481,10 @@ describe('scroll', ()=>{
       m32=hleaf(d32+sig32) sig32=sign(d32+M31) M32=hroot(m0_31+m32)
     `);
     describe('put', ()=>{
-      // XXX: test with prev_scroll
-      let s = `s.scroll(!prev_scroll) s.decl(1) s2.scroll(M0:s.M0)
+      let s = `s.scroll(!prev_scroll) s.decl(1-32) s2.scroll(M0:s.M0)
         s2.test(M0)`;
+      // XXX: test with prev_scroll
+      // XXX make last used cmd default and last used arg default
       t('sig0', `${s} s2.put(sig0) s2.test(M0)`); // XXX derry
       t('d0', `${s} s2.put(d0) s2.test(M0)`); // XXX derry
       t('m0', `${s} s2.put(m0) s2.test(M0 m0)`);
@@ -502,12 +505,22 @@ describe('scroll', ()=>{
         s2.test(M0)`);
       t('m0_sig0', `${s} s2.put(sig0 m0) s2.test(M0 m0)`);
       t('m0_d0', `${s} s2.put(d0 m0) s2.test(M0 m0)`);
+      // XXX
+      if (true) return;
+      t('m0_3', `${s} s2.put(m0 m1 m2_3 M2 M3 sig3 m3 d3)
+        s2.test(M0 m0 m1 m0_1 m2_3 m0_3 M2 M3 sig3 m3 d3)`);
+      t('m0_7', `${s} s2.put(m0 m1 m2_3 m0_3 m4_7 M6 M7 sig7 m7 d7)
+        s2.test(M0 m0 m1 m0_1 m2_3 m0_3 m4_7 M6 M7 sig7 m7 d7)`);
 // XXX
 // m0=hleaf(d0+sig0) sig0=sign(d0+prev_scroll1) M0=hroot(m0) M0=h(2+m0+0+1)
 // m1=hleaf(d1+sig1) sig1=sign(d1+M0) M1=hroot(m0_1) M1=h(2+m0_1+0+2)
-      t('xxx', `${s} s2.put(sig1 d1) s2.test(M0 sig1 d1)`);
-      t('xxx_err1', `${s} s2.put(sig1:sig0 d1 err(invalid sig1)) s2.test(M0)`);
-      t('xxx_err2', `${s} s2.put(sig1 d1:d0 err(invalid sig1)) s2.test(M0)`);
+if (0){ // XXX
+      t('xxx1', `${s} s2.put(sig1 d1) s2.test(M0 sig1 d1)`);
+      t('xxx1_err1', `${s} s2.put(sig1:sig0 d1 err(invalid sig1))
+        s2.test(M0)`);
+      t('xxx1_err2', `${s} s2.put(sig1 d1:d0 err(invalid sig1)) s2.test(M0)`);
+      t('xxx1', `${s} s2.put(m0 M1 sig1 d1) s2.test(M0 m0 M1 sig1 d1)`);
+}
       if (true) return; // XXX WIP
       // XXX derry: review test
       // XXX put(0(sig:sig0)) => put(sig0:sig0) or put(sig0:sig1)

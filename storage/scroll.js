@@ -85,14 +85,14 @@ function calc_roots(size){
   let roots = [];
   for (let n=1, s=0; s+n<=size;){
     if (s+n==size){
-      roots.push({s, e: s+n-1, name: n>1 ? s+'_'+(s+n-1) : ''+s});
+      roots.push([s, s+n-1]);
       return roots;
     }
     if (s+2*n-1 < size){
       n *= 2;
       continue;
     }
-    roots.push({s, e: s+n-1, name: s+'_'+(s+n-1)});
+    roots.push([s, s+n-1]);
     [s, n] = [s+n, 1];
   }
 }
@@ -186,10 +186,21 @@ export default class Scroll {
         if (decl.M.h){
           if (!decl.M.h.equals(M))
              throw new Error('invalid M'+seq);
-        } else
-          assert.fail('XXX calc M if possible');
+        }
+        let roots = calc_roots(seq+1);
+        for (let i=0; i<roots.length; i++){
+          let root = roots[i];
+          // XXX verify_merkel
+        }
       }
     }
+/* XXX
+    if (seq_o.sig && seq_o.d3 && M_prev){
+      if (!verify(sig))
+        throw;
+      m3 = calc
+      M3 = calc
+*/
     // XXX wrap it as put_verified
     for (let seq in verified){
       let v = verified[seq], decl = decls[seq];
@@ -233,7 +244,7 @@ export default class Scroll {
     for (let i=0; i<roots.length; i++){
       let r = roots[i];
       // XXX: get in parallel
-      a.push(yield _this.m_hash([r.s, r.e]), enc_u64(r.s), enc_u64(r.e-r.s+1));
+      a.push(yield _this.m_hash(r), enc_u64(r[0]), enc_u64(r[1]-r[0]+1));
     }
     return hconcat(a);
   });
@@ -246,7 +257,7 @@ export default class Scroll {
   m_hash = range=>etask({_: this}, function*m_hash(){
     let _this = this._;
     let [, e] = range = range_fix(range);
-    let decl = yield _this.get_decl(e);
+    let decl = yield _this.get_decl(e, {create: true});
     return decl.m_hash(range);
   });
   M_hash = seq=>etask({_: this}, function*M_hash(){

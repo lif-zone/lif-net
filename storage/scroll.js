@@ -48,6 +48,12 @@ class FrameBuffer {
     return this.h = crypto.blake2b(buf);
   }
   get_sig(){ return this.frames[0]?.sig; }
+  set_hash(h){
+    assert(!this.h || this.h.equals(h), 'hash changed');
+    if (this.h)
+      return this.h;
+    return this.h = h;
+  }
 }
 
 function hconcat(a){ return crypto.blake2b(Buffer.concat(a)); }
@@ -415,6 +421,12 @@ class Merkel_node {
       yield decl2.m_hash([s+d, e]));
     return _this.h;
   });
+  set_hash(h){
+    assert(!this.h || this.h.equals(h), 'hash changed');
+    if (this.h)
+      return this.h;
+    return this.h = h;
+  }
 }
 
 class Merkel_root {
@@ -425,10 +437,13 @@ class Merkel_root {
     let _this = this._;
     if (_this.h)
       return _this.h;
-    return _this.set(yield _this.decl.scroll.calc_root_hash(_this.decl.seq));
+    return _this.set_hash(
+      yield _this.decl.scroll.calc_root_hash(_this.decl.seq));
   });
-  set(h){
-    assert(!this.h);
+  set_hash(h){
+    assert(!this.h || this.h.equals(h), 'hash changed');
+    if (this.h)
+      return this.h;
     return this.h = h;
   }
 }
@@ -444,7 +459,7 @@ Scroll.open = opt=>etask(function*scroll_create(){
   let scroll = new Scroll(opt);
   assert(opt.M0, 'scroll.open requires M0');
   let decl = yield scroll.get_decl(0, {create: true});
-  yield decl.M.set(opt.M0);
+  yield decl.M.set_hash(opt.M0);
   return scroll;
 });
 

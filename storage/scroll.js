@@ -221,17 +221,17 @@ export default class Scroll {
     let m = get_m_hash(diff, mr);
     if (!m)
       return;
-    let merkel = {}, match=false, a=[ROOT_TYPE];
+    let sketch = {}, match=false, a=[ROOT_TYPE];
     let roots = calc_roots(top.seq+1);
     for (let i=0; i<roots.length; i++){
-      let r = roots[i], _merkel = {};
+      let r = roots[i], _sketch = {};
       let is_top = yield _this.merkel_is_top({top: r, r: mr,
-        verified, merkel: _merkel, diff});
+        verified, sketch: _sketch, diff});
       if (is_top){
         match = true;
-        copy_m_hash(merkel, _merkel);
+        copy_m_hash(sketch, _sketch);
       }
-      if (!(m=(yield _this.merkel_calc_m({r, verified, merkel, diff})).m)){
+      if (!(m=(yield _this.merkel_calc_m({r, verified, sketch, diff})).m)){
         a = null;
         break;
       }
@@ -241,7 +241,7 @@ export default class Scroll {
       let M = hconcat(a);
       if (!top.M.equals(M))
         throw new Error('invalid M'); // XXX: branch if we can connect down
-      copy_m_hash(verified, merkel);
+      copy_m_hash(verified, sketch);
     }
     // XXX: we can do as soon as we verify something
     yield _this.put_verified(verified);
@@ -272,8 +272,8 @@ export default class Scroll {
           // XXX: need to add more information that was provided
           continue;
         }
-        let merkel = {};
-        let prev_o = yield _this.merkel_calc_M({seq: seq-1, verified, merkel,
+        let sketch = {};
+        let prev_o = yield _this.merkel_calc_M({seq: seq-1, verified, sketch,
           diff});
         if (!prev_o.match)
           continue;
@@ -283,7 +283,7 @@ export default class Scroll {
         if (seq)
           set_M_hash(verified, seq-1, M_prev);
         assign(verified[seq], {d: seq_o.d, sig: seq_o.sig});
-        copy_m_hash(verified, merkel);
+        copy_m_hash(verified, sketch);
       }
     }
     yield _this.put_verified(verified);
@@ -309,22 +309,22 @@ export default class Scroll {
     }
   }); }
   merkel_is_top(opt){ return etask({_: this}, function*_merkel_is_top(){
-    let _this = this._, {top, r, verified, merkel, diff} = opt;
+    let _this = this._, {top, r, verified, sketch, diff} = opt;
     if (r[1]>top[1])
       return false;
     if (range_eq(r, top))
       return true;
     let {left, right, parent} = range_to_parent(r);
-    let m1 = (yield _this.merkel_calc_m({r: left, verified, merkel, diff})).m;
-    let m2 = (yield _this.merkel_calc_m({r: right, verified, merkel, diff})).m;
+    let m1 = (yield _this.merkel_calc_m({r: left, verified, sketch, diff})).m;
+    let m2 = (yield _this.merkel_calc_m({r: right, verified, sketch, diff})).m;
     if (!m1 || !m2)
       return null;
     let m = hparent(parent[1]-parent[0]+1, m1, m2);
-    set_m_hash(merkel, parent, m);
-    return _this.merkel_is_top({top, r: parent, verified, merkel, diff});
+    set_m_hash(sketch, parent, m);
+    return _this.merkel_is_top({top, r: parent, verified, sketch, diff});
   }); }
   merkel_calc_m(opt){ return etask({_: this}, function*_merkel_calc_m(){
-    let _this = this._, {r, verified, merkel, diff} = opt;
+    let _this = this._, {r, verified, sketch, diff} = opt;
     let seq = r[1], decl = yield _this.get_decl(seq, {create: true});
     let m = (yield decl.m_hash(r)) || get_m_hash(verified, r);
     let diff_m = get_m_hash(diff, r);
@@ -335,18 +335,18 @@ export default class Scroll {
       let sig = decl.sig||get_sig_hash(verified, seq);
       if (d && sig){
         m = hleaf(d, sig);
-        set_m_hash(merkel, r, m);
+        set_m_hash(sketch, r, m);
         return {match: true, m};
       }
       if (diff_m){
-        set_m_hash(merkel, r, diff_m);
+        set_m_hash(sketch, r, diff_m);
         return {match: false, m: diff_m};
       }
       d = d||get_d_hash(diff, seq);
       sig = sig||get_sig_hash(diff, seq);
       if (d && sig){
         // XXX: do we need to verify sig?
-        set_m_hash(merkel, r, diff_m);
+        set_m_hash(sketch, r, diff_m);
         return {match: false, m: hleaf(d, sig)};
       }
       return {match: false};
@@ -356,28 +356,28 @@ export default class Scroll {
     let m2 = (yield decl.m_hash(r2)) || get_m_hash(verified, r2);
     if (m1 && m2){
       let m = hparent_safe(r[1]-r[0]+1, m1, m2);
-      set_m_hash(merkel, r, m);
+      set_m_hash(sketch, r, m);
       return {match: true, m};
     }
     let o1 = m1 ? {match: true, m: m1} :
-      yield _this.merkel_calc_m({r: r1, verified, merkel, diff});
+      yield _this.merkel_calc_m({r: r1, verified, sketch, diff});
     let o2 = m2 ? {match: true, m: m2} :
-      yield _this.merkel_calc_m({r: r2, verified, merkel, diff});
+      yield _this.merkel_calc_m({r: r2, verified, sketch, diff});
     if (!o1.m || !o2.m){
-      set_m_hash(merkel, r, diff_m);
+      set_m_hash(sketch, r, diff_m);
       return {match: false, m: diff_m};
     }
     m = hparent(r[1]-r[0]+1, o1.m, o2.m);
-    set_m_hash(merkel, r, m);
+    set_m_hash(sketch, r, m);
     return {match: o1.match || o2.match, m};
   }); }
   merkel_calc_M(opt){ return etask({_: this}, function*_merkel_calc_M(){
-    let _this = this._, {seq, verified, merkel, diff} = opt;
+    let _this = this._, {seq, verified, sketch, diff} = opt;
     let roots = calc_roots(seq+1), a=[ROOT_TYPE];
     let _match=false;
     for (let i=0; i<roots.length; i++){
       let r = roots[i];
-      let {match, m} = yield _this.merkel_calc_m({r, verified, merkel, diff});
+      let {match, m} = yield _this.merkel_calc_m({r, verified, sketch, diff});
       if (!m)
         return {match: false};
       if (match)

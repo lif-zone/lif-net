@@ -192,43 +192,6 @@ export default class Scroll {
     for (let seq in diff.seq){
       seq = +seq;
       let seq_o = diff.seq[seq], decl = decls[seq];
-/* XXX review and delete
-      if (seq_o.sig){
-        let sig = seq_o.sig, d = decl.fbuf.h||seq_o.d; // XXX: d from seq_o.D
-        if (decl.M.h && d){
-          let m = hleaf(d, sig);
-          // XXX derry: we don't verify sig, just that it matches M
-          // let M = hroot(m); // XXX TODO calc_root_hash
-          let M = hconcat([ROOT_TYPE, m, enc_u64(0), enc_u64(1)]);
-          if (!decl.M.h.equals(M))
-             throw new Error('invalid sig'+seq);
-           verified[seq].sig = sig;
-           verified[seq].d = d;
-           verified[seq].m = verified[seq].m||{};
-           verified[seq].m[seq] = m;
-        } else if (d){
-          // XXX - how to know that we need prev so we can get it from decls
-          let M_prev = !seq ? _this.prev_scroll :
-            yield (yield _this.get_decl(seq-1,
-              {create: true, hash_all: true})).M_hash();
-          if (!Scroll.verify_sig(sig, _this.pub, d, M_prev))
-             throw new Error('invalid sig'+seq);
-          verified[seq].d = d;
-          verified[seq].sig = sig;
-        }
-      }
-      if (seq_o.m){
-        let m = seq_o.m[seq];
-        if (decl.M.h && m){
-          // let M = hroot(m); // XXX TODO calc_root_hash
-          let M = hconcat([ROOT_TYPE, m, enc_u64(0), enc_u64(1)]);
-          if (!decl.M.h.equals(M))
-             throw new Error('invalid m'+seq);
-           verified[seq].m = verified[seq].m||{};
-           verified[seq].m[seq] = m;
-        }
-      }
-*/
       if (!seq && seq_o.m){
         // XXX HACK: need to support any seq and verify merkel tree
         let m = seq_o.m[seq];

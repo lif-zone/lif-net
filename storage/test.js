@@ -495,7 +495,7 @@ describe('scroll', ()=>{
       m31=hleaf(d31+sig31) sig31=sign(d31+M30) M31=hroot(m0_31)
       m32=hleaf(d32+sig32) sig32=sign(d32+M31) M32=hroot(m0_31+m32)
     `);
-    describe('put_M0', ()=>{
+    describe('M0.put', ()=>{
       // XXX: test with prev_scroll
       // XXX make last used cmd default and last used arg default
       let prev, s = `s.scroll(!prev_scroll) s.decl(1-32) s2.scroll(M0:s.M0)
@@ -590,7 +590,7 @@ describe('scroll', ()=>{
       // XXX using etask in class methods x
       // XXX: test also prev_scroll
     });
-    describe('put_M1', ()=>{
+    describe('M1.put', ()=>{
       // XXX: test with prev_scroll
       let s = `s.scroll(!prev_scroll) s.decl(1-32) s2.scroll(M1:s.M1)
         s2.test(M1)`;

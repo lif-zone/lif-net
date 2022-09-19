@@ -227,12 +227,12 @@ export default class Scroll {
           continue;
         }
         let merkel = {};
-        M_prev = yield _this.merkel_calc_M({seq: seq-1, verified, merkel,
+        let prev_o = yield _this.merkel_calc_M({seq: seq-1, verified, merkel,
           diff});
-        if (!M_prev)
+        if (!prev_o.match)
           continue;
         // XXX: we can skip verify sometimes by checkig hash
-        if (!Scroll.verify_sig(seq_o.sig, _this.pub, seq_o.d, M_prev))
+        if (!Scroll.verify_sig(seq_o.sig, _this.pub, seq_o.d, prev_o.M))
            throw new Error('invalid sig'+seq);
         if (seq)
           set_M_hash(verified, seq-1, M_prev);
@@ -313,17 +313,17 @@ export default class Scroll {
   merkel_calc_M(opt){ return etask({_: this}, function*_merkel_calc_M(){
     let _this = this._, {seq, verified, merkel, diff} = opt;
     let roots = calc_roots(seq+1), a=[ROOT_TYPE];
-    let one_match=false;
+    let _match=false;
     for (let i=0; i<roots.length; i++){
       let r = roots[i];
       let {match, m} = yield _this.merkel_calc_m({r, verified, merkel, diff});
       if (!m)
-        return null;
+        return {match: false};
       if (match)
-        one_match = true;
+        _match = true;
       a.push(m, enc_u64(r[0]), enc_u64(r[1]-r[0]+1));
     }
-    return one_match ? hconcat(a) : null;
+    return {match: _match, M: hconcat(a)};
   }); }
   calc_root_hash = seq=>etask({_: this}, function*calc_root_hash(){
     let _this = this._;

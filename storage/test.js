@@ -530,6 +530,8 @@ describe('scroll', ()=>{
       t('d4_then_d3_err_m2', `${s} s2.put(m0 m1 m2_3 d4 sig4)
         s2.put(m2:m1 d3 sig3 err(invalid sig3))
         s2.test(M0 m0 m1 m0_1 m2_3 m0_3 M3 M4 d4 sig4 m4)`);
+      t('d4_then_d1', `${s} s2.put(m0 m1 m2_3 d4 sig4) s2.put(d1 sig1)
+        s2.test(M0 m0 M1 m1 m0_1 d1 sig1 m2_3 m0_3 M3 M4 d4 sig4 m4)`);
       t('d4_then_d3_missing_m2', `${s} s2.put(m0 m1 m2_3 d4 sig4)
         s2.put(d3 sig3) s2.test(M0 m0 m1 m0_1 m2_3 m0_3 M3 M4 d4 sig4 m4)`);
       // XXX: need d4 missing/errors tests

@@ -122,6 +122,11 @@ const get_val = exp=>etask(function*_get_val(){
   assert.fail('invalid val exp '+exp);
 });
 
+const test_decl = (scroll, data)=>etask(function*test_decl(){
+  yield scroll.decl(data);
+  yield xsinon.tick(1);
+});
+
 const test_start = ()=>etask(function*test_start(){
   t_scroll = {};
   t_keypair = {pub: s2b('44659cb51dec397ea66085679442505345e159940762c15ef75'+
@@ -240,9 +245,9 @@ const cmd_decl = t=>etask(function*cmd_decl(){
     let m=curr.exp.match(/^(\d+)-(\d+)$/);
     if (m){
       for (let j=+m[1]; j<=+m[2]; j++)
-        yield scroll.decl(''+j);
+        yield test_decl(scroll, ''+j);
     } else
-      yield scroll.decl(curr.exp);
+      yield test_decl(scroll, curr.exp);
   }
 });
 

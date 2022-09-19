@@ -494,7 +494,7 @@ describe('scroll', ()=>{
     describe('put', ()=>{
       // XXX: test with prev_scroll
       // XXX make last used cmd default and last used arg default
-      let s = `s.scroll(!prev_scroll) s.decl(1-32) s2.scroll(M0:s.M0)
+      let prev, s = `s.scroll(!prev_scroll) s.decl(1-32) s2.scroll(M0:s.M0)
         s2.test(M0)`;
       t('m0', `${s} s2.put(m0) s2.test(M0 m0)`);
       t('m0_err', `${s} s2.put(m0:m1 err(invalid m0)) s2.test(M0)`);
@@ -546,6 +546,17 @@ describe('scroll', ()=>{
       // XXX BUG: m2/m3 were not inserted
       t('d4_then_m2m3', `${s} s2.put(m0 m1 m2_3 d4 sig4) s2.put(m2 m3)
         s2.test(M0 m0 m1 m0_1 m2_3 m0_3 M3 M4 d4 sig4 m4)`);
+      t('d8', `${s} s2.put(m0 m1 m2_3 m0_3 m4_7 m0_7 d8 sig8)
+        s2.test(M0 m0 m1 m0_1 m2_3 m0_3 m4_7 m0_7 M7 M8 d8 sig8 m8)`);
+      t('d8_then_d4', `${s} s2.put(m0 m1 m2_3 m0_3 m4_7 m0_7 d8 sig8)
+        s2.test(${prev='M0 m0 m1 m0_1 m2_3 m0_3 m4_7 m0_7 M7 M8 d8 sig8 m8'})
+        s2.put(d4 sig4) s2.test(${prev=prev+' M3 d4 sig4 m4'})`);
+      t('d8_then_d5', `${s} s2.put(m0 m1 m2_3 m0_3 m4_7 m0_7 d8 sig8)
+        s2.test(${prev='M0 m0 m1 m0_1 m2_3 m0_3 m4_7 m0_7 M7 M8 d8 sig8 m8'})
+        s2.put(d5 sig5 m4) s2.test(${prev=prev+' M4 m4 d5 sig5 m5'})`);
+      t('d8_then_d5_err_m4', `${s} s2.put(m0 m1 m2_3 m0_3 m4_7 m0_7 d8 sig8)
+        s2.test(${prev='M0 m0 m1 m0_1 m2_3 m0_3 m4_7 m0_7 M7 M8 d8 sig8 m8'})
+        s2.put(d5 sig5 m4:m3 err(invalid sig5)) s2.test(${prev})`);
       // XXX: need d4 missing/errors tests
       t('d32', `${s} s2.put(m0 m1 m2_3 m0_3 m4_7 m0_7 m8_15 m16_31 d32 sig32)
         s2.test(M0 m0 m1 m0_1 m2_3 m0_3 m4_7 m0_7 m8_15 m0_15 m16_31 m0_31

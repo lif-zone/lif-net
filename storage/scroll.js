@@ -141,6 +141,14 @@ function seq_merkel_array_size(seq){
   return n;
 }
 
+// XXX: need test
+function merkel_ranges(seq){
+  let a = [[seq, seq]];
+  for (let i=1, s=seq-i; seq&i; i*=2, s-=i)
+    a.push([s, seq]);
+  return a;
+}
+
 function range_fix(range){
   assert(typeof range=='number' || Array.isArray(range), 'invalid '+range);
   if (typeof range=='number')
@@ -444,9 +452,10 @@ class Decl {
     this.scroll = opt.scroll;
     this.fbuf = opt.fbuf;
     this.M = new Merkel_root({decl: this});
-    this.m = [new Merkel_node({decl: this, range: seq})];
-    for (let i=1, s=seq-i; seq&i; i*=2, s-=i)
-      this.m.push(new Merkel_node({decl: this, range: [s, seq]}));
+    this.m = [];
+    let ma = Scroll.merkel_ranges(seq);
+    for (let i=0; i<ma.length; i++)
+      this.m.push(new Merkel_node({decl: this, range: ma[i]}));
   }
   sign = ()=>etask({_: this}, function*sign(){
     let _this = this._;
@@ -561,6 +570,7 @@ Scroll.range_from_str = range_from_str;
 Scroll.range_str = range_str;
 Scroll.range_to_parent = range_to_parent;
 Scroll.seq_merkel_array_size = seq_merkel_array_size;
+Scroll.merkel_ranges = merkel_ranges;
 Scroll.merkel_array_pos = merkel_array_pos;
 Scroll.verify_sig = verify_sig;
 Scroll.LEAF_TYPE = LEAF_TYPE;

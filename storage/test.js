@@ -313,11 +313,9 @@ const cmd_test = t=>etask(function*cmd_test(){
     let decl = yield scroll.get_decl(seq, {create: true});
     ['sig', 'd', 'M', 'm'].forEach(type=>{
       if (type=='m'){
-        let a = [seq];
-        for (let i=1, s=seq-i; seq&i; i*=2, s-=i)
-          a.push(s);
+        let a = Scroll.merkel_ranges(seq);
         for (let i=0; i<a.length; i++){
-          let s = +a[i];
+          let s = a[i][0];
           if (tested && tested[seq]?.m[s])
             continue;
           assert(!decl.m_get([s, seq]).h, 'm'+range_str([s, seq])+

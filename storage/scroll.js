@@ -240,7 +240,6 @@ export default class Scroll {
     }
     // XXX wrap it as put_verified and change api for all set operations
     // (grep the code for all set operations)
-    let max;
     for (let seq in verified){
       seq = +seq;
       let v = verified[seq], decl = yield _this.get_decl(seq, {create: true});
@@ -248,10 +247,7 @@ export default class Scroll {
         let val = v[type];
         switch (type){
         case 'M': decl.M.h = val; break; // XXX: need decl.set_M()
-        case 'sig':
-          decl.sig = val; // XXX: need decl.set_sig()
-          max = !max || max.seq<decl.seq ? decl : max;
-          break;
+        case 'sig': decl.sig = val; break; // XXX: need decl.set_sig()
         case 'd': decl.fbuf.h = val; break; // XXX: need decl.fbuf.set_hash()
         case 'm':
           for (let s in val)
@@ -261,8 +257,6 @@ export default class Scroll {
         }
       }
     }
-    if (max)
-      yield max.M.calc_hash();
   });
   merkel_calc_m(opt){ return etask({_: this}, function*_merkel_calc_m(){
     let _this = this._, {r, verified, merkel, diff} = opt;

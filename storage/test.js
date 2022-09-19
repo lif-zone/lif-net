@@ -215,19 +215,23 @@ describe('parser', ()=>{
 
 const cmd_scroll = t=>etask(function*cmd_scroll(){
   let prev_scroll = yield t_prev_scroll.M_hash(1);
-  let name = t.ctx||'s', M0, scroll;
+  let name = t.ctx||'s', M, a, scroll;
   assert(!t.l, 'invalid arg '+t.meta.s);
   assert(!t_scroll[name], 'scroll already exist '+name);
   for (let curr=t.r, i=0; curr = tparser.parse_get_next(curr); i++){
     let tt = tparser.parse_exp_arg(curr.exp);
     switch (tt.cmd){
     case '!prev_scroll': prev_scroll = null; break;
-    case 'M0': M0 = yield get_val(tt.r); break;
-    default: assert.fail('invalid arg '+tt.cmd+' in '+t.meta.s);
+    default:
+      if (a = tt.cmd.match(/^M(\d+)$/)){
+        M = {seq: +a[1], h: yield get_val(tt.r)};
+        break;
+      }
+      assert.fail('invalid arg '+tt.cmd+' in '+t.meta.s);
     }
   }
-  if (M0)
-   scroll = yield Scroll.open({pub: t_keypair.pub, M0});
+  if (M)
+   scroll = yield Scroll.open({pub: t_keypair.pub, M});
   else {
     scroll = yield Scroll.create({key: t_keypair.key, pub: t_keypair.pub,
         prev_scroll}, {topic: 'test'});
@@ -491,7 +495,7 @@ describe('scroll', ()=>{
       m31=hleaf(d31+sig31) sig31=sign(d31+M30) M31=hroot(m0_31)
       m32=hleaf(d32+sig32) sig32=sign(d32+M31) M32=hroot(m0_31+m32)
     `);
-    describe('put', ()=>{
+    describe('put_M0', ()=>{
       // XXX: test with prev_scroll
       // XXX make last used cmd default and last used arg default
       let prev, s = `s.scroll(!prev_scroll) s.decl(1-32) s2.scroll(M0:s.M0)
@@ -585,6 +589,15 @@ describe('scroll', ()=>{
       // XXX parallel etask
       // XXX using etask in class methods x
       // XXX: test also prev_scroll
+    });
+    describe('put_M1', ()=>{
+      // XXX: test with prev_scroll
+      let s = `s.scroll(!prev_scroll) s.decl(1-32) s2.scroll(M1:s.M1)
+        s2.test(M1)`;
+      t('basic', `${s}`);
+      if (true) return;
+      t('m1', `${s} s2.put(d1 sig1 m0 m0_1) s2.test(M1 d1 sig1)`);
+//      m1=hleaf(d1+sig1) sig1=sign(d1+M0) M1=hroot(m0_1) M1=h(2+m0_1+0+2)
     });
     if (true) return; // XXX WIP
     // XXX: make the last scroll used the default

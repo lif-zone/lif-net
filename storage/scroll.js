@@ -231,6 +231,7 @@ export default class Scroll {
           diff});
         if (!M_prev)
           continue;
+        // XXX: we can skip verify sometimes by checkig hash
         if (!Scroll.verify_sig(seq_o.sig, _this.pub, seq_o.d, M_prev))
            throw new Error('invalid sig'+seq);
         if (seq)
@@ -349,7 +350,7 @@ export default class Scroll {
   M_hash = seq=>etask({_: this}, function*M_hash(){
     let _this = this._;
     let decl = yield _this.get_decl(seq===undefined ? this.size-1 : seq);
-    return decl.M_hash();
+    return decl ? decl.M_hash() : null;
   });
   get_decl = (seq, opt={})=>etask({_: this}, function get_decl(){
     let _this = this._;
@@ -469,9 +470,9 @@ Scroll.create = (opt, d)=>etask(function*scroll_create(){
 
 Scroll.open = opt=>etask(function*scroll_create(){
   let scroll = new Scroll(opt);
-  assert(opt.M0, 'scroll.open requires M0');
-  let decl = yield scroll.get_decl(0, {create: true});
-  yield decl.M.set_hash(opt.M0);
+  assert(opt.M && /^\d+$/.test(opt.M.seq) && opt.M.h, 'scroll.open missing M');
+  let decl = yield scroll.get_decl(opt.M.seq, {create: true});
+  yield decl.M.set_hash(opt.M.h);
   return scroll;
 });
 

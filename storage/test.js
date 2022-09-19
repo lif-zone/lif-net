@@ -622,9 +622,8 @@ describe('scroll', ()=>{
     });
     describe('M1.put', ()=>{
       // XXX: test with prev_scroll
-      let s = `s.scroll(!prev_scroll) s.decl(1-32) s2.scroll(M1:s.M1)
+      let s = `s.scroll(!prev_scroll) s.decl(1-32) s2.scroll(M1:M1)
         s2.test(M1)`;
-      t('basic', `${s}`);
       t('m0', `${s} s2.put(m0 m1) s2.test(M1 m0 m1 m0_1)`);
       t('m0_err_m0', `${s} s2.put(m0:m1 m1 err(invalid M)) s2.test(M1)`);
       t('m0_err_m1', `${s} s2.put(m0 m1:m0 err(invalid M)) s2.test(M1)`);
@@ -639,8 +638,17 @@ describe('scroll', ()=>{
 // m0=hleaf(d0+sig0) sig0=sign(d0+prev_scroll1) M0=hroot(m0) M0=h(2+m0+0+1)
 // m1=hleaf(d1+sig1) sig1=sign(d1+M0) M1=hroot(m0_1) M1=h(2+m0_1+0+2)
     });
+    describe('M2.put', ()=>{
+      let s = `s.scroll(!prev_scroll) s.decl(1-32) s2.scroll(M2:M2)
+        s2.test(M2)`;
+      t('m0', `${s} s2.put(m0 m1 m2) s2.test(M2 m0 m1 m0_1 m2)`);
+      t('m1', `${s} s2.put(m0 m1 m2) s2.test(M2 m0 m1 m0_1 m2)`);
+      t('m2', `${s} s2.put(m0_1 m2) s2.test(M2 m0_1 m2)`);
+      t('m2_err_m2', `${s} s2.put(m0_1 m2:m1 err(invalid M)) s2.test(M2)`);
+      t('m2_err_m0_1', `${s} s2.put(m0_1 m2:m1 err(invalid M)) s2.test(M2)`);
+    });
     describe('M3.put', ()=>{
-      let s = `s.scroll(!prev_scroll) s.decl(1-32) s2.scroll(M3:s.M3)
+      let s = `s.scroll(!prev_scroll) s.decl(1-32) s2.scroll(M3:M3)
         s2.test(M3)`;
       t('m0', `${s} s2.put(m0 m1 m2_3) s2.test(M3 m0 m1 m0_1 m2_3 m0_3)`);
       t('m0_m2_3', `${s} s2.put(m0 m1 m2 m3)

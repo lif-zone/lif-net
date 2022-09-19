@@ -87,6 +87,16 @@ function range_str(range){
   return range[0]==range[1] ? ''+range[1] : range[0]+'_'+range[1];
 }
 
+function range_eq(a, b){ return a[0]==b[0] && a[1]==b[1]; }
+
+function range_to_parent(r){
+  let d = r[1]-r[0]+1;
+  let p = [r[0], r[1]+d];
+  if (p[0] % (2*d) != 0)
+    p = [r[0]-d, r[1]];
+  return {parent: p, left: [p[0], p[0]+d-1], right: [p[0]+d, p[1]]};
+}
+
 // XXX: need test
 function get_M_hash(data, seq){ return data[seq]?.M; }
 function set_M_hash(data, seq, val){
@@ -174,6 +184,7 @@ export default class Scroll {
     assert.deepEqual(this.crypt, Scroll.supported_crypt[0], 'unsupported');
     this.prev_scroll = opt.prev_scroll;
     this.size = 0;
+    this.top = null;
     this.decl_map = new Map();
   }
   // XXX: use return =>
@@ -189,6 +200,49 @@ export default class Scroll {
     _this.size++;
     return decl;
   });
+  notify_M(opt){
+    let {seq, M} = opt;
+    if (!this.top || this.top.seq<seq)
+      this.top = {seq, M};
+  }
+  put2(diff){ return etask({_: this}, function*put(){
+    let _this = this._;
+    let verified = {};
+    assert(_this.top, 'cannot put to empty scroll');
+    let top = _this.top;
+    for (let seq in diff){
+      seq = +seq;
+      let m = get_m_hash(diff, [seq, seq]); // XXX: todo for m sub ranges
+      if (!m)
+        continue;
+      let merkel = {};
+      let roots = calc_roots(top.seq+1), a=[ROOT_TYPE];
+      let match=false;
+      for (let i=0; i<roots.length; i++){
+        let r = roots[i];
+        let is_top = yield _this.merkel_is_top({top: r, r: [seq, seq],
+          verified, merkel, diff});
+        // XXX: optimize, we get can get it as result of merkel_is_top
+        m = (yield _this.merkel_calc_m({r, verified, merkel, diff})).m;
+        if (!m){
+          a = null;
+          break;
+        }
+        if (is_top)
+          match = true;
+        a.push(m, enc_u64(r[0]), enc_u64(r[1]-r[0]+1));
+      }
+      if (a && match){
+        let M = hconcat(a);
+        if (!top.M.equals(M))
+          throw new Error('invalid M'); // XXX: branch if we can connect down
+        if (match)
+          copy_m_hash(verified, merkel);
+      }
+    }
+    // XXX: we can do as soon as we verify something
+    yield _this.put_verified(verified);
+  }); }
   put(diff){ return etask({_: this}, function*put(){
     // XXX: verify all get_decl and check if we load all what is needed before
     // we start
@@ -202,6 +256,7 @@ export default class Scroll {
       decls[seq] = yield _this.get_decl(seq, {create: true, hash_all: true});
       verified[seq] = verified[seq]||{};
     }
+    yield _this.put2(diff); // XXX: WIP
     for (let seq in diff){
       seq = +seq;
       let seq_o = diff[seq], decl = decls[seq];
@@ -222,6 +277,11 @@ export default class Scroll {
         if (!seq || M_prev){ // XXX: what if no prev_scroll?
           if (!Scroll.verify_sig(seq_o.sig, _this.pub, seq_o.d, M_prev))
             throw new Error('invalid sig'+seq);
+          if (!seq){
+            if (!(yield decl.M_hash(seq)))
+              continue;
+            // XXX: this could be branching point (check up)
+          }
           assign(verified[seq], {d: seq_o.d, sig: seq_o.sig});
           // XXX: need to add more information that was provided
           continue;
@@ -262,9 +322,24 @@ export default class Scroll {
       }
     }
   }); }
+  merkel_is_top(opt){ return etask({_: this}, function*_merkel_is_top(){
+    let _this = this._, {top, r, verified, merkel, diff} = opt;
+    let {left, right, parent} = range_to_parent(r);
+    if (range_eq(r, top))
+      return true;
+    if (r[1]>top[1]) // XXX: change to assert?
+      return false;
+    let m1 = (yield _this.merkel_calc_m({r: left, verified, merkel, diff})).m;
+    let m2 = (yield _this.merkel_calc_m({r: right, verified, merkel, diff})).m;
+    if (!m1 || !m2)
+      return false;
+    let m = hparent(parent[1]-parent[0]+1, m1, m2);
+    set_m_hash(merkel, parent, m);
+    return _this.merkel_is_top({top, r: parent, verified, merkel, diff});
+  }); }
   merkel_calc_m(opt){ return etask({_: this}, function*_merkel_calc_m(){
     let _this = this._, {r, verified, merkel, diff} = opt;
-    let seq = r[1], decl = yield _this.get_decl(seq);
+    let seq = r[1], decl = yield _this.get_decl(seq, {create: true});
     let m = (yield decl.m_hash(r)) || get_m_hash(verified, r);
     let diff_m = get_m_hash(diff, r);
     if (m)
@@ -356,7 +431,7 @@ export default class Scroll {
     let _this = this._;
     assert(typeof seq=='number', 'invalid seq '+seq);
     let decl = _this.decl_map.get(seq);
-    if (decl || !opt.create)
+    if (decl || opt.create===false)
       return decl;
     decl = new Decl({scroll: _this, seq, fbuf: new FrameBuffer});
     _this.decl_map.set(seq, decl);
@@ -445,19 +520,22 @@ class Merkel_node {
 class Merkel_root {
   constructor(opt){
     this.decl = opt.decl;
+    this.scroll = opt.decl.scroll;
   }
   calc_hash = ()=>etask({_: this}, function*calc_hash(){
     let _this = this._;
     if (_this.h)
       return _this.h;
-    return _this.set_hash(
-      yield _this.decl.scroll.calc_root_hash(_this.decl.seq));
+    return _this.set_hash(yield _this.scroll.calc_root_hash(_this.decl.seq));
   });
   set_hash(h){
     assert(!this.h || this.h.equals(h), 'hash changed');
     if (this.h)
       return this.h;
-    return this.h = h;
+    this.h = h;
+    if (h)
+      this.scroll.notify_M({seq: this.decl.seq, M: h});
+    return h;
   }
 }
 
@@ -485,6 +563,7 @@ Scroll.hleaf = hleaf; // XXX need test
 Scroll.calc_roots = calc_roots;
 Scroll.range_from_str = range_from_str;
 Scroll.range_str = range_str;
+Scroll.range_to_parent = range_to_parent;
 Scroll.seq_merkel_array_size = seq_merkel_array_size;
 Scroll.merkel_array_pos = merkel_array_pos;
 Scroll.verify_sig = verify_sig;

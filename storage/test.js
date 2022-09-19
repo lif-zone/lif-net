@@ -12,7 +12,7 @@ import xsinon from '../util/sinon.js';
 import Scroll from './scroll.js';
 import buf_util from '../peer-relay/buf_util.js';
 const b2s = buf_util.buf_to_str, s2b = buf_util.buf_from_str;
-const range_str = Scroll.range_str;
+const {range_str, range_from_str} = Scroll;
 function enc_u64(v){ return enc.encode(enc.uint64, v); }
 
 let t_scroll, t_genesis_scroll, t_prev_scroll, t_keypair;
@@ -447,6 +447,36 @@ describe('scroll', ()=>{
       t(32, '0_31');
       t(33, '0_31 32');
     });
+    it('range_to_parent', ()=>{
+      const t = (val, exp)=>{
+        let _val = range_from_str(val), e = range_from_str(exp);
+        let res = Scroll.range_to_parent(_val);
+        assert.deepEqual(res.parent, e, 'failed parent '+val);
+        let d = (e[1] - e[0]+1)/2;
+        assert.deepEqual(res.left, [e[0], e[0]+d-1]);
+        assert.deepEqual(res.right, [e[0]+d, e[1]]);
+      };
+      t('0', '0_1');
+      t('1', '0_1');
+      t('2', '2_3');
+      t('3', '2_3');
+      t('4', '4_5');
+      t('5', '4_5');
+      t('6', '6_7');
+      t('7', '6_7');
+      t('0_1', '0_3');
+      t('2_3', '0_3');
+      t('4_5', '4_7');
+      t('6_7', '4_7');
+      t('0_3', '0_7');
+      t('4_7', '0_7');
+      t('0_7', '0_15');
+      t('8_15', '0_15');
+      t('16_23', '16_31');
+      t('24_31', '16_31');
+      t('0_15', '0_31');
+      t('16_31', '0_31');
+    });
   });
   describe('decl', ()=>{
     const t = (name, test)=>it(name, ()=>test_run(test));
@@ -501,7 +531,7 @@ describe('scroll', ()=>{
       let prev, s = `s.scroll(!prev_scroll) s.decl(1-32) s2.scroll(M0:s.M0)
         s2.test(M0)`;
       t('m0', `${s} s2.put(m0) s2.test(M0 m0)`);
-      t('m0_err', `${s} s2.put(m0:m1 err(invalid m0)) s2.test(M0)`);
+      t('m0_err', `${s} s2.put(m0:m1 err(invalid M)) s2.test(M0)`);
       t('d0', `${s} s2.put(d0 sig0) s2.test(M0 d0 sig0 M0)`);
       t('d0_err', `${s} s2.put(d0 sig0:sig1 err(invalid sig0)) s2.test(M0)`);
       t('d1', `${s} s2.put(d1 sig1) s2.test(M0 d1 sig1 m1)`);
@@ -513,16 +543,16 @@ describe('scroll', ()=>{
         s2.test(M0 m0 m0_1 M1 m1 M2 d2 sig2 m2)`);
       t('d2_missing_v1', `${s} s2.put(m1 d2 sig2) s2.test(M0)`);
       t('d2_missing_v2', `${s} s2.put(m0 m0_1 d2 sig2) s2.test(M0 m0)`);
-      t('d2_err_m0', `${s} s2.put(m0:m1 m1 d2 sig2 err(invalid m0))
+      t('d2_err_m0', `${s} s2.put(m0:m1 m1 d2 sig2 err(invalid M))
         s2.test(M0)`);
       t('d2_err', `${s} s2.put(m0 m1 d2 sig2:sig0 err(invalid sig2))
-        s2.test(M0)`);
+        s2.test(M0 m0)`);
       t('d3', `${s} s2.put(m0 m1 m2 d3 sig3)
         s2.test(M0 m0 m0_1 m0_3 m1 m2 m2_3 d3 sig3 M2 m3 M3)`);
-      t('d3_err_m0', `${s} s2.put(m0:m1 m1 m2 d3 sig3 err(invalid m0))
+      t('d3_err_m0', `${s} s2.put(m0:m1 m1 m2 d3 sig3 err(invalid M))
         s2.test(M0)`);
       t('d3_err_m1', `${s} s2.put(m0 m1:m0 m2 d3 sig3 err(invalid sig3))
-        s2.test(M0)`);
+        s2.test(M0 m0)`);
       t('d3_missing_m1', `${s} s2.put(m0 m0_1 m2 d3 sig3) s2.test(M0 m0)`);
       t('d3_d4', `${s} s2.put(m0 m1 m2 d3 sig3 d4 sig4)
         s2.test(M0 m0 m0_1 m0_3 m1 m2 m2_3 d3 sig3 M2 m3 M3 M4 d4 sig4 m4)`);
@@ -532,10 +562,10 @@ describe('scroll', ()=>{
       // XXX: add ^ for redudnat information
       t('d4', `${s} s2.put(m0 m1 m2_3 d4 sig4)
         s2.test(M0 m0 m1 m0_1 m2_3 m0_3 M3 M4 d4 sig4 m4)`);
-      t('d4_err_m0', `${s} s2.put(m0:m1 m1 m2_3 d4 sig4 err(invalid m0))
+      t('d4_err_m0', `${s} s2.put(m0:m1 m1 m2_3 d4 sig4 err(invalid M))
         s2.test(M0)`);
       t('d4_err_m1', `${s} s2.put(m0 m1:m0 m2_3 d4 sig4 err(invalid sig4))
-        s2.test(M0)`);
+        s2.test(M0 m0)`);
       t('d4_missing_m2_3', `${s} s2.put(m0 m1 d4 sig4) s2.test(M0 m0)`);
       t('d4_then_d3', `${s} s2.put(m0 m1 m2_3 d4 sig4) s2.put(m2 d3 sig3)
         s2.test(M0 m0 m1 m0_1 M2 m2 M3 d3 sig3 m3 m2_3 m0_3 M3 M4 d4 sig4 m4)
@@ -566,21 +596,21 @@ describe('scroll', ()=>{
         s2.test(M0 m0 m1 m0_1 m2_3 m0_3 m4_7 m0_7 m8_15 m0_15 m16_31 m0_31
         M31 M32 d32 sig32 m32)`);
       t('d32_err_m0', `${s} s2.put(m0:m1 m1 m2_3 m4_7 m0_7 m8_15 m16_31 d32
-        sig32 err(invalid m0)) s2.test(M0)`);
+        sig32 err(invalid M)) s2.test(M0)`);
       t('d32_err_m1', `${s} s2.put(m0 m1:m0 m2_3 m4_7 m0_7 m8_15 m16_31 d32
-        sig32 err(invalid sig32)) s2.test(M0)`);
+        sig32 err(invalid sig32)) s2.test(M0 m0)`);
       t('d32_err_m2_3', `${s} s2.put(m0 m1 m2_3:m0 m4_7 m0_7 m8_15 m16_31 d32
-        sig32 err(invalid sig32)) s2.test(M0)`);
+        sig32 err(invalid sig32)) s2.test(M0 m0)`);
       t('d32_err_m4_7', `${s} s2.put(m0 m1 m2_3 m4_7:m0 m0_7 m8_15 m16_31 d32
-        sig32 err(invalid sig32)) s2.test(M0)`);
+        sig32 err(invalid sig32)) s2.test(M0 m0)`);
       t('d32_err_m8_15', `${s} s2.put(m0 m1 m2_3 m4_7 m0_7 m8_15:m0 m16_31 d32
-        sig32 err(invalid sig32)) s2.test(M0)`);
+        sig32 err(invalid sig32)) s2.test(M0 m0)`);
       t('d32_err_m16_31', `${s} s2.put(m0 m1 m2_3 m4_7 m0_7 m8_15 m16_31:m0 d32
-        sig32 err(invalid sig32)) s2.test(M0)`);
+        sig32 err(invalid sig32)) s2.test(M0 m0)`);
       t('d32_err_d32', `${s} s2.put(m0 m1 m2_3 m4_7 m0_7 m8_15 m16_31 d32:d0
-        sig32 err(invalid sig32)) s2.test(M0)`);
+        sig32 err(invalid sig32)) s2.test(M0 m0)`);
       t('d32_err_sig32', `${s} s2.put(m0 m1 m2_3 m4_7 m0_7 m8_15 m16_31 d32
-        sig32:sig0 err(invalid sig32)) s2.test(M0)`);
+        sig32:sig0 err(invalid sig32)) s2.test(M0 m0)`);
       t('d32_missing_m0', `${s} s2.put(m1 m2_3 m0_3 m4_7 m0_7 m8_15 m16_31 d32
         sig32) s2.test(M0)`);
       t('d32_missing_m2_3', `${s}
@@ -595,9 +625,35 @@ describe('scroll', ()=>{
       let s = `s.scroll(!prev_scroll) s.decl(1-32) s2.scroll(M1:s.M1)
         s2.test(M1)`;
       t('basic', `${s}`);
-      if (true) return;
-      t('m1', `${s} s2.put(d1 sig1 m0 m0_1) s2.test(M1 d1 sig1)`);
-//      m1=hleaf(d1+sig1) sig1=sign(d1+M0) M1=hroot(m0_1) M1=h(2+m0_1+0+2)
+      t('m0', `${s} s2.put(m0 m1) s2.test(M1 m0 m1 m0_1)`);
+      t('m0_err_m0', `${s} s2.put(m0:m1 m1 err(invalid M)) s2.test(M1)`);
+      t('m0_err_m1', `${s} s2.put(m0 m1:m0 err(invalid M)) s2.test(M1)`);
+      t('m0_missing_m0', `${s} s2.put(m1) s2.test(M1)`);
+      t('m0_missing_m1', `${s} s2.put(m0) s2.test(M1)`);
+      if (0) // XXX TODO: and add for m0_1
+      t('m0_1', `${s} s2.put(m0_1) s2.test(M1 m0_1)`);
+      if (true) return; // XXX
+      t('d2', `${s} s2.put(d2 sig2) s2.test(M1 d2 sig2)`);
+      t('d0', `${s} s2.put(d0 sig0 m1) s2.test(M1 d0 sig0)`);
+      t('d1', `${s} s2.put(d1 sig1 m0 m0_1) s2.test(M1 d1 sig1)`);
+// m0=hleaf(d0+sig0) sig0=sign(d0+prev_scroll1) M0=hroot(m0) M0=h(2+m0+0+1)
+// m1=hleaf(d1+sig1) sig1=sign(d1+M0) M1=hroot(m0_1) M1=h(2+m0_1+0+2)
+    });
+    describe('M3.put', ()=>{
+      let s = `s.scroll(!prev_scroll) s.decl(1-32) s2.scroll(M3:s.M3)
+        s2.test(M3)`;
+      t('m0', `${s} s2.put(m0 m1 m2_3) s2.test(M3 m0 m1 m0_1 m2_3 m0_3)`);
+      t('m0_m2_3', `${s} s2.put(m0 m1 m2 m3)
+        s2.test(M3 m0 m1 m0_1 m2 m2_3 m3 m0_3)`);
+      t('m0_err_m0', `${s} s2.put(m0:m1 m1 m2_3 err(invalid M)) s2.test(M3)`);
+      t('m0_err_m1', `${s} s2.put(m0 m1:m0 m2_3 err(invalid M)) s2.test(M3)`);
+      t('m0_err_m2_3', `${s} s2.put(m0 m1 m2_3:m0 err(invalid M))
+        s2.test(M3)`);
+      t('m0_missing_m1', `${s} s2.put(m0 m2_3) s2.test(M3)`);
+      t('m0_missing_m2_3', `${s} s2.put(m0 m1) s2.test(M3)`);
+      t('m1', `${s} s2.put(m0 m1 m2_3) s2.test(M3 m0 m1 m0_1 m2_3 m0_3)`);
+      t('m2', `${s} s2.put(m0_1 m2 m3) s2.test(M3 m0_1 m2 m3 m2_3 m0_3)`);
+      t('m3', `${s} s2.put(m0_1 m2 m3) s2.test(M3 m0_1 m2 m3 m2_3 m0_3)`);
     });
     if (true) return; // XXX WIP
     // XXX: make the last scroll used the default

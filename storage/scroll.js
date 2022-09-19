@@ -118,6 +118,8 @@ function get_m_hash(data, r){
 function set_m_hash(data, r, val){
   let o = data[r[1]] = data[r[1]]||{};
   o.m = o.m||{};
+  assert(!o.m[r[0]] || o.m[r[0]].equals(val), 'set m'+range_str(r)+
+    ' diffent vals');
   o.m[r[0]] = val;
 }
 
@@ -206,30 +208,29 @@ export default class Scroll {
       this.top = {seq, M};
   }
   put2(diff){ return etask({_: this}, function*put(){
-    let _this = this._;
-    let verified = {};
+    let _this = this._, verified = {}, top = _this.top;
     assert(_this.top, 'cannot put to empty scroll');
-    let top = _this.top;
     for (let seq in diff){
       seq = +seq;
       let m = get_m_hash(diff, [seq, seq]); // XXX: todo for m sub ranges
       if (!m)
         continue;
-      let merkel = {};
-      let roots = calc_roots(top.seq+1), a=[ROOT_TYPE];
-      let match=false;
+      let merkel = {}, match=false, a=[ROOT_TYPE];
+      let roots = calc_roots(top.seq+1);
       for (let i=0; i<roots.length; i++){
-        let r = roots[i];
+        let r = roots[i], _merkel = {};
         let is_top = yield _this.merkel_is_top({top: r, r: [seq, seq],
-          verified, merkel, diff});
+          verified, merkel: _merkel, diff});
+        if (is_top){
+          match = true;
+          assign(merkel, _merkel);
+        }
         // XXX: optimize, we get can get it as result of merkel_is_top
         m = (yield _this.merkel_calc_m({r, verified, merkel, diff})).m;
         if (!m){
           a = null;
           break;
         }
-        if (is_top)
-          match = true;
         a.push(m, enc_u64(r[0]), enc_u64(r[1]-r[0]+1));
       }
       if (a && match){
@@ -324,15 +325,15 @@ export default class Scroll {
   }); }
   merkel_is_top(opt){ return etask({_: this}, function*_merkel_is_top(){
     let _this = this._, {top, r, verified, merkel, diff} = opt;
-    let {left, right, parent} = range_to_parent(r);
+    if (r[1]>top[1])
+      return false;
     if (range_eq(r, top))
       return true;
-    if (r[1]>top[1]) // XXX: change to assert?
-      return false;
+    let {left, right, parent} = range_to_parent(r);
     let m1 = (yield _this.merkel_calc_m({r: left, verified, merkel, diff})).m;
     let m2 = (yield _this.merkel_calc_m({r: right, verified, merkel, diff})).m;
     if (!m1 || !m2)
-      return false;
+      return null;
     let m = hparent(parent[1]-parent[0]+1, m1, m2);
     set_m_hash(merkel, parent, m);
     return _this.merkel_is_top({top, r: parent, verified, merkel, diff});

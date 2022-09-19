@@ -42,10 +42,10 @@ class FrameBuffer {
     for (let i = frames[0].sig ? 1 : 0; i<frames.length; i++){
       let f = frames[i], h = f.h;
       if (!h)
-        h = f.h = crypto.blake2b(f.buf);
+        h = f.h = crypto.blake2b(f.buf); // XXX: need set_hash
       buf = buf ? Buffer.concat([buf, h]) : h;
     }
-    return this.h = crypto.blake2b(buf);
+    return this.set_hash(crypto.blake2b(buf));
   }
   get_sig(){ return this.frames[0]?.sig; }
   set_hash(h){
@@ -244,20 +244,18 @@ export default class Scroll {
         copy_m_hash(verified, merkel);
       }
     }
-    // XXX wrap it as put_verified and change api for all set operations
-    // (grep the code for all set operations)
     for (let seq in verified){
       seq = +seq;
       let v = verified[seq], decl = yield _this.get_decl(seq, {create: true});
       for (let type in v){
         let val = v[type];
         switch (type){
-        case 'M': decl.M.h = val; break; // XXX: need decl.set_M()
-        case 'sig': decl.sig = val; break; // XXX: need decl.set_sig()
-        case 'd': decl.fbuf.h = val; break; // XXX: need decl.fbuf.set_hash()
+        case 'M': decl.M.set_hash(val); break;
+        case 'sig': decl.set_sig(val); break;
+        case 'd': decl.fbuf.set_hash(val); break;
         case 'm':
           for (let s in val)
-            decl.m_get([+s, +seq]).h = val[s];
+            decl.m_get([+s, +seq]).set_hash(val[s]);
           break;
         default: assert.fail('invalid verified type '+type);
         }
@@ -378,9 +376,15 @@ class Decl {
       : scroll.prev_scroll ? Buffer.concat([d, scroll.prev_scroll]) : d;
     let sig = crypto.sign(crypto.blake2b(buf), scroll.key);
     assert(!_this.sig || _this.sig.equals(sig), 'sig mismatch');
-    _this.sig = sig;
+    _this.set_sig(sig);
     _this.fbuf.unshift({sig});
   });
+  set_sig(sig){
+    assert(!this.sig || this.sig.equals(sig), 'sig changed');
+    if (this.sig)
+      return this.sig;
+    return this.sig = sig;
+  }
   m_get(range){
     let i = merkel_array_pos(range);
     assert.deepEqual(this.m[i].range, range_fix(range));
@@ -411,14 +415,14 @@ class Merkel_node {
       let d = yield decl.fbuf.calc_hash(), sig = decl.sig;
       if (!d || !sig)
         return null;
-      return _this.h = hleaf(d, sig);
+      return _this.set_hash(hleaf(d, sig));
     }
     // XXX: get in parallel
     let d = (e-s+1)/2; // XXX: range_split
     let decl1 = yield decl.scroll.get_decl(s+d-1, {create: true});
     let decl2 = yield decl.scroll.get_decl(e, {create: true});
-    _this.h = hparent_safe(2*d, yield decl1.m_hash([s, s+d-1]),
-      yield decl2.m_hash([s+d, e]));
+    _this.set_hash(hparent_safe(2*d, yield decl1.m_hash([s, s+d-1]),
+      yield decl2.m_hash([s+d, e])));
     return _this.h;
   });
   set_hash(h){

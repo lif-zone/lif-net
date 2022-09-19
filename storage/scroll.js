@@ -233,8 +233,7 @@ export default class Scroll {
         let M = hconcat(a);
         if (!top.M.equals(M))
           throw new Error('invalid M'); // XXX: branch if we can connect down
-        if (match)
-          copy_m_hash(verified, merkel);
+        copy_m_hash(verified, merkel);
       }
     }
     // XXX: we can do as soon as we verify something

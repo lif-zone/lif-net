@@ -188,10 +188,6 @@ export default class Scroll {
     // XXX: verify all get_decl and check if we load all what is needed before
     // we start
     let _this = this._;
-    // m0=hleaf(d0+sig0) sig0=sign(d0+prev_scroll1) M0=hroot(m0) M0=h(2+m0+0+1)
-    // prepare:
-    // M0
-    // m10=hleaf(d10+sig10) sig10=sign(d10+M9) M10=hroot(m0_7+m8_9+m10)
     let decls = {}, verified = {};
     for (let seq in diff){
       if (!/^\d+$/.test(seq))
@@ -201,11 +197,10 @@ export default class Scroll {
       decls[seq] = yield _this.get_decl(seq, {create: true, hash_all: true});
       verified[seq] = verified[seq]||{};
     }
-    // XXX: fix code that everywhere we check decl we also check verified
     for (let seq in diff){
       seq = +seq;
       let seq_o = diff[seq], decl = decls[seq];
-      if (!seq && seq_o.m){ // XXX: check if we can avodi this if
+      if (!seq && seq_o.m){ // XXX: check if we can avoid this if
         // XXX HACK: need to support any seq and verify merkel tree
         let m = seq_o.m[seq];
         if (decl.M.h && m){
@@ -216,7 +211,7 @@ export default class Scroll {
            verified[seq].m[seq] = m;
         }
       }
-      if (seq_o.sig && seq_o.d){ // XXX or we have data
+      if (seq_o.sig && seq_o.d){ // XXX or calc hash from data
         let M_prev = !seq ? _this.prev_scroll :
           yield (yield _this.get_decl(seq-1, {create: true, hash_all: true}))
           .M_hash() || get_M_hash(verified, seq-1);

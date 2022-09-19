@@ -13,6 +13,7 @@ const stringify = JSON.stringify.bind(JSON);
 const LEAF_TYPE = enc_u64(0);
 const PARENT_TYPE = enc_u64(1);
 const ROOT_TYPE = enc_u64(2);
+const assign = Object.assign;
 function enc_u64(v){ return enc.encode(enc.uint64, v); }
 
 function to_frame(o){
@@ -88,6 +89,10 @@ function range_str(range){
 
 // XXX: need test
 function get_M_hash(data, seq){ return data[seq]?.M; }
+function set_M_hash(data, seq, val){
+  data[seq] = data[seq]||{};
+  data[seq].M = val;
+}
 // XXX: need test
 function get_d_hash(data, seq){ return data[seq]?.d; } // XXX: or calc from D
 // XXX: need test
@@ -207,8 +212,7 @@ export default class Scroll {
           let M = hconcat([ROOT_TYPE, m, enc_u64(0), enc_u64(1)]);
           if (!decl.M.h.equals(M))
              throw new Error('invalid m'+seq);
-           verified[seq].m = verified[seq].m||{};
-           verified[seq].m[seq] = m;
+           set_m_hash(verified, [seq, seq], m);
         }
       }
       if (seq_o.sig && seq_o.d){ // XXX or calc hash from data
@@ -218,8 +222,7 @@ export default class Scroll {
         if (!seq || M_prev){ // XXX: what if no prev_scroll?
           if (!Scroll.verify_sig(seq_o.sig, _this.pub, seq_o.d, M_prev))
             throw new Error('invalid sig'+seq);
-          verified[seq].d = seq_o.d;
-          verified[seq].sig = seq_o.sig;
+          assign(verified[seq], {d: seq_o.d, sig: seq_o.sig});
           // XXX: need to add more information that was provided
           continue;
         }
@@ -230,12 +233,9 @@ export default class Scroll {
           continue;
         if (!Scroll.verify_sig(seq_o.sig, _this.pub, seq_o.d, M_prev))
            throw new Error('invalid sig'+seq);
-        if (seq){
-          verified[seq-1] = verified[seq-1]||{};
-          verified[seq-1].M = M_prev;
-        }
-        verified[seq].d = seq_o.d;
-        verified[seq].sig = seq_o.sig;
+        if (seq)
+          set_M_hash(verified, seq-1, M_prev);
+        assign(verified[seq], {d: seq_o.d, sig: seq_o.sig});
         copy_m_hash(verified, merkel);
       }
     }

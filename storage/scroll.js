@@ -184,7 +184,7 @@ export default class Scroll {
     _this.size++;
     return decl;
   });
-  put = diff=>etask({_: this}, function*put(){
+  put(diff){ return etask({_: this}, function*put(){
     // XXX: verify all get_decl and check if we load all what is needed before
     // we start
     let _this = this._;
@@ -193,7 +193,7 @@ export default class Scroll {
     // M0
     // m10=hleaf(d10+sig10) sig10=sign(d10+M9) M10=hroot(m0_7+m8_9+m10)
     let decls = {}, verified = {};
-    for (let seq in diff.seq){
+    for (let seq in diff){
       if (!/^\d+$/.test(seq))
         throw new Error('invalid seq '+seq);
       seq = +seq;
@@ -202,9 +202,9 @@ export default class Scroll {
       verified[seq] = verified[seq]||{};
     }
     // XXX: fix code that everywhere we check decl we also check verified
-    for (let seq in diff.seq){
+    for (let seq in diff){
       seq = +seq;
-      let seq_o = diff.seq[seq], decl = decls[seq];
+      let seq_o = diff[seq], decl = decls[seq];
       if (!seq && seq_o.m){ // XXX: check if we can avodi this if
         // XXX HACK: need to support any seq and verify merkel tree
         let m = seq_o.m[seq];
@@ -244,6 +244,10 @@ export default class Scroll {
         copy_m_hash(verified, merkel);
       }
     }
+    yield _this.put_verified(verified);
+  }); }
+  put_verified(verified){ return etask({_: this}, function*put(){
+    let _this = this._;
     for (let seq in verified){
       seq = +seq;
       let v = verified[seq], decl = yield _this.get_decl(seq, {create: true});
@@ -261,12 +265,12 @@ export default class Scroll {
         }
       }
     }
-  });
+  }); }
   merkel_calc_m(opt){ return etask({_: this}, function*_merkel_calc_m(){
     let _this = this._, {r, verified, merkel, diff} = opt;
     let seq = r[1], decl = yield _this.get_decl(seq);
     let m = (yield decl.m_hash(r)) || get_m_hash(verified, r);
-    let diff_m = get_m_hash(diff.seq, r);
+    let diff_m = get_m_hash(diff, r);
     if (m)
       return {match: true, m};
     if (r[0]==r[1]){
@@ -274,8 +278,8 @@ export default class Scroll {
       let sig = decl.sig||get_sig_hash(verified, seq);
       if (d && sig)
         return {match: true, m: hleaf(d, sig)};
-      d = d||get_d_hash(diff.seq, seq);
-      sig = sig||get_sig_hash(diff.seq, seq);
+      d = d||get_d_hash(diff, seq);
+      sig = sig||get_sig_hash(diff, seq);
       if (d && sig)
         return {match: false, m: hleaf(d, sig)};
       set_m_hash(merkel, r, diff_m);

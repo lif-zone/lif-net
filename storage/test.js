@@ -253,7 +253,7 @@ const cmd_decl = t=>etask(function*cmd_decl(){
 
 const cmd_put = t=>etask(function*cmd_put(){
   let name = t.ctx||'s', scroll = t_scroll[name];
-  let diff = {seq: {}}, err;
+  let diff = {}, err;
   for (let curr=t.r; curr = tparser.parse_get_next(curr);){
     let t2 = tparser.parse_exp_arg(curr.exp);
     assert(!t2.l, 'invalid put exp '+curr.exp);
@@ -264,7 +264,7 @@ const cmd_put = t=>etask(function*cmd_put(){
     }
     let val = yield get_val(t2.r||t2.cmd), v = t2.cmd;
     let o = split_var(v), type = o.type, seq = +o.range[1];
-    let seq_o = diff.seq[seq] = diff.seq[seq]||{};
+    let seq_o = diff[seq] = diff[seq]||{};
     assert(['sig', 'd', 'm', 'M'].includes(type), 'invalid type '+type);
     if (type=='m'){
       seq_o.m = seq_o.m||{};

@@ -520,7 +520,6 @@ describe('scroll', ()=>{
       t('d3_err_m1', `${s} s2.put(m0 m1:m0 m2 d3 sig3 err(invalid sig3))
         s2.test(M0)`);
       t('d3_missing_m1', `${s} s2.put(m0 m0_1 m2 d3 sig3) s2.test(M0 m0)`);
-      if (0) // XXX: fixme
       t('d3_d4', `${s} s2.put(m0 m1 m2 d3 sig3 d4 sig4)
         s2.test(M0 m0 m0_1 m0_3 m1 m2 m2_3 d3 sig3 M2 m3 M3 M4 d4 sig4 m4)`);
       t('d3_then_d4', `${s} s2.put(m0 m1 m2 d3 sig3) s2.put(d4 sig4)

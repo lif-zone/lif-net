@@ -81,6 +81,13 @@ function range_str(range){
 }
 
 // XXX: need test
+function get_M_hash(data, seq){ return data[seq]?.M; }
+// XXX: need test
+function get_d_hash(data, seq){ return data[seq]?.d; } // XXX: or calc from D
+// XXX: need test
+function get_sig_hash(data, seq){ return data[seq]?.sig; }
+
+// XXX: need test
 function get_m_hash(data, r){
   let m = data[r[1]]?.m;
   return m && m[r[0]] || null;
@@ -192,7 +199,7 @@ export default class Scroll {
     for (let seq in diff.seq){
       seq = +seq;
       let seq_o = diff.seq[seq], decl = decls[seq];
-      if (!seq && seq_o.m){
+      if (!seq && seq_o.m){ // XXX: check if we can avodi this if
         // XXX HACK: need to support any seq and verify merkel tree
         let m = seq_o.m[seq];
         if (decl.M.h && m){
@@ -206,7 +213,7 @@ export default class Scroll {
       if (seq_o.sig && seq_o.d){ // XXX or we have data
         let M_prev = !seq ? _this.prev_scroll :
           yield (yield _this.get_decl(seq-1, {create: true, hash_all: true}))
-          .M_hash();
+          .M_hash() || get_M_hash(verified, seq-1);
         if (!seq || M_prev){ // XXX: what if no prev_scroll?
           if (!Scroll.verify_sig(seq_o.sig, _this.pub, seq_o.d, M_prev))
             throw new Error('invalid sig'+seq);
@@ -216,7 +223,8 @@ export default class Scroll {
           continue;
         }
         let merkel = {};
-        M_prev = yield _this.merkel_calc_M({seq, verified, merkel, diff});
+        M_prev = yield _this.merkel_calc_M({seq: seq-1, verified, merkel,
+          diff});
         if (!M_prev)
           continue;
         if (!Scroll.verify_sig(seq_o.sig, _this.pub, seq_o.d, M_prev))
@@ -264,6 +272,14 @@ export default class Scroll {
     if (m)
       return {match: true, m};
     if (r[0]==r[1]){
+      let d = decl.fbuf.h||get_d_hash(verified, seq);
+      let sig = decl.sig||get_sig_hash(verified, seq);
+      if (d && sig)
+        return {match: true, m: hleaf(d, sig)};
+      d = d||get_d_hash(diff.seq, seq);
+      sig = sig||get_sig_hash(diff.seq, seq);
+      if (d && sig)
+        return {match: false, m: hleaf(d, sig)};
       set_m_hash(merkel, r, diff_m);
       return {match: false, m: diff_m};
     }
@@ -289,7 +305,7 @@ export default class Scroll {
   }); }
   merkel_calc_M(opt){ return etask({_: this}, function*_merkel_calc_M(){
     let _this = this._, {seq, verified, merkel, diff} = opt;
-    let roots = calc_roots(seq), a=[ROOT_TYPE];
+    let roots = calc_roots(seq+1), a=[ROOT_TYPE];
     let one_match=false;
     for (let i=0; i<roots.length; i++){
       let r = roots[i];
@@ -395,7 +411,7 @@ class Merkel_node {
       let d = yield decl.fbuf.calc_hash(), sig = decl.sig;
       if (!d || !sig)
         return null;
-      return _this.h = yield hleaf(d, sig);
+      return _this.h = hleaf(d, sig);
     }
     // XXX: get in parallel
     let d = (e-s+1)/2; // XXX: range_split

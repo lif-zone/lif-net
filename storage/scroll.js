@@ -221,13 +221,9 @@ export default class Scroll {
         let r = roots[i], _merkel = {};
         let is_top = yield _this.merkel_is_top({top: r, r: [seq, seq],
           verified, merkel: _merkel, diff});
-        if (is_top){
-          match = true;
-          assign(merkel, _merkel);
-        }
-        // XXX: optimize, we get can get it as result of merkel_is_top
-        m = (yield _this.merkel_calc_m({r, verified, merkel, diff})).m;
-        if (!m){
+        if (is_top)
+          [match, merkel] = [true, assign(merkel, _merkel)];
+        if (!(m=(yield _this.merkel_calc_m({r, verified, merkel, diff})).m)){
           a = null;
           break;
         }

@@ -520,6 +520,11 @@ describe('scroll', ()=>{
       t('d3_err_m1', `${s} s2.put(m0 m1:m0 m2 d3 sig3 err(invalid sig3))
         s2.test(M0)`);
       t('d3_missing_m1', `${s} s2.put(m0 m0_1 m2 d3 sig3) s2.test(M0 m0)`);
+      if (0) // XXX: fixme
+      t('d3_d4', `${s} s2.put(m0 m1 m2 d3 sig3 d4 sig4)
+        s2.test(M0 m0 m0_1 m0_3 m1 m2 m2_3 d3 sig3 M2 m3 M3 M4 d4 sig4 m4)`);
+      t('d3_then_d4', `${s} s2.put(m0 m1 m2 d3 sig3) s2.put(d4 sig4)
+        s2.test(M0 m0 m0_1 m0_3 m1 m2 m2_3 d3 sig3 M2 m3 M3 M4 d4 sig4 m4)`);
       // XXX: need d3 missing/errors tests
       // XXX: add ^ for redudnat information
       t('d4', `${s} s2.put(m0 m1 m2_3 d4 sig4)
@@ -563,59 +568,10 @@ describe('scroll', ()=>{
         sig32) s2.test(M0)`);
       t('d32_missing_m2_3', `${s}
         s2.put(m0 m1 m0_3 m4_7 m0_7 m8_15 m16_31 d32 sig32) s2.test(M0 m0)`);
-      // XXX: need all possible d32 missing info
-      if (true) return; // XXX: review and rm below
-      t('m0_3', `${s} s2.put(m0 m1 m2_3 M2 M3 sig3 m3 d3)
-        s2.test(M0 m0 m1 m0_1 m2_3 m0_3 M2 M3 sig3 m3 d3)`);
-      t('sig0', `${s} s2.put(sig0) s2.test(M0)`); // XXX derry
-      t('d0', `${s} s2.put(d0) s2.test(M0)`); // XXX derry
-      t('m0', `${s} s2.put(m0) s2.test(M0 m0)`);
-      t('m0_err', `${s} s2.put(m0:m1 err(invalid m0)) s2.test(M0)`);
-      t('M0', `${s} s2.put(M0) s2.test(M0)`);
-      t('M0_err', `${s} s2.put(M0:M1 err(invalid M0)) s2.test(M0)`);
-      t('sig0_d0', `${s} s2.put(sig0 d0) s2.test(M0 sig0 d0 m0)`);
-      t('sig0_d0_err1', `${s} s2.put(sig0 d0:d1 err(invalid sig0))
-        s2.test(M0)`);
-      t('sig0_d0_err2', `${s} s2.put(sig0:sig1 d0 err(invalid sig0))
-        s2.test(M0)`);
-      t('sig0_d0_m0', `${s} s2.put(sig0 d0 m0) s2.test(M0 sig0 d0 m0)`);
-      t('sig0_d0_m0_err1', `${s} s2.put(sig0 d0 m0:m1 err(invalid m0))
-        s2.test(M0)`);
-      t('sig0_d0_m0_err2', `${s} s2.put(sig0:sig1 d0 m0 err(invalid sig0))
-        s2.test(M0)`);
-      t('sig0_d0_m0_err3', `${s} s2.put(sig0 d0:d1 m0 err(invalid sig0))
-        s2.test(M0)`);
-      t('m0_sig0', `${s} s2.put(sig0 m0) s2.test(M0 m0)`);
-      t('m0_d0', `${s} s2.put(d0 m0) s2.test(M0 m0)`);
-      // XXX
-      t('m0_3', `${s} s2.put(m0 m1 m2_3 M2 M3 sig3 m3 d3)
-        s2.test(M0 m0 m1 m0_1 m2_3 m0_3 M2 M3 sig3 m3 d3)`);
-      if (true) return;
-      t('m0_7', `${s} s2.put(m0 m1 m2_3 m0_3 m4_7 M6 M7 sig7 m7 d7)
-        s2.test(M0 m0 m1 m0_1 m2_3 m0_3 m4_7 M6 M7 sig7 m7 d7)`);
-// XXX
-// m0=hleaf(d0+sig0) sig0=sign(d0+prev_scroll1) M0=hroot(m0) M0=h(2+m0+0+1)
-// m1=hleaf(d1+sig1) sig1=sign(d1+M0) M1=hroot(m0_1) M1=h(2+m0_1+0+2)
-if (0){ // XXX
-      t('xxx1', `${s} s2.put(sig1 d1) s2.test(M0 sig1 d1)`);
-      t('xxx1_err1', `${s} s2.put(sig1:sig0 d1 err(invalid sig1))
-        s2.test(M0)`);
-      t('xxx1_err2', `${s} s2.put(sig1 d1:d0 err(invalid sig1)) s2.test(M0)`);
-      t('xxx1', `${s} s2.put(m0 M1 sig1 d1) s2.test(M0 m0 M1 sig1 d1)`);
-}
-      if (true) return; // XXX WIP
       // XXX derry: review test
-      // XXX put(0(sig:sig0)) => put(sig0:sig0) or put(sig0:sig1)
-      // == put(sig0:s.sig0) or put(sig0:s.sig1)
-      // XXX diff format
       // XXX parallel etask
       // XXX using etask in class methods x
       // XXX: test also prev_scroll
-      t('sig_ok', `${s} s2.put(sig0 d0) s2.test(0 M0 sig0 d0 m0)`);
-      t('sig_err', `${s} s2.put(sig0:sig1 d0) err(invalid sig0))
-        s2.test(0 M0)`);
-      t('sig_err2', `${s} s2.put(0(sig0 d1) err(invalid sig0))
-        s2.test(0 M0)`);
     });
     if (true) return; // XXX WIP
     // XXX: make the last scroll used the default

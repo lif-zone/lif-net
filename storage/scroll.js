@@ -264,16 +264,6 @@ export default class Scroll {
     for (let seq in diff){
       seq = +seq;
       let seq_o = diff[seq], decl = decls[seq];
-      if (!seq && seq_o.m){ // XXX: check if we can avoid this if
-        // XXX HACK: need to support any seq and verify merkel tree
-        let m = seq_o.m[seq];
-        if (decl.M.h && m){
-          let M = hconcat([ROOT_TYPE, m, enc_u64(0), enc_u64(1)]);
-          if (!decl.M.h.equals(M))
-             throw new Error('invalid m'+seq);
-           set_m_hash(verified, [seq, seq], m);
-        }
-      }
       if (seq_o.sig && seq_o.d){ // XXX or calc hash from data
         let M_prev = !seq ? _this.prev_scroll :
           yield (yield _this.get_decl(seq-1, {create: true, hash_all: true}))

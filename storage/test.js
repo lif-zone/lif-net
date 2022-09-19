@@ -510,9 +510,20 @@ describe('scroll', ()=>{
         s2.test(M0)`);
       t('d3', `${s} s2.put(m0 m1 m2 d3 sig3)
         s2.test(M0 m0 m0_1 m0_3 m1 m2 m2_3 d3 sig3 M2 m3 M3)`);
+      t('d3_err_m0', `${s} s2.put(m0:m1 m1 m2 d3 sig3 err(invalid m0))
+        s2.test(M0)`);
+      t('d3_err_m1', `${s} s2.put(m0 m1:m0 m2 d3 sig3 err(invalid sig3))
+        s2.test(M0)`);
+      t('d3_missing_m1', `${s} s2.put(m0 m0_1 m2 d3 sig3) s2.test(M0 m0)`);
       // XXX: need d3 missing/errors tests
-      t('d4', `${s} s2.put(m0 m1 m2_3 m0_3 d4 sig4)
+      // XXX: add ^ for redudnat information
+      t('d4', `${s} s2.put(m0 m1 m2_3 d4 sig4)
         s2.test(M0 m0 m1 m0_1 m2_3 m0_3 M3 M4 d4 sig4 m4)`);
+      t('d4_err_m0', `${s} s2.put(m0:m1 m1 m2_3 d4 sig4 err(invalid m0))
+        s2.test(M0)`);
+      t('d4_err_m1', `${s} s2.put(m0 m1:m0 m2_3 d4 sig4 err(invalid sig4))
+        s2.test(M0)`);
+      t('d4_missing_m2_3', `${s} s2.put(m0 m1 d4 sig4) s2.test(M0 m0)`);
       // XXX: need d4 missing/errors tests
       t('d32', `${s} s2.put(m0 m1 m2_3 m0_3 m4_7 m0_7 m8_15 m16_31 d32 sig32)
         s2.test(M0 m0 m1 m0_1 m2_3 m0_3 m4_7 m0_7 m8_15 m0_15 m16_31 m0_31

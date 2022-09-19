@@ -271,14 +271,23 @@ export default class Scroll {
     if (r[0]==r[1]){
       let d = decl.fbuf.h||get_d_hash(verified, seq);
       let sig = decl.sig||get_sig_hash(verified, seq);
-      if (d && sig)
-        return {match: true, m: hleaf(d, sig)};
+      if (d && sig){
+        m = hleaf(d, sig);
+        set_m_hash(merkel, r, m);
+        return {match: true, m};
+      }
+      if (diff_m){
+        set_m_hash(merkel, r, diff_m);
+        return {match: false, m: diff_m};
+      }
       d = d||get_d_hash(diff, seq);
       sig = sig||get_sig_hash(diff, seq);
-      if (d && sig)
+      if (d && sig){
+        // XXX: do we need to verify sig?
+        set_m_hash(merkel, r, diff_m);
         return {match: false, m: hleaf(d, sig)};
-      set_m_hash(merkel, r, diff_m);
-      return {match: false, m: diff_m};
+      }
+      return {match: false};
     }
     let [r1, r2] = range_split(r), decl0 = yield _this.get_decl(r1[1]);
     let m1 = (yield decl0.m_hash(r1)) || get_m_hash(verified, r1);

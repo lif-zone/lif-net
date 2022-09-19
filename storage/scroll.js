@@ -249,21 +249,13 @@ export default class Scroll {
   put(diff){ return etask({_: this}, function*put(){
     // XXX: verify all get_decl and check if we load all what is needed before
     // we start
-    let _this = this._;
-    let decls = {}, verified = {};
+    let _this = this._, verified = {};
     for (let seq in diff){
-      if (!/^\d+$/.test(seq))
-        throw new Error('invalid seq '+seq);
       seq = +seq;
-      // XXX: implement hash_all (it loads all hashes to memory)
-      decls[seq] = yield _this.get_decl(seq, {create: true, hash_all: true});
       verified[seq] = verified[seq]||{};
-    }
-    for (let seq in diff){
-      seq = +seq;
       if (get_m_hash(diff, [seq, seq])) // XXX: todo for m sub ranges
         yield _this.put_m({mr: [seq, seq], verified, diff});
-      let seq_o = diff[seq], decl = decls[seq];
+      let seq_o = diff[seq], decl = yield _this.get_decl(seq);
       if (seq_o.sig && seq_o.d){ // XXX or calc hash from data
         let M_prev = !seq ? _this.prev_scroll :
           yield (yield _this.get_decl(seq-1, {create: true, hash_all: true}))

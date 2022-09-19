@@ -215,36 +215,33 @@ export default class Scroll {
     if (!this.top || this.top.seq<seq)
       this.top = {seq, M};
   }
-  put2(diff){ return etask({_: this}, function*put(){
-    let _this = this._, verified = {}, top = _this.top;
+  put_m(opt){ return etask({_: this}, function*put(){
+    let _this = this._, top = _this.top, {mr, verified, diff} = opt;
     assert(_this.top, 'cannot put to empty scroll');
-    for (let seq in diff){
-      seq = +seq;
-      let m = get_m_hash(diff, [seq, seq]); // XXX: todo for m sub ranges
-      if (!m)
-        continue;
-      let merkel = {}, match=false, a=[ROOT_TYPE];
-      let roots = calc_roots(top.seq+1);
-      for (let i=0; i<roots.length; i++){
-        let r = roots[i], _merkel = {};
-        let is_top = yield _this.merkel_is_top({top: r, r: [seq, seq],
-          verified, merkel: _merkel, diff});
-        if (is_top){
-          match = true;
-          copy_m_hash(merkel, _merkel);
-        }
-        if (!(m=(yield _this.merkel_calc_m({r, verified, merkel, diff})).m)){
-          a = null;
-          break;
-        }
-        a.push(m, enc_u64(r[0]), enc_u64(r[1]-r[0]+1));
+    let m = get_m_hash(diff, mr);
+    if (!m)
+      return;
+    let merkel = {}, match=false, a=[ROOT_TYPE];
+    let roots = calc_roots(top.seq+1);
+    for (let i=0; i<roots.length; i++){
+      let r = roots[i], _merkel = {};
+      let is_top = yield _this.merkel_is_top({top: r, r: mr,
+        verified, merkel: _merkel, diff});
+      if (is_top){
+        match = true;
+        copy_m_hash(merkel, _merkel);
       }
-      if (a && match){
-        let M = hconcat(a);
-        if (!top.M.equals(M))
-          throw new Error('invalid M'); // XXX: branch if we can connect down
-        copy_m_hash(verified, merkel);
+      if (!(m=(yield _this.merkel_calc_m({r, verified, merkel, diff})).m)){
+        a = null;
+        break;
       }
+      a.push(m, enc_u64(r[0]), enc_u64(r[1]-r[0]+1));
+    }
+    if (a && match){
+      let M = hconcat(a);
+      if (!top.M.equals(M))
+        throw new Error('invalid M'); // XXX: branch if we can connect down
+      copy_m_hash(verified, merkel);
     }
     // XXX: we can do as soon as we verify something
     yield _this.put_verified(verified);
@@ -262,9 +259,10 @@ export default class Scroll {
       decls[seq] = yield _this.get_decl(seq, {create: true, hash_all: true});
       verified[seq] = verified[seq]||{};
     }
-    yield _this.put2(diff); // XXX: WIP
     for (let seq in diff){
       seq = +seq;
+      if (get_m_hash(diff, [seq, seq])) // XXX: todo for m sub ranges
+        yield _this.put_m({mr: [seq, seq], verified, diff});
       let seq_o = diff[seq], decl = decls[seq];
       if (seq_o.sig && seq_o.d){ // XXX or calc hash from data
         let M_prev = !seq ? _this.prev_scroll :

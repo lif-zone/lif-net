@@ -216,11 +216,8 @@ export default class Scroll {
       this.top = {seq, M};
   }
   put_m(opt){ return etask({_: this}, function*put(){
-    let _this = this._, top = _this.top, {mr, verified, diff} = opt;
+    let _this = this._, top = _this.top, {m, mr, verified, diff} = opt;
     assert(_this.top, 'cannot put to empty scroll');
-    let m = get_m_hash(diff, mr);
-    if (!m)
-      return;
     let sketch = {}, match=false, a=[ROOT_TYPE];
     let roots = calc_roots(top.seq+1);
     for (let i=0; i<roots.length; i++){
@@ -249,12 +246,12 @@ export default class Scroll {
   put(diff){ return etask({_: this}, function*put(){
     // XXX: verify all get_decl and check if we load all what is needed before
     // we start
-    let _this = this._, verified = {};
+    let _this = this._, verified = {}, m;
     for (let seq in diff){
       seq = +seq;
       verified[seq] = verified[seq]||{};
-      if (get_m_hash(diff, [seq, seq])) // XXX: todo for m sub ranges
-        yield _this.put_m({mr: [seq, seq], verified, diff});
+      if (m = get_m_hash(diff, [seq, seq])) // XXX: todo for m sub ranges
+        yield _this.put_m({m, mr: [seq, seq], verified, diff});
       let seq_o = diff[seq], decl = yield _this.get_decl(seq);
       if (seq_o.sig && seq_o.d){ // XXX or calc hash from data
         let M_prev = !seq ? _this.prev_scroll :
@@ -268,6 +265,7 @@ export default class Scroll {
               continue;
             // XXX: this could be branching point (check up)
           }
+          // XXX: need to verify it belongs to top
           assign(verified[seq], {d: seq_o.d, sig: seq_o.sig});
           // XXX: need to add more information that was provided
           continue;
@@ -280,6 +278,7 @@ export default class Scroll {
         // XXX: we can skip verify sometimes by checkig hash
         if (!Scroll.verify_sig(seq_o.sig, _this.pub, seq_o.d, prev_o.M))
            throw new Error('invalid sig'+seq);
+          // XXX: need to verify it belongs to top
         if (seq)
           set_M_hash(verified, seq-1, M_prev);
         assign(verified[seq], {d: seq_o.d, sig: seq_o.sig});

@@ -530,7 +530,7 @@ describe('scroll', ()=>{
         s2.test(M0)`;
       t('m0', `${s} s2.put(m0) s2.test(M0 m0)`);
       t('m0_err', `${s} s2.put(m0:m1 err(invalid M)) s2.test(M0)`);
-      t('d0', `${s} s2.put(d0 sig0) s2.test(M0 d0 sig0 M0)`);
+      t('d0', `${s} s2.put(d0 sig0) s2.test(M0 d0 sig0 m0)`);
       t('d0_err', `${s} s2.put(d0 sig0:sig1 err(invalid sig0)) s2.test(M0)`);
       t('d1', `${s} s2.put(d1 sig1) s2.test(M0 d1 sig1 m1)`);
       t('d1_m0', `${s} s2.put(m0 d1 sig1) s2.test(M0 m0 m0_1 d1 sig1 m1 M1)`);
@@ -660,6 +660,8 @@ describe('scroll', ()=>{
       t('m1', `${s} s2.put(m0 m1 m2_3) s2.test(M3 m0 m1 m0_1 m2_3 m0_3)`);
       t('m2', `${s} s2.put(m0_1 m2 m3) s2.test(M3 m0_1 m2 m3 m2_3 m0_3)`);
       t('m3', `${s} s2.put(m0_1 m2 m3) s2.test(M3 m0_1 m2 m3 m2_3 m0_3)`);
+      t('d1', `${s} s2.put(m0 d1 sig1 m2_3)
+        s2.test(M0 d1 sig1 M3 m0 m1 m0_1 m2_3 m0_3)`);
       // XXX: todo m4 and all data tests
     });
     if (true) return; // XXX WIP

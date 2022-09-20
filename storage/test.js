@@ -224,14 +224,14 @@ const cmd_scroll = t=>etask(function*cmd_scroll(){
     case '!prev_scroll': prev_scroll = null; break;
     default:
       if (a = tt.cmd.match(/^M(\d+)$/)){
-        M = {seq: +a[1], h: yield get_val(tt.r)};
+        M = {seq: +a[1], h: yield get_val(tt.r||tt.cmd)};
         break;
       }
       assert.fail('invalid arg '+tt.cmd+' in '+t.meta.s);
     }
   }
   if (M)
-   scroll = yield Scroll.open({pub: t_keypair.pub, M});
+   scroll = yield Scroll.open({key: t_keypair.key, pub: t_keypair.pub, M});
   else {
     scroll = yield Scroll.create({key: t_keypair.key, pub: t_keypair.pub,
         prev_scroll}, {topic: 'test'});
@@ -523,6 +523,44 @@ describe('scroll', ()=>{
       m31=hleaf(d31+sig31) sig31=sign(d31+M30) M31=hroot(m0_31)
       m32=hleaf(d32+sig32) sig32=sign(d32+M31) M32=hroot(m0_31+m32)
     `);
+/* XXX derry
+// m5=hleaf(d5+sig5) sig5=sign(d5+M4) M5=hroot(m0_3+m4_5)
+// top is highest known M (top={seq, M})
+// diff = {3: {d, sig, m: {3: 0xm3, 2: 0xm2_3 0: 0xm0_3}}, 4: ...}
+function put(diff){
+  for (seq in diff){ // ascending order
+    let sketch = {}, m = get_m(diff, seq);
+    if (seq > top.seq){
+      // check if can be added as new top
+      // we need sig, d M_prev
+      let {M_prev, match} = calc_M({seq: seq-1, m, sketch, diff, errors});
+      // XXX chec existing values
+      if (!M_prev)
+        push_error('missing info');
+      if (!match)
+        push_error('spam');
+      let sig = get_sig(diff, seq), d = get_d(diff, seq);
+      if (m==hleaf(d+sig) && verify(sig, d+M_prev))
+        copy_to_verified(sketch);
+      else
+        push_error('invalid sig');
+      break;
+    }
+    M = calc_top_M({seq, m, sketch, diff, errors});
+    if (!M){
+      push_error('missing info');
+      continue;
+    }
+    if (M.equals(top.M))
+      copy_to_verified(sketch);
+    else
+      push_error('spam'); // XXX TODO: branch detection
+  }
+}
+// XXX: how to know which decl I need in memory?
+// XXX TODO: need caching of calculated values that were not verified
+
+*/
     describe('M0.put', ()=>{
       // XXX: test with prev_scroll
       // XXX make last used cmd default and last used arg default
@@ -620,7 +658,7 @@ describe('scroll', ()=>{
     });
     describe('M1.put', ()=>{
       // XXX: test with prev_scroll
-      let s = `s.scroll(!prev_scroll) s.decl(1-32) s2.scroll(M1:M1)
+      let s = `s.scroll(!prev_scroll) s.decl(1-32) s2.scroll(M1)
         s2.test(M1)`;
       t('m0', `${s} s2.put(m0 m1) s2.test(M1 m0 m1 m0_1)`);
       t('m0_err_m0', `${s} s2.put(m0:m1 m1 err(invalid M)) s2.test(M1)`);
@@ -629,10 +667,20 @@ describe('scroll', ()=>{
       t('m0_missing_m1', `${s} s2.put(m0) s2.test(M1)`);
       if (0) // XXX TODO: and add for m0_1
       t('m0_1', `${s} s2.put(m0_1) s2.test(M1 m0_1)`);
-      if (true) return; // XXX
+      if (false){ // XXX
       t('d2', `${s} s2.put(d2 sig2) s2.test(M1 d2 sig2)`);
       t('d0', `${s} s2.put(d0 sig0 m1) s2.test(M1 d0 sig0)`);
       t('d1', `${s} s2.put(d1 sig1 m0 m0_1) s2.test(M1 d1 sig1)`);
+      }
+      t('branch1', `s.scroll(!prev_scroll) s.decl(1-32) s2.scroll(M1)
+        s2.put(m0 d1 sig1)
+        s2.test(M0 M1 d1 sig1 m0 m0_1 m1)`);
+      if (0) // XXX enable
+      t('branch2', `s.scroll(!prev_scroll) s.decl(1-32) s2.scroll(M1)
+        s2.decl(2)
+        s2.test(M1 sig2:s2.sig2 d2:s2.d2)
+        s2.put(m0 d1 sig1 err(branch))
+        s2.test(M0 M1 d1 sig1 m0 m0_1 m1) `);
 // m0=hleaf(d0+sig0) sig0=sign(d0+prev_scroll1) M0=hroot(m0) M0=h(2+m0+0+1)
 // m1=hleaf(d1+sig1) sig1=sign(d1+M0) M1=hroot(m0_1) M1=h(2+m0_1+0+2)
     });

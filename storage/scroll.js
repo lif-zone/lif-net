@@ -106,7 +106,7 @@ function set_M_hash(data, seq, val){
 // XXX: need test
 function get_d_hash(data, seq){ return data[seq]?.d; } // XXX: or calc from D
 // XXX: need test
-function get_sig_hash(data, seq){ return data[seq]?.sig; }
+function get_sig(data, seq){ return data[seq]?.sig; }
 
 // XXX: need test
 function get_m_hash(data, r){
@@ -215,6 +215,18 @@ export default class Scroll {
     if (!this.top || this.top.seq<seq)
       this.top = {seq, M};
   }
+/* XXX: WIP
+  xxx_put(diff){ return etask({_: this}, function*put(){
+    let _this = this._, verified = {}, errors = [], m;
+    // XXX: need to write this part sync code, but first need to find out
+    // how to know which declarations to load in memory
+    for (let seq in diff){
+      let m=get_m_hash(diff, [seq, seq]), decl=yield _this.get_decl(seq);
+      let sig=get_sig(diff, seq), d=get_d_hash(diff, seq);
+      if (!verify_decl_info(decl, {m:
+    }
+  }); }
+*/
   put_m(opt){ return etask({_: this}, function*put(){
     let _this = this._, top = _this.top, {m, mr, verified, diff} = opt;
     assert(_this.top, 'cannot put to empty scroll');
@@ -331,7 +343,7 @@ export default class Scroll {
       return {match: true, m};
     if (r[0]==r[1]){
       let d = decl.fbuf.h||get_d_hash(verified, seq);
-      let sig = decl.sig||get_sig_hash(verified, seq);
+      let sig = decl.sig||get_sig(verified, seq);
       if (d && sig){
         m = hleaf(d, sig);
         set_m_hash(sketch, r, m);
@@ -342,7 +354,7 @@ export default class Scroll {
         return {match: false, m: diff_m};
       }
       d = d||get_d_hash(diff, seq);
-      sig = sig||get_sig_hash(diff, seq);
+      sig = sig||get_sig(diff, seq);
       if (d && sig){
         // XXX: do we need to verify sig?
         set_m_hash(sketch, r, diff_m);

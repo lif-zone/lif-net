@@ -136,6 +136,19 @@ function set_m_hash(data, r, val){
   return o.m[r[0]] = val;
 }
 
+function check_set_sig(sketch, errors, seq, m, d, sig){
+  if (!d && !sig)
+    return;
+  if (!d)
+    return push_error(errors, 'missing d'+seq);
+  if (!sig)
+    return push_error(errors, 'missing sig'+seq);
+  if (!beq(m, hleaf(d, sig)))
+    return push_error(errors, 'invalid sig'+seq);
+  set_sig(sketch, seq, sig);
+  set_d_hash(sketch, seq, d);
+}
+
 function push_error(errors, s){ errors[s] = (errors[s]||0)+1; }
 
 // XXX: need test
@@ -256,7 +269,8 @@ export default class Scroll {
       if (sig && d)
         m = m||hleaf(d, sig);
       if (vm){
-        // XXX: check hleaf+sig equals vm
+        check_set_sig(sketch, errors, seq, vm, d, sig);
+        this.put_verified(sketch);
         continue;
       }
       if (!m)
@@ -267,12 +281,7 @@ export default class Scroll {
         else if (!beq(M, top.M))
           push_error(errors, 'invalid M'+top.seq);
         else {
-          if (d && sig)
-            if (beq(m, hleaf(d, sig))){
-              set_sig(sketch, seq, sig);
-              set_d_hash(sketch, seq, d);
-            } else
-              push_error(errors, 'invalid sig'+seq);
+          check_set_sig(sketch, errors, seq, m, d, sig);
           this.put_verified(sketch);
         }
       }

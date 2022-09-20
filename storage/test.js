@@ -619,9 +619,14 @@ function put(diff){
           err(missing d0)) s2.test(M0 m0 M1 m1 m0_1)`);
         t('m0m1_sig0d0_missing_sig0', `${s} s2.put2(d0 m0 m1
           err(missing sig0)) s2.test(M0 m0 M1 m1 m0_1)`);
-        if (0) // XXX
         t('m0m1_sig1d1', `${s} s2.put2(sig1 d1 m0 m1)
           s2.test(sig1 d1 M0 m0 M1 m1 m0_1)`);
+        t('m0m1_sig1d1_invalid_sig1', `${s} s2.put2(sig1:sig0 d1 m0 m1
+          err(invalid sig1)) s2.test(M0 m0 M1 m1 m0_1)`);
+        t('m0m1_sig1d1_missing_sig1', `${s} s2.put2(d1 m0 m1
+          err(missing sig1)) s2.test(M0 m0 M1 m1 m0_1)`);
+        t('m0m1_sig1d1_sig0d0', `${s} s2.put2(sig0 d0 sig1 d1 m0 m1)
+          s2.test(sig0 d0 sig1 d1 M0 m0 M1 m1 m0_1)`);
         // XXX: ^m0_1 is redundant
         t('m0m1m0_1', `${s} s2.put2(m0 m1 m0_1) s2.test(M0 m0 M1 m1 m0_1)`);
         // XXX: add sig/d tests

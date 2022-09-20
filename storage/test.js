@@ -279,7 +279,7 @@ const cmd_put = t=>etask(function*cmd_put(){
   }
   if (xxx){
     let ret = scroll.put2(diff);
-    assert.deepEqual(ret.errors, err ? err.split(',') : []);
+    assert.deepEqual(Object.keys(ret.errors), err ? err.split(',') : []);
     return;
   }
   try {
@@ -569,9 +569,9 @@ function put(diff){
 
 */
     describe('put2', ()=>{
-      let s = `s.scroll(!prev_scroll) s.decl(1-32) s2.scroll(M0:s.M0)
-        s2.test(M0)`;
       describe('errors_invalid', ()=>{
+        let s = `s.scroll(!prev_scroll) s.decl(1-32) s2.scroll(M0)
+          s2.test(M0)`;
         // XXX: need to verify that s didn't change after the errors
         t('sig0', `${s} s.put2(sig0:sig1 err(invalid sig0))`);
         t('d0', `${s} s.put2(d0:d1 err(invalid d0))`);
@@ -581,13 +581,33 @@ function put(diff){
         t('sig1', `${s} s.put2(sig1:sig0 err(invalid sig1))`);
       });
       describe('errors_missing', ()=>{
+        let s = `s.scroll(!prev_scroll) s.decl(1-32) s2.scroll(M0)
+          s2.test(M0)`;
         t('sig0', `${s} s2.put2(sig0 err(missing d0)) s2.test(M0)`);
         t('d0', `${s} s2.put2(d0 err(missing sig0)) s2.test(M0)`);
       });
-      t('xxx1', `${s} s2.put2(m0:m1 err(invalid M0)) s2.test(M0)`);
-      t('xxx2', `${s} s2.put2(m0) s2.test(M0 m0)`);
-      if (0) // XXX: TODO
-      t('xxx3', `${s} s2.put2(m0 sig0 d0) s2.test(M0 m0 sig0 d0)`);
+      describe('top_M0', ()=>{
+        let s = `s.scroll(!prev_scroll) s.decl(1-32) s2.scroll(M0)
+          s2.test(M0)`;
+        t('xxx1', `${s} s2.put2(m0:m1 err(invalid M0)) s2.test(M0)`);
+        t('xxx2', `${s} s2.put2(m0) s2.test(M0 m0)`);
+        t('xxx3', `${s} s2.put2(m0 sig0 d0) s2.test(M0 m0 sig0 d0)`);
+        t('xxx4', `${s} s2.put2(m0 sig0 err(missing d0)) s2.test(M0 m0)`);
+        t('xxx5', `${s} s2.put2(m0 d0 err(missing sig0)) s2.test(M0 m0)`);
+        t('xxx6', `${s} s2.put2(m0 sig0:sig1 d0 err(invalid sig0))
+          s2.test(M0 m0)`);
+      });
+      describe('top_M1', ()=>{
+        let s = `s.scroll(!prev_scroll) s.decl(1-32) s2.scroll(M1)
+          s2.test(M1)`;
+        t('m0', `${s} s2.put2(m0 err(missing m1,missing m0_1)) s2.test(M1)`);
+        t('m0m0_1', `${s} s2.put2(m0 err(missing m1,missing m0_1))
+          s2.test(M1)`);
+        t('m1', `${s} s2.put2(m1 err(missing m0,missing m0_1)) s2.test(M1)`);
+        t('m0m1', `${s} s2.put2(m0 m1) s2.test(M0 m0 M1 m1 m0_1)`);
+        // XXX: ^m0_1 is redundant
+        t('m0m1m0_1', `${s} s2.put2(m0 m1 m0_1) s2.test(M0 m0 M1 m1 m0_1)`);
+      });
     });
     // XXX: rm
     describe('M0.put', ()=>{

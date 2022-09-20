@@ -108,16 +108,24 @@ function set_M_hash(data, seq, val){
 }
 // XXX: need test
 function get_d_hash(data, seq){ return data[seq]?.d; } // XXX: or calc from D
+function set_d_hash(data, seq, val){
+  let o = data[seq] = data[seq]||{};
+  assert(!o.d || o.d.equals(val), 'set d'+seq+' diffent vals');
+  return o.d = val;
+}
 // XXX: need test
 function get_sig(data, seq){ return data[seq]?.sig; }
-
+function set_sig(data, seq, val){
+  let o = data[seq] = data[seq]||{};
+  assert(!o.sig || o.sig.equals(val), 'set sig'+seq+' diffent vals');
+  return o.sig = val;
+}
 // XXX: need test
 function get_m_hash(data, r){
   r = range_fix(r);
   let m = data[r[1]]?.m;
   return m && m[r[0]] || null;
 }
-
 // XXX: need test
 function set_m_hash(data, r, val){
   r = range_fix(r);
@@ -125,9 +133,10 @@ function set_m_hash(data, r, val){
   o.m = o.m||{};
   assert(!o.m[r[0]] || o.m[r[0]].equals(val), 'set m'+range_str(r)+
     ' diffent vals');
-  o.m[r[0]] = val;
-  return val;
+  return o.m[r[0]] = val;
 }
+
+function push_error(errors, s){ errors[s] = (errors[s]||0)+1; }
 
 // XXX: need test
 function copy_m_hash(dst, src){
@@ -222,7 +231,7 @@ export default class Scroll {
   }
   put2(diff){
     let top = this.top;
-    let errors = [];
+    let errors = {};
     assert(top, 'cannot put to empty scroll');
     for (let seq in diff){
       seq = +seq;
@@ -233,31 +242,38 @@ export default class Scroll {
       // XXX: handle getting real data instead of d
       if (vd && vsig){
         if (sig && !beq(sig, vsig))
-          errors.push('invalid sig'+seq);
+          push_error(errors, 'invalid sig'+seq);
         if (d && !beq(d, vd))
-          errors.push('invalid d'+seq);
+          push_error(errors, 'invalid d'+seq);
         if (m && !beq(m, vm))
-          errors.push('invalid m'+seq);
+          push_error(errors, 'invalid m'+seq);
         continue;
       }
-      if (!m && (!d || !sig)){
-        if (sig)
-          errors.push('missing d'+seq);
-        else if (d)
-          errors.push('missing sig'+seq);
+      if (d && !sig)
+        push_error(errors, 'missing sig'+seq);
+      if (sig && !d)
+        push_error(errors, 'missing d'+seq);
+      if (sig && d)
+        m = m||hleaf(d, sig);
+      if (vm){
+        // XXX: check hleaf+sig equals vm
         continue;
       }
-      m = m||hleaf(d, sig);
-      if (vm);
-      else if (seq<=top.seq){
+      if (!m)
+        continue;
+      if (seq<=top.seq){
         let M = this.sketch_calc_top_M({top, seq, m, sketch, diff, errors});
-        if (!M)
-          errors.push('missing M'+top.seq);
+        if (!M); // XXX push_error(errors, 'missing M'+top.seq)?
         else if (!beq(M, top.M))
-          errors.push('invalid M'+top.seq);
+          push_error(errors, 'invalid M'+top.seq);
         else {
+          if (d && sig)
+            if (beq(m, hleaf(d, sig))){
+              set_sig(sketch, seq, sig);
+              set_d_hash(sketch, seq, d);
+            } else
+              push_error(errors, 'invalid sig'+seq);
           this.put_verified(sketch);
-//          xerr('XXX TODO check signatures');
         }
       }
       else
@@ -277,7 +293,7 @@ export default class Scroll {
       mr = this.sketch_calc_m({range: r, sketch, diff, errors, force:
         range_includes(r, [seq, seq]) ? {range: [seq, seq], m} : null}).m;
       if (!mr){
-        errors.push('missing m'+range_str(r));
+        push_error(errors, 'missing m'+range_str(r));
         return null;
       }
       a.push(mr, enc_u64(r[0]), enc_u64(r[1]-r[0]+1));
@@ -295,37 +311,38 @@ export default class Scroll {
     if ((vm||m) && (!force || !range_includes(range, force.range)))
       return {m: vm||m};
     if (range[0]==range[1]){
-      errors.push('missing m'+range_str(range));
-      return null;
+      push_error(errors, 'missing m'+range_str(range));
+      return {m: null};
     }
     let [r1, r2] = range_split(range);
     let m1, vm1, m2, vm2, decl1 = this.get_decl(r1[1]), decl2=decl;
     if (force && range_includes(r1, force.range))
-      m1 = this.sketch_calc_m({range: r1, sketch, diff, errors, force});
+      m1 = this.sketch_calc_m({range: r1, sketch, diff, errors, force}).m;
     else if (vm1 = decl1.m_hash(r1));
     else if (m1 = get_m_hash(sketch, r1)||get_m_hash(diff, r1));
     else
-      m1 = this.sketch_calc_m({range: r1, sketch, diff, errors});
+      m1 = this.sketch_calc_m({range: r1, sketch, diff, errors}).m;
     if (!m1 && !vm1){
-      errors.push('missing m'+range_str(r1));
-      return null;
+      push_error(errors, 'missing m'+range_str(r1));
+      return {m: null};
     }
     if (force && range_includes(r2, force.range))
-      m2 = this.sketch_calc_m({range: r2, sketch, diff, errors, force});
+      m2 = this.sketch_calc_m({range: r2, sketch, diff, errors, force}).m;
     else if (vm2 = decl2.m_hash(r2));
     else if (m2 = get_m_hash(sketch, r2)||get_m_hash(diff, r2));
     else
-      m2 = this.sketch_calc_m({range: r2, sketch, diff, errors});
+      m2 = this.sketch_calc_m({range: r2, sketch, diff, errors}).m;
     if (!m2 && !vm2){
-      errors.push('missing m'+range_str(r2));
-      return null;
+      push_error(errors, 'missing m'+range_str(r2));
+      return {m: null};
     }
     if (m1)
       set_m_hash(sketch, r1, m1);
     if (m2)
       set_m_hash(sketch, r2, m2);
     m = hparent(range[1]-range[0]+1, vm1||m1, vm2||m2);
-    return set_m_hash(sketch, range, m);
+    set_m_hash(sketch, range, m);
+    return {m};
   }
   put_m(opt){
     let top = this.top, {m, mr, verified, diff} = opt;

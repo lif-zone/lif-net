@@ -1,8 +1,6 @@
 // author: derry. coder: arik.
 'use strict'; /*jslint node:true, browser:true*/
 import assert from 'assert';
-import etask from '../util/etask.js';
-import xerr from '../util/xerr.js';
 import crypto from '../util/crypto.js';
 import enc from 'compact-encoding';
 import {Buffer} from 'buffer';
@@ -198,18 +196,17 @@ export default class Scroll {
     this.decl_map = new Map();
   }
   // XXX: use return =>
-  decl = frames=>etask({_: this}, function*(){
-    let _this = this._;
+  decl(frames){
     let fbuf = new FrameBuffer({frames});
-    let seq = _this.size, ts = Date.now();
-    assert(!_this.decl_map.get(seq), 'XXX TODO'); // XXX: support branch
+    let seq = this.size, ts = Date.now();
+    assert(!this.decl_map.get(seq), 'XXX TODO'); // XXX: support branch
     fbuf.unshift({seq, ts});
-    let decl = new Decl({scroll: _this, seq, fbuf});
-    yield decl.sign();
-    _this.decl_map.set(seq, decl);
-    _this.size++;
+    let decl = new Decl({scroll: this, seq, fbuf});
+    decl.sign();
+    this.decl_map.set(seq, decl);
+    this.size++;
     return decl;
-  });
+  }
   notify_M(opt){
     let {seq, M} = opt;
     if (!this.top || this.top.seq<seq)
@@ -217,30 +214,30 @@ export default class Scroll {
   }
 /* XXX: WIP
   xxx_put(diff){ return etask({_: this}, function*put(){
-    let _this = this._, verified = {}, errors = [], m;
+    let verified = {}, errors = [], m;
     // XXX: need to write this part sync code, but first need to find out
     // how to know which declarations to load in memory
     for (let seq in diff){
-      let m=get_m_hash(diff, [seq, seq]), decl=yield _this.get_decl(seq);
+      let m=get_m_hash(diff, [seq, seq]), decl=yield this.get_decl(seq);
       let sig=get_sig(diff, seq), d=get_d_hash(diff, seq);
       if (!verify_decl_info(decl, {m:
     }
   }); }
 */
-  put_m(opt){ return etask({_: this}, function*put(){
-    let _this = this._, top = _this.top, {m, mr, verified, diff} = opt;
-    assert(_this.top, 'cannot put to empty scroll');
+  put_m(opt){
+    let top = this.top, {m, mr, verified, diff} = opt;
+    assert(this.top, 'cannot put to empty scroll');
     let sketch = {}, match=false, a=[ROOT_TYPE];
     let roots = calc_roots(top.seq+1);
     for (let i=0; i<roots.length; i++){
       let r = roots[i], _sketch = {};
-      let is_top = yield _this.merkel_is_top({top: r, r: mr,
+      let is_top = this.merkel_is_top({top: r, r: mr,
         verified, sketch: _sketch, diff});
       if (is_top){
         match = true;
         copy_m_hash(sketch, _sketch);
       }
-      if (!(m=(yield _this.merkel_calc_m({r, verified, sketch, diff})).m)){
+      if (!(m=this.merkel_calc_m({r, verified, sketch, diff}).m)){
         a = null;
         break;
       }
@@ -253,27 +250,27 @@ export default class Scroll {
       copy_m_hash(verified, sketch);
     }
     // XXX: we can do as soon as we verify something
-    yield _this.put_verified(verified);
-  }); }
-  put(diff){ return etask({_: this}, function*put(){
+    this.put_verified(verified);
+  }
+  put(diff){
     // XXX: verify all get_decl and check if we load all what is needed before
     // we start
-    let _this = this._, verified = {}, m;
+    let verified = {}, m;
     for (let seq in diff){
       seq = +seq;
       verified[seq] = verified[seq]||{};
       if (m = get_m_hash(diff, [seq, seq])) // XXX: todo for m sub ranges
-        yield _this.put_m({m, mr: [seq, seq], verified, diff});
-      let seq_o = diff[seq], decl = yield _this.get_decl(seq);
+        this.put_m({m, mr: [seq, seq], verified, diff});
+      let seq_o = diff[seq], decl = this.get_decl(seq);
       if (seq_o.sig && seq_o.d){ // XXX or calc hash from data
-        let M_prev = !seq ? _this.prev_scroll :
-          yield (yield _this.get_decl(seq-1, {create: true, hash_all: true}))
-          .M_hash() || get_M_hash(verified, seq-1);
+        let M_prev = !seq ? this.prev_scroll :
+          this.get_decl(seq-1, {create: true, hash_all: true}).M_hash() ||
+          get_M_hash(verified, seq-1);
         if (!seq || M_prev){ // XXX: what if no prev_scroll?
-          if (!Scroll.verify_sig(seq_o.sig, _this.pub, seq_o.d, M_prev))
+          if (!Scroll.verify_sig(seq_o.sig, this.pub, seq_o.d, M_prev))
             throw new Error('invalid sig'+seq);
           if (!seq){
-            if (!(yield decl.M_hash(seq)))
+            if (!decl.M_hash(seq))
               continue;
             // XXX: this could be branching point (check up)
           }
@@ -283,12 +280,12 @@ export default class Scroll {
           continue;
         }
         let sketch = {};
-        let prev_o = yield _this.merkel_calc_M({seq: seq-1, verified, sketch,
+        let prev_o = this.merkel_calc_M({seq: seq-1, verified, sketch,
           diff});
         if (!prev_o.match)
           continue;
         // XXX: we can skip verify sometimes by checkig hash
-        if (!Scroll.verify_sig(seq_o.sig, _this.pub, seq_o.d, prev_o.M))
+        if (!Scroll.verify_sig(seq_o.sig, this.pub, seq_o.d, prev_o.M))
            throw new Error('invalid sig'+seq);
           // XXX: need to verify it belongs to top
         if (seq)
@@ -297,13 +294,12 @@ export default class Scroll {
         copy_m_hash(verified, sketch);
       }
     }
-    yield _this.put_verified(verified);
-  }); }
-  put_verified(verified){ return etask({_: this}, function*put(){
-    let _this = this._;
+    this.put_verified(verified);
+  }
+  put_verified(verified){
     for (let seq in verified){
       seq = +seq;
-      let v = verified[seq], decl = yield _this.get_decl(seq, {create: true});
+      let v = verified[seq], decl = this.get_decl(seq, {create: true});
       for (let type in v){
         let val = v[type];
         switch (type){
@@ -318,26 +314,26 @@ export default class Scroll {
         }
       }
     }
-  }); }
-  merkel_is_top(opt){ return etask({_: this}, function*_merkel_is_top(){
-    let _this = this._, {top, r, verified, sketch, diff} = opt;
+  }
+  merkel_is_top(opt){
+    let {top, r, verified, sketch, diff} = opt;
     if (r[1]>top[1])
       return false;
     if (range_eq(r, top))
       return true;
     let {left, right, parent} = range_to_parent(r);
-    let m1 = (yield _this.merkel_calc_m({r: left, verified, sketch, diff})).m;
-    let m2 = (yield _this.merkel_calc_m({r: right, verified, sketch, diff})).m;
+    let m1 = this.merkel_calc_m({r: left, verified, sketch, diff}).m;
+    let m2 = this.merkel_calc_m({r: right, verified, sketch, diff}).m;
     if (!m1 || !m2)
       return null;
     let m = hparent(parent[1]-parent[0]+1, m1, m2);
     set_m_hash(sketch, parent, m);
-    return _this.merkel_is_top({top, r: parent, verified, sketch, diff});
-  }); }
-  merkel_calc_m(opt){ return etask({_: this}, function*_merkel_calc_m(){
-    let _this = this._, {r, verified, sketch, diff} = opt;
-    let seq = r[1], decl = yield _this.get_decl(seq, {create: true});
-    let m = (yield decl.m_hash(r)) || get_m_hash(verified, r);
+    return this.merkel_is_top({top, r: parent, verified, sketch, diff});
+  }
+  merkel_calc_m(opt){
+    let {r, verified, sketch, diff} = opt;
+    let seq = r[1], decl = this.get_decl(seq, {create: true});
+    let m = decl.m_hash(r) || get_m_hash(verified, r);
     let diff_m = get_m_hash(diff, r);
     if (m)
       return {match: true, m};
@@ -362,18 +358,18 @@ export default class Scroll {
       }
       return {match: false};
     }
-    let [r1, r2] = range_split(r), decl0 = yield _this.get_decl(r1[1]);
-    let m1 = (yield decl0.m_hash(r1)) || get_m_hash(verified, r1);
-    let m2 = (yield decl.m_hash(r2)) || get_m_hash(verified, r2);
+    let [r1, r2] = range_split(r), decl0 = this.get_decl(r1[1]);
+    let m1 = decl0.m_hash(r1) || get_m_hash(verified, r1);
+    let m2 = decl.m_hash(r2) || get_m_hash(verified, r2);
     if (m1 && m2){
       let m = hparent_safe(r[1]-r[0]+1, m1, m2);
       set_m_hash(sketch, r, m);
       return {match: true, m};
     }
     let o1 = m1 ? {match: true, m: m1} :
-      yield _this.merkel_calc_m({r: r1, verified, sketch, diff});
+      this.merkel_calc_m({r: r1, verified, sketch, diff});
     let o2 = m2 ? {match: true, m: m2} :
-      yield _this.merkel_calc_m({r: r2, verified, sketch, diff});
+      this.merkel_calc_m({r: r2, verified, sketch, diff});
     if (!o1.m || !o2.m){
       set_m_hash(sketch, r, diff_m);
       return {match: false, m: diff_m};
@@ -381,14 +377,14 @@ export default class Scroll {
     m = hparent(r[1]-r[0]+1, o1.m, o2.m);
     set_m_hash(sketch, r, m);
     return {match: o1.match || o2.match, m};
-  }); }
-  merkel_calc_M(opt){ return etask({_: this}, function*_merkel_calc_M(){
-    let _this = this._, {seq, verified, sketch, diff} = opt;
+  }
+  merkel_calc_M(opt){
+    let {seq, verified, sketch, diff} = opt;
     let roots = calc_roots(seq+1), a=[ROOT_TYPE];
     let _match=false;
     for (let i=0; i<roots.length; i++){
       let r = roots[i];
-      let {match, m} = yield _this.merkel_calc_m({r, verified, sketch, diff});
+      let {match, m} = this.merkel_calc_m({r, verified, sketch, diff});
       if (!m)
         return {match: false};
       if (match)
@@ -396,45 +392,39 @@ export default class Scroll {
       a.push(m, enc_u64(r[0]), enc_u64(r[1]-r[0]+1));
     }
     return {match: _match, M: hconcat(a)};
-  }); }
-  calc_root_hash = seq=>etask({_: this}, function*calc_root_hash(){
-    let _this = this._;
+  }
+  calc_root_hash(seq){
     let roots=calc_roots(seq+1), a=[ROOT_TYPE];
     for (let i=0; i<roots.length; i++){
       let r = roots[i];
       // XXX: get in parallel
-      a.push(yield _this.m_hash(r), enc_u64(r[0]), enc_u64(r[1]-r[0]+1));
+      a.push(this.m_hash(r), enc_u64(r[0]), enc_u64(r[1]-r[0]+1));
     }
     return hconcat_safe(a);
-  });
+  }
   lock(){} // XXX: TODO
   unlock(){} // XXX: TODO
-  seq_sig = seq=>etask({_: this}, function*seq_sig(){
-    return (yield this._.get_decl(seq))?.sig; });
-  seq_d = seq=>etask({_: this}, function*seq_d(){
-    return (yield this._.get_decl(seq)).fbuf.calc_hash(); });
-  m_hash = range=>etask({_: this}, function*m_hash(){
-    let _this = this._;
+  seq_sig(seq){ return this.get_decl(seq)?.sig; }
+  seq_d(seq){ return this.get_decl(seq).fbuf.calc_hash(); }
+  m_hash(range){
     let [, e] = range = range_fix(range);
-    let decl = yield _this.get_decl(e, {create: true});
+    let decl = this.get_decl(e, {create: true});
     return decl.m_hash(range);
-  });
-  M_hash = seq=>etask({_: this}, function*M_hash(){
-    let _this = this._;
-    let decl = yield _this.get_decl(seq===undefined ? this.size-1 : seq);
+  }
+  M_hash(seq){
+    let decl = this.get_decl(seq===undefined ? this.size-1 : seq);
     return decl ? decl.M_hash() : null;
-  });
-  get_decl = (seq, opt={})=>etask({_: this}, function get_decl(){
-    let _this = this._;
+  }
+  get_decl(seq, opt={}){
     assert(typeof seq=='number', 'invalid seq '+seq);
-    let decl = _this.decl_map.get(seq);
+    let decl = this.decl_map.get(seq);
     if (decl || opt.create===false)
       return decl;
-    decl = new Decl({scroll: _this, seq, fbuf: new FrameBuffer});
-    _this.decl_map.set(seq, decl);
-    _this.size = Math.max(_this.size, seq+1);
+    decl = new Decl({scroll: this, seq, fbuf: new FrameBuffer});
+    this.decl_map.set(seq, decl);
+    this.size = Math.max(this.size, seq+1);
     return decl;
-  });
+  }
 }
 
 class Decl {
@@ -450,17 +440,16 @@ class Decl {
     for (let i=0; i<ma.length; i++)
       this.m.push(new Merkel_node({decl: this, range: ma[i]}));
   }
-  sign = ()=>etask({_: this}, function*sign(){
-    let _this = this._;
-    let scroll = _this.scroll, d = yield _this.fbuf.calc_hash();
+  sign = ()=>{
+    let scroll = this.scroll, d = this.fbuf.calc_hash();
     assert(scroll.key, 'cannot sign without key');
-    let buf = _this.seq ? Buffer.concat([d, yield scroll.M_hash(_this.seq-1)])
+    let buf = this.seq ? Buffer.concat([d, scroll.M_hash(this.seq-1)])
       : scroll.prev_scroll ? Buffer.concat([d, scroll.prev_scroll]) : d;
     let sig = crypto.sign(crypto.blake2b(buf), scroll.key);
-    assert(!_this.sig || _this.sig.equals(sig), 'sig mismatch');
-    _this.set_sig(sig);
-    _this.fbuf.unshift({sig});
-  });
+    assert(!this.sig || this.sig.equals(sig), 'sig mismatch');
+    this.set_sig(sig);
+    this.fbuf.unshift({sig});
+  }
   set_sig(sig){
     assert(!this.sig || this.sig.equals(sig), 'sig changed');
     if (this.sig)
@@ -488,25 +477,24 @@ class Merkel_node {
     this.range = range_fix(opt.range);
     this.decl = opt.decl;
   }
-  calc_hash = ()=>etask({_: this}, function*calc_hash(){
-    let _this = this._;
-    if (_this.h)
-      return _this.h;
-    let [s, e] = _this.range, decl = _this.decl;
+  calc_hash(){
+    if (this.h)
+      return this.h;
+    let [s, e] = this.range, decl = this.decl;
     if (s==e){ // XXX: need to get sig async?
-      let d = yield decl.fbuf.calc_hash(), sig = decl.sig;
+      let d = decl.fbuf.calc_hash(), sig = decl.sig;
       if (!d || !sig)
         return null;
-      return _this.set_hash(hleaf(d, sig));
+      return this.set_hash(hleaf(d, sig));
     }
     // XXX: get in parallel
     let d = (e-s+1)/2; // XXX: range_split
-    let decl1 = yield decl.scroll.get_decl(s+d-1, {create: true});
-    let decl2 = yield decl.scroll.get_decl(e, {create: true});
-    _this.set_hash(hparent_safe(2*d, yield decl1.m_hash([s, s+d-1]),
-      yield decl2.m_hash([s+d, e])));
-    return _this.h;
-  });
+    let decl1 = decl.scroll.get_decl(s+d-1, {create: true});
+    let decl2 = decl.scroll.get_decl(e, {create: true});
+    this.set_hash(hparent_safe(2*d, decl1.m_hash([s, s+d-1]),
+      decl2.m_hash([s+d, e])));
+    return this.h;
+  }
   set_hash(h){
     assert(!this.h || this.h.equals(h), 'hash changed');
     if (this.h)
@@ -520,12 +508,11 @@ class Merkel_root {
     this.decl = opt.decl;
     this.scroll = opt.decl.scroll;
   }
-  calc_hash = ()=>etask({_: this}, function*calc_hash(){
-    let _this = this._;
-    if (_this.h)
-      return _this.h;
-    return _this.set_hash(yield _this.scroll.calc_root_hash(_this.decl.seq));
-  });
+  calc_hash(){
+    if (this.h)
+      return this.h;
+    return this.set_hash(this.scroll.calc_root_hash(this.decl.seq));
+  }
   set_hash(h){
     assert(!this.h || this.h.equals(h), 'hash changed');
     if (this.h)
@@ -537,20 +524,20 @@ class Merkel_root {
   }
 }
 
-Scroll.create = (opt, d)=>etask(function*scroll_create(){
+Scroll.create = function(opt, d){
   let scroll = new Scroll(opt);
-  yield scroll.decl([{scroll: {crypt: Scroll.supported_crypt,
+  scroll.decl([{scroll: {crypt: Scroll.supported_crypt,
     pub: b2s(opt.pub), ...d}}]);
   return scroll;
-});
+};
 
-Scroll.open = opt=>etask(function*scroll_create(){
+Scroll.open = function(opt){
   let scroll = new Scroll(opt);
   assert(opt.M && /^\d+$/.test(opt.M.seq) && opt.M.h, 'scroll.open missing M');
-  let decl = yield scroll.get_decl(opt.M.seq, {create: true});
-  yield decl.M.set_hash(opt.M.h);
+  let decl = scroll.get_decl(opt.M.seq, {create: true});
+  decl.M.set_hash(opt.M.h);
   return scroll;
-});
+};
 
 Scroll.supported_crypt = [{sig: 'ed25519', hash: 'blake2b', lif: 'lif1'}];
 Scroll.hconcat = hconcat; // XXX need test

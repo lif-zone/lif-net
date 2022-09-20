@@ -87,7 +87,7 @@ E._parse_exp = function(s){
       return {cmd: c, l: s.substr(0, i), r: s.substr(i+1), meta};
     }
   }
-  assert.equal(parentesis.length, 0);
+  assert.equal(parentesis.length, 0, 'invalid parentesis '+s);
   if (first==undefined)
     return {cmd: s, l: '', r: '', meta};
   assert.equal(s[s.length-1], ')');

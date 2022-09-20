@@ -2,10 +2,11 @@
 'use strict'; /*jslint node:true, browser:true*/
 import assert from 'assert';
 import crypto from '../util/crypto.js';
+import xerr from '../util/xerr.js';
 import enc from 'compact-encoding';
 import {Buffer} from 'buffer';
 import buf_util from '../peer-relay/buf_util.js';
-const b2s = buf_util.buf_to_str;
+const b2s = buf_util.buf_to_str, beq = buf_util.buf_eq;
 const stringify = JSON.stringify.bind(JSON);
 // https://en.wikipedia.org/wiki/Merkle_tree#Second_preimage_attack
 const LEAF_TYPE = enc_u64(0);
@@ -85,6 +86,10 @@ function range_str(range){
   return range[0]==range[1] ? ''+range[1] : range[0]+'_'+range[1];
 }
 
+// XXX need test
+function range_includes(r, r2){ return r2[0]>=r[0] && r2[1]<=r[1]; }
+
+// XXX need test
 function range_eq(a, b){ return a[0]==b[0] && a[1]==b[1]; }
 
 function range_to_parent(r){
@@ -108,17 +113,20 @@ function get_sig(data, seq){ return data[seq]?.sig; }
 
 // XXX: need test
 function get_m_hash(data, r){
+  r = range_fix(r);
   let m = data[r[1]]?.m;
   return m && m[r[0]] || null;
 }
 
 // XXX: need test
 function set_m_hash(data, r, val){
+  r = range_fix(r);
   let o = data[r[1]] = data[r[1]]||{};
   o.m = o.m||{};
   assert(!o.m[r[0]] || o.m[r[0]].equals(val), 'set m'+range_str(r)+
     ' diffent vals');
   o.m[r[0]] = val;
+  return val;
 }
 
 // XXX: need test
@@ -212,13 +220,112 @@ export default class Scroll {
     if (!this.top || this.top.seq<seq)
       this.top = {seq, M};
   }
-  xxx_put(diff){
-    let verified = {}, errors = [], m;
+  put2(diff){
+    let top = this.top;
+    let errors = [];
+    assert(top, 'cannot put to empty scroll');
     for (let seq in diff){
-      let m=get_m_hash(diff, [seq, seq]), decl=this.get_decl(seq);
+      seq = +seq;
+      let sketch = {}; // XXX: need to have another sketch for overall calc
+      let decl=this.get_decl(seq), m=get_m_hash(diff, seq);
       let sig=get_sig(diff, seq), d=get_d_hash(diff, seq);
-      if (!verify_decl_info(decl, {}));
+      let vm=decl.m_hash(seq), vsig=decl.sig_get(), vd=decl.d_hash();
+      // XXX: handle getting real data instead of d
+      if (vd && vsig){
+        if (sig && !beq(sig, vsig))
+          errors.push('invalid sig'+seq);
+        if (d && !beq(d, vd))
+          errors.push('invalid d'+seq);
+        if (m && !beq(m, vm))
+          errors.push('invalid m'+seq);
+        continue;
+      }
+      if (!m && (!d || !sig)){
+        if (sig)
+          errors.push('missing d'+seq);
+        else if (d)
+          errors.push('missing sig'+seq);
+        continue;
+      }
+      m = m||hleaf(d, sig);
+      if (vm);
+      else if (seq<=top.seq){
+        let M = this.sketch_calc_top_M({top, seq, m, sketch, diff, errors});
+        if (!M)
+          errors.push('missing M'+top.seq);
+        else if (!beq(M, top.M))
+          errors.push('invalid M'+top.seq);
+        else {
+          this.put_verified(sketch);
+//          xerr('XXX TODO check signatures');
+        }
+      }
+      else
+        assert.fail('XXX TODO');
+      // XXX: check if vm equals m
+      // check signature
+      // m5=hleaf(d5+sig5) sig5=sign(d5+M4) M5=hroot(m0_3+m4_5)
     }
+    return {errors};
+  }
+  sketch_calc_top_M(opt){
+    let {top, seq, m, sketch, diff, errors} = opt;
+    assert(seq<=top.seq, 'top over seq');
+    let roots = calc_roots(top.seq+1), a=[ROOT_TYPE];
+    for (let i=0; i<roots.length; i++){
+      let r = roots[i], mr;
+      mr = this.sketch_calc_m({range: r, sketch, diff, errors, force:
+        range_includes(r, [seq, seq]) ? {range: [seq, seq], m} : null}).m;
+      if (!mr){
+        errors.push('missing m'+range_str(r));
+        return null;
+      }
+      a.push(mr, enc_u64(r[0]), enc_u64(r[1]-r[0]+1));
+    }
+    return hconcat(a);
+  }
+  sketch_calc_m(opt){
+    let {range, sketch, diff, errors, force} = opt;
+    if (force && range_eq(range, force.range)){
+      set_m_hash(sketch, range, force.m);
+      return {m: set_m_hash(sketch, range, force.m)};
+    }
+    let seq = range[1], decl = this.get_decl(seq);
+    let m = get_m_hash(diff, range), vm = decl.m_hash(range);
+    if ((vm||m) && (!force || !range_includes(range, force.range)))
+      return {m: vm||m};
+    if (range[0]==range[1]){
+      errors.push('missing m'+range_str(range));
+      return null;
+    }
+    let [r1, r2] = range_split(range);
+    let m1, vm1, m2, vm2, decl1 = this.get_decl(r1[1]), decl2=decl;
+    if (force && range_includes(r1, force.range))
+      m1 = this.sketch_calc_m({range: r1, sketch, diff, errors, force});
+    else if (vm1 = decl1.m_hash(r1));
+    else if (m1 = get_m_hash(sketch, r1)||get_m_hash(diff, r1));
+    else
+      m1 = this.sketch_calc_m({range: r1, sketch, diff, errors});
+    if (!m1 && !vm1){
+      errors.push('missing m'+range_str(r1));
+      return null;
+    }
+    if (force && range_includes(r2, force.range))
+      m2 = this.sketch_calc_m({range: r2, sketch, diff, errors, force});
+    else if (vm2 = decl2.m_hash(r2));
+    else if (m2 = get_m_hash(sketch, r2)||get_m_hash(diff, r2));
+    else
+      m2 = this.sketch_calc_m({range: r2, sketch, diff, errors});
+    if (!m2 && !vm2){
+      errors.push('missing m'+range_str(r2));
+      return null;
+    }
+    if (m1)
+      set_m_hash(sketch, r1, m1);
+    if (m2)
+      set_m_hash(sketch, r2, m2);
+    m = hparent(range[1]-range[0]+1, vm1||m1, vm2||m2);
+    return set_m_hash(sketch, range, m);
   }
   put_m(opt){
     let top = this.top, {m, mr, verified, diff} = opt;
@@ -452,6 +559,8 @@ class Decl {
       return this.sig;
     return this.sig = sig;
   }
+  sig_get(){ return this.sig; }
+  d_hash(){ return this.fbuf.get_hash(); }
   m_get(range){
     let i = merkel_array_pos(range);
     assert.deepEqual(this.m[i].range, range_fix(range));

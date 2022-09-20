@@ -256,8 +256,9 @@ const cmd_decl = t=>etask(function*cmd_decl(){
 });
 
 const cmd_put = t=>etask(function*cmd_put(){
+  let xxx = t.cmd=='put2'; // XXX: WIP
   let name = t.ctx||'s', scroll = t_scroll[name];
-  let diff = {}, err;
+  let diff = {}, err='';
   for (let curr=t.r; curr = tparser.parse_get_next(curr);){
     let t2 = tparser.parse_exp_arg(curr.exp);
     assert(!t2.l, 'invalid put exp '+curr.exp);
@@ -275,6 +276,11 @@ const cmd_put = t=>etask(function*cmd_put(){
       seq_o.m[o.range[0]] = val;
     } else
       seq_o[type] = val;
+  }
+  if (xxx){
+    let ret = scroll.put2(diff);
+    assert.deepEqual(ret.errors, err ? err.split(',') : []);
+    return;
   }
   try {
     yield scroll.put(diff);
@@ -349,6 +355,7 @@ const test_run_single = o=>etask(function*_test_run_single(){
   case 'scroll': yield cmd_scroll(o); break;
   case 'decl': yield cmd_decl(o); break;
   case 'put': yield cmd_put(o); break;
+  case 'put2': yield cmd_put(o); break;
   case 'test': yield cmd_test(o); break;
   case '//': break;
   case '=': yield cmd_eq(o); break;
@@ -561,6 +568,28 @@ function put(diff){
 // XXX TODO: need caching of calculated values that were not verified
 
 */
+    describe('put2', ()=>{
+      let s = `s.scroll(!prev_scroll) s.decl(1-32) s2.scroll(M0:s.M0)
+        s2.test(M0)`;
+      describe('errors_invalid', ()=>{
+        // XXX: need to verify that s didn't change after the errors
+        t('sig0', `${s} s.put2(sig0:sig1 err(invalid sig0))`);
+        t('d0', `${s} s.put2(d0:d1 err(invalid d0))`);
+        t('m0', `${s} s.put2(m0:m1 err(invalid m0))`);
+        t('sig0 d0 m0', `${s} s.put2(sig0:sig1 d0:d1 m0:d1
+          err(invalid sig0,invalid d0,invalid m0))`);
+        t('sig1', `${s} s.put2(sig1:sig0 err(invalid sig1))`);
+      });
+      describe('errors_missing', ()=>{
+        t('sig0', `${s} s2.put2(sig0 err(missing d0)) s2.test(M0)`);
+        t('d0', `${s} s2.put2(d0 err(missing sig0)) s2.test(M0)`);
+      });
+      t('xxx1', `${s} s2.put2(m0:m1 err(invalid M0)) s2.test(M0)`);
+      t('xxx2', `${s} s2.put2(m0) s2.test(M0 m0)`);
+      if (0) // XXX: TODO
+      t('xxx3', `${s} s2.put2(m0 sig0 d0) s2.test(M0 m0 sig0 d0)`);
+    });
+    // XXX: rm
     describe('M0.put', ()=>{
       // XXX: test with prev_scroll
       // XXX make last used cmd default and last used arg default

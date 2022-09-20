@@ -32,7 +32,7 @@ class FrameBuffer {
       this.frames.push(to_frame(frames[i]));
   }
   unshift(o){ this.frames.unshift(to_frame(o)); }
-  calc_hash(){
+  get_hash(){
     if (this.h)
       return this.h;
     let buf, frames = this.frames;
@@ -212,18 +212,14 @@ export default class Scroll {
     if (!this.top || this.top.seq<seq)
       this.top = {seq, M};
   }
-/* XXX: WIP
-  xxx_put(diff){ return etask({_: this}, function*put(){
+  xxx_put(diff){
     let verified = {}, errors = [], m;
-    // XXX: need to write this part sync code, but first need to find out
-    // how to know which declarations to load in memory
     for (let seq in diff){
-      let m=get_m_hash(diff, [seq, seq]), decl=yield this.get_decl(seq);
+      let m=get_m_hash(diff, [seq, seq]), decl=this.get_decl(seq);
       let sig=get_sig(diff, seq), d=get_d_hash(diff, seq);
-      if (!verify_decl_info(decl, {m:
+      if (!verify_decl_info(decl, {}));
     }
-  }); }
-*/
+  }
   put_m(opt){
     let top = this.top, {m, mr, verified, diff} = opt;
     assert(this.top, 'cannot put to empty scroll');
@@ -405,7 +401,7 @@ export default class Scroll {
   lock(){} // XXX: TODO
   unlock(){} // XXX: TODO
   seq_sig(seq){ return this.get_decl(seq)?.sig; }
-  seq_d(seq){ return this.get_decl(seq).fbuf.calc_hash(); }
+  seq_d(seq){ return this.get_decl(seq).fbuf.get_hash(); }
   m_hash(range){
     let [, e] = range = range_fix(range);
     let decl = this.get_decl(e, {create: true});
@@ -441,7 +437,7 @@ class Decl {
       this.m.push(new Merkel_node({decl: this, range: ma[i]}));
   }
   sign = ()=>{
-    let scroll = this.scroll, d = this.fbuf.calc_hash();
+    let scroll = this.scroll, d = this.fbuf.get_hash();
     assert(scroll.key, 'cannot sign without key');
     let buf = this.seq ? Buffer.concat([d, scroll.M_hash(this.seq-1)])
       : scroll.prev_scroll ? Buffer.concat([d, scroll.prev_scroll]) : d;
@@ -464,11 +460,11 @@ class Decl {
   }
   m_hash(range){
     let m = this.m_get(range);
-    return m.h || m.calc_hash();
+    return m.h || m.get_hash();
   }
   M_hash(){
     let M = this.M;
-    return M.h || M.calc_hash();
+    return M.h || M.get_hash();
   }
 }
 
@@ -477,12 +473,12 @@ class Merkel_node {
     this.range = range_fix(opt.range);
     this.decl = opt.decl;
   }
-  calc_hash(){
+  get_hash(){
     if (this.h)
       return this.h;
     let [s, e] = this.range, decl = this.decl;
     if (s==e){ // XXX: need to get sig async?
-      let d = decl.fbuf.calc_hash(), sig = decl.sig;
+      let d = decl.fbuf.get_hash(), sig = decl.sig;
       if (!d || !sig)
         return null;
       return this.set_hash(hleaf(d, sig));
@@ -508,7 +504,7 @@ class Merkel_root {
     this.decl = opt.decl;
     this.scroll = opt.decl.scroll;
   }
-  calc_hash(){
+  get_hash(){
     if (this.h)
       return this.h;
     return this.set_hash(this.scroll.calc_root_hash(this.decl.seq));

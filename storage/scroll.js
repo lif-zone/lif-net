@@ -317,8 +317,11 @@ export default class Scroll {
     }
     let seq = range[1], decl = this.get_decl(seq);
     let m = get_m_hash(diff, range), vm = decl.m_hash(range);
-    if ((vm||m) && (!force || !range_includes(range, force.range)))
+    if ((vm||m) && (!force || !range_includes(range, force.range))){
+      if (m && !vm)
+        set_m_hash(sketch, range, m);
       return {m: vm||m};
+    }
     if (range[0]==range[1]){
       push_error(errors, 'missing m'+range_str(range));
       return {m: null};

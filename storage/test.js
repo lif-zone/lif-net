@@ -644,7 +644,7 @@ function put(diff){
         t('m0m1m2_invalid_m2', `${s} s2.put2(m0 m1 m2:m0 err(invalid M2))
           s2.test(M2)`);
         // XXX BUG: m0_1 was not inserted
-        t('m0_1m2', `${s} s2.put2(m0_1 m2) s2.test(M2 m2)`);
+        t('m0_1m2', `${s} s2.put2(m0_1 m2) s2.test(M2 m2 m0_1)`);
         t('m0_1m2_invalid_m0_1', `${s} s2.put2(m0_1:m1 m2 err(invalid M2))
           s2.test(M2)`);
         t('m0_1m2_invalid_m2', `${s} s2.put2(m0_1 m2:m1 err(invalid M2))

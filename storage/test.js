@@ -711,16 +711,22 @@ function put(diff){
           s2.put2(d31 sig31:sig30 m0_15 m16_23 m24_27 m28_29 m30 m31
           err(invalid sig31)) s2.test(M31 m30 m31 m0_15 m16_23 m24_27 m28_29
           m28_31 m30_31 m24_31 m16_31 m0_31)`);
-        t('seq_29_missing', `${s}
+        t('seq29_ok', `${s}
+          s2.put2(d29 sig29 m0_15 m16_23 m24_27 m28 m30 m31)
+          s2.test(sig29 d29 M31 m28 m29 m30 m31 m0_15
+          m16_23 m24_27 m28_29 m28_31 m30_31 m24_31 m16_31 m0_31)`);
+        t('seq29_ok_invalid_sig', `${s}
+          s2.put2(d29 sig29:sig0 m0_15 m16_23 m24_27 m28 m30 m31
+          err(invalid M31)) s2.test(M31)`);
+        t('seq29_missing_m28', `${s}
           s2.put2(d29 sig29 m0_15 m16_23 m24_27 m28_29 m30 m31
           err(missing m28,missing m28_29,missing m28_31,missing m24_31,
           missing m16_31,missing m0_31))
           s2.test(M31 m30 m31 m0_15 m16_23 m24_27 m28_29 m28_31
           m30_31 m24_31 m16_31 m0_31)`);
-        t('seq_29_missing', `${s}
-          s2.put2(d29 sig29 m0_15 m16_23 m24_27 m28 m30 m31)
-          s2.test(sig29 d29 M31 m28 m29 m30 m31 m0_15
-          m16_23 m24_27 m28_29 m28_31 m30_31 m24_31 m16_31 m0_31)`);
+      });
+      describe('top_M32', ()=>{
+        // XXX TODO
       });
     });
     // XXX: rm

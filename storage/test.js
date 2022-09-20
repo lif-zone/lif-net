@@ -631,10 +631,8 @@ function put(diff){
           s2.test(sig0 d0 sig1 d1 M0 m0 M1 m1 m0_1)`);
         // XXX: ^m0_1 is redundant
         t('m0m1m0_1', `${s} s2.put2(m0 m1 m0_1) s2.test(M0 m0 M1 m1 m0_1)`);
-        if (0) // XXX BUG
         t('m0_sig1d1', `${s} s2.put2(m0 sig1 d1)
           s2.test(sig1 d1 M0 m0 M1 m1 m0_1)`);
-        if (0) // XXX BUG
         t('m1_sig0d0', `${s} s2.put2(sig0 d0 m1)
           s2.test(sig0 d0 M0 m0 M1 m1 m0_1)`);
         // XXX add test for d0sig0_d1_sig1
@@ -719,10 +717,10 @@ function put(diff){
           missing m16_31,missing m0_31))
           s2.test(M31 m30 m31 m0_15 m16_23 m24_27 m28_29 m28_31
           m30_31 m24_31 m16_31 m0_31)`);
-        if (0) // XXX fixme
         t('seq_29_missing', `${s}
           s2.put2(d29 sig29 m0_15 m16_23 m24_27 m28 m30 m31)
-          // XXX add s2.test()`);
+          s2.test(sig29 d29 M31 m28 m29 m30 m31 m0_15
+          m16_23 m24_27 m28_29 m28_31 m30_31 m24_31 m16_31 m0_31)`);
       });
     });
     // XXX: rm

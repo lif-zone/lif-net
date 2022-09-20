@@ -323,8 +323,14 @@ export default class Scroll {
       return {m: vm||m};
     }
     if (range[0]==range[1]){
-      push_error(errors, 'missing m'+range_str(range));
-      return {m: null};
+      assert(!m);
+      let d = get_d_hash(diff, seq), sig = get_sig(diff, seq);
+      if (d && sig){
+        m = hleaf(d, sig);
+        set_m_hash(sketch, seq, m);
+      } else
+        push_error(errors, 'missing m'+range_str(range));
+      return {m};
     }
     let [r1, r2] = range_split(range);
     let m1, vm1, m2, vm2, decl1 = this.get_decl(r1[1]), decl2=decl;

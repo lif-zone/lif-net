@@ -643,7 +643,6 @@ function put(diff){
           s2.test(M2)`);
         t('m0m1m2_invalid_m2', `${s} s2.put2(m0 m1 m2:m0 err(invalid M2))
           s2.test(M2)`);
-        // XXX BUG: m0_1 was not inserted
         t('m0_1m2', `${s} s2.put2(m0_1 m2) s2.test(M2 m2 m0_1)`);
         t('m0_1m2_invalid_m0_1', `${s} s2.put2(m0_1:m1 m2 err(invalid M2))
           s2.test(M2)`);
@@ -662,8 +661,13 @@ function put(diff){
           err(missing m3,missing m2_3,missing m0_3)) s2.test(M3)`);
         t('m0m1m2m3', `${s} s2.put2(m0 m1 m2 m3)
           s2.test(M3 m0 m1 m2 m3 m0_1 m2_3 m0_3)`);
+        t('m0m1m2m3_invalid_m0', `${s} s2.put2(m0:m1 m1 m2 m3 err(invalid M3))
+          s2.test(M3)`);
         t('m0_1m2m3', `${s} s2.put2(m0_1 m2 m3)
           s2.test(M3 m2 m3 m0_1 m2_3 m0_3)`);
+        t('m0_1m2m3_invalid_m0_1', `${s} s2.put2(m0_1:m0 m2 m3 err(invalid M3))
+          s2.test(M3)`);
+        // XXX: add test for sig/d insert + invalid
       });
     });
     // XXX: rm

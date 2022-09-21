@@ -246,7 +246,7 @@ export default class Scroll {
     let top = this.top;
     let errors = {};
     assert(top, 'cannot put to empty scroll');
-    let a = Object.keys(diff), last_seq = +a[a.length-1].seq;
+    let a = Object.keys(diff), last_seq = +a[a.length-1]?.seq;
     for (let i=0; i<a.length; i++){
       let seq = +a[i];
       let sketch = {}; // XXX: need to have another sketch for overall calc
@@ -276,7 +276,7 @@ export default class Scroll {
       }
       if (!m)
         continue;
-      if (seq<=top.seq){
+      if (seq<=top.seq){ // verify m belongs to top.M
         let M = this.sketch_calc_top_M({top, seq, m, sketch, diff, errors});
         if (!M); // XXX push_error(errors, 'missing M'+top.seq)?
         else if (!beq(M, top.M))
@@ -286,14 +286,13 @@ export default class Scroll {
           this.put_verified(sketch);
         }
       }
-      else {
+      else { // new top
         if (!sig || !d){
-          if (seq==last_seq)
+          if (seq==last_seq) // we must be able to verify new top signature
             push_error(errors, 'missing '+(sig ? 'd' : 'sig')+seq);
           continue;
         }
-        let old_top_decl = this.get_decl(top.seq);
-        let old_top_vm = old_top_decl.m_hash(top.seq);
+        let old_top_vm = this.get_decl(top.seq).m_hash(top.seq);
         if (!old_top_vm){
           push_error(errors, 'missing m'+top.seq);
           continue;

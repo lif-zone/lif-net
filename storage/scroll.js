@@ -303,9 +303,9 @@ export default class Scroll {
           push_error(errors, 'missing m'+(seq-1));
           continue;
         }
-        let vM_prev = this.sketch_calc_top_M({top: {seq: seq-1},
+        let prev_M = this.sketch_calc_top_M({top: {seq: seq-1},
           seq: seq-1, m: prev_m, sketch, diff, errors});
-        if (!vM_prev){
+        if (!prev_M){ // so we can verify new top signature
           push_error(errors, 'missing M'+(seq-1));
           continue;
         }
@@ -313,33 +313,31 @@ export default class Scroll {
           push_error(errors, 'invalid sig'+seq);
           continue;
         }
-        if (!Scroll.verify_sig(sig, this.pub, d, vM_prev)){
+        if (!Scroll.verify_sig(sig, this.pub, d, prev_M)){
           push_error(errors, 'invalid sig'+seq);
           continue;
         }
         set_sig(sketch, seq, sig);
         set_d_hash(sketch, seq, d);
-        let new_top_M;
-        new_top_M = this.sketch_calc_top_M({top: {seq},
-          seq, m, sketch, diff, errors});
-        if (!new_top_M){
+        // calc new top M
+        let new_M = this.sketch_calc_top_M({top: {seq}, seq, m, sketch, diff,
+          errors});
+        if (!new_M){
           push_error(errors, 'missing M'+seq);
           continue;
         }
+        // calc new top M using previos top
         let M = this.sketch_calc_top_M({top: {seq},
           seq: top.seq, m: old_top_vm, sketch, diff, errors});
         if (!M)
           push_error(errors, 'missing M'+seq);
-        else if (!beq(M, new_top_M))
+        else if (!beq(M, new_M))
           push_error(errors, 'invalid M'+seq);
         else {
           check_set_sig(sketch, errors, seq, m, d, sig);
           this.put_verified(sketch);
         }
       }
-      // XXX: check if vm equals m
-      // check signature
-      // m5=hleaf(d5+sig5) sig5=sign(d5+M4) M5=hroot(m0_3+m4_5)
     }
     return {errors};
   }

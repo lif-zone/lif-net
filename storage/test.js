@@ -602,6 +602,37 @@ function put(diff){
           err(invalid sig0)) s2.test(M0 m0)`);
         t('m0_sig0d0_invalid_d0', `${s} s2.put2(m0 sig0:sig0 d0:d1
           err(invalid sig0)) s2.test(M0 m0)`);
+        t('m0_sig1d1', `${s} s2.put2(m0 sig1 d1)
+          s2.test(sig1 d1 M0 m0 m1 m0_1)`);
+        t('m0_sig1d1_invalid_m0', `${s} s2.put2(m0:m1 sig1 d1
+          err(invalid M0,invalid m1)) s2.test(M0)`);
+        t('m0_sig1d1_invalid_sig1', `${s} s2.put2(m0 sig1:sig0 d1
+          err(invalid sig1)) s2.test(M0 m0)`);
+        t('m0m1_sig1d1', `${s} s2.put2(m0 m1 sig1 d1)
+          s2.test(sig1 d1 M0 m0 m1 m0_1)`);
+        t('m0m1_sig1d1_invalid_m0', `${s} s2.put2(m0:m1 m1 sig1 d1
+          err(invalid M0, invalid m1)) s2.test(M0)`);
+        t('m0m1_sig1d1_invalid_m1', `${s} s2.put2(m0 m1:m0 sig1 d1
+          err(invalid sig1)) s2.test(M0 m0)`);
+        t('m0m1_sig1d1_invalid_sig1', `${s} s2.put2(m0 m1 sig1:sig0 d1
+          err(invalid sig1)) s2.test(M0 m0)`);
+        t('m0m1_sig1d1_missing_m0', `${s} s2.put2(m1 sig1 d1
+          err(invalid m1)) s2.test(M0)`);
+        // XXX add errors/missing to below tests
+        t('add_d2', `${s} s2.put2(sig2 d2 sig1 d1 m1 m0)`);
+        t('add_d3', `${s} s2.put2(sig3 d3 m0 m1 m2)
+          s2.test(M0 m0 sig3 d3 m0 m1 m2 m3 m2_3 m0_3 m0_1)`);
+        t('add_d3_missing_sig3', `${s} s2.put2(d3 m0 m1 m2 err(missing sig3))
+          s2.test(M0 m0)`);
+        t('add_d3_invalid_sig3', `${s} s2.put2(sig3:sig2 d3 m0 m1 m2
+          err(invalid sig3)) s2.test(M0 m0)`);
+        t('add_d3_invalid_m0', `${s} s2.put2(sig3 d3 m0:m1 m1 m2
+          err(invalid M0, invalid m3)) s2.test(M0)`);
+        t('add_d3_invalid_m1', `${s} s2.put2(sig3 d3 m0 m1:m0 m2
+          err(invalid sig3)) s2.test(M0 m0)`);
+        t('add_d3_invalid_m2', `${s} s2.put2(sig3 d3 m0 m1 m2:m1
+          err(invalid sig3)) s2.test(M0 m0)`);
+        // XXX: add more
       });
       describe('top_M1', ()=>{
         let s = `s.scroll(!prev_scroll) s.decl(1-32) s2.scroll(M1)

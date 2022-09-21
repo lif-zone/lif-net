@@ -246,8 +246,9 @@ export default class Scroll {
     let top = this.top;
     let errors = {};
     assert(top, 'cannot put to empty scroll');
-    for (let seq in diff){
-      seq = +seq;
+    let a = Object.keys(diff), last_seq = +a[a.length-1].seq;
+    for (let i=0; i<a.length; i++){
+      let seq = +a[i];
       let sketch = {}; // XXX: need to have another sketch for overall calc
       let decl=this.get_decl(seq), m=get_m_hash(diff, seq);
       let sig=get_sig(diff, seq), d=get_d_hash(diff, seq);
@@ -285,8 +286,58 @@ export default class Scroll {
           this.put_verified(sketch);
         }
       }
-      else
-        assert.fail('XXX TODO');
+      else {
+        if (!sig || !d){
+          if (seq==last_seq)
+            push_error(errors, 'missing '+(sig ? 'd' : 'sig')+seq);
+          continue;
+        }
+        let old_top_decl = this.get_decl(top.seq);
+        let old_top_vm = old_top_decl.m_hash(top.seq);
+        if (!old_top_vm){
+          push_error(errors, 'invalid m'+seq);
+          continue;
+        }
+        let prev_m = this.sketch_calc_m({range: [seq-1, seq-1],
+          sketch, diff, errors}).m;
+        if (!prev_m){
+          push_error(errors, 'missing m'+(seq-1));
+          continue;
+        }
+        let vM_prev = this.sketch_calc_top_M({top: {seq: seq-1},
+          seq: seq-1, m: prev_m, sketch, diff, errors});
+        if (!vM_prev){
+          push_error(errors, 'missing M'+(seq-1));
+          continue;
+        }
+        if (!beq(m, hleaf(d, sig))){
+          push_error(errors, 'invalid sig'+seq);
+          continue;
+        }
+        if (!Scroll.verify_sig(sig, this.pub, d, vM_prev)){
+          push_error(errors, 'invalid sig'+seq);
+          continue;
+        }
+        set_sig(sketch, seq, sig);
+        set_d_hash(sketch, seq, d);
+        let new_top_M;
+        new_top_M = this.sketch_calc_top_M({top: {seq},
+          seq, m, sketch, diff, errors});
+        if (!new_top_M){
+          push_error(errors, 'missing M'+seq);
+          continue;
+        }
+        let M = this.sketch_calc_top_M({top: {seq},
+          seq: top.seq, m: old_top_vm, sketch, diff, errors});
+        if (!M)
+          push_error(errors, 'missing M'+seq);
+        else if (!beq(M, new_top_M))
+          push_error(errors, 'invalid M'+seq);
+        else {
+          check_set_sig(sketch, errors, seq, m, d, sig);
+          this.put_verified(sketch);
+        }
+      }
       // XXX: check if vm equals m
       // check signature
       // m5=hleaf(d5+sig5) sig5=sign(d5+M4) M5=hroot(m0_3+m4_5)

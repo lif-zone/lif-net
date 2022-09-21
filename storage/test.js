@@ -591,13 +591,17 @@ function put(diff){
       describe('top_M0', ()=>{
         let s = `s.scroll(!prev_scroll) s.decl(1-32) s2.scroll(M0)
           s2.test(M0)`;
-        t('xxx1', `${s} s2.put2(m0:m1 err(invalid M0)) s2.test(M0)`);
-        t('xxx2', `${s} s2.put2(m0) s2.test(M0 m0)`);
-        t('xxx3', `${s} s2.put2(m0 sig0 d0) s2.test(M0 m0 sig0 d0)`);
-        t('xxx4', `${s} s2.put2(m0 sig0 err(missing d0)) s2.test(M0 m0)`);
-        t('xxx5', `${s} s2.put2(m0 d0 err(missing sig0)) s2.test(M0 m0)`);
-        t('xxx6', `${s} s2.put2(m0 sig0:sig1 d0 err(invalid sig0))
+        t('m0', `${s} s2.put2(m0) s2.test(M0 m0)`);
+        t('m0_invalid_m0', `${s} s2.put2(m0:m1 err(invalid M0)) s2.test(M0)`);
+        t('m0_sig0d0', `${s} s2.put2(m0 sig0 d0) s2.test(M0 m0 sig0 d0)`);
+        t('m0_sig0d0_missing_d0', `${s} s2.put2(m0 sig0 err(missing d0))
           s2.test(M0 m0)`);
+        t('m0_sig0d0_missing_sig0', `${s} s2.put2(m0 d0 err(missing sig0))
+          s2.test(M0 m0)`);
+        t('m0_sig0d0_invalid_sig0', `${s} s2.put2(m0 sig0:sig1 d0
+          err(invalid sig0)) s2.test(M0 m0)`);
+        t('m0_sig0d0_invalid_d0', `${s} s2.put2(m0 sig0:sig0 d0:d1
+          err(invalid sig0)) s2.test(M0 m0)`);
       });
       describe('top_M1', ()=>{
         let s = `s.scroll(!prev_scroll) s.decl(1-32) s2.scroll(M1)

@@ -309,7 +309,7 @@ export default class Scroll {
           push_error(errors, 'missing M'+(seq-1));
           continue;
         }
-        if (!beq(m, hleaf(d, sig))){
+        if (!beq(m, hleaf(d, sig))){ // XXX: mv to ealier stage
           push_error(errors, 'invalid sig'+seq);
           continue;
         }

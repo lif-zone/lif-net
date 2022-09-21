@@ -2,17 +2,13 @@
 'use strict'; /*jslint node:true, browser:true*/
 import assert from 'assert';
 import crypto from '../util/crypto.js';
-import xerr from '../util/xerr.js';
 import enc from 'compact-encoding';
 import {Buffer} from 'buffer';
 import buf_util from '../peer-relay/buf_util.js';
 const b2s = buf_util.buf_to_str, beq = buf_util.buf_eq;
 const stringify = JSON.stringify.bind(JSON);
 // https://en.wikipedia.org/wiki/Merkle_tree#Second_preimage_attack
-const LEAF_TYPE = enc_u64(0);
-const PARENT_TYPE = enc_u64(1);
-const ROOT_TYPE = enc_u64(2);
-const assign = Object.assign;
+const LEAF_TYPE = enc_u64(0), PARENT_TYPE = enc_u64(1), ROOT_TYPE = enc_u64(2);
 function enc_u64(v){ return enc.encode(enc.uint64, v); }
 
 function to_frame(o){
@@ -101,12 +97,6 @@ function range_to_parent(r){
 }
 
 // XXX: need test
-function get_M_hash(data, seq){ return data[seq]?.M; }
-function set_M_hash(data, seq, val){
-  data[seq] = data[seq]||{};
-  data[seq].M = val;
-}
-// XXX: need test
 function get_d_hash(data, seq){ return data[seq]?.d; } // XXX: or calc from D
 function set_d_hash(data, seq, val){
   let o = data[seq] = data[seq]||{};
@@ -150,18 +140,6 @@ function check_set_sig(sketch, errors, seq, m, d, sig){
 }
 
 function push_error(errors, s){ errors[s] = (errors[s]||0)+1; }
-
-// XXX: need test
-function copy_m_hash(dst, src){
-  for (let seq in src){
-    seq = +seq;
-    let m = src[seq].m;
-    if (!m)
-      continue;
-    for (let seq2 in m)
-      set_m_hash(dst, [seq2, seq], m[seq2]);
-  }
-}
 
 function seq_merkel_array_size(seq){
   let n=1;
@@ -256,7 +234,7 @@ export default class Scroll {
     if (!this.top || this.top.seq<seq)
       this.top = {seq, M};
   }
-  put2(diff){
+  put(diff){
     let top = this.top;
     let errors = {};
     assert(top, 'cannot put to empty scroll');
@@ -396,78 +374,6 @@ export default class Scroll {
     set_m_hash(sketch, range, m);
     return m;
   }
-  put_m(opt){
-    let top = this.top, {m, mr, verified, diff} = opt;
-    assert(this.top, 'cannot put to empty scroll');
-    let sketch = {}, match=false, a=[ROOT_TYPE];
-    let roots = calc_roots(top.seq+1);
-    for (let i=0; i<roots.length; i++){
-      let r = roots[i], _sketch = {};
-      let is_top = this.merkel_is_top({top: r, r: mr,
-        verified, sketch: _sketch, diff});
-      if (is_top){
-        match = true;
-        copy_m_hash(sketch, _sketch);
-      }
-      if (!(m=this.merkel_calc_m({r, verified, sketch, diff}).m)){
-        a = null;
-        break;
-      }
-      a.push(m, enc_u64(r[0]), enc_u64(r[1]-r[0]+1));
-    }
-    if (a && match){
-      let M = hconcat(a);
-      if (!top.M.equals(M))
-        throw new Error('invalid M'); // XXX: branch if we can connect down
-      copy_m_hash(verified, sketch);
-    }
-    // XXX: we can do as soon as we verify something
-    this.put_verified(verified);
-  }
-  put(diff){
-    // XXX: verify all get_decl and check if we load all what is needed before
-    // we start
-    let verified = {}, m;
-    for (let seq in diff){
-      seq = +seq;
-      verified[seq] = verified[seq]||{};
-      if (m = get_m_hash(diff, [seq, seq])) // XXX: todo for m sub ranges
-        this.put_m({m, mr: [seq, seq], verified, diff});
-      let seq_o = diff[seq], decl = this.get_decl(seq);
-      if (seq_o.sig && seq_o.d){ // XXX or calc hash from data
-        let M_prev = !seq ? this.prev_scroll :
-          this.get_decl(seq-1, {create: true, hash_all: true}).M_hash() ||
-          get_M_hash(verified, seq-1);
-        if (!seq || M_prev){ // XXX: what if no prev_scroll?
-          if (!Scroll.verify_sig(seq_o.sig, this.pub, seq_o.d, M_prev))
-            throw new Error('invalid sig'+seq);
-          if (!seq){
-            if (!decl.M_hash(seq))
-              continue;
-            // XXX: this could be branching point (check up)
-          }
-          // XXX: need to verify it belongs to top
-          assign(verified[seq], {d: seq_o.d, sig: seq_o.sig});
-          // XXX: need to add more information that was provided
-          continue;
-        }
-        let sketch = {};
-        let prev_o = this.merkel_calc_M({seq: seq-1, verified, sketch,
-          diff});
-        if (!prev_o.match)
-          continue;
-        // XXX: we can skip verify sometimes by checkig hash
-        if (!Scroll.verify_sig(seq_o.sig, this.pub, seq_o.d, prev_o.M))
-           throw new Error('invalid sig'+seq);
-          // XXX: need to verify it belongs to top
-        if (seq)
-          set_M_hash(verified, seq-1, M_prev);
-        assign(verified[seq], {d: seq_o.d, sig: seq_o.sig});
-        copy_m_hash(verified, sketch);
-      }
-    }
-    this.put_verified(verified);
-  }
   put_verified(verified){
     for (let seq in verified){
       seq = +seq;
@@ -486,84 +392,6 @@ export default class Scroll {
         }
       }
     }
-  }
-  merkel_is_top(opt){
-    let {top, r, verified, sketch, diff} = opt;
-    if (r[1]>top[1])
-      return false;
-    if (range_eq(r, top))
-      return true;
-    let {left, right, parent} = range_to_parent(r);
-    let m1 = this.merkel_calc_m({r: left, verified, sketch, diff}).m;
-    let m2 = this.merkel_calc_m({r: right, verified, sketch, diff}).m;
-    if (!m1 || !m2)
-      return null;
-    let m = hparent(parent[1]-parent[0]+1, m1, m2);
-    set_m_hash(sketch, parent, m);
-    return this.merkel_is_top({top, r: parent, verified, sketch, diff});
-  }
-  merkel_calc_m(opt){
-    let {r, verified, sketch, diff} = opt;
-    let seq = r[1], decl = this.get_decl(seq, {create: true});
-    let m = decl.m_hash(r) || get_m_hash(verified, r);
-    let diff_m = get_m_hash(diff, r);
-    if (m)
-      return {match: true, m};
-    if (r[0]==r[1]){
-      let d = decl.fbuf.h||get_d_hash(verified, seq);
-      let sig = decl.sig||get_sig(verified, seq);
-      if (d && sig){
-        m = hleaf(d, sig);
-        set_m_hash(sketch, r, m);
-        return {match: true, m};
-      }
-      if (diff_m){
-        set_m_hash(sketch, r, diff_m);
-        return {match: false, m: diff_m};
-      }
-      d = d||get_d_hash(diff, seq);
-      sig = sig||get_sig(diff, seq);
-      if (d && sig){
-        // XXX: do we need to verify sig?
-        set_m_hash(sketch, r, diff_m);
-        return {match: false, m: hleaf(d, sig)};
-      }
-      return {match: false};
-    }
-    let [r1, r2] = range_split(r), decl0 = this.get_decl(r1[1]);
-    let m1 = decl0.m_hash(r1) || get_m_hash(verified, r1);
-    let m2 = decl.m_hash(r2) || get_m_hash(verified, r2);
-    if (m1 && m2){
-      let m = hparent_safe(r[1]-r[0]+1, m1, m2);
-      set_m_hash(sketch, r, m);
-      return {match: true, m};
-    }
-    let o1 = m1 ? {match: true, m: m1} :
-      this.merkel_calc_m({r: r1, verified, sketch, diff});
-    let o2 = m2 ? {match: true, m: m2} :
-      this.merkel_calc_m({r: r2, verified, sketch, diff});
-    if (!o1.m || !o2.m){
-      set_m_hash(sketch, r, diff_m);
-      return {match: false, m: diff_m};
-    }
-    m = hparent(r[1]-r[0]+1, o1.m, o2.m);
-    set_m_hash(sketch, r, m);
-    return {match: o1.match || o2.match, m};
-  }
-  merkel_calc_M(opt){
-    let {seq, verified, sketch, diff} = opt;
-    let roots = calc_roots(seq+1), a=[ROOT_TYPE];
-    let _match=false;
-    for (let i=0; i<roots.length; i++){
-      let r = roots[i];
-      let {match, m} = this.merkel_calc_m({r, verified, sketch, diff});
-      if (!m)
-        return {match: false};
-      if (match)
-        _match = true;
-      a.push(m, enc_u64(r[0]), enc_u64(r[1]-r[0]+1));
-    }
-    return {match: _match, M: hconcat(a)};
   }
   calc_root_hash(seq){
     let roots=calc_roots(seq+1), a=[ROOT_TYPE];

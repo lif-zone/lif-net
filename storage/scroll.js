@@ -292,6 +292,10 @@ export default class Scroll {
             push_error(errors, 'missing '+(sig ? 'd' : 'sig')+seq);
           continue;
         }
+        if (!beq(m, hleaf(d, sig))){
+          push_error(errors, 'invalid sig'+seq);
+          continue;
+        }
         let old_top_vm = this.get_decl(top.seq).m_hash(top.seq);
         if (!old_top_vm){ // so we can verify old top belongs to new top
           push_error(errors, 'missing m'+top.seq);
@@ -307,10 +311,6 @@ export default class Scroll {
           seq: seq-1, m: prev_m, sketch, diff, errors});
         if (!prev_M){ // so we can verify new top signature
           push_error(errors, 'missing M'+(seq-1));
-          continue;
-        }
-        if (!beq(m, hleaf(d, sig))){ // XXX: mv to ealier stage
-          push_error(errors, 'invalid sig'+seq);
           continue;
         }
         if (!Scroll.verify_sig(sig, this.pub, d, prev_M)){

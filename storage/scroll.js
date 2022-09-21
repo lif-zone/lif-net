@@ -299,31 +299,31 @@ export default class Scroll {
           check_set_sig(sketch, errors, seq, m, d, sig);
           this.put_verified(sketch);
         }
+        continue;
       }
-      else { // new top
-        if (!sig || !d){
-          if (seq==last_seq) // so we can verify new top signature
-            push_error(errors, 'missing '+(sig ? 'd' : 'sig')+seq);
-          continue;
-        }
-        if (!is_m_valid(m, d, sig, errors, 'invalid sig'+seq))
-          continue;
-        let old_top_m = this.get_decl(top.seq).m_hash(top.seq);
-        if (is_null(old_top_m, errors, 'missing m'+top.seq))
-          continue;
-        let prev_M = this.sketch_calc_top_M({top: {seq: seq-1},
-          seq: top.seq, m: old_top_m, sketch, diff, errors});
-        if (is_null(prev_M, errors, 'missing M'+(seq-1))) // XXX: add test
-          continue;
-        if (!verify_sig(sig, this.pub, d, prev_M)){
-          push_error(errors, 'invalid sig'+seq);
-          continue;
-        }
-        set_sig(sketch, seq, sig);
-        set_d_hash(sketch, seq, d);
-        check_set_sig(sketch, errors, seq, m, d, sig);
-        this.put_verified(sketch);
+      // new top
+      if (!sig || !d){
+        if (seq==last_seq) // so we can verify new top signature
+          push_error(errors, 'missing '+(sig ? 'd' : 'sig')+seq);
+        continue;
       }
+      if (!is_m_valid(m, d, sig, errors, 'invalid sig'+seq))
+        continue;
+      let old_top_m = this.get_decl(top.seq).m_hash(top.seq);
+      if (is_null(old_top_m, errors, 'missing m'+top.seq))
+        continue;
+      let prev_M = this.sketch_calc_top_M({top: {seq: seq-1},
+        seq: top.seq, m: old_top_m, sketch, diff, errors});
+      if (is_null(prev_M, errors, 'missing M'+(seq-1))) // XXX: add test
+        continue;
+      if (!verify_sig(sig, this.pub, d, prev_M)){
+        push_error(errors, 'invalid sig'+seq);
+        continue;
+      }
+      set_sig(sketch, seq, sig);
+      set_d_hash(sketch, seq, d);
+      check_set_sig(sketch, errors, seq, m, d, sig);
+      this.put_verified(sketch);
     }
     return {errors};
   }

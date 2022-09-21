@@ -213,6 +213,13 @@ function verify_sig(sig, pub, d, M_prev){
   return crypto.verify(sig, pub, crypto.blake2b(buf));
 }
 
+function is_m_valid(m, d, sig, errors, err){
+  if (beq(m, hleaf(d, sig)))
+    return true;
+  push_error(errors, err);
+  return false;
+}
+
 export default class Scroll {
   constructor(opt){
     assert(opt.pub, 'missing pub key');
@@ -292,23 +299,15 @@ export default class Scroll {
             push_error(errors, 'missing '+(sig ? 'd' : 'sig')+seq);
           continue;
         }
-        if (!beq(m, hleaf(d, sig))){
-          push_error(errors, 'invalid sig'+seq);
+        if (!is_m_valid(m, d, sig, errors, 'invalid sig'+seq))
           continue;
-        }
-        let old_top_vm = this.get_decl(top.seq).m_hash(top.seq);
-        if (!old_top_vm){ // so we can verify old top belongs to new top
+        let old_top_m = this.get_decl(top.seq).m_hash(top.seq);
+        if (!old_top_m){ // so we can verify old top belongs to new top
           push_error(errors, 'missing m'+top.seq);
           continue;
         }
-        let prev_m = this.sketch_calc_m({range: [seq-1, seq-1],
-          sketch, diff, errors});
-        if (!prev_m){ // so we can verify new top signature
-          push_error(errors, 'missing m'+(seq-1));
-          continue;
-        }
         let prev_M = this.sketch_calc_top_M({top: {seq: seq-1},
-          seq: seq-1, m: prev_m, sketch, diff, errors});
+          seq: top.seq, m: old_top_m, sketch, diff, errors});
         if (!prev_M){ // so we can verify new top signature
           push_error(errors, 'missing M'+(seq-1));
           continue;
@@ -319,24 +318,8 @@ export default class Scroll {
         }
         set_sig(sketch, seq, sig);
         set_d_hash(sketch, seq, d);
-        // calc new top M
-        let new_M = this.sketch_calc_top_M({top: {seq}, seq, m, sketch, diff,
-          errors});
-        if (!new_M){
-          push_error(errors, 'missing M'+seq);
-          continue;
-        }
-        // calc new top M using previos top
-        let M = this.sketch_calc_top_M({top: {seq},
-          seq: top.seq, m: old_top_vm, sketch, diff, errors});
-        if (!M)
-          push_error(errors, 'missing M'+seq);
-        else if (!beq(M, new_M))
-          push_error(errors, 'invalid M'+seq);
-        else {
-          check_set_sig(sketch, errors, seq, m, d, sig);
-          this.put_verified(sketch);
-        }
+        check_set_sig(sketch, errors, seq, m, d, sig);
+        this.put_verified(sketch);
       }
     }
     return {errors};

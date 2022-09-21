@@ -213,6 +213,13 @@ function verify_sig(sig, pub, d, M_prev){
   return crypto.verify(sig, pub, crypto.blake2b(buf));
 }
 
+function is_null(val, errors, err){
+  if (val)
+    return false;
+  push_error(errors, err);
+  return true;
+}
+
 function is_m_valid(m, d, sig, errors, err){
   if (beq(m, hleaf(d, sig)))
     return true;
@@ -302,17 +309,13 @@ export default class Scroll {
         if (!is_m_valid(m, d, sig, errors, 'invalid sig'+seq))
           continue;
         let old_top_m = this.get_decl(top.seq).m_hash(top.seq);
-        if (!old_top_m){ // so we can verify old top belongs to new top
-          push_error(errors, 'missing m'+top.seq);
+        if (is_null(old_top_m, errors, 'missing m'+top.seq))
           continue;
-        }
         let prev_M = this.sketch_calc_top_M({top: {seq: seq-1},
           seq: top.seq, m: old_top_m, sketch, diff, errors});
-        if (!prev_M){ // so we can verify new top signature
-          push_error(errors, 'missing M'+(seq-1));
+        if (is_null(prev_M, errors, 'missing M'+(seq-1))) // XXX: add test
           continue;
-        }
-        if (!Scroll.verify_sig(sig, this.pub, d, prev_M)){
+        if (!verify_sig(sig, this.pub, d, prev_M)){
           push_error(errors, 'invalid sig'+seq);
           continue;
         }

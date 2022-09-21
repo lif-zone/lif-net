@@ -295,7 +295,7 @@ export default class Scroll {
         let old_top_decl = this.get_decl(top.seq);
         let old_top_vm = old_top_decl.m_hash(top.seq);
         if (!old_top_vm){
-          push_error(errors, 'invalid m'+seq);
+          push_error(errors, 'missing m'+top.seq);
           continue;
         }
         let prev_m = this.sketch_calc_m({range: [seq-1, seq-1],

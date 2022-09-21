@@ -269,6 +269,8 @@ export default class Scroll {
       if (!m)
         continue;
       if (seq<=top.seq){ // verify m belongs to existing top.M
+if (seq==5)
+  debugger;
         let M = this.sketch_calc_top_M({top, seq, m, sketch, diff, errors});
         if (!M); // XXX push_error(errors, 'missing M'+top.seq)?
         else if (!beq(M, top.M))
@@ -422,6 +424,8 @@ export default class Scroll {
       return decl;
     decl = new Decl({scroll: this, seq, fbuf: new FrameBuffer});
     this.decl_map.set(seq, decl);
+    if (Math.max(this.size, seq+1)==10)
+    debugger;
     this.size = Math.max(this.size, seq+1);
     return decl;
   }

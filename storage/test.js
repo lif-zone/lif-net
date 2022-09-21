@@ -337,7 +337,7 @@ const cmd_test = t=>etask(function*cmd_test(){
 const cmd_eq = o=>etask(function*cmd_eq(){
   assert(o.l, 'missing left '+o.meta.s);
   assert(o.r, 'missing right '+o.meta.s);
-  let l = yield get_val(o.l);
+  let l = yield get_val((o.ctx ? o.ctx+'.' : '')+o.l);
   let r = yield get_val(o.r);
   assert_buffer(l, r, o.meta);
 });
@@ -522,44 +522,6 @@ describe('scroll', ()=>{
       m31=hleaf(d31+sig31) sig31=sign(d31+M30) M31=hroot(m0_31)
       m32=hleaf(d32+sig32) sig32=sign(d32+M31) M32=hroot(m0_31+m32)
     `);
-/* XXX derry
-// m5=hleaf(d5+sig5) sig5=sign(d5+M4) M5=hroot(m0_3+m4_5)
-// top is highest known M (top={seq, M})
-// diff = {3: {d, sig, m: {3: 0xm3, 2: 0xm2_3 0: 0xm0_3}}, 4: ...}
-function put(diff){
-  for (seq in diff){ // ascending order
-    let sketch = {}, m = get_m(diff, seq);
-    if (seq > top.seq){
-      // check if can be added as new top
-      // we need sig, d M_prev
-      let {M_prev, match} = calc_M({seq: seq-1, m, sketch, diff, errors});
-      // XXX chec existing values
-      if (!M_prev)
-        push_error('missing info');
-      if (!match)
-        push_error('spam');
-      let sig = get_sig(diff, seq), d = get_d(diff, seq);
-      if (m==hleaf(d+sig) && verify(sig, d+M_prev))
-        copy_to_verified(sketch);
-      else
-        push_error('invalid sig');
-      break;
-    }
-    M = calc_top_M({seq, m, sketch, diff, errors});
-    if (!M){
-      push_error('missing info');
-      continue;
-    }
-    if (M.equals(top.M))
-      copy_to_verified(sketch);
-    else
-      push_error('spam'); // XXX TODO: branch detection
-  }
-}
-// XXX: how to know which decl I need in memory?
-// XXX TODO: need caching of calculated values that were not verified
-
-*/
     describe('put', ()=>{
       describe('errors_invalid', ()=>{
         let s = `s.scroll(!prev_scroll) s.decl(1-32) s2.scroll(M0)
@@ -631,6 +593,21 @@ function put(diff){
           s2.put(m0 m1 m2_3 m4_7 m8_15 d32 sig32 m31 m16_23 m24_27
           m28_29 m30:m0 err(invalid sig32))
           s2.test(M0 m0)`);
+        // XXX: branch test
+        t('xxx1', `${s} s2.put(sig3 d3 m0 m1 m2)
+          s2.test(M0 m0 sig3 d3 m0 m1 m2 m3 m2_3 m0_3 m0_1)
+          s2.put(sig8 d8 m4_7) s2.M8=s.M8
+          s2.put(sig9 d9) s2.M9=M9
+          s2.put(sig4 d4 m5 m4_5 m6_7) s2.M4=M4
+        `);
+        t('xxx2', `${s} s2.put(sig3 d3 m0 m1 m2)
+          s2.test(M0 m0 sig3 d3 m0 m1 m2 m3 m2_3 m0_3 m0_1)
+          s2.put(sig8 d8 m4_7) s2.M8=s.M8
+          s2.decl(9)
+          // XXX TODO s2.M9!=M9
+          s2.put(sig9 d9 err(invalid sig9,invalid d9))
+          s2.put(sig4 d4 m5 m4_5 m6_7) s2.M4=M4
+        `);
           // XXX: add more
       });
       describe('top_M1', ()=>{

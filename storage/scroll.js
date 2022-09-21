@@ -290,7 +290,7 @@ export default class Scroll {
       }
       if (!m)
         continue;
-      if (seq<=top.seq){ // verify m belongs to top.M
+      if (seq<=top.seq){ // verify m belongs to existing top.M
         let M = this.sketch_calc_top_M({top, seq, m, sketch, diff, errors});
         if (!M); // XXX push_error(errors, 'missing M'+top.seq)?
         else if (!beq(M, top.M))

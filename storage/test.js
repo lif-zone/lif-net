@@ -529,7 +529,6 @@ describe('scroll', ()=>{
       describe('errors_invalid', ()=>{
         let s = `s.scroll(!prev_scroll) s.decl(1-32) s2.scroll(M0)
           s2.test(M0)`;
-        // XXX: need to verify that s didn't change after the errors
         t('sig0', `${s} s.put(sig0:sig1 err(invalid sig0))`);
         t('d0', `${s} s.put(d0:d1 err(invalid d0))`);
         t('m0', `${s} s.put(m0:m1 err(invalid m0))`);
@@ -546,6 +545,12 @@ describe('scroll', ()=>{
       describe('top_M0', ()=>{
         let s = `s.scroll(!prev_scroll) s.decl(1-32) s2.scroll(M0)
           s2.test(M0)`;
+        t('sig0d0', `${s} s2.put(sig0 d0) s2.test(sig0 d0 M0 m0)`);
+        t('sig0d0_m0', `${s} s2.put(sig0 d0 m0) s2.test(sig0 d0 M0 m0)`);
+        t('sig0d0_m0_invalid_m0', `${s} s2.put(sig0 d0 m0:m1 err(invalid M0))
+          s2.test(M0)`);
+        t('sig0d0_m0_invalid_sig0', `${s} s2.put(sig0:sig1 d0 m0
+          err(invalid sig0)) s2.test(M0 m0)`);
         t('m0', `${s} s2.put(m0) s2.test(M0 m0)`);
         t('m0_invalid_m0', `${s} s2.put(m0:m1 err(invalid M0)) s2.test(M0)`);
         t('m0_sig0d0', `${s} s2.put(m0 sig0 d0) s2.test(M0 m0 sig0 d0)`);

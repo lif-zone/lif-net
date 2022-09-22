@@ -696,6 +696,16 @@ describe('scroll', ()=>{
           s2.test(M3 m2 m3 m0_1 m2_3 m0_3)`);
         t('m0_1m2m3_invalid_m0_1', `${s} s2.put(m0_1:m0 m2 m3 err(invalid M3))
           s2.test(M3)`);
+        t('m0_1m2m3_seq4_no_branch', `${s} s2.put(m0_1 m2 m3)
+          s2.test(M3 m2 m3 m0_1 m2_3 m0_3) s2.put(sig4 d4)
+          s2.test(sig4 d4 M3 m2 m3 m0_1 m2_3 m0_3)
+          s2.put(sig0 d0 m1) s2.M0=M0
+        `);
+        t('m0_1m2m3_seq4_branch', `${s} s2.put(m0_1 m2 m3)
+          s2.test(M3 m2 m3 m0_1 m2_3 m0_3) s2.decl(4) // branch
+          s2.put(sig4 d4 err(invalid sig4,invalid d4))
+          s2.test(sig4:sign(s2.d4+M3) m4:hleaf(s2.d4+s2.sig4) d4:s2.d4 M3 m2
+          m3 m0_1 m2_3 m0_3) s2.put(sig0 d0 m1) s2.M0=M0`);
         // XXX: add test for sig/d insert + invalid
       });
       describe('top_M4', ()=>{

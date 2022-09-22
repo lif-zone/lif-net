@@ -87,6 +87,8 @@ const get_val = exp=>etask(function*_get_val(){
     return scroll.M_hash();
   if (m = exp.match(/^d(\d+)$/)) // d10
     return scroll.seq_d(+m[1]);
+  if (m = exp.match(/^D(\d+)$/)) // D10
+    return scroll.seq_D(+m[1]);
   if (m = exp.match(/^h\((.*)\)$/)){ // h(d10+sig11)
     let a=[], vars = m[1].split('+');
     for (let i=0; i<vars.length; i++)
@@ -273,7 +275,7 @@ const cmd_put = t=>etask(function*cmd_put(){
     let val = yield get_val(t2.r||t2.cmd), v = t2.cmd;
     let o = split_var(v), type = o.type, seq = +o.range[1];
     let seq_o = diff[seq] = diff[seq]||{};
-    assert(['sig', 'd', 'm', 'M'].includes(type), 'invalid type '+type);
+    assert(['sig', 'd', 'm', 'M', 'D'].includes(type), 'invalid type '+type);
     if (type=='m'){
       seq_o.m = seq_o.m||{};
       seq_o.m[o.range[0]] = val;
@@ -286,7 +288,7 @@ const cmd_put = t=>etask(function*cmd_put(){
 });
 
 function split_var(v){
-  let m = v.match(/^(sig|m|M|d)((\d+)|((\d+)_(\d+)))$/);
+  let m = v.match(/^(sig|m|M|d|D)((\d+)|((\d+)_(\d+)))$/);
   assert.equal(m?.length, 7, 'invalid var '+v);
   let type = m[1], range = Scroll.range_from_str(m[2]), seq = range[1];
   assert(type=='m' || range[0]==range[1], 'invalid range '+v);
@@ -545,6 +547,7 @@ describe('scroll', ()=>{
       describe('top_M0', ()=>{
         let s = `s.scroll(!prev_scroll) s.decl(1-32) s2.scroll(M0)
           s2.test(M0)`;
+        t('sig0D0', `${s} s2.put(sig0 D0) s2.test(sig0 d0 D0 M0 m0)`);
         t('sig0d0', `${s} s2.put(sig0 d0) s2.test(sig0 d0 M0 m0)`);
         t('sig0d0_m0', `${s} s2.put(sig0 d0 m0) s2.test(sig0 d0 M0 m0)`);
         t('sig0d0_m0_invalid_m0', `${s} s2.put(sig0 d0 m0:m1 err(invalid M0))
@@ -606,6 +609,12 @@ describe('scroll', ()=>{
           s2.put(sig9 d9) s2.M9=M9 s2.put(sig4 d4 m5 m4_5 m6_7) s2.M4=M4
           s2.put(sig5 d5) s2.M5=M5 s2.put(sig6 d6 m7) s2.M6=M6 s2.put(sig7 d7)
           s2.M7=M7 s2.put(sig10 d10) s2.M10=M10`);
+        // XXX TODO: s2..d3 to set left/right default (fail if no default)
+        // =M4 --> s2.M4=s.M4
+        // s2.test(M0 m0 sig3 d3 m0 m1 m2 m3 m2_3 m0_3 m0_1)
+        // similar s2.=(M0 m0 sig3 d3 m0 m1 m2 m3 m2_3 m0_3 m0_1)
+        // =(M0 m0 sig3 d3 m0 m1 m2 m3 m2_3 m0_3 m0_1)
+        // =M0 =m0 =sig3 =d3 =m0 =m1 =m2 =m3 =m2_3 =m0_3 =m0_1
         t('seq9_branch', `${s} s2.put(sig3 d3 m0 m1 m2) s2.test(M0 m0 sig3 d3
           m0 m1 m2 m3 m2_3 m0_3 m0_1) s2.put(sig8 d8 m4_7) s2.M8=s.M8
           s2.decl(9) s2.M9=hroot(s2.m0_7+s2.m8_9) // branch
@@ -614,6 +623,26 @@ describe('scroll', ()=>{
           s2.put(sig4 d4 m5 m4_5 m6_7) s2.M4=M4 s2.put(sig5 d5) s2.M5=M5
           s2.put(sig6 d6 m7) s2.M6=M6 s2.put(sig7 d7) s2.M7=M7
           s2.put(sig10 d10 err(invalid sig10)) s2.M10=null`);
+        // XXX we always have root of seq 0
+        /* XXX: branch
+        M0
+        M1
+        M2
+        ---> branch (2 M3: a b)
+        branch(b1 3)
+        branch(b2 11b1)
+        branch(b3 2)
+        branch(b4 21b2)
+        M3 M3(3-0)
+        M4 M4(3-0)
+        M3b1 M3(3-1)
+        M4b1 M4(3-1)
+        M17b2 M17(3-1,11-3)
+        branch 0 - no splits
+        branch 1 - split 3
+        branch 2 - split 2
+        branch 3 - split 11 on branch 1
+        */
         t('seq9_no_branch_multi', `${s} s2.put(sig3 d3 m0 m1 m2) s2.test(M0 m0
           sig3 d3 m0 m1 m2 m3 m2_3 m0_3 m0_1) s2.put(sig8 d8 m4_7) s2.M8=s.M8
           s2.put(sig9 d9 sig4 d4 m5 m4_5 m6_7 sig5 d5 sig6 d6 m7 sig7 d7 sig10

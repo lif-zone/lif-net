@@ -577,16 +577,16 @@ describe('scroll', ()=>{
         t('add_d2', `${s} s2.put(sig2 d2 sig1 d1 m1 m0)`);
         t('add_d3', `${s} s2.put(sig3 d3 m0 m1 m2)
           s2.test(M0 m0 sig3 d3 m0 m1 m2 m3 m2_3 m0_3 m0_1)`);
-        t('add_d3_missing_sig3', `${s} s2.put(d3 m0 m1 m2 err(missing sig3))
-          s2.test(M0 m0)`);
+        t('add_d3_missing_sig3', `${s} s2.put(d3 m0 m1 m2
+          err(missing sig3,missing sig2,missing sig1)) s2.test(M0 m0)`);
         t('add_d3_invalid_sig3', `${s} s2.put(sig3:sig2 d3 m0 m1 m2
-          err(invalid sig3)) s2.test(M0 m0)`);
+          err(invalid sig3,missing sig2,missing sig1)) s2.test(M0 m0)`);
         t('add_d3_invalid_m0', `${s} s2.put(sig3 d3 m0:m1 m1 m2
-          err(invalid M0, missing m0)) s2.test(M0)`);
+          err(invalid M0, missing m0,missing sig2,missing sig1)) s2.test(M0)`);
         t('add_d3_invalid_m1', `${s} s2.put(sig3 d3 m0 m1:m0 m2
-          err(invalid sig3)) s2.test(M0 m0)`);
+          err(invalid sig3,missing sig2,missing sig1)) s2.test(M0 m0)`);
         t('add_d3_invalid_m2', `${s} s2.put(sig3 d3 m0 m1 m2:m1
-          err(invalid sig3)) s2.test(M0 m0)`);
+          err(invalid sig3,missing sig2,missing sig1)) s2.test(M0 m0)`);
         t('add_d32', `${s}
           s2.put(m0 m1 m2_3 m4_7 m8_15 d32 sig32 m31 m16_23 m24_27
           m28_29 m30)
@@ -594,8 +594,8 @@ describe('scroll', ()=>{
           m0_31 m24_27 m28_29 m30 m31 m30_31 m28_31 m24_31 d32 sig32 m32)`);
         t('add_d32_invalid_m30', `${s}
           s2.put(m0 m1 m2_3 m4_7 m8_15 d32 sig32 m31 m16_23 m24_27
-          m28_29 m30:m0 err(invalid sig32))
-          s2.test(M0 m0)`);
+          m28_29 m30:m0 err(invalid sig32,missing sig31,missing sig30,
+          missing sig1)) s2.test(M0 m0)`);
         t('seq9_no_branch', `${s} s2.put(sig3 d3 m0 m1 m2) s2.test(M0 m0 sig3
           d3 m0 m1 m2 m3 m2_3 m0_3 m0_1) s2.put(sig8 d8 m4_7) s2.M8=s.M8
           s2.put(sig9 d9) s2.M9=M9 s2.put(sig4 d4 m5 m4_5 m6_7) s2.M4=M4
@@ -756,9 +756,6 @@ describe('scroll', ()=>{
           missing m16_31,missing m0_31))
           s2.test(M31 m30 m31 m0_15 m16_23 m24_27 m28_29 m28_31
           m30_31 m24_31 m16_31 m0_31)`);
-      });
-      describe('top_M32', ()=>{
-        // XXX TODO
       });
     });
   });

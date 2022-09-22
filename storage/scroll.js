@@ -235,75 +235,80 @@ export default class Scroll {
       this.top = {seq, M};
   }
   put(diff){
-    let top = this.top;
-    let errors = {};
-    assert(top, 'cannot put to empty scroll');
+    let top = this.top, errors = {};
     let a = Object.keys(diff), last_seq = +a[a.length-1]?.seq;
-    for (let i=0; i<a.length; i++){
-      let seq = +a[i];
-      let sketch = {}; // XXX: need to have another sketch for overall calc
-      let decl=this.get_decl(seq), m=get_m_hash(diff, seq);
-      let sig=get_sig(diff, seq), d=get_d_hash(diff, seq);
-      let vm=decl.m_hash(seq), vsig=decl.sig_get(), vd=decl.d_hash();
-      // XXX: handle getting real data instead of d
-      if (vd && vsig){
-        if (sig && !beq(sig, vsig))
-          push_error(errors, 'invalid sig'+seq);
-        if (d && !beq(d, vd))
-          push_error(errors, 'invalid d'+seq);
-        if (m && !beq(m, vm))
-          push_error(errors, 'invalid m'+seq);
-        continue;
-      }
-      if (d && !sig)
-        push_error(errors, 'missing sig'+seq);
-      if (sig && !d)
-        push_error(errors, 'missing d'+seq);
-      if (sig && d)
-        m = m||hleaf(d, sig);
-      if (vm){
-        check_set_sig(sketch, errors, seq, vm, d, sig);
-        this.put_verified(sketch);
-        continue;
-      }
-      if (!m)
-        continue;
-      if (seq<=top.seq){ // verify m belongs to existing top.M
-        let M = this.sketch_calc_top_M({top, seq, m, sketch, diff, errors});
-        if (!M); // XXX push_error(errors, 'missing M'+top.seq)?
-        else if (!beq(M, top.M))
-          push_error(errors, 'invalid M'+top.seq);
-        else {
-          check_set_sig(sketch, errors, seq, m, d, sig);
-          this.put_verified(sketch);
-        }
-        continue;
-      }
-      // new top
-      if (!sig || !d){
-        if (seq==last_seq) // so we can verify new top signature
-          push_error(errors, 'missing '+(sig ? 'd' : 'sig')+seq);
-        continue;
-      }
-      if (!is_m_valid(m, d, sig, errors, 'invalid sig'+seq))
-        continue;
-      let old_top_m = this.get_decl(top.seq).m_hash(top.seq);
-      if (is_null(old_top_m, errors, 'missing m'+top.seq))
-        continue;
-      let prev_M = this.sketch_calc_top_M({top: {seq: seq-1},
-        seq: top.seq, m: old_top_m, sketch, diff, errors});
-      if (is_null(prev_M, errors, 'missing M'+(seq-1))) // XXX: add test
-        continue;
-      if (!verify_sig(sig, this.pub, d, prev_M)){
-        push_error(errors, 'invalid sig'+seq);
-        continue;
-      }
-      set_sig(sketch, seq, sig);
-      set_d_hash(sketch, seq, d);
-      check_set_sig(sketch, errors, seq, m, d, sig);
-      this.put_verified(sketch);
-    }
+    assert(top, 'cannot put to empty scroll');
+    let i=0, j;
+    for (; i<a.length && +a[i]<=top.seq; i++)
+      this.put_single(+a[i], diff, errors, last_seq);
+    if (i==a.length)
+      return {errors};
+    // we get when there is new top. a new top requires signature verficiation
+    // (which is very expensive). so we first find a new top. afterwards we
+    // just verify using hash comparison
+    for (j=a.length-1; j>=i && +a[j]>top.seq; j--)
+      this.put_single(+a[j], diff, errors, last_seq);
+    for (; i<j && +a[i]<=top.seq; i++)
+      this.put_single(+a[i], diff, errors, last_seq);
     return {errors};
+  }
+  put_single(seq, diff, errors){
+    let top = this.top, sketch = {};
+    let decl=this.get_decl(seq), m=get_m_hash(diff, seq);
+    let sig=get_sig(diff, seq), d=get_d_hash(diff, seq);
+    let vm=decl.m_hash(seq), vsig=decl.sig_get(), vd=decl.d_hash();
+    // XXX: handle getting real data instead of d
+    if (vd && vsig){
+      if (sig && !beq(sig, vsig))
+        push_error(errors, 'invalid sig'+seq);
+      if (d && !beq(d, vd))
+        push_error(errors, 'invalid d'+seq);
+      if (m && !beq(m, vm))
+        push_error(errors, 'invalid m'+seq);
+      return;
+    }
+    if (d && !sig)
+      push_error(errors, 'missing sig'+seq);
+    if (sig && !d)
+      push_error(errors, 'missing d'+seq);
+    if (sig && d)
+      m = m||hleaf(d, sig);
+    if (vm){
+      check_set_sig(sketch, errors, seq, vm, d, sig);
+      this.put_verified(sketch);
+      return;
+    }
+    if (!m)
+      return;
+    if (seq<=top.seq){ // verify m belongs to existing top.M
+      let M = this.sketch_calc_top_M({top, seq, m, sketch, diff, errors});
+      if (!M); // XXX push_error(errors, 'missing M'+top.seq)?
+      else if (!beq(M, top.M))
+        push_error(errors, 'invalid M'+top.seq);
+      else {
+        check_set_sig(sketch, errors, seq, m, d, sig);
+        this.put_verified(sketch);
+      }
+      return;
+    }
+    // new top
+    if (!sig || !d)
+      return push_error(errors, 'missing '+(sig ? 'd' : 'sig')+seq);
+    if (!is_m_valid(m, d, sig, errors, 'invalid sig'+seq))
+      return;
+    let old_top_m = this.get_decl(top.seq).m_hash(top.seq);
+    if (is_null(old_top_m, errors, 'missing m'+top.seq))
+      return;
+    let prev_M = this.sketch_calc_top_M({top: {seq: seq-1},
+      seq: top.seq, m: old_top_m, sketch, diff, errors});
+    if (is_null(prev_M, errors, 'missing M'+(seq-1))) // XXX: add test
+      return;
+    if (!verify_sig(sig, this.pub, d, prev_M))
+      return push_error(errors, 'invalid sig'+seq);
+    set_sig(sketch, seq, sig);
+    set_d_hash(sketch, seq, d);
+    check_set_sig(sketch, errors, seq, m, d, sig);
+    this.put_verified(sketch);
   }
   sketch_calc_top_M(opt){
     let {top, seq, m, sketch, diff, errors} = opt;

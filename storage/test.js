@@ -605,9 +605,21 @@ describe('scroll', ()=>{
           m0 m1 m2 m3 m2_3 m0_3 m0_1) s2.put(sig8 d8 m4_7) s2.M8=s.M8
           s2.decl(9) s2.M9=hroot(s2.m0_7+s2.m8_9) // branch
           s2.put(sig9 d9 err(invalid sig9,invalid d9))
+          s2.M9=hroot(s2.m0_7+s2.m8_9)
           s2.put(sig4 d4 m5 m4_5 m6_7) s2.M4=M4 s2.put(sig5 d5) s2.M5=M5
           s2.put(sig6 d6 m7) s2.M6=M6 s2.put(sig7 d7) s2.M7=M7
           s2.put(sig10 d10 err(invalid sig10)) s2.M10=null`);
+        t('seq9_no_branch_multi', `${s} s2.put(sig3 d3 m0 m1 m2) s2.test(M0 m0
+          sig3 d3 m0 m1 m2 m3 m2_3 m0_3 m0_1) s2.put(sig8 d8 m4_7) s2.M8=s.M8
+          s2.put(sig9 d9 sig4 d4 m5 m4_5 m6_7 sig5 d5 sig6 d6 m7 sig7 d7 sig10
+          d10) s2.M9=M9 s2.M4=M4 s2.M5=M5 s2.M6=M6 s2.M7=M7 s2.M10=M10`);
+        t('seq9_branch_multi', `${s} s2.put(sig3 d3 m0 m1 m2) s2.test(M0 m0
+          sig3 d3 m0 m1 m2 m3 m2_3 m0_3 m0_1) s2.put(sig8 d8 m4_7) s2.M8=s.M8
+          s2.decl(9) s2.M9=hroot(s2.m0_7+s2.m8_9) // branch
+          s2.put(sig9 d9 sig4 d4 m5 m4_5 m6_7 sig5 d5 sig6 d6 m7 sig7 d7 sig10
+          d10 err(invalid sig9,invalid d9,invalid sig10))
+          s2.M9=hroot(s2.m0_7+s2.m8_9) s2.M4=M4 s2.M5=M5 s2.M6=M6 s2.M7=M7
+          s2.M10=null`);
       });
       describe('top_M1', ()=>{
         let s = `s.scroll(!prev_scroll) s.decl(1-32) s2.scroll(M1)

@@ -2,7 +2,7 @@ LIF - Util
 ==========
 
 ## LIF Task/Bugs
-- Fix etask.js [wait_in_generator](https://github.com/lif-zone/server/blob/main/util/test.js#L4057)
+- Fix etask.js bug [wait_in_generator](https://github.com/lif-zone/server/blob/main/util/test.js#L4057)
 
 ## Installation
 

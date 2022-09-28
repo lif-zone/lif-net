@@ -1,6 +1,15 @@
 LIF - Util
 ==========
 
+## How to join LIF?
+- Solve a bug
+- Get paid
+- Get more tasks and money :-)
+
+## LIF Task #1
+- Fix etask [wait_in_generator](https://github.com/lif-zone/server/blob/main/util/test.js#L4057)
+- XXX: What is etask?
+
 ## Installation
 
 ```

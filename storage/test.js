@@ -249,6 +249,9 @@ describe('parser', ()=>{
     t('//', {cmd: '//', l: '', r: ''});
     t('// XXX', {cmd: '//', l: '', r: 'XXX'});
     t('s1..put(s2.sig)', {cmd: '..', l: 's1', r: 'put(s2.sig)'});
+    t('!a', {cmd: '!', l: '', r: 'a'});
+    t('!a.b', {cmd: '!', l: '', r: 'a.b'});
+    t('!(a.b)', {cmd: '!', l: '', r: '(a.b)'});
   });
   it('parse_exp_arg', ()=>{
     const t = (s, exp)=>assert.deepEqual(tparser.parse_exp_arg(s),
@@ -285,7 +288,12 @@ const cmd_scroll = t=>etask(function*cmd_scroll(){
   for (let curr=t.r, i=0; curr = tparser.parse_get_next(curr); i++){
     let tt = tparser.parse_exp_arg(curr.exp), t2;
     switch (tt.cmd){
-    case '!prev_scroll': prev_scroll = null; break;
+    case '!':
+      if ('prev_scroll'==tt.r)
+        prev_scroll = null;
+      else
+        assert.fail('invalid arg '+t.meta.s);
+      break;
     default:
       t2 = tparser.parse_exp_arg_pair(curr.exp);
       if (a = t2.l.match(/^M(\d+)$/)){
@@ -432,7 +440,13 @@ const test_run_single = o=>etask(function*_test_run_single(){
       set_def('left', o.l);
     yield test_run_single(o2);
     break;
-  default: assert.fail('invalid cmd "'+o.cmd+'" in '+o.meta.s);
+  default:
+    if (o.cmd[0]=='!'){
+      yield cmd_eq({cmd: '=', l: o.meta.s.substr(1), r: 'null',
+        meta: {s: o.meta.s}});
+    }
+    else
+      assert.fail('invalid cmd "'+o.cmd+'" in '+o.meta.s);
   }
 });
 
@@ -702,7 +716,7 @@ describe('scroll', ()=>{
           put(sig9 d9 err(invalid sig9,invalid d9)) M9=hroot(m0_7+s2.m8_9)
           put(sig4 d4 m5 m4_5 m6_7) =M4 s2.put(sig5 d5) =M5
           put(sig6 d6 m7) =M6 put(sig7 d7) =M7
-          put(sig10 d10 err(invalid sig10)) M10=null`);
+          put(sig10 d10 err(invalid sig10)) !M10`);
         // XXX we always have root of seq 0
         /* XXX: branch
         M0
@@ -732,7 +746,7 @@ describe('scroll', ()=>{
           decl(9) M9=hroot(s2.m0_7+s2.m8_9) // branch
           put(sig9 d9 sig4 d4 m5 m4_5 m6_7 sig5 d5 sig6 d6 m7 sig7 d7 sig10
           d10 err(invalid sig9,invalid d9,invalid sig10))
-          M9=hroot(s2.m0_7+s2.m8_9) =M4 =M5 =M6 s2.M7=M7 s2.M10=null`);
+          M9=hroot(s2.m0_7+s2.m8_9) =M4 =M5 =M6 s2.M7=M7 !M10`);
       });
       describe('top_M1', ()=>{
         let s = `s.scroll(!prev_scroll) s.decl(1-32) s2..scroll(s..M1)

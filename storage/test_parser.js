@@ -72,6 +72,8 @@ E._parse_exp = function(s){
   let c, parentesis = [], first, meta = {s};
   if ('//'==s.substr(0, 2))
     return {cmd: '//', l: '', r: s.substr(2).trim(), meta};
+  if ('!'==s.charAt(0))
+    return {cmd: '!', l: '', r: s.substr(1).trim(), meta};
   for (let i=0; i<s.length; i++){
     c = s.charAt(i);
     if (c=='('){

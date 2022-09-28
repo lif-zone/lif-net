@@ -40,7 +40,6 @@ function auto_inc(){
       return;
     if (Date.now()+ms > auto_inc_max_ts)
       return;
-    xerr.notice('time auto_inc %sms', ms);
     clock_tick.call(clock, ms);
 }
 

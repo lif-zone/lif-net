@@ -130,5 +130,5 @@ E.parse_exp_arg_pair = function(exp){
   assert(m, 'invalid arg_pair '+exp);
   return ['.', '..', '...'].includes(m[2]) ? {l: m[3], r: m[0]} :
     {l: m[0], r: m[1]};
-}
+};
 

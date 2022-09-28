@@ -395,10 +395,18 @@ const cmd_test = t=>etask(function*cmd_test(){
 });
 
 const cmd_eq = o=>etask(function*cmd_eq(){
-  assert(o.l, 'missing left '+o.meta.s);
-  assert(o.r, 'missing right '+o.meta.s);
-  let l = yield get_val((o.ctx ? o.ctx+'.' : '')+o.l, 'left');
-  let r = yield get_val(o.r, 'right');
+  let l, r;
+  if (!o.l){
+    assert(o.r, 'invalid exp '+o.meta.s);
+    let t2 = tparser.parse_exp_arg_pair(o.r);
+    l = yield get_val(t2.l, 'left');
+    r = yield get_val(t2.r, 'right');
+  } else {
+    assert(o.l, 'missing left '+o.meta.s);
+    assert(o.r, 'missing right '+o.meta.s);
+    l = yield get_val((o.ctx ? o.ctx+'.' : '')+o.l, 'left');
+    r = yield get_val(o.r, 'right');
+  }
   assert_buffer(l, r, o.meta);
 });
 
@@ -676,10 +684,10 @@ describe('scroll', ()=>{
           missing sig1)) test(M0 m0)`);
         // XXX check .. for =
         t('seq9_no_branch', `${s} put(sig3 d3 m0 m1 m2) test(M0 m0 sig3
-          d3 m0 m1 m2 m3 m2_3 m0_3 m0_1) put(sig8 d8 m4_7) s2.M8=s.M8
-          put(sig9 d9) s2.M9=M9 put(sig4 d4 m5 m4_5 m6_7) s2.M4=M4
-          put(sig5 d5) s2.M5=M5 s2.put(sig6 d6 m7) s2.M6=M6 put(sig7 d7)
-          s2.M7=M7 put(sig10 d10) s2.M10=M10`);
+          d3 m0 m1 m2 m3 m2_3 m0_3 m0_1) put(sig8 d8 m4_7) =M8
+          put(sig9 d9) =M9 put(sig4 d4 m5 m4_5 m6_7) =M4
+          put(sig5 d5) =M5 s2.put(sig6 d6 m7) =M6 put(sig7 d7)
+          =M7 put(sig10 d10) =M10`);
         // XXX TODO: ZZZ
         // s2..d3 to set left/right default (fail if no default)
         // =M4 --> s2.M4=s.M4
@@ -689,12 +697,11 @@ describe('scroll', ()=>{
         // =M0 =m0 =sig3 =d3 =m0 =m1 =m2 =m3 =m2_3 =m0_3 =m0_1
         // M0=null --> !M0
         t('seq9_branch', `${s} put(sig3 d3 m0 m1 m2) test(M0 m0 sig3 d3
-          m0 m1 m2 m3 m2_3 m0_3 m0_1) put(sig8 d8 m4_7) s2.M8=s.M8
+          m0 m1 m2 m3 m2_3 m0_3 m0_1) put(sig8 d8 m4_7) =M8
           decl(9) M9=hroot(m0_7+s2.m8_9) // branch
-          put(sig9 d9 err(invalid sig9,invalid d9))
-          M9=hroot(m0_7+s2.m8_9)
-          put(sig4 d4 m5 m4_5 m6_7) s2.M4=M4 s2.put(sig5 d5) s2.M5=M5
-          put(sig6 d6 m7) s2.M6=M6 put(sig7 d7) s2.M7=M7
+          put(sig9 d9 err(invalid sig9,invalid d9)) M9=hroot(m0_7+s2.m8_9)
+          put(sig4 d4 m5 m4_5 m6_7) =M4 s2.put(sig5 d5) =M5
+          put(sig6 d6 m7) =M6 put(sig7 d7) =M7
           put(sig10 d10 err(invalid sig10)) M10=null`);
         // XXX we always have root of seq 0
         /* XXX: branch
@@ -717,16 +724,15 @@ describe('scroll', ()=>{
         branch 3 - split 11 on branch 1
         */
         t('seq9_no_branch_multi', `${s} put(sig3 d3 m0 m1 m2) test(M0 m0
-          sig3 d3 m0 m1 m2 m3 m2_3 m0_3 m0_1) put(sig8 d8 m4_7) s2.M8=s.M8
+          sig3 d3 m0 m1 m2 m3 m2_3 m0_3 m0_1) put(sig8 d8 m4_7) =M8
           put(sig9 d9 sig4 d4 m5 m4_5 m6_7 sig5 d5 sig6 d6 m7 sig7 d7 sig10
-          d10) s2.M9=M9 s2.M4=M4 s2.M5=M5 s2.M6=M6 s2.M7=M7 s2.M10=M10`);
+          d10) =M9 =M4 =M5 =M6 =M7 =M10`);
         t('seq9_branch_multi', `${s} put(sig3 d3 m0 m1 m2) test(M0 m0
-          sig3 d3 m0 m1 m2 m3 m2_3 m0_3 m0_1) put(sig8 d8 m4_7) s2.M8=s.M8
+          sig3 d3 m0 m1 m2 m3 m2_3 m0_3 m0_1) put(sig8 d8 m4_7) =M8
           decl(9) M9=hroot(s2.m0_7+s2.m8_9) // branch
           put(sig9 d9 sig4 d4 m5 m4_5 m6_7 sig5 d5 sig6 d6 m7 sig7 d7 sig10
           d10 err(invalid sig9,invalid d9,invalid sig10))
-          M9=hroot(s2.m0_7+s2.m8_9) s2.M4=M4 s2.M5=M5 s2.M6=M6 s2.M7=M7
-          s2.M10=null`);
+          M9=hroot(s2.m0_7+s2.m8_9) =M4 =M5 =M6 s2.M7=M7 s2.M10=null`);
       });
       describe('top_M1', ()=>{
         let s = `s.scroll(!prev_scroll) s.decl(1-32) s2..scroll(s..M1)
@@ -801,12 +807,12 @@ describe('scroll', ()=>{
           test(M3)`);
         t('m0_1m2m3_seq4_no_branch', `${s} put(m0_1 m2 m3)
           test(M3 m2 m3 m0_1 m2_3 m0_3) put(sig4 d4)
-          test(sig4 d4 M3 m2 m3 m0_1 m2_3 m0_3) put(sig0 d0 m1) s2.M0=M0`);
+          test(sig4 d4 M3 m2 m3 m0_1 m2_3 m0_3) put(sig0 d0 m1) =M0`);
         t('m0_1m2m3_seq4_branch', `${s} put(m0_1 m2 m3)
           test(M3 m2 m3 m0_1 m2_3 m0_3) decl(4) // branch
           put(sig4 d4 err(invalid sig4,invalid d4))
           test(sig4:sign(s2.d4+M3) m4:hleaf(s2.d4+s2.sig4) d4:s2.d4 M3 m2
-          m3 m0_1 m2_3 m0_3) put(sig0 d0 m1) s2.M0=M0`);
+          m3 m0_1 m2_3 m0_3) put(sig0 d0 m1) =M0`);
         // XXX: add test for sig/d insert + invalid
       });
       describe('top_M4', ()=>{

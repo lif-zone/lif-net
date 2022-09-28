@@ -15,7 +15,12 @@ npm install
 # cd lif_server
 cd util
 
-# run tests in node (mocha)
+# run all tests in node (mocha)
+mocha
+
+# run specific tests
+mocha -g etask
+
 ```
 
 

@@ -22,6 +22,9 @@ import _ from 'underscore';
 import when from 'when';
 const seq = xtest.seq, ms = date.ms, assign = Object.assign;
 
+if (xutil.is_inspect())
+  debugger; // eslint-disable-line no-debugger
+
 describe('sinon', function(){
     let seq_with_called = ()=>{
         let i = 0;

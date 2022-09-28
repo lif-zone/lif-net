@@ -6,8 +6,12 @@ const is_node = typeof window==='undefined';
 const E = {};
 export default E;
 
+E._is_inspect;
 E.is_inspect = function(){
-  return !!process.execArgv.find(s=>/inspect/.test(s)); };
+  if (E._is_inspect!==undefined)
+    return E._is_inspect;
+  return E._is_inspect = !!process.execArgv.find(s=>/inspect/.test(s));
+};
 
 E._is_mocha = undefined;
 E.is_mocha = function(){

@@ -5,7 +5,6 @@ import assert from 'assert';
 import etask from './etask.js';
 import xutil from './util.js';
 import date from './date.js';
-import xerr from './xerr.js';
 import events from './events.js';
 
 const E = {};

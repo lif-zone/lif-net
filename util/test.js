@@ -5803,11 +5803,10 @@ describe('etask', function(){
         yield this.wait();
         seq(8);
     }));
-    if (0) // generator .return() not yet supported by v8
     it('generator_ecancel_finally', ()=>xetask({seq: 4, ret: 2}, [function(){
         setTimeout(()=>{
             seq(2);
-            this.continue(2);
+            this.return(2);
         }, 1);
         return etask({cancel: true}, function*(){
             try {

@@ -34,7 +34,15 @@ mocha -g etask
 ## How to submit a fix
 - Clone lif-zone/server.git
 - Commit all your changes
-- Send emaiil to xxderry@gmail.com with link to your repository
+- Email xxderry@gmail.com
 
-XXX: eslint
+## Questions
+- Email xxderry@gmail.com
+
+## ESlint
+- All files ```eslint .```
+- Specific files ```eslint test.js```
+
+
 ## etask
+

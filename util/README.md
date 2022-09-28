@@ -24,8 +24,7 @@ mocha -g etask
 - Run mocha with ```--inspect-brk```
   ```
   # cd lif_server/util
-  mocha -g etask --inspect-brk
-  ```
+  mocha -g etask --inspect-brk```
 - Open Chrome browser
 - Browse to chrome://inspect
 - Click 'Open dedicated DevTools for Node'

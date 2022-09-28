@@ -36,7 +36,7 @@ mocha -g etask
 - Email xxderry@gmail.com
 
 ## Questions
-- Email xxderry@gmail.com
+xxderry@gmail.com
 
 ## ESlint
 - All files ```eslint .```

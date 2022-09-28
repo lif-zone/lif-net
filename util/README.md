@@ -17,7 +17,8 @@ cd util
 mocha
 
 # run specific tests
-mocha -g etask``
+mocha -g etask
+```
 
 ## debugging
 - ```mocha --inspect-brk```

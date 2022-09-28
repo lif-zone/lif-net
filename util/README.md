@@ -33,14 +33,6 @@ mocha -g etask
 - Browse to chrome://inspect
 - Click 'Open dedicated DevTools for Node'
 
-## How to submit a fix
-- Clone lif-zone/server.git
-- Commit all your changes
-- Email xxderry@gmail.com
-
-## Questions
-xxderry@gmail.com
-
 ## ESlint
 - All files
   ```eslint .```

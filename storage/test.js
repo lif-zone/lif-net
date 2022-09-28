@@ -236,6 +236,8 @@ describe('parser', ()=>{
     t('a==b', {cmd: '==', l: 'a', r: 'b'});
     t('a..b', {cmd: '..', l: 'a', r: 'b'});
     t('a...b', {cmd: '...', l: 'a', r: 'b'});
+    t('test(a)', {cmd: 'test', l: '', r: 'a'});
+    t('==(a)', {cmd: '==', l: '', r: 'a'});
     t('a.b', {cmd: '.', l: 'a', r: 'b'});
     t('a:b', {cmd: ':', l: 'a', r: 'b'});
     t('a=b', {cmd: '=', l: 'a', r: 'b'});
@@ -424,7 +426,10 @@ const test_run_single = o=>etask(function*_test_run_single(){
   case 'scroll': yield cmd_scroll(o); break;
   case 'decl': yield cmd_decl(o); break;
   case 'put': yield cmd_put(o); break;
-  case 'test': yield cmd_test(o); break;
+  case 'test':
+  case '==':
+    yield cmd_test(o);
+    break;
   case '//': break;
   case '=': yield cmd_eq(o); break;
   case '.':
@@ -603,8 +608,7 @@ describe('scroll', ()=>{
     `);
     describe('put', ()=>{
       describe('errors_invalid', ()=>{
-        let s = `s.scroll(!prev_scroll) s.decl(1-32) s2..scroll(s..M0)
-          test(M0)`;
+        let s = `s.scroll(!prev_scroll) s.decl(1-32) s2..scroll(s..M0) ==M0`;
         t('sig0', `${s} s.put(sig0:sig1 err(invalid sig0))`);
         t('d0', `${s} s.put(d0:d1 err(invalid d0))`);
         t('m0', `${s} s.put(m0:m1 err(invalid m0))`);
@@ -613,104 +617,92 @@ describe('scroll', ()=>{
         t('sig1', `${s} s.put(sig1:sig0 err(invalid sig1))`);
       });
       describe('errors_missing', ()=>{
-        let s = `s.scroll(!prev_scroll) s.decl(1-32) s2..scroll(s..M0)
-          test(M0)`;
-        t('sig0', `${s} put(sig0 err(missing d0)) test(M0)`);
-        t('d0', `${s} put(d0 err(missing sig0)) test(M0)`);
+        let s = `s.scroll(!prev_scroll) s.decl(1-32) s2..scroll(s..M0) ==M0`;
+        t('sig0', `${s} put(sig0 err(missing d0)) ==M0`);
+        t('d0', `${s} put(d0 err(missing sig0)) ==M0`);
       });
       describe('top_M0', ()=>{
-        let s = `s.scroll(!prev_scroll) s.decl(1-32) s2..scroll(s..M0)
-          test(M0)`;
-        t('sig0d0', `${s} put(sig0 d0) test(sig0 d0 M0 m0)`);
-        t('sig0d0_m0', `${s} put(sig0 d0 m0) test(sig0 d0 M0 m0)`);
+        let s = `s.scroll(!prev_scroll) s.decl(1-32) s2..scroll(s..M0) ==M0`;
+        t('sig0d0', `${s} put(sig0 d0) ==(sig0 d0 M0 m0)`);
+        t('sig0d0_m0', `${s} put(sig0 d0 m0) ==(sig0 d0 M0 m0)`);
         t('sig0d0_m0_invalid_m0', `${s} put(sig0 d0 m0:m1 err(invalid M0))
-          test(M0)`);
+          ==M0`);
         t('sig0d0_m0_invalid_sig0', `${s} put(sig0:sig1 d0 m0
-          err(invalid sig0)) test(M0 m0)`);
-        t('sig0D0', `${s} put(sig0 D0) test(sig0 d0 D0 M0 m0)`);
+          err(invalid sig0)) ==(M0 m0)`);
+        t('sig0D0', `${s} put(sig0 D0) ==(sig0 d0 D0 M0 m0)`);
         t('sig0D0_invalid_sig', `${s} put(sig0:sig1 D0
-          err(invalid M0)) test(M0)`);
-        t('sig0D0d0', `${s} put(sig0 D0 d0) test(sig0 d0 D0 M0 m0)`);
+          err(invalid M0)) ==M0`);
+        t('sig0D0d0', `${s} put(sig0 D0 d0) ==(sig0 d0 D0 M0 m0)`);
         t('sig0D0d0_invalid_d0', `${s} put(sig0 D0 d0:d1
-          err(invalid D0,invalid M0)) test(M0)`);
-        t('sig0d0_then_D0', `${s} put(sig0 d0) test(sig0 d0 M0 m0)
-          put(D0) test(sig0 d0 D0 M0 m0)`);
+          err(invalid D0,invalid M0)) ==M0`);
+        t('sig0d0_then_D0', `${s} put(sig0 d0) ==(sig0 d0 M0 m0)
+          put(D0) ==(sig0 d0 D0 M0 m0)`);
         t('sig0d0_then_D0_invalid', `${s} put(sig0 d0)
-          test(sig0 d0 M0 m0) put(D0:D1 err(invalid D0)) test(sig0 d0 M0 m0)`);
-        t('m0', `${s} put(m0) test(M0 m0)`);
-        t('m0_invalid_m0', `${s} put(m0:m1 err(invalid M0)) test(M0)`);
-        t('m0_sig0d0', `${s} put(m0 sig0 d0) test(M0 m0 sig0 d0)`);
+          ==(sig0 d0 M0 m0) put(D0:D1 err(invalid D0)) ==(sig0 d0 M0 m0)`);
+        t('m0', `${s} put(m0) ==(M0 m0)`);
+        t('m0_invalid_m0', `${s} put(m0:m1 err(invalid M0)) ==M0`);
+        t('m0_sig0d0', `${s} put(m0 sig0 d0) ==(M0 m0 sig0 d0)`);
         t('m0_sig0d0_missing_d0', `${s} put(m0 sig0 err(missing d0))
-          test(M0 m0)`);
+          ==(M0 m0)`);
         t('m0_sig0d0_missing_sig0', `${s} put(m0 d0 err(missing sig0))
-          test(M0 m0)`);
+          ==(M0 m0)`);
         t('m0_sig0d0_invalid_sig0', `${s} put(m0 sig0:sig1 d0
-          err(invalid sig0)) test(M0 m0)`);
+          err(invalid sig0)) ==(M0 m0)`);
         t('m0_sig0d0_invalid_d0', `${s} put(m0 sig0:sig0 d0:d1
-          err(invalid sig0)) test(M0 m0)`);
-        t('m0_sig1d1', `${s} put(m0 sig1 d1)
-          test(sig1 d1 M0 m0 m1 m0_1)`);
+          err(invalid sig0)) ==(M0 m0)`);
+        t('m0_sig1d1', `${s} put(m0 sig1 d1) ==(sig1 d1 M0 m0 m1 m0_1)`);
         t('m0_sig1d1_invalid_m0', `${s} put(m0:m1 sig1 d1
-          err(invalid M0,missing m0)) test(M0)`);
+          err(invalid M0,missing m0)) ==M0`);
         t('m0_sig1d1_invalid_sig1', `${s} put(m0 sig1:sig0 d1
-          err(invalid sig1)) test(M0 m0)`);
+          err(invalid sig1)) ==(M0 m0)`);
         t('m0m1_sig1d1', `${s} put(m0 m1 sig1 d1)
-          test(sig1 d1 M0 m0 m1 m0_1)`);
+          ==(sig1 d1 M0 m0 m1 m0_1)`);
         t('m0m1_sig1d1_invalid_m0', `${s} put(m0:m1 m1 sig1 d1
-          err(invalid M0,missing m0)) test(M0)`);
+          err(invalid M0,missing m0)) ==M0`);
         t('m0m1_sig1d1_invalid_m1', `${s} put(m0 m1:m0 sig1 d1
-          err(invalid sig1)) test(M0 m0)`);
+          err(invalid sig1)) ==(M0 m0)`);
         t('m0m1_sig1d1_invalid_sig1', `${s} put(m0 m1 sig1:sig0 d1
-          err(invalid sig1)) test(M0 m0)`);
+          err(invalid sig1)) ==(M0 m0)`);
         t('m0m1_sig1d1_missing_m0', `${s} put(m1 sig1 d1
-          err(missing m0)) test(M0)`);
+          err(missing m0)) ==M0`);
         // XXX add errors/missing to below tests
         t('add_d2', `${s} put(sig2 d2 sig1 d1 m1 m0)
-          test(M0 sig2 d2 sig1 d1 m1 m0 m0_1)`);
+          ==(M0 sig2 d2 sig1 d1 m1 m0 m0_1)`);
         t('add_d2D1', `${s} put(sig2 d2 sig1 D1 m1 m0)
-          test(M0 sig2 d2 sig1 d1 D1 m1 m0 m0_1)`);
+          ==(M0 sig2 d2 sig1 d1 D1 m1 m0 m0_1)`);
         t('add_D2', `${s} put(sig2 D2 sig1 D1 m1 m0)
-          test(M0 sig2 D2 d2 sig1 d1 D1 m1 m0 m0_1)`);
+          ==(M0 sig2 D2 d2 sig1 d1 D1 m1 m0 m0_1)`);
         t('add_d3', `${s} put(sig3 d3 m0 m1 m2)
-          test(M0 m0 sig3 d3 m0 m1 m2 m3 m2_3 m0_3 m0_1)`);
+          ==(M0 m0 sig3 d3 m0 m1 m2 m3 m2_3 m0_3 m0_1)`);
         t('add_d3_missing_sig3', `${s} put(d3 m0 m1 m2
-          err(missing sig3,missing sig2,missing sig1)) test(M0 m0)`);
+          err(missing sig3,missing sig2,missing sig1)) ==(M0 m0)`);
         t('add_d3_invalid_sig3', `${s} put(sig3:sig2 d3 m0 m1 m2
-          err(invalid sig3,missing sig2,missing sig1)) test(M0 m0)`);
+          err(invalid sig3,missing sig2,missing sig1)) ==(M0 m0)`);
         t('add_d3_invalid_m0', `${s} put(sig3 d3 m0:m1 m1 m2
-          err(invalid M0, missing m0,missing sig2,missing sig1)) test(M0)`);
+          err(invalid M0, missing m0,missing sig2,missing sig1)) ==M0`);
         t('add_d3_invalid_m1', `${s} put(sig3 d3 m0 m1:m0 m2
-          err(invalid sig3,missing sig2,missing sig1)) test(M0 m0)`);
+          err(invalid sig3,missing sig2,missing sig1)) ==(M0 m0)`);
         t('add_d3_invalid_m2', `${s} put(sig3 d3 m0 m1 m2:m1
-          err(invalid sig3,missing sig2,missing sig1)) test(M0 m0)`);
+          err(invalid sig3,missing sig2,missing sig1)) ==(M0 m0)`);
         t('add_d32', `${s}
           put(m0 m1 m2_3 m4_7 m8_15 d32 sig32 m31 m16_23 m24_27 m28_29 m30)
-          test(M0 m0 m1 m0_1 m2_3 m0_3 m4_7 m0_7 m8_15 m0_15 m16_23 m16_31
+          ==(M0 m0 m1 m0_1 m2_3 m0_3 m4_7 m0_7 m8_15 m0_15 m16_23 m16_31
           m0_31 m24_27 m28_29 m30 m31 m30_31 m28_31 m24_31 d32 sig32 m32)`);
         t('add_D32', `${s}
           put(m0 m1 m2_3 m4_7 m8_15 D32 sig32 m31 m16_23 m24_27 m28_29 m30)
-          test(M0 m0 m1 m0_1 m2_3 m0_3 m4_7 m0_7 m8_15 m0_15 m16_23 m16_31
+          ==(M0 m0 m1 m0_1 m2_3 m0_3 m4_7 m0_7 m8_15 m0_15 m16_23 m16_31
           m0_31 m24_27 m28_29 m30 m31 m30_31 m28_31 m24_31 d32 D32 sig32 m32)
         `);
         t('add_d32_invalid_m30', `${s}
           put(m0 m1 m2_3 m4_7 m8_15 d32 sig32 m31 m16_23 m24_27
           m28_29 m30:m0 err(invalid sig32,missing sig31,missing sig30,
-          missing sig1)) test(M0 m0)`);
-        // XXX check .. for =
-        t('seq9_no_branch', `${s} put(sig3 d3 m0 m1 m2) test(M0 m0 sig3
+          missing sig1)) ==(M0 m0)`);
+        t('seq9_no_branch', `${s} put(sig3 d3 m0 m1 m2) ==(M0 m0 sig3
           d3 m0 m1 m2 m3 m2_3 m0_3 m0_1) put(sig8 d8 m4_7) =M8
           put(sig9 d9) =M9 put(sig4 d4 m5 m4_5 m6_7) =M4
           put(sig5 d5) =M5 s2.put(sig6 d6 m7) =M6 put(sig7 d7)
           =M7 put(sig10 d10) =M10`);
-        // XXX TODO: ZZZ
-        // s2..d3 to set left/right default (fail if no default)
-        // =M4 --> s2.M4=s.M4
-        // s2.test(M0 m0 sig3 d3 m0 m1 m2 m3 m2_3 m0_3 m0_1)
-        // similar s2.=(M0 m0 sig3 d3 m0 m1 m2 m3 m2_3 m0_3 m0_1)
-        // =(M0 m0 sig3 d3 m0 m1 m2 m3 m2_3 m0_3 m0_1)
-        // =M0 =m0 =sig3 =d3 =m0 =m1 =m2 =m3 =m2_3 =m0_3 =m0_1
-        // M0=null --> !M0
-        t('seq9_branch', `${s} put(sig3 d3 m0 m1 m2) test(M0 m0 sig3 d3
+        t('seq9_branch', `${s} put(sig3 d3 m0 m1 m2) ==(M0 m0 sig3 d3
           m0 m1 m2 m3 m2_3 m0_3 m0_1) put(sig8 d8 m4_7) =M8
           decl(9) M9=hroot(m0_7+s2.m8_9) // branch
           put(sig9 d9 err(invalid sig9,invalid d9)) M9=hroot(m0_7+s2.m8_9)
@@ -737,11 +729,11 @@ describe('scroll', ()=>{
         branch 2 - split 2
         branch 3 - split 11 on branch 1
         */
-        t('seq9_no_branch_multi', `${s} put(sig3 d3 m0 m1 m2) test(M0 m0
+        t('seq9_no_branch_multi', `${s} put(sig3 d3 m0 m1 m2) ==(M0 m0
           sig3 d3 m0 m1 m2 m3 m2_3 m0_3 m0_1) put(sig8 d8 m4_7) =M8
           put(sig9 d9 sig4 d4 m5 m4_5 m6_7 sig5 d5 sig6 d6 m7 sig7 d7 sig10
           d10) =M9 =M4 =M5 =M6 =M7 =M10`);
-        t('seq9_branch_multi', `${s} put(sig3 d3 m0 m1 m2) test(M0 m0
+        t('seq9_branch_multi', `${s} put(sig3 d3 m0 m1 m2) ==(M0 m0
           sig3 d3 m0 m1 m2 m3 m2_3 m0_3 m0_1) put(sig8 d8 m4_7) =M8
           decl(9) M9=hroot(s2.m0_7+s2.m8_9) // branch
           put(sig9 d9 sig4 d4 m5 m4_5 m6_7 sig5 d5 sig6 d6 m7 sig7 d7 sig10
@@ -749,133 +741,118 @@ describe('scroll', ()=>{
           M9=hroot(s2.m0_7+s2.m8_9) =M4 =M5 =M6 s2.M7=M7 !M10`);
       });
       describe('top_M1', ()=>{
-        let s = `s.scroll(!prev_scroll) s.decl(1-32) s2..scroll(s..M1)
-          test(M1)`;
-        t('m0', `${s} put(m0 err(missing m1,missing m0_1)) test(M1)`);
-        t('m0m0_1', `${s} put(m0 err(missing m1,missing m0_1))
-          test(M1)`);
-        t('m1', `${s} put(m1 err(missing m0,missing m0_1)) test(M1)`);
-        t('m0m1', `${s} put(m0 m1) test(M0 m0 M1 m1 m0_1)`);
-        t('m0m1_invalid_m0', `${s} put(m0:m1 m1 err(invalid M1)) test(M1)`);
-        t('m0m1_invalid_m1', `${s} put(m0 m1:m0 err(invalid M1)) s2.test(M1)`);
+        let s = `s.scroll(!prev_scroll) s.decl(1-32) s2..scroll(s..M1) ==M1`;
+        t('m0', `${s} put(m0 err(missing m1,missing m0_1)) ==M1`);
+        t('m0m0_1', `${s} put(m0 err(missing m1,missing m0_1)) ==M1`);
+        t('m1', `${s} put(m1 err(missing m0,missing m0_1)) ==M1`);
+        t('m0m1', `${s} put(m0 m1) ==(M0 m0 M1 m1 m0_1)`);
+        t('m0m1_invalid_m0', `${s} put(m0:m1 m1 err(invalid M1)) ==M1`);
+        t('m0m1_invalid_m1', `${s} put(m0 m1:m0 err(invalid M1)) ==M1`);
         t('m0m1_sig0d0', `${s} put(sig0 d0 m0 m1)
-          test(sig0 d0 M0 m0 M1 m1 m0_1)`);
+          ==(sig0 d0 M0 m0 M1 m1 m0_1)`);
         t('m0m1_sig0d0_invalid_d0', `${s} put(sig0 d0:d1 m0 m1
-          err(invalid sig0)) test(M0 m0 M1 m1 m0_1)`);
+          err(invalid sig0)) ==(M0 m0 M1 m1 m0_1)`);
         t('m0m1_sig0d0_invalid_sig0', `${s} put(sig0:sig1 d0 m0 m1
-          err(invalid sig0)) test(M0 m0 M1 m1 m0_1)`);
+          err(invalid sig0)) ==(M0 m0 M1 m1 m0_1)`);
         t('m0m1_sig0d0_missing_d0', `${s} put(sig0 m0 m1
-          err(missing d0)) test(M0 m0 M1 m1 m0_1)`);
+          err(missing d0)) ==(M0 m0 M1 m1 m0_1)`);
         t('m0m1_sig0d0_missing_sig0', `${s} put(d0 m0 m1
-          err(missing sig0)) test(M0 m0 M1 m1 m0_1)`);
+          err(missing sig0)) ==(M0 m0 M1 m1 m0_1)`);
         t('m0m1_sig1d1', `${s} put(sig1 d1 m0 m1)
-          test(sig1 d1 M0 m0 M1 m1 m0_1)`);
+          ==(sig1 d1 M0 m0 M1 m1 m0_1)`);
         t('m0m1_sig1d1_invalid_sig1', `${s} put(sig1:sig0 d1 m0 m1
-          err(invalid sig1)) test(M0 m0 M1 m1 m0_1)`);
+          err(invalid sig1)) ==(M0 m0 M1 m1 m0_1)`);
         t('m0m1_sig1d1_missing_sig1', `${s} put(d1 m0 m1
-          err(missing sig1)) test(M0 m0 M1 m1 m0_1)`);
+          err(missing sig1)) ==(M0 m0 M1 m1 m0_1)`);
         t('m0m1_sig1d1_sig0d0', `${s} put(sig0 d0 sig1 d1 m0 m1)
-          test(sig0 d0 sig1 d1 M0 m0 M1 m1 m0_1)`);
+          ==(sig0 d0 sig1 d1 M0 m0 M1 m1 m0_1)`);
         // XXX: ^m0_1 is redundant
-        t('m0m1m0_1', `${s} put(m0 m1 m0_1) test(M0 m0 M1 m1 m0_1)`);
-        t('m0_sig1d1', `${s} put(m0 sig1 d1) test(sig1 d1 M0 m0 M1 m1 m0_1)`);
-        t('m1_sig0d0', `${s} put(sig0 d0 m1) test(sig0 d0 M0 m0 M1 m1 m0_1)`);
+        t('m0m1m0_1', `${s} put(m0 m1 m0_1) ==(M0 m0 M1 m1 m0_1)`);
+        t('m0_sig1d1', `${s} put(m0 sig1 d1) ==(sig1 d1 M0 m0 M1 m1 m0_1)`);
+        t('m1_sig0d0', `${s} put(sig0 d0 m1) ==(sig0 d0 M0 m0 M1 m1 m0_1)`);
         // XXX add test for d0sig0_d1_sig1
         // XXX: add sig/d tests
       });
       describe('top_M2', ()=>{
-        let s = `s.scroll(!prev_scroll) s.decl(1-32) s2..scroll(s..M2)
-          test(M2)`;
-        t('m0', `${s} put(m0 err(missing m1,missing m0_1)) test(M2)`);
-        t('m0m1', `${s} put(m0 m1 err(missing m2)) test(M2)`);
-        t('m0m1m2', `${s} put(m0 m1 m2) test(M2 m0 m1 m2 m0_1)`);
-        t('m0m1m2_invalid_m0', `${s} put(m0:m1 m1 m2 err(invalid M2))
-          test(M2)`);
-        t('m0m1m2_invalid_m1', `${s} put(m0 m1:m0 m2 err(invalid M2))
-          test(M2)`);
-        t('m0m1m2_invalid_m2', `${s} put(m0 m1 m2:m0 err(invalid M2))
-          test(M2)`);
-        t('m0_1m2', `${s} s2.put(m0_1 m2) s2.test(M2 m2 m0_1)`);
-        t('m0_1m2_invalid_m0_1', `${s} put(m0_1:m1 m2 err(invalid M2))
-          test(M2)`);
-        t('m0_1m2_invalid_m2', `${s} put(m0_1 m2:m1 err(invalid M2))
-          test(M2)`);
+        let s = `s.scroll(!prev_scroll) s.decl(1-32) s2..scroll(s..M2) ==M2`;
+        t('m0', `${s} put(m0 err(missing m1,missing m0_1)) ==M2`);
+        t('m0m1', `${s} put(m0 m1 err(missing m2)) ==M2`);
+        t('m0m1m2', `${s} put(m0 m1 m2) ==(M2 m0 m1 m2 m0_1)`);
+        t('m0m1m2_invalid_m0', `${s} put(m0:m1 m1 m2 err(invalid M2)) ==M2`);
+        t('m0m1m2_invalid_m1', `${s} put(m0 m1:m0 m2 err(invalid M2)) ==M2`);
+        t('m0m1m2_invalid_m2', `${s} put(m0 m1 m2:m0 err(invalid M2)) ==M2`);
+        t('m0_1m2', `${s} s2.put(m0_1 m2) ==(M2 m2 m0_1)`);
+        t('m0_1m2_invalid_m0_1', `${s} put(m0_1:m1 m2 err(invalid M2)) ==M2`);
+        t('m0_1m2_invalid_m2', `${s} put(m0_1 m2:m1 err(invalid M2)) ==M2`);
         // XXX: add test for sig/d insert + invalid
       });
       describe('top_M3', ()=>{
-        let s = `s.scroll(!prev_scroll) s.decl(1-32) s2..scroll(s..M3)
-          test(M3)`;
-        t('m0', `${s} put(m0 err(missing m1,missing m0_1,missing m0_3))
-          test(M3)`);
+        let s = `s.scroll(!prev_scroll) s.decl(1-32) s2..scroll(s..M3) ==M3`;
+        t('m0', `${s} put(m0 err(missing m1,missing m0_1,missing m0_3)) ==M3`);
         t('m0m1', `${s} put(m0 m1
-          err(missing m2,missing m2_3,missing m0_3)) test(M3)`);
+          err(missing m2,missing m2_3,missing m0_3)) ==M3`);
         t('m0m1m2', `${s} put(m0 m1 m2
-          err(missing m3,missing m2_3,missing m0_3)) test(M3)`);
+          err(missing m3,missing m2_3,missing m0_3)) ==M3`);
         t('m0m1m2m3', `${s} put(m0 m1 m2 m3)
-          test(M3 m0 m1 m2 m3 m0_1 m2_3 m0_3)`);
+          ==(M3 m0 m1 m2 m3 m0_1 m2_3 m0_3)`);
         t('m0m1m2m3_invalid_m0', `${s} put(m0:m1 m1 m2 m3 err(invalid M3))
-          test(M3)`);
+          ==M3`);
         t('m0_1m2m3', `${s} put(m0_1 m2 m3)
-          test(M3 m2 m3 m0_1 m2_3 m0_3)`);
+          ==(M3 m2 m3 m0_1 m2_3 m0_3)`);
         t('m0_1m2m3_invalid_m0_1', `${s} put(m0_1:m0 m2 m3 err(invalid M3))
-          test(M3)`);
+          ==M3`);
         t('m0_1m2m3_seq4_no_branch', `${s} put(m0_1 m2 m3)
-          test(M3 m2 m3 m0_1 m2_3 m0_3) put(sig4 d4)
-          test(sig4 d4 M3 m2 m3 m0_1 m2_3 m0_3) put(sig0 d0 m1) =M0`);
+          ==(M3 m2 m3 m0_1 m2_3 m0_3) put(sig4 d4)
+          ==(sig4 d4 M3 m2 m3 m0_1 m2_3 m0_3) put(sig0 d0 m1) =M0`);
         t('m0_1m2m3_seq4_branch', `${s} put(m0_1 m2 m3)
-          test(M3 m2 m3 m0_1 m2_3 m0_3) decl(4) // branch
+          ==(M3 m2 m3 m0_1 m2_3 m0_3) decl(4) // branch
           put(sig4 d4 err(invalid sig4,invalid d4))
-          test(sig4:sign(s2.d4+M3) m4:hleaf(s2.d4+s2.sig4) d4:s2.d4 M3 m2
+          ==(sig4:sign(s2.d4+M3) m4:hleaf(s2.d4+s2.sig4) d4:s2.d4 M3 m2
           m3 m0_1 m2_3 m0_3) put(sig0 d0 m1) =M0`);
         // XXX: add test for sig/d insert + invalid
       });
       describe('top_M4', ()=>{
-        let s = `s.scroll(!prev_scroll) s.decl(1-32) s2..scroll(s..M4)
-          test(M4)`;
-        t('m0_3m4', `${s} put(m0_3 m4) test(M4 m4 m0_3)`);
-        t('m0_3m4_invalid_m0_3', `${s} put(m0_3:m0 m4 err(invalid M4))
-          test(M4)`);
-        t('m0_3m4_invalid_m4', `${s} put(m0_3 m4:m3 err(invalid M4))
-          test(M4)`);
+        let s = `s.scroll(!prev_scroll) s.decl(1-32) s2..scroll(s..M4) ==M4`;
+        t('m0_3m4', `${s} put(m0_3 m4) ==(M4 m4 m0_3)`);
+        t('m0_3m4_invalid_m0_3', `${s} put(m0_3:m0 m4 err(invalid M4)) ==M4`);
+        t('m0_3m4_invalid_m4', `${s} put(m0_3 m4:m3 err(invalid M4)) ==M4`);
         // XXX: add test for sig/d insert + invalid
       });
       describe('top_M31', ()=>{
-        let s = `s.scroll(!prev_scroll) s.decl(1-32) s2..scroll(s..M31)
-          test(M31)`;
+        let s = `s.scroll(!prev_scroll) s.decl(1-32) s2..scroll(s..M31) ==M31`;
         t('m0_15m16_23m24_27m28_29m30m31', `${s}
-          put(m0_15 m16_23 m24_27 m28_29 m30 m31) test(M31 m30 m31 m0_15
+          put(m0_15 m16_23 m24_27 m28_29 m30 m31) ==(M31 m30 m31 m0_15
           m16_23 m24_27 m28_29 m28_31 m30_31 m24_31 m16_31 m0_31)`);
         t('m0_15m16_23m24_27m28_29m30m31_invalid_m0_15', `${s}
-          put(m0_15:m0 m16_23 m24_27 m28_29 m30 m31 err(invalid M31))
-          test(M31)`);
+          put(m0_15:m0 m16_23 m24_27 m28_29 m30 m31 err(invalid M31)) ==M31`);
         t('m0_15m16_23m24_27m28_29m30m31_d30_sig30', `${s}
           put(d30 sig30 m0_15 m16_23 m24_27 m28_29 m30 m31)
-          test(sig30 d30 M31 m30 m31 m0_15 m16_23 m24_27 m28_29 m28_31
+          ==(sig30 d30 M31 m30 m31 m0_15 m16_23 m24_27 m28_29 m28_31
           m30_31 m24_31 m16_31 m0_31)`);
         t('m0_15m16_23m24_27m28_29m30m31_d30_sig30_invalid_sig30', `${s}
           put(d30 sig30:sig31 m0_15 m16_23 m24_27 m28_29 m30 m31
-          err(invalid sig30)) test(M31 m30 m31 m0_15 m16_23 m24_27 m28_29
+          err(invalid sig30)) ==(M31 m30 m31 m0_15 m16_23 m24_27 m28_29
           m28_31 m30_31 m24_31 m16_31 m0_31)`);
         t('m0_15m16_23m24_27m28_29m30m31_d31_sig31', `${s}
          put(d31 sig31 m0_15 m16_23 m24_27 m28_29 m30 m31)
-         test(sig31 d31 M31 m30 m31 m0_15
+         ==(sig31 d31 M31 m30 m31 m0_15
          m16_23 m24_27 m28_29 m28_31 m30_31 m24_31 m16_31 m0_31)`);
         t('m0_15m16_23m24_27m28_29m30m31_d31_sig31_invalid_sig31', `${s}
           put(d31 sig31:sig30 m0_15 m16_23 m24_27 m28_29 m30 m31
-          err(invalid sig31)) test(M31 m30 m31 m0_15 m16_23 m24_27 m28_29
+          err(invalid sig31)) ==(M31 m30 m31 m0_15 m16_23 m24_27 m28_29
           m28_31 m30_31 m24_31 m16_31 m0_31)`);
         t('seq29_ok', `${s}
           put(d29 sig29 m0_15 m16_23 m24_27 m28 m30 m31)
-          test(sig29 d29 M31 m28 m29 m30 m31 m0_15
+          ==(sig29 d29 M31 m28 m29 m30 m31 m0_15
           m16_23 m24_27 m28_29 m28_31 m30_31 m24_31 m16_31 m0_31)`);
         t('seq29_ok_invalid_sig', `${s}
           put(d29 sig29:sig0 m0_15 m16_23 m24_27 m28 m30 m31
-          err(invalid M31)) test(M31)`);
+          err(invalid M31)) ==M31`);
         t('seq29_missing_m28', `${s}
           put(d29 sig29 m0_15 m16_23 m24_27 m28_29 m30 m31
           err(missing m28,missing m28_29,missing m28_31,missing m24_31,
           missing m16_31,missing m0_31))
-          test(M31 m30 m31 m0_15 m16_23 m24_27 m28_29 m28_31
+          ==(M31 m30 m31 m0_15 m16_23 m24_27 m28_29 m28_31
           m30_31 m24_31 m16_31 m0_31)`);
       });
     });

@@ -6,6 +6,12 @@ const E = {};
 export default E;
 
 function space(s){ return s ? ' '+s : ''; }
+function strip_parentesis(s){
+  if (s.charAt(0)!='(')
+    return s;
+  assert(s.charAt(s.length-1)==')', 'invalid '+s);
+  return s.substr(1, s.length-2);
+}
 
 E.parse_get_next = function(curr){
   let i=0, s=curr, state='pre', done=false, exp='', parentesis = [];
@@ -76,6 +82,7 @@ E._parse_exp = function(s){
     return {cmd: '!', l: '', r: s.substr(1).trim(), meta};
   for (let i=0; i<s.length; i++){
     c = s.charAt(i);
+    let cn = s.charAt(i+1), cnn= s.charAt(i+2);
     if (c=='('){
       first = first===undefined ? i : first;
       parentesis.push(c);
@@ -83,7 +90,6 @@ E._parse_exp = function(s){
     else if (c==')')
       assert.equal(parentesis.pop(), '(');
     else if (!parentesis.length && ['+', '-', ':', '=', '.'].includes(c)){
-      let cn = s.charAt(i+1), cnn= s.charAt(i+2);
       if (cn==cnn && ['=', '.'].includes(cnn)){
         assert.equal(s.charAt(i), cn, 'invalid exp '+s);
         assert.equal(s.charAt(i), cnn, 'invalid exp '+s);
@@ -91,7 +97,8 @@ E._parse_exp = function(s){
       }
       if (['=', '.'].includes(cn)){
         assert.equal(s.charAt(i), cn, 'invalid exp '+s);
-        return {cmd: c+cn, l: s.substr(0, i), r: s.substr(i+2), meta};
+        return {cmd: c+cn, l: s.substr(0, i),
+          r: strip_parentesis(s.substr(i+2)), meta};
       }
       return {cmd: c, l: s.substr(0, i), r: s.substr(i+1), meta};
     }

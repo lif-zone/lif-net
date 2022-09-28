@@ -82,8 +82,10 @@ E._parse_exp = function(s){
       assert.equal(parentesis.pop(), '(');
     else if (!parentesis.length && ['+', '-', ':', '=', '.'].includes(c)){
       let cn = s.charAt(i+1);
-      if (cn=='=')
+      if (['=', '.'].includes(cn)){
+        assert.equal(s.charAt(i), cn, 'invalid exp '+s);
         return {cmd: c+cn, l: s.substr(0, i), r: s.substr(i+2), meta};
+      }
       return {cmd: c, l: s.substr(0, i), r: s.substr(i+1), meta};
     }
   }

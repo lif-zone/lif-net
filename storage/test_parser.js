@@ -81,7 +81,12 @@ E._parse_exp = function(s){
     else if (c==')')
       assert.equal(parentesis.pop(), '(');
     else if (!parentesis.length && ['+', '-', ':', '=', '.'].includes(c)){
-      let cn = s.charAt(i+1);
+      let cn = s.charAt(i+1), cnn= s.charAt(i+2);
+      if (cn==cnn && ['=', '.'].includes(cnn)){
+        assert.equal(s.charAt(i), cn, 'invalid exp '+s);
+        assert.equal(s.charAt(i), cnn, 'invalid exp '+s);
+        return {cmd: c+cn+cnn, l: s.substr(0, i), r: s.substr(i+3), meta};
+      }
       if (['=', '.'].includes(cn)){
         assert.equal(s.charAt(i), cn, 'invalid exp '+s);
         return {cmd: c+cn, l: s.substr(0, i), r: s.substr(i+2), meta};
@@ -103,7 +108,6 @@ E.parse_exp = function(s){
   return o;
 };
 
-// XXX: need test
 E.parse_exp_arg = function(exp){
   let t = E.parse_exp(exp);
   if (t.cmd!=':')
@@ -112,3 +116,19 @@ E.parse_exp_arg = function(exp){
   t.l = '';
   return t;
 };
+
+E.parse_exp_arg_pair = function(exp){
+  let m;
+  if (exp.includes(':')){
+    m = exp.match(/^([^:]+):([^:]+)$/);
+    assert(m, 'invalid arg_pair '+exp);
+    return {l: m[1], r: m[2]};
+  }
+  else if (m = exp.match(/^([^(^)]+)\(([^(^)]+)\)$/))
+    return {l: m[1], r: m[2]};
+  m = exp.match(/(^[^.]*)(\.*)([^.]*)$/);
+  assert(m, 'invalid arg_pair '+exp);
+  return ['.', '..', '...'].includes(m[2]) ? {l: m[3], r: m[0]} :
+    {l: m[0], r: m[1]};
+}
+

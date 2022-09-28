@@ -36,14 +36,20 @@ afterEach(function(){
   xerr.set_buffered(false);
 });
 
+function get_scroll(name){
+  let scroll = t_scroll[name];
+  assert(scroll, 'scroll not found '+name);
+  return scroll;
+}
+
 function set_def(type, val){
-  assert(['left'].includes(type), 'invalid default type '+type);
+  assert(['left', 'right'].includes(type), 'invalid default type '+type);
   assert(val, 'invalid default '+type+' val '+val);
   return t_def[type] = val;
 }
 
 function get_def(type){
-  assert(['left'].includes(type), 'invalid default type '+type);
+  assert(['left', 'right'].includes(type), 'invalid default type '+type);
   assert(t_def[type], 'no default type '+type);
   return t_def[type];
 }
@@ -82,27 +88,17 @@ const calc_m = (scroll, s, e)=>etask(function*calc_m(){
   return scroll_m||test_m;
 });
 
-const get_val = exp=>etask(function*_get_val(){
+const get_val = (exp, type='right')=>etask(function*_get_val(){
+  let m;
   assert(typeof exp=='string', 'invalid get_val '+exp);
-  let m = exp.match(/^([a-zA-Z]\d*)\.(.*)$/);
-  let name = m ? m[1] : 's', scroll = t_scroll[name];
-  exp = m ? m[2] : exp;
   if (exp=='null')
     return null;
-  if (m = exp.match(/^sig(\d+)$/)) // sig10
-    return scroll.seq_sig(+m[1]);
-  if (m = exp.match(/^m(\d+)$/)) // m10
-    return scroll.m_hash(+m[1]); // XXX: calc and assert it match data hash
-  if (m = exp.match(/^m(\d+)_(\d+)$/)) // m0_1
-    return calc_m(scroll, +m[1], +m[2]);
-  if (m = exp.match(/^M(\d+)$/)) // M10
-    return scroll.M_hash(+m[1]);
-  if (m = exp.match(/^M$/)) // M
-    return scroll.M_hash();
-  if (m = exp.match(/^d(\d+)$/)) // d10
-    return scroll.seq_d(+m[1]);
-  if (m = exp.match(/^D(\d+)$/)) // D10
-    return scroll.seq_D(+m[1]);
+  if ('prev_scroll1'==exp)
+    return t_prev_scroll.M_hash(1);
+  if (/^\d+$/.test(exp))
+    return enc.encode(enc.uint64, +exp);
+  if (m = exp.match(/^0x([0-9a-f]+)$/))
+    return s2b(m[1]);
   if (m = exp.match(/^h\((.*)\)$/)){ // h(d10+sig11)
     let a=[], vars = m[1].split('+');
     for (let i=0; i<vars.length; i++)
@@ -133,12 +129,26 @@ const get_val = exp=>etask(function*_get_val(){
   }
   if (m = exp.match(/^sign\((.*)\)$/)) // sign(d10)
     return crypto.sign(crypto.blake2b(yield get_val(m[1])), t_keypair.key);
-  if (m = exp.match(/^0x([0-9a-f]+)$/))
-    return s2b(m[1]);
-  if (/^\d+$/.test(exp))
-    return enc.encode(enc.uint64, +exp);
-  if ('prev_scroll1'==exp)
-    return t_prev_scroll.M_hash(1);
+  if (m = exp.match(/^([a-zA-Z]\d*)\.\.(.*)$/))
+    set_def(type, m[1]);
+  else
+    m = exp.match(/^([a-zA-Z]\d*)\.(.*)$/);
+  let name = m ? m[1] : get_def(type||'right'), scroll = get_scroll(name);
+  exp = m ? m[2] : exp;
+  if (m = exp.match(/^sig(\d+)$/)) // sig10
+    return scroll.seq_sig(+m[1]);
+  if (m = exp.match(/^m(\d+)$/)) // m10
+    return scroll.m_hash(+m[1]); // XXX: calc and assert it match data hash
+  if (m = exp.match(/^m(\d+)_(\d+)$/)) // m0_1
+    return calc_m(scroll, +m[1], +m[2]);
+  if (m = exp.match(/^M(\d+)$/)) // M10
+    return scroll.M_hash(+m[1]);
+  if (m = exp.match(/^M$/)) // M
+    return scroll.M_hash();
+  if (m = exp.match(/^d(\d+)$/)) // d10
+    return scroll.seq_d(+m[1]);
+  if (m = exp.match(/^D(\d+)$/)) // D10
+    return scroll.seq_D(+m[1]);
   assert.fail('invalid val exp '+exp);
 });
 
@@ -199,6 +209,8 @@ describe('parser', ()=>{
     t('a[b(c) d{e}]', ['a[b(c) d{e}]']);
     t('a==b', ['a==b']);
     t('a..b', ['a..b']);
+    t('a...b', ['a...b']);
+    t('a.s.b', ['a.s.b']);
     t('a(1)==b(2)', ['a(1)==b(2)']);
     t('a==b(c==d)', ['a==b(c==d)']);
     t('a b(c) d==e', ['a', 'b(c)', 'd==e']);
@@ -223,6 +235,7 @@ describe('parser', ()=>{
     t('a(b==c)', {cmd: 'a', l: '', r: 'b==c'});
     t('a==b', {cmd: '==', l: 'a', r: 'b'});
     t('a..b', {cmd: '..', l: 'a', r: 'b'});
+    t('a...b', {cmd: '...', l: 'a', r: 'b'});
     t('a.b', {cmd: '.', l: 'a', r: 'b'});
     t('a:b', {cmd: ':', l: 'a', r: 'b'});
     t('a=b', {cmd: '=', l: 'a', r: 'b'});
@@ -231,9 +244,35 @@ describe('parser', ()=>{
     t('a(1)==b(2)', {cmd: '==', l: 'a(1)', r: 'b(2)'});
     t('a1==b(c+d)', {cmd: '==', l: 'a1', r: 'b(c+d)'});
     t('a.b(c)', {cmd: '.', l: 'a', r: 'b(c)'});
+    t('M7=s.M8', {cmd: '=', l: 'M7', r: 's.M8'});
+    t('s.M7=s2.M8', {cmd: '.', l: 's', r: 'M7=s2.M8'});
     t('//', {cmd: '//', l: '', r: ''});
     t('// XXX', {cmd: '//', l: '', r: 'XXX'});
     t('s1..put(s2.sig)', {cmd: '..', l: 's1', r: 'put(s2.sig)'});
+  });
+  it('parse_exp_arg', ()=>{
+    const t = (s, exp)=>assert.deepEqual(tparser.parse_exp_arg(s),
+      {...exp, meta: {s: s.trim()}});
+    t('d0', {cmd: 'd0', l: '', r: ''});
+    t('s.d0', {cmd: '.', l: 's', r: 'd0'});
+    t('d0:d1', {cmd: 'd0', l: '', r: 'd1'});
+    t('d0:s.d1', {cmd: 'd0', l: '', r: 's.d1'});
+    t('s.d0:d1', {cmd: '.', l: 's', r: 'd0:d1'});
+    t('s.d0:s2.d1', {cmd: '.', l: 's', r: 'd0:s2.d1'});
+  });
+  it('parse_exp_arg_pair', ()=>{
+    const t = (s, exp)=>assert.deepEqual(tparser.parse_exp_arg_pair(s), exp);
+    t('d0', {l: 'd0', r: 'd0'});
+    t('s0.d0', {l: 'd0', r: 's0.d0'});
+    t('s0..d0', {l: 'd0', r: 's0..d0'});
+    t('s0...d0', {l: 'd0', r: 's0...d0'});
+    t('d0:d1', {l: 'd0', r: 'd1'});
+    t('d0:s1.d1', {l: 'd0', r: 's1.d1'});
+    t('s0.d0:d1', {l: 's0.d0', r: 'd1'});
+    t('s0.d0:s1.d1', {l: 's0.d0', r: 's1.d1'});
+    t('s0.d0:s1..d1', {l: 's0.d0', r: 's1..d1'});
+    t('s0.d0:s1...d1', {l: 's0.d0', r: 's1...d1'});
+    t('d0(d1)', {l: 'd0', r: 'd1'});
   });
   // XXX: test invalid parsing
 });
@@ -244,12 +283,13 @@ const cmd_scroll = t=>etask(function*cmd_scroll(){
   assert(!t.l, 'invalid arg '+t.meta.s);
   assert(!t_scroll[name], 'scroll already exist '+name);
   for (let curr=t.r, i=0; curr = tparser.parse_get_next(curr); i++){
-    let tt = tparser.parse_exp_arg(curr.exp);
+    let tt = tparser.parse_exp_arg(curr.exp), t2;
     switch (tt.cmd){
     case '!prev_scroll': prev_scroll = null; break;
     default:
-      if (a = tt.cmd.match(/^M(\d+)$/)){
-        M = {seq: +a[1], h: yield get_val(tt.r||tt.cmd)};
+      t2 = tparser.parse_exp_arg_pair(curr.exp);
+      if (a = t2.l.match(/^M(\d+)$/)){
+        M = {seq: +a[1], h: yield get_val(t2.r)};
         break;
       }
       assert.fail('invalid arg '+tt.cmd+' in '+t.meta.s);
@@ -266,10 +306,9 @@ const cmd_scroll = t=>etask(function*cmd_scroll(){
 });
 
 const cmd_decl = t=>etask(function*cmd_decl(){
-  let name = t.ctx||get_def('left'), scroll = t_scroll[name];
+  let name = t.ctx||get_def('left'), scroll = get_scroll(name);
   assert(!t.l, 'invalid left arg '+t.meta.s);
   assert(t.r, 'missing arg '+t.meta.s);
-  assert(scroll, 'scroll not found');
   for (let curr=t.r, i=0; curr = tparser.parse_get_next(curr); i++){
     let m=curr.exp.match(/^(\d+)-(\d+)$/);
     if (m){
@@ -281,19 +320,18 @@ const cmd_decl = t=>etask(function*cmd_decl(){
 });
 
 const cmd_put = t=>etask(function*cmd_put(){
-  let name = t.ctx||get_def('left'), scroll = t_scroll[name];
+  let name = t.ctx||get_def('left'), scroll = get_scroll(name);
   let diff = {}, err='';
   for (let curr=t.r; curr = tparser.parse_get_next(curr);){
-    let t2 = tparser.parse_exp_arg(curr.exp);
-    assert(!t2.l, 'invalid put exp '+curr.exp);
-    if (t2.cmd=='err'){
+    let t2 = tparser.parse_exp_arg_pair(curr.exp);
+    if (t2.l=='err'){
       assert(!err, 'err already defined');
       err = t2.r||true;
       continue;
     }
-    let val = yield get_val(t2.r||t2.cmd), v = t2.cmd;
-    let o = split_var(v), type = o.type, seq = +o.range[1];
+    let o = split_var(t2.l), type = o.type, seq = +o.range[1];
     let seq_o = diff[seq] = diff[seq]||{};
+    let val = yield get_val(t2.r);
     assert(['sig', 'd', 'm', 'M', 'D'].includes(type), 'invalid type '+type);
     if (type=='m'){
       seq_o.m = seq_o.m||{};
@@ -315,21 +353,19 @@ function split_var(v){
 }
 
 const cmd_test = t=>etask(function*cmd_test(){
-  let name = t.ctx||get_def('left'), scroll = t_scroll[name];
+  let name = t.ctx||get_def('left'), scroll = get_scroll(name);
   let tested = {};
   for (let curr=t.r; curr = tparser.parse_get_next(curr);){
-    let t2 = tparser.parse_exp_arg(curr.exp);
-    assert(!t2.l, 'invalid test exp '+curr.exp);
-    let v = t2.cmd;
-    let o = split_var(v);
+    let t2 = tparser.parse_exp_arg_pair(curr.exp);
+    let l = name+'.'+t2.l, r = t2.r, o = split_var(t2.l);
     tested[o.seq] = tested[o.seq]||{M: false, sig: false, d: false, m: {}};
     if (o.type=='m')
       tested[o.seq].m[o.range[0]] = true;
     else
       tested[o.seq][o.type] = true;
-    let exp = yield get_val(t2.r||v);
-    let val = yield get_val(name+'.'+v);
-    assert_buffer(val, exp, t2.meta);
+    let exp = yield get_val(r);
+    let val = yield get_val(l);
+    assert_buffer(val, exp, curr.exp);
   }
   for (let seq=0; seq<scroll.size; seq++){
     seq = +seq;
@@ -361,8 +397,8 @@ const cmd_test = t=>etask(function*cmd_test(){
 const cmd_eq = o=>etask(function*cmd_eq(){
   assert(o.l, 'missing left '+o.meta.s);
   assert(o.r, 'missing right '+o.meta.s);
-  let l = yield get_val((o.ctx ? o.ctx+'.' : '')+o.l);
-  let r = yield get_val(o.r);
+  let l = yield get_val((o.ctx ? o.ctx+'.' : '')+o.l, 'left');
+  let r = yield get_val(o.r, 'right');
   assert_buffer(l, r, o.meta);
 });
 
@@ -377,10 +413,14 @@ const test_run_single = o=>etask(function*_test_run_single(){
   case '=': yield cmd_eq(o); break;
   case '.':
   case '..':
+  case '...':
     assert(o.l, 'invalid "." operator');
     o2 = tparser.parse_exp(o.r);
     o2.ctx = o.l;
-    if (o.cmd=='..')
+    if (o.cmd=='...'){
+      set_def('left', o.l);
+      set_def('right', o.l);
+    } else if (o.cmd=='..')
       set_def('left', o.l);
     yield test_run_single(o2);
     break;
@@ -506,19 +546,19 @@ describe('scroll', ()=>{
     const t = (name, test)=>it(name, ()=>test_run(test));
     let sig0='0x9d73f19857885309cb311a8ec7d635ca2898da1b1fb8e31e9b7e01bbbc6de'+
       '68a5b9d756ff02462a3b2f8900e46a496ace5d3acb4f3e73180be515e936009e70c';
-    t('no_prev_scroll', `s..scroll(!prev_scroll) decl(1) sig0=${sig0}
+    t('no_prev_scroll', `s...scroll(!prev_scroll) decl(1) sig0=${sig0}
       d0=0x750e42c4c40d2914db1fd0cdfa2ea853d00b468d78f23df882fe9cc1839b71b8
       m0=0xa0d3dfd96822872daa1351808936ebce919fd82f3af2a14abbac987446d48017
       m0=hleaf(d0+sig0) sig0=sign(d0) M0=hroot(m0)
       m1=hleaf(d1+sig1) sig1=sign(d1+M0) M1=hroot(m0_1)`);
     sig0 = '0xb34dd640e4fb8f08593c91840b1175d1014a96a9e211b5f790a3639809135a3'+
       'c26a4f98b3c7798566d7241e4f7a9e97d99b2d7e075ec1e1f4e71a28e3c0dba0c';
-    t('with_prev_scroll', `s..scroll decl(1) sig0=${sig0}
+    t('with_prev_scroll', `s...scroll decl(1) sig0=${sig0}
       d0=0x750e42c4c40d2914db1fd0cdfa2ea853d00b468d78f23df882fe9cc1839b71b8
       m0=0x0d7b0519668a3c03ba5b206d8dd92846fdb00b282d35d4b5c0a29bd230489eee
       m0=hleaf(d0+sig0) sig0=sign(d0+prev_scroll1) M0=hroot(m0)
       m1=hleaf(d1+sig1) sig1=sign(d1+M0) M1=hroot(m0_1)`);
-    t('merkel', `s..scroll decl(1-32)
+    t('merkel', `s...scroll decl(1-32)
       m0=hleaf(d0+sig0) sig0=sign(d0+prev_scroll1) M0=hroot(m0) M0=h(2+m0+0+1)
       m1=hleaf(d1+sig1) sig1=sign(d1+M0) M1=hroot(m0_1) M1=h(2+m0_1+0+2)
       m2=hleaf(d2+sig2) sig2=sign(d2+M1) M2=hroot(m0_1+m2)
@@ -541,7 +581,8 @@ describe('scroll', ()=>{
     `);
     describe('put', ()=>{
       describe('errors_invalid', ()=>{
-        let s = `s.scroll(!prev_scroll) s.decl(1-32) s2..scroll(M0) test(M0)`;
+        let s = `s.scroll(!prev_scroll) s.decl(1-32) s2..scroll(s..M0)
+          test(M0)`;
         t('sig0', `${s} s.put(sig0:sig1 err(invalid sig0))`);
         t('d0', `${s} s.put(d0:d1 err(invalid d0))`);
         t('m0', `${s} s.put(m0:m1 err(invalid m0))`);
@@ -550,12 +591,14 @@ describe('scroll', ()=>{
         t('sig1', `${s} s.put(sig1:sig0 err(invalid sig1))`);
       });
       describe('errors_missing', ()=>{
-        let s = `s.scroll(!prev_scroll) s.decl(1-32) s2..scroll(M0) test(M0)`;
+        let s = `s.scroll(!prev_scroll) s.decl(1-32) s2..scroll(s..M0)
+          test(M0)`;
         t('sig0', `${s} put(sig0 err(missing d0)) test(M0)`);
         t('d0', `${s} put(d0 err(missing sig0)) test(M0)`);
       });
       describe('top_M0', ()=>{
-        let s = `s.scroll(!prev_scroll) s.decl(1-32) s2..scroll(M0) test(M0)`;
+        let s = `s.scroll(!prev_scroll) s.decl(1-32) s2..scroll(s..M0)
+          test(M0)`;
         t('sig0d0', `${s} put(sig0 d0) test(sig0 d0 M0 m0)`);
         t('sig0d0_m0', `${s} put(sig0 d0 m0) test(sig0 d0 M0 m0)`);
         t('sig0d0_m0_invalid_m0', `${s} put(sig0 d0 m0:m1 err(invalid M0))
@@ -571,8 +614,7 @@ describe('scroll', ()=>{
         t('sig0d0_then_D0', `${s} put(sig0 d0) test(sig0 d0 M0 m0)
           put(D0) test(sig0 d0 D0 M0 m0)`);
         t('sig0d0_then_D0_invalid', `${s} put(sig0 d0)
-          test(sig0 d0 M0 m0) put(D0:D1 err(invalid D0))
-          test(sig0 d0 M0 m0)`);
+          test(sig0 d0 M0 m0) put(D0:D1 err(invalid D0)) test(sig0 d0 M0 m0)`);
         t('m0', `${s} put(m0) test(M0 m0)`);
         t('m0_invalid_m0', `${s} put(m0:m1 err(invalid M0)) test(M0)`);
         t('m0_sig0d0', `${s} put(m0 sig0 d0) test(M0 m0 sig0 d0)`);
@@ -685,7 +727,8 @@ describe('scroll', ()=>{
           s2.M10=null`);
       });
       describe('top_M1', ()=>{
-        let s = `s.scroll(!prev_scroll) s.decl(1-32) s2..scroll(M1) test(M1)`;
+        let s = `s.scroll(!prev_scroll) s.decl(1-32) s2..scroll(s..M1)
+          test(M1)`;
         t('m0', `${s} put(m0 err(missing m1,missing m0_1)) test(M1)`);
         t('m0m0_1', `${s} put(m0 err(missing m1,missing m0_1))
           test(M1)`);
@@ -719,7 +762,8 @@ describe('scroll', ()=>{
         // XXX: add sig/d tests
       });
       describe('top_M2', ()=>{
-        let s = `s.scroll(!prev_scroll) s.decl(1-32) s2..scroll(M2) test(M2)`;
+        let s = `s.scroll(!prev_scroll) s.decl(1-32) s2..scroll(s..M2)
+          test(M2)`;
         t('m0', `${s} put(m0 err(missing m1,missing m0_1)) test(M2)`);
         t('m0m1', `${s} put(m0 m1 err(missing m2)) test(M2)`);
         t('m0m1m2', `${s} put(m0 m1 m2) test(M2 m0 m1 m2 m0_1)`);
@@ -737,7 +781,8 @@ describe('scroll', ()=>{
         // XXX: add test for sig/d insert + invalid
       });
       describe('top_M3', ()=>{
-        let s = `s.scroll(!prev_scroll) s.decl(1-32) s2..scroll(M3) test(M3)`;
+        let s = `s.scroll(!prev_scroll) s.decl(1-32) s2..scroll(s..M3)
+          test(M3)`;
         t('m0', `${s} put(m0 err(missing m1,missing m0_1,missing m0_3))
           test(M3)`);
         t('m0m1', `${s} put(m0 m1
@@ -764,7 +809,8 @@ describe('scroll', ()=>{
         // XXX: add test for sig/d insert + invalid
       });
       describe('top_M4', ()=>{
-        let s = `s.scroll(!prev_scroll) s.decl(1-32) s2..scroll(M4) test(M4)`;
+        let s = `s.scroll(!prev_scroll) s.decl(1-32) s2..scroll(s..M4)
+          test(M4)`;
         t('m0_3m4', `${s} put(m0_3 m4) test(M4 m4 m0_3)`);
         t('m0_3m4_invalid_m0_3', `${s} put(m0_3:m0 m4 err(invalid M4))
           test(M4)`);
@@ -773,7 +819,7 @@ describe('scroll', ()=>{
         // XXX: add test for sig/d insert + invalid
       });
       describe('top_M31', ()=>{
-        let s = `s.scroll(!prev_scroll) s.decl(1-32) s2..scroll(M31)
+        let s = `s.scroll(!prev_scroll) s.decl(1-32) s2..scroll(s..M31)
           test(M31)`;
         t('m0_15m16_23m24_27m28_29m30m31', `${s}
           put(m0_15 m16_23 m24_27 m28_29 m30 m31) test(M31 m30 m31 m0_15

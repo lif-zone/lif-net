@@ -45,7 +45,6 @@ class FrameBuffer {
       }
       assert.fail('XXX TODO - support partial update of frames');
     }
-    debugger;
   }
   set_hash(h){
     assert(!this.h || this.h.equals(h), 'hash changed');

@@ -29,21 +29,24 @@ class FrameBuffer {
       this.frames.push(to_frame(frames[i]));
   }
   unshift(o){ this.frames.unshift(to_frame(o)); }
-  get_hash(){
+  get_hash(opt={}){
     if (this.h)
       return this.h;
-    let buf, frames = this.frames;
-    if (!frames.length)
-      return null;
-    for (let i = frames[0].sig ? 1 : 0; i<frames.length; i++){
-      let f = frames[i], h = f.h;
-      if (!h)
-        h = f.h = crypto.blake2b(f.buf); // XXX: need set_hash
-      buf = buf ? Buffer.concat([buf, h]) : h;
-    }
-    return this.set_hash(crypto.blake2b(buf));
+    return this.set_hash(FrameBuffer.calc_hash(this.frames,
+      {safe: true, skip: opt.skip}));
   }
-  get_sig(){ return this.frames[0]?.sig; }
+  get_frames(){ return Array.from(this.frames); }
+  set_frames(frames){
+    for (let i=0; i<frames.length; i++){
+      let f = frames[i];
+      if (!this.frames[i]){
+        this.frames.push(f);
+        continue;
+      }
+      assert.fail('XXX TODO - support partial update of frames');
+    }
+    debugger;
+  }
   set_hash(h){
     assert(!this.h || this.h.equals(h), 'hash changed');
     if (this.h)
@@ -51,6 +54,26 @@ class FrameBuffer {
     return this.h = h;
   }
 }
+
+FrameBuffer.calc_hash = function(frames, opt={}){
+  let buf;
+  if (!frames.length)
+    return null;
+  let {safe, skip} = opt;
+  // XXX: we assume first frame is sig (need way to verify it)
+  for (let i=skip===undefined ? 1 : skip; i<frames.length; i++){
+    let f = frames[i];
+    if (safe){
+      if (!f.h && !f.buf)
+        return null;
+    } else if (!f.buf)
+        return null;
+    if (!f.h)
+      f.h = crypto.blake2b(f.buf);
+    buf = buf ? Buffer.concat([buf, f.h]) : f.h;
+  }
+  return crypto.blake2b(buf);
+};
 
 function hconcat(a){ return crypto.blake2b(Buffer.concat(a)); }
 function hconcat_safe(a){
@@ -97,12 +120,23 @@ function range_to_parent(r){
 }
 
 // XXX: need test
-function get_d_hash(data, seq){ return data[seq]?.d; } // XXX: or calc from D
-function set_d_hash(data, seq, val){
+function get_d_hash(data, seq){ return data[seq]?.d; }
+function get_D(data, seq){ return data[seq]?.D; }
+function set_d(data, seq, d, D){
   let o = data[seq] = data[seq]||{};
-  assert(!o.d || o.d.equals(val), 'set d'+seq+' diffent vals');
-  return o.d = val;
+  assert(!o.d || o.d.equals(d), 'set d'+seq+' diffent vals');
+  if (d)
+    o.d = d;
+  if (D)
+    o.D = D;
+  return data;
 }
+function calc_D_hash(D){
+  if (!D)
+    return;
+  return FrameBuffer.calc_hash(D);
+}
+
 // XXX: need test
 function get_sig(data, seq){ return data[seq]?.sig; }
 function set_sig(data, seq, val){
@@ -126,7 +160,7 @@ function set_m_hash(data, r, val){
   return o.m[r[0]] = val;
 }
 
-function check_set_sig(sketch, errors, seq, m, d, sig){
+function check_set_sig(sketch, errors, seq, m, d, D, sig){
   if (!d && !sig)
     return;
   if (!d)
@@ -136,7 +170,7 @@ function check_set_sig(sketch, errors, seq, m, d, sig){
   if (!beq(m, hleaf(d, sig)))
     return push_error(errors, 'invalid sig'+seq);
   set_sig(sketch, seq, sig);
-  set_d_hash(sketch, seq, d);
+  set_d(sketch, seq, d, D);
 }
 
 function push_error(errors, s){ errors[s] = (errors[s]||0)+1; }
@@ -254,10 +288,23 @@ export default class Scroll {
   }
   put_single(seq, diff, errors){
     let top = this.top, sketch = {};
-    let decl=this.get_decl(seq), m=get_m_hash(diff, seq);
-    let sig=get_sig(diff, seq), d=get_d_hash(diff, seq);
+    let decl=this.get_decl(seq), m=get_m_hash(diff, seq), D=get_D(diff, seq);
+    let sig=get_sig(diff, seq), d=get_d_hash(diff, seq), dD=calc_D_hash(D);
     let vm=decl.m_hash(seq), vsig=decl.sig_get(), vd=decl.d_hash();
-    // XXX: handle getting real data instead of d
+    if (dD){
+      if (vd){
+        if (!beq(dD, vd)){
+          push_error(errors, 'invalid D'+seq);
+          dD = null;
+        } else
+          this.put_verified(set_d({}, seq, null, D));
+      }
+      if (d && !beq(dD, d)){
+        push_error(errors, 'invalid D'+seq);
+        dD = D = null;
+      } else
+        d = dD;
+    }
     if (vd && vsig){
       if (sig && !beq(sig, vsig))
         push_error(errors, 'invalid sig'+seq);
@@ -274,7 +321,7 @@ export default class Scroll {
     if (sig && d)
       m = m||hleaf(d, sig);
     if (vm){
-      check_set_sig(sketch, errors, seq, vm, d, sig);
+      check_set_sig(sketch, errors, seq, vm, d, D, sig);
       this.put_verified(sketch);
       return;
     }
@@ -286,7 +333,7 @@ export default class Scroll {
       else if (!beq(M, top.M))
         push_error(errors, 'invalid M'+top.seq);
       else {
-        check_set_sig(sketch, errors, seq, m, d, sig);
+        check_set_sig(sketch, errors, seq, m, d, D, sig);
         this.put_verified(sketch);
       }
       return;
@@ -306,8 +353,7 @@ export default class Scroll {
     if (!verify_sig(sig, this.pub, d, prev_M))
       return push_error(errors, 'invalid sig'+seq);
     set_sig(sketch, seq, sig);
-    set_d_hash(sketch, seq, d);
-    check_set_sig(sketch, errors, seq, m, d, sig);
+    check_set_sig(sketch, errors, seq, m, d, D, sig);
     this.put_verified(sketch);
   }
   sketch_calc_top_M(opt){
@@ -376,6 +422,7 @@ export default class Scroll {
         case 'M': decl.M.set_hash(val); break;
         case 'sig': decl.set_sig(val); break;
         case 'd': decl.fbuf.set_hash(val); break;
+        case 'D': decl.fbuf.set_frames(val); break;
         case 'm':
           for (let s in val)
             decl.m_get([+s, +seq]).set_hash(val[s]);
@@ -398,6 +445,7 @@ export default class Scroll {
   unlock(){} // XXX: TODO
   seq_sig(seq){ return this.get_decl(seq)?.sig; }
   seq_d(seq){ return this.get_decl(seq).fbuf.get_hash(); }
+  seq_D(seq){ return this.get_decl(seq).fbuf.get_frames(); }
   m_hash(range){
     let [, e] = range = range_fix(range);
     let decl = this.get_decl(e, {create: true});
@@ -433,7 +481,7 @@ class Decl {
       this.m.push(new Merkel_node({decl: this, range: ma[i]}));
   }
   sign = ()=>{
-    let scroll = this.scroll, d = this.fbuf.get_hash();
+    let scroll = this.scroll, d = this.fbuf.get_hash({skip: 0});
     assert(scroll.key, 'cannot sign without key');
     let buf = this.seq ? Buffer.concat([d, scroll.M_hash(this.seq-1)])
       : scroll.prev_scroll ? Buffer.concat([d, scroll.prev_scroll]) : d;

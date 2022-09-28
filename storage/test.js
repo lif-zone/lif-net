@@ -39,6 +39,8 @@ afterEach(function(){
 function assert_buffer(a, b, meta){
   if (Buffer.isBuffer(a) && Buffer.isBuffer(b))
     assert.equal(b2s(a), b2s(b), 'buffer not equal '+meta.s);
+  else if (a || b)
+    assert.deepEqual(a, b, 'not equal '+meta.s);
   else
     assert.equal(a, b, 'not equal '+meta.s);
 
@@ -547,13 +549,23 @@ describe('scroll', ()=>{
       describe('top_M0', ()=>{
         let s = `s.scroll(!prev_scroll) s.decl(1-32) s2.scroll(M0)
           s2.test(M0)`;
-        t('sig0D0', `${s} s2.put(sig0 D0) s2.test(sig0 d0 D0 M0 m0)`);
         t('sig0d0', `${s} s2.put(sig0 d0) s2.test(sig0 d0 M0 m0)`);
         t('sig0d0_m0', `${s} s2.put(sig0 d0 m0) s2.test(sig0 d0 M0 m0)`);
         t('sig0d0_m0_invalid_m0', `${s} s2.put(sig0 d0 m0:m1 err(invalid M0))
           s2.test(M0)`);
         t('sig0d0_m0_invalid_sig0', `${s} s2.put(sig0:sig1 d0 m0
           err(invalid sig0)) s2.test(M0 m0)`);
+        t('sig0D0', `${s} s2.put(sig0 D0) s2.test(sig0 d0 D0 M0 m0)`);
+        t('sig0D0_invalid_sig', `${s} s2.put(sig0:sig1 D0
+          err(invalid M0)) s2.test(M0)`);
+        t('sig0D0d0', `${s} s2.put(sig0 D0 d0) s2.test(sig0 d0 D0 M0 m0)`);
+        t('sig0D0d0_invalid_d0', `${s} s2.put(sig0 D0 d0:d1
+          err(invalid D0,invalid M0)) s2.test(M0)`);
+        t('sig0d0_then_D0', `${s} s2.put(sig0 d0) s2.test(sig0 d0 M0 m0)
+          s2.put(D0) s2.test(sig0 d0 D0 M0 m0)`);
+        t('sig0d0_then_D0_invalid', `${s} s2.put(sig0 d0)
+          s2.test(sig0 d0 M0 m0) s2.put(D0:D1 err(invalid D0))
+          s2.test(sig0 d0 M0 m0)`);
         t('m0', `${s} s2.put(m0) s2.test(M0 m0)`);
         t('m0_invalid_m0', `${s} s2.put(m0:m1 err(invalid M0)) s2.test(M0)`);
         t('m0_sig0d0', `${s} s2.put(m0 sig0 d0) s2.test(M0 m0 sig0 d0)`);
@@ -582,7 +594,12 @@ describe('scroll', ()=>{
         t('m0m1_sig1d1_missing_m0', `${s} s2.put(m1 sig1 d1
           err(missing m0)) s2.test(M0)`);
         // XXX add errors/missing to below tests
-        t('add_d2', `${s} s2.put(sig2 d2 sig1 d1 m1 m0)`);
+        t('add_d2', `${s} s2.put(sig2 d2 sig1 d1 m1 m0)
+          s2.test(M0 sig2 d2 sig1 d1 m1 m0 m0_1)`);
+        t('add_d2D1', `${s} s2.put(sig2 d2 sig1 D1 m1 m0)
+          s2.test(M0 sig2 d2 sig1 d1 D1 m1 m0 m0_1)`);
+        t('add_D2', `${s} s2.put(sig2 D2 sig1 D1 m1 m0)
+          s2.test(M0 sig2 D2 d2 sig1 d1 D1 m1 m0 m0_1)`);
         t('add_d3', `${s} s2.put(sig3 d3 m0 m1 m2)
           s2.test(M0 m0 sig3 d3 m0 m1 m2 m3 m2_3 m0_3 m0_1)`);
         t('add_d3_missing_sig3', `${s} s2.put(d3 m0 m1 m2
@@ -596,10 +613,14 @@ describe('scroll', ()=>{
         t('add_d3_invalid_m2', `${s} s2.put(sig3 d3 m0 m1 m2:m1
           err(invalid sig3,missing sig2,missing sig1)) s2.test(M0 m0)`);
         t('add_d32', `${s}
-          s2.put(m0 m1 m2_3 m4_7 m8_15 d32 sig32 m31 m16_23 m24_27
-          m28_29 m30)
+          s2.put(m0 m1 m2_3 m4_7 m8_15 d32 sig32 m31 m16_23 m24_27 m28_29 m30)
           s2.test(M0 m0 m1 m0_1 m2_3 m0_3 m4_7 m0_7 m8_15 m0_15 m16_23 m16_31
           m0_31 m24_27 m28_29 m30 m31 m30_31 m28_31 m24_31 d32 sig32 m32)`);
+        t('add_D32', `${s}
+          s2.put(m0 m1 m2_3 m4_7 m8_15 D32 sig32 m31 m16_23 m24_27 m28_29 m30)
+          s2.test(M0 m0 m1 m0_1 m2_3 m0_3 m4_7 m0_7 m8_15 m0_15 m16_23 m16_31
+          m0_31 m24_27 m28_29 m30 m31 m30_31 m28_31 m24_31 d32 D32 sig32 m32)
+        `);
         t('add_d32_invalid_m30', `${s}
           s2.put(m0 m1 m2_3 m4_7 m8_15 d32 sig32 m31 m16_23 m24_27
           m28_29 m30:m0 err(invalid sig32,missing sig31,missing sig30,

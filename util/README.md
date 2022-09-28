@@ -48,5 +48,7 @@ mocha -g etask
 xxderry@gmail.com
 
 ## ESlint
-- All files ```eslint .```
-- Specific files ```eslint test.js```
+- All files
+  ```eslint .```
+- Specific files
+  ```eslint test.js```

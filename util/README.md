@@ -20,14 +20,18 @@ mocha
 mocha -g etask
 ```
 
-## debugging
-- ```mocha --inspect-brk```
+## Debugging
+- Run mocha with ```--inspect-brk```
+  ```
+  # cd lif_server/util
+  mocha -g etask --inspect-brk
+  ```
 - Open Chrome browser
 - Browse to chrome://inspect
 - Click 'Open dedicated DevTools for Node'
 
 
-## how to submit a fix
+## How to submit a fix
 - Clone lif-zone/server.git
 - Commit all your changes
 - Send emaiil to xxderry@gmail.com with link to your repository

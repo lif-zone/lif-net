@@ -447,7 +447,6 @@ E.stub_res = sb=>{
 };
 
 function throw_invalid(s, i){
-  debugger; // eslint-disable-line no-debugger
   throw new Error('invalid '+s.substr(0, i)+'^^^'+s.substr(i)); }
 
 function assert_invalid(exp, s, i){

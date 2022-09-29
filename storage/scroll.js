@@ -248,29 +248,27 @@ export default class Scroll {
     this.crypt = opt.crypt||Scroll.supported_crypt[0];
     assert.deepEqual(this.crypt, Scroll.supported_crypt[0], 'unsupported');
     this.prev_scroll = opt.prev_scroll;
-    this.size = 0;
-    this.top = null;
-    this.decl_map = new Map();
+    this.b = [{size: 0, top: null, map: new Map()}];
   }
   // XXX: use return =>
   decl(frames){
     let fbuf = new FrameBuffer({frames});
-    let seq = this.size, ts = Date.now();
-    assert(!this.decl_map.get(seq), 'XXX TODO'); // XXX: support branch
+    let seq = this.b[0].size, ts = Date.now();
+    assert(!this.b[0].map.get(seq), 'XXX TODO'); // XXX: support branch
     fbuf.unshift({seq, ts});
     let decl = new Decl({scroll: this, seq, fbuf});
     decl.sign();
-    this.decl_map.set(seq, decl);
-    this.size++;
+    this.b[0].map.set(seq, decl);
+    this.b[0].size++;
     return decl;
   }
   notify_M(opt){
     let {seq, M} = opt;
-    if (!this.top || this.top.seq<seq)
-      this.top = {seq, M};
+    if (!this.b[0].top || this.b[0].top.seq<seq)
+      this.b[0].top = {seq, M};
   }
   put(diff){
-    let top = this.top, errors = {};
+    let top = this.b[0].top, errors = {};
     let a = Object.keys(diff), last_seq = +a[a.length-1]?.seq;
     assert(top, 'cannot put to empty scroll');
     let i=0, j;
@@ -288,7 +286,7 @@ export default class Scroll {
     return {errors};
   }
   put_single(seq, diff, errors){
-    let top = this.top, sketch = {};
+    let top = this.b[0].top, sketch = {};
     let decl=this.get_decl(seq), m=get_m_hash(diff, seq), D=get_D(diff, seq);
     let sig=get_sig(diff, seq), d=get_d_hash(diff, seq), dD=calc_D_hash(D);
     let vm=decl.m_hash(seq), vsig=decl.sig_get(), vd=decl.d_hash();
@@ -457,17 +455,17 @@ export default class Scroll {
     return decl.m_hash(range);
   }
   M_hash(seq){
-    let decl = this.get_decl(seq===undefined ? this.size-1 : seq);
+    let decl = this.get_decl(seq===undefined ? this.b[0].size-1 : seq);
     return decl ? decl.M_hash() : null;
   }
   get_decl(seq, opt={}){
     assert(typeof seq=='number', 'invalid seq '+seq);
-    let decl = this.decl_map.get(seq);
+    let decl = this.b[0].map.get(seq);
     if (decl || opt.create===false)
       return decl;
     decl = new Decl({scroll: this, seq, fbuf: new FrameBuffer});
-    this.decl_map.set(seq, decl);
-    this.size = Math.max(this.size, seq+1);
+    this.b[0].map.set(seq, decl);
+    this.b[0].size = Math.max(this.b[0].size, seq+1);
     return decl;
   }
 }

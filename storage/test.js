@@ -82,7 +82,7 @@ const calc_m = (scroll, range)=>etask(function*calc_m(){
   assert(Number.isInteger(Math.log2(e-s+1)), 'invalid merkel range '+
   range_str(range));
   let q = [];
-  assert(e<scroll.size, 'scroll too small '+e+'<'+scroll.size);
+  assert(e<scroll.b[0].size, 'scroll too small '+e+'<'+scroll.b[0].size);
   for (let i=s; i<=e; i++)
     q.push({s: i, e: i, m: yield scroll.m_hash(i)});
   while (q.length!=1){
@@ -409,7 +409,7 @@ const cmd_test = t=>etask(function*cmd_test(){
     let val = yield get_val(l);
     assert_buffer(val, exp, curr.exp);
   }
-  for (let seq=0; seq<scroll.size; seq++){
+  for (let seq=0; seq<scroll.b[0].size; seq++){
     seq = +seq;
     let decl = yield scroll.get_decl(seq, {create: true});
     ['sig', 'd', 'M', 'm'].forEach(type=>{

@@ -64,9 +64,10 @@ function assert_buffer(a, b, meta){
 
 }
 
-const calc_m = (scroll, s, e)=>etask(function*calc_m(){
+const calc_m = (scroll, range)=>etask(function*calc_m(){
+  let [s, e] = range;
   assert(Number.isInteger(Math.log2(e-s+1)), 'invalid merkel range '+
-  range_str([s, e]));
+  range_str(range));
   let q = [];
   assert(e<scroll.size, 'scroll too small '+e+'<'+scroll.size);
   for (let i=s; i<=e; i++)
@@ -88,7 +89,7 @@ const calc_m = (scroll, s, e)=>etask(function*calc_m(){
   return scroll_m||test_m;
 });
 
-const get_val = (exp, type='right')=>etask(function*_get_val(){
+const get_val = (exp, def_type='right')=>etask(function*_get_val(){
   let m;
   assert(typeof exp=='string', 'invalid get_val '+exp);
   if (exp=='null')
@@ -130,25 +131,20 @@ const get_val = (exp, type='right')=>etask(function*_get_val(){
   if (m = exp.match(/^sign\((.*)\)$/)) // sign(d10)
     return crypto.sign(crypto.blake2b(yield get_val(m[1])), t_keypair.key);
   if (m = exp.match(/^([a-zA-Z]\d*)\.\.(.*)$/))
-    set_def(type, m[1]);
+    set_def(def_type, m[1]);
   else
     m = exp.match(/^([a-zA-Z]\d*)\.(.*)$/);
-  let name = m ? m[1] : get_def(type||'right'), scroll = get_scroll(name);
+  let name = m ? m[1] : get_def(def_type||'right'), scroll = get_scroll(name);
   exp = m ? m[2] : exp;
-  if (m = exp.match(/^sig(\d+)$/)) // sig10
-    return scroll.seq_sig(+m[1]);
-  if (m = exp.match(/^m(\d+)$/)) // m10
-    return scroll.m_hash(+m[1]); // XXX: calc and assert it match data hash
-  if (m = exp.match(/^m(\d+)_(\d+)$/)) // m0_1
-    return calc_m(scroll, +m[1], +m[2]);
-  if (m = exp.match(/^M(\d+)$/)) // M10
-    return scroll.M_hash(+m[1]);
-  if (m = exp.match(/^M$/)) // M
-    return scroll.M_hash();
-  if (m = exp.match(/^d(\d+)$/)) // d10
-    return scroll.seq_d(+m[1]);
-  if (m = exp.match(/^D(\d+)$/)) // D10
-    return scroll.seq_D(+m[1]);
+
+  let o = split_var(exp), type = o.type, seq = o.range[1], r0 = o.range[0];
+  switch (type){
+  case 'sig': return scroll.seq_sig(seq);
+  case 'M': return scroll.M_hash(seq);
+  case 'd': return scroll.seq_d(seq);
+  case 'D': return scroll.seq_D(seq);
+  case 'm': return r0==seq ? scroll.m_hash(seq) : calc_m(scroll, o.range);
+  }
   assert.fail('invalid val exp '+exp);
 });
 
@@ -339,7 +335,7 @@ const cmd_put = t=>etask(function*cmd_put(){
       err = t2.r||true;
       continue;
     }
-    let o = split_var(t2.l), type = o.type, seq = +o.range[1];
+    let o = split_var(t2.l), type = o.type, seq = o.range[1];
     let seq_o = diff[seq] = diff[seq]||{};
     let val = yield get_val(t2.r);
     assert(['sig', 'd', 'm', 'M', 'D'].includes(type), 'invalid type '+type);

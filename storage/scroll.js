@@ -2,11 +2,13 @@
 'use strict'; /*jslint node:true, browser:true*/
 import assert from 'assert';
 import crypto from '../util/crypto.js';
+import xerr from '../util/xerr.js';
 import enc from 'compact-encoding';
 import {Buffer} from 'buffer';
 import buf_util from '../peer-relay/buf_util.js';
 const b2s = buf_util.buf_to_str, beq = buf_util.buf_eq;
 const stringify = JSON.stringify.bind(JSON);
+const xxx_branch = false; // XXX WIP
 // https://en.wikipedia.org/wiki/Merkle_tree#Second_preimage_attack
 const LEAF_TYPE = enc_u64(0), PARENT_TYPE = enc_u64(1), ROOT_TYPE = enc_u64(2);
 function enc_u64(v){ return enc.encode(enc.uint64, v); }
@@ -311,7 +313,8 @@ export default class Scroll {
         push_error(errors, 'invalid d'+seq);
       if (m && !beq(m, vm))
         push_error(errors, 'invalid m'+seq);
-      return;
+      if (!xxx_branch || !seq) // otherwise, maybe branch
+        return;
     }
     if (d && !sig)
       push_error(errors, 'missing sig'+seq);
@@ -319,7 +322,7 @@ export default class Scroll {
       push_error(errors, 'missing d'+seq);
     if (sig && d)
       m = m||hleaf(d, sig);
-    if (vm){
+    if (!xxx_branch && vm){
       check_set_sig(sketch, errors, seq, vm, d, D, sig);
       this.put_verified(sketch);
       return;
@@ -351,6 +354,9 @@ export default class Scroll {
       return;
     if (!verify_sig(sig, this.pub, d, prev_M))
       return push_error(errors, 'invalid sig'+seq);
+    if (xxx_branch && decl.sig && !decl.sig.equals(sig)){
+      xerr('XXX branch new top %s', seq);
+    }
     set_sig(sketch, seq, sig);
     check_set_sig(sketch, errors, seq, m, d, D, sig);
     this.put_verified(sketch);
@@ -597,3 +603,4 @@ Scroll.verify_sig = verify_sig;
 Scroll.LEAF_TYPE = LEAF_TYPE;
 Scroll.PARENT_TYPE = PARENT_TYPE;
 Scroll.ROOT_TYPE = ROOT_TYPE;
+Scroll.xxx_branch = xxx_branch;

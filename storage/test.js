@@ -143,16 +143,18 @@ const get_val = (exp, def_type='right')=>etask(function*_get_val(){
   }
   if (m = exp.match(/^sign\((.*)\)$/)) // sign(d10)
     return crypto.sign(crypto.blake2b(yield get_val(m[1])), t_keypair.key);
-  let o = parse_var(exp), type = o.type, seq = o.range[1], r0 = o.range[0];
+  let o = parse_var(exp), {type, seq, b} = o, r0 = o.range[0];
   if (o.def)
     set_def(def_type, o.ctx);
   let name = o.ctx||get_def(def_type||'right'), scroll = get_scroll(name);
   switch (type){
-  case 'sig': return scroll.seq_sig(seq);
-  case 'M': return scroll.M_hash(seq);
-  case 'd': return scroll.seq_d(seq);
-  case 'D': return scroll.seq_D(seq);
-  case 'm': return r0==seq ? scroll.m_hash(seq) : calc_m(scroll, o.range);
+  case 'sig': return scroll.seq_sig(seq, {b});
+  case 'M': return scroll.M_hash(seq, {b});
+  case 'd': return scroll.seq_d(seq, {b});
+  case 'D': return scroll.seq_D(seq, {b});
+  // XXX: do we need calc_m?
+  case 'm': return r0==seq ? scroll.m_hash(seq, {b}) :
+    b ? scroll.m_hash(seq, {b}) : calc_m(scroll, o.range);
   }
   assert.fail('invalid val exp '+exp);
 });
@@ -411,7 +413,7 @@ const cmd_test = t=>etask(function*cmd_test(){
   }
   for (let seq=0; seq<scroll.b[0].size; seq++){
     seq = +seq;
-    let decl = yield scroll.get_decl(seq, {create: true});
+    let decl = yield scroll.get_decl(seq);
     ['sig', 'd', 'M', 'm'].forEach(type=>{
       if (type=='m'){
         let a = Scroll.merkel_ranges(seq);

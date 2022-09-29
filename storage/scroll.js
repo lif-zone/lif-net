@@ -418,7 +418,7 @@ export default class Scroll {
   put_verified(verified){
     for (let seq in verified){
       seq = +seq;
-      let v = verified[seq], decl = this.get_decl(seq, {create: true});
+      let v = verified[seq], decl = this.get_decl(seq);
       for (let type in v){
         let val = v[type];
         switch (type){
@@ -446,26 +446,28 @@ export default class Scroll {
   }
   lock(){} // XXX: TODO
   unlock(){} // XXX: TODO
-  seq_sig(seq){ return this.get_decl(seq)?.sig; }
-  seq_d(seq){ return this.get_decl(seq).fbuf.get_hash(); }
-  seq_D(seq){ return this.get_decl(seq).fbuf.get_frames(); }
-  m_hash(range){
+  seq_sig(seq, opt){ return this.get_decl(seq, opt)?.sig; }
+  seq_d(seq, opt){ return this.get_decl(seq, opt).fbuf.get_hash(); }
+  seq_D(seq, opt){ return this.get_decl(seq, opt).fbuf.get_frames(); }
+  m_hash(range, opt){
     let [, e] = range = range_fix(range);
-    let decl = this.get_decl(e, {create: true});
+    let decl = this.get_decl(e, opt);
     return decl.m_hash(range);
   }
-  M_hash(seq){
-    let decl = this.get_decl(seq===undefined ? this.b[0].size-1 : seq);
+  M_hash(seq, opt){
+    let decl = this.get_decl(seq, opt);
     return decl ? decl.M_hash() : null;
   }
   get_decl(seq, opt={}){
     assert(typeof seq=='number', 'invalid seq '+seq);
-    let decl = this.b[0].map.get(seq);
+    let b = opt.b===undefined ? 0 : opt.b;
+    assert(this.b[b], 'missing branch '+b);
+    let decl = this.b[b].map.get(seq);
     if (decl || opt.create===false)
       return decl;
     decl = new Decl({scroll: this, seq, fbuf: new FrameBuffer});
-    this.b[0].map.set(seq, decl);
-    this.b[0].size = Math.max(this.b[0].size, seq+1);
+    this.b[b].map.set(seq, decl);
+    this.b[b].size = Math.max(this.b[b].size, seq+1);
     return decl;
   }
 }
@@ -534,8 +536,8 @@ class Merkel_node {
     }
     // XXX: get in parallel
     let d = (e-s+1)/2; // XXX: range_split
-    let decl1 = decl.scroll.get_decl(s+d-1, {create: true});
-    let decl2 = decl.scroll.get_decl(e, {create: true});
+    let decl1 = decl.scroll.get_decl(s+d-1);
+    let decl2 = decl.scroll.get_decl(e);
     this.set_hash(hparent_safe(2*d, decl1.m_hash([s, s+d-1]),
       decl2.m_hash([s+d, e])));
     return this.h;
@@ -579,7 +581,7 @@ Scroll.create = function(opt, d){
 Scroll.open = function(opt){
   let scroll = new Scroll(opt);
   assert(opt.M && /^\d+$/.test(opt.M.seq) && opt.M.h, 'scroll.open missing M');
-  let decl = scroll.get_decl(opt.M.seq, {create: true});
+  let decl = scroll.get_decl(opt.M.seq);
   decl.M.set_hash(opt.M.h);
   return scroll;
 };

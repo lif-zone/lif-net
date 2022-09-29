@@ -36,6 +36,19 @@ afterEach(function(){
   xerr.set_buffered(false);
 });
 
+function parse_var(v){
+  let m = v.match(/^([a-zA-Z]\d*)(\.|\.\.)([^.]*)$/);
+  let ctx = m ? m[1] : '', def = m ? m[2]=='..' : false;
+  v = m ? m[3] : v;
+  m = v.match(/^(sig|m|M|d|D)((\d+)|((\d+)_(\d+)))$/);
+  m = v.match(/^(sig|m|M|d|D)((\d+)|((\d+)_(\d+)))(b(\d+))?$/);
+  assert.equal(m?.length, 9, 'invalid var '+v);
+  let type = m[1], range = Scroll.range_from_str(m[2]), seq = range[1];
+  let branch = m[8] ? +m[8] : 0;
+  assert(type=='m' || range[0]==range[1], 'invalid range '+v);
+  return {seq, type, range, branch, ctx, def};
+}
+
 function get_scroll(name){
   let scroll = t_scroll[name];
   assert(scroll, 'scroll not found '+name);
@@ -130,14 +143,10 @@ const get_val = (exp, def_type='right')=>etask(function*_get_val(){
   }
   if (m = exp.match(/^sign\((.*)\)$/)) // sign(d10)
     return crypto.sign(crypto.blake2b(yield get_val(m[1])), t_keypair.key);
-  if (m = exp.match(/^([a-zA-Z]\d*)\.\.(.*)$/))
-    set_def(def_type, m[1]);
-  else
-    m = exp.match(/^([a-zA-Z]\d*)\.(.*)$/);
-  let name = m ? m[1] : get_def(def_type||'right'), scroll = get_scroll(name);
-  exp = m ? m[2] : exp;
-
   let o = parse_var(exp), type = o.type, seq = o.range[1], r0 = o.range[0];
+  if (o.def)
+    set_def(def_type, o.ctx);
+  let name = o.ctx||get_def(def_type||'right'), scroll = get_scroll(name);
   switch (type){
   case 'sig': return scroll.seq_sig(seq);
   case 'M': return scroll.M_hash(seq);
@@ -177,10 +186,11 @@ describe('test_util', ()=>{
   it('parse_var', ()=>{
     const t = (v, exp)=>{
       let a = exp.split(' '), range = Scroll.range_from_str(a[1]);
-      let branch = a[2] ? +a[2] : 0;
-      let exp2 = {type: a[0], seq: range[1], range, branch};
+      let branch = a[2] ? +a[2] : 0, ctx = a[3]||'', def = a[4]=='def'||false;
+      let exp2 = {type: a[0], seq: range[1], range, branch, ctx, def};
       assert.deepEqual(parse_var(v), exp2);
     };
+    t('d0', 'd 0');
     t('d0', 'd 0');
     t('D0', 'D 0');
     t('m0', 'm 0');
@@ -196,6 +206,10 @@ describe('test_util', ()=>{
     t('M0b10', 'M 0 10');
     t('sig0b10', 'sig 0 10');
     t('m0_1b10', 'm 0_1 10');
+    t('s2.d0', 'd 0 0 s2');
+    t('s2.m0_1b10', 'm 0_1 10 s2');
+    t('s2..d0', 'd 0 0 s2 def');
+    t('s2..m0_1b10', 'm 0_1 10 s2 def');
   });
 });
 
@@ -375,16 +389,6 @@ const cmd_put = t=>etask(function*cmd_put(){
   assert.deepEqual(Object.keys(ret.errors), err ?
     string.split_trim(err, /,\s*/) : []);
 });
-
-function parse_var(v){
-  let m = v.match(/^(sig|m|M|d|D)((\d+)|((\d+)_(\d+)))$/);
-  m = v.match(/^(sig|m|M|d|D)((\d+)|((\d+)_(\d+)))(b(\d+))?$/);
-  assert.equal(m?.length, 9, 'invalid var '+v);
-  let type = m[1], range = Scroll.range_from_str(m[2]), seq = range[1];
-  let branch = m[8] ? +m[8] : 0;
-  assert(type=='m' || range[0]==range[1], 'invalid range '+v);
-  return {seq, type, range, branch};
-}
 
 const cmd_test = t=>etask(function*cmd_test(){
   let name = t.ctx||get_def('left'), scroll = get_scroll(name);

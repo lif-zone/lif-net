@@ -137,7 +137,7 @@ const get_val = (exp, def_type='right')=>etask(function*_get_val(){
   let name = m ? m[1] : get_def(def_type||'right'), scroll = get_scroll(name);
   exp = m ? m[2] : exp;
 
-  let o = split_var(exp), type = o.type, seq = o.range[1], r0 = o.range[0];
+  let o = parse_var(exp), type = o.type, seq = o.range[1], r0 = o.range[0];
   switch (type){
   case 'sig': return scroll.seq_sig(seq);
   case 'M': return scroll.M_hash(seq);
@@ -172,6 +172,32 @@ const test_start = ()=>etask(function*test_start(){
 
 function test_end(){
 }
+
+describe('test_util', ()=>{
+  it('parse_var', ()=>{
+    const t = (v, exp)=>{
+      let a = exp.split(' '), range = Scroll.range_from_str(a[1]);
+      let branch = a[2] ? +a[2] : 0;
+      let exp2 = {type: a[0], seq: range[1], range, branch};
+      assert.deepEqual(parse_var(v), exp2);
+    };
+    t('d0', 'd 0');
+    t('D0', 'D 0');
+    t('m0', 'm 0');
+    t('M0', 'M 0');
+    t('sig0', 'sig 0');
+    t('sig10', 'sig 10');
+    t('m0_0', 'm 0');
+    t('m0_1', 'm 0_1');
+    t('m2_3', 'm 2_3');
+    t('d0b10', 'd 0 10');
+    t('D0b10', 'D 0 10');
+    t('m0b10', 'm 0 10');
+    t('M0b10', 'M 0 10');
+    t('sig0b10', 'sig 0 10');
+    t('m0_1b10', 'm 0_1 10');
+  });
+});
 
 describe('parser', ()=>{
   it('parse_get_next', ()=>{
@@ -335,7 +361,7 @@ const cmd_put = t=>etask(function*cmd_put(){
       err = t2.r||true;
       continue;
     }
-    let o = split_var(t2.l), type = o.type, seq = o.range[1];
+    let o = parse_var(t2.l), type = o.type, seq = o.range[1];
     let seq_o = diff[seq] = diff[seq]||{};
     let val = yield get_val(t2.r);
     assert(['sig', 'd', 'm', 'M', 'D'].includes(type), 'invalid type '+type);
@@ -350,12 +376,14 @@ const cmd_put = t=>etask(function*cmd_put(){
     string.split_trim(err, /,\s*/) : []);
 });
 
-function split_var(v){
+function parse_var(v){
   let m = v.match(/^(sig|m|M|d|D)((\d+)|((\d+)_(\d+)))$/);
-  assert.equal(m?.length, 7, 'invalid var '+v);
+  m = v.match(/^(sig|m|M|d|D)((\d+)|((\d+)_(\d+)))(b(\d+))?$/);
+  assert.equal(m?.length, 9, 'invalid var '+v);
   let type = m[1], range = Scroll.range_from_str(m[2]), seq = range[1];
+  let branch = m[8] ? +m[8] : 0;
   assert(type=='m' || range[0]==range[1], 'invalid range '+v);
-  return {seq, type, range};
+  return {seq, type, range, branch};
 }
 
 const cmd_test = t=>etask(function*cmd_test(){
@@ -363,7 +391,7 @@ const cmd_test = t=>etask(function*cmd_test(){
   let tested = {};
   for (let curr=t.r; curr = tparser.parse_get_next(curr);){
     let t2 = tparser.parse_exp_arg_pair(curr.exp);
-    let l = name+'.'+t2.l, r = t2.r, o = split_var(t2.l);
+    let l = name+'.'+t2.l, r = t2.r, o = parse_var(t2.l);
     tested[o.seq] = tested[o.seq]||{M: false, sig: false, d: false, m: {}};
     if (o.type=='m')
       tested[o.seq].m[o.range[0]] = true;

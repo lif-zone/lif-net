@@ -44,9 +44,9 @@ function parse_var(v){
   m = v.match(/^(sig|m|M|d|D)((\d+)|((\d+)_(\d+)))(b(\d+))?$/);
   assert.equal(m?.length, 9, 'invalid var '+v);
   let type = m[1], range = Scroll.range_from_str(m[2]), seq = range[1];
-  let branch = m[8] ? +m[8] : 0;
+  let b = m[8] ? +m[8] : 0;
   assert(type=='m' || range[0]==range[1], 'invalid range '+v);
-  return {seq, type, range, branch, ctx, def};
+  return {seq, type, range, b, ctx, def};
 }
 
 function get_scroll(name){
@@ -67,13 +67,13 @@ function get_def(type){
   return t_def[type];
 }
 
-function assert_buffer(a, b, meta){
+function assert_buffer(a, b, desc){
   if (Buffer.isBuffer(a) && Buffer.isBuffer(b))
-    assert.equal(b2s(a), b2s(b), 'buffer not equal '+meta.s);
+    assert.equal(b2s(a), b2s(b), 'buffer not equal '+desc);
   else if (a || b)
-    assert.deepEqual(a, b, 'not equal '+meta.s);
+    assert.deepEqual(a, b, 'not equal '+desc);
   else
-    assert.equal(a, b, 'not equal '+meta.s);
+    assert.equal(a, b, 'not equal '+desc);
 
 }
 
@@ -188,8 +188,8 @@ describe('test_util', ()=>{
   it('parse_var', ()=>{
     const t = (v, exp)=>{
       let a = exp.split(' '), range = Scroll.range_from_str(a[1]);
-      let branch = a[2] ? +a[2] : 0, ctx = a[3]||'', def = a[4]=='def'||false;
-      let exp2 = {type: a[0], seq: range[1], range, branch, ctx, def};
+      let b = a[2] ? +a[2] : 0, ctx = a[3]||'', def = a[4]=='def'||false;
+      let exp2 = {type: a[0], seq: range[1], range, b, ctx, def};
       assert.deepEqual(parse_var(v), exp2);
     };
     t('d0', 'd 0');
@@ -401,40 +401,50 @@ const cmd_test = t=>etask(function*cmd_test(){
   let tested = {};
   for (let curr=t.r; curr = tparser.parse_get_next(curr);){
     let t2 = tparser.parse_exp_arg_pair(curr.exp);
-    let l = name+'.'+t2.l, r = t2.r, o = parse_var(t2.l);
-    tested[o.seq] = tested[o.seq]||{M: false, sig: false, d: false, m: {}};
+    let l=name+'.'+t2.l, r=t2.r, o=parse_var(t2.l), b=o.b;
+    tested[b] = tested[b]||{};
+    tested[b][o.seq] = tested[b][o.seq]||{M: false, sig: false, d: false,
+      m: {}};
     if (o.type=='m')
-      tested[o.seq].m[o.range[0]] = true;
+      tested[b][o.seq].m[o.range[0]] = true;
     else
-      tested[o.seq][o.type] = true;
-    let exp = yield get_val(r);
+      tested[b][o.seq][o.type] = true;
     let val = yield get_val(l);
+    let exp = yield get_val(r);
     assert_buffer(val, exp, curr.exp);
   }
-  for (let seq=0; seq<scroll.b[0].size; seq++){
-    seq = +seq;
-    let decl = yield scroll.get_decl(seq);
-    ['sig', 'd', 'M', 'm'].forEach(type=>{
-      if (type=='m'){
-        let a = Scroll.merkel_ranges(seq);
-        for (let i=0; i<a.length; i++){
-          let s = a[i][0];
-          if (tested && tested[seq]?.m[s])
-            continue;
-          assert(!decl.m_get([s, seq]).h, 'm'+range_str([s, seq])+
-            ' exists '+t.meta.s);
+  for (let b=0; b<scroll.b.length; b++){
+    for (let seq=0; seq<scroll.b[b].size; seq++){
+      seq = +seq;
+      let decl = yield scroll.get_decl(seq, {b}); // XXX {create: false}
+      ['sig', 'd', 'M', 'm'].forEach(type=>{
+        if (type=='m'){
+          let a = Scroll.merkel_ranges(seq);
+          for (let i=0; i<a.length; i++){
+            let s = a[i][0];
+            if (tested[b] && tested[b][seq]?.m[s])
+              continue;
+            assert(!decl.m_get([s, seq]).h, 'm'+range_str([s, seq])+'b'+b+
+              ' exists '+t.meta.s);
+          }
+          return;
         }
-        return;
-      }
-      if (tested[seq] && tested[seq][type])
-        return;
-      switch (type){
-      case 'sig': assert(!decl.sig, 'sig'+seq+' exists '+t.meta.s); break;
-      case 'd': assert(!decl.fbuf.h, 'd'+seq+' exists '+t.meta.s); break;
-      case 'M': assert(!decl.M.h, 'M'+seq+' exists '+t.meta.s); break;
-      default: assert.fail('invalid type '+type);
-      }
-    });
+        if (tested[b][seq] && tested[b][seq][type])
+          return;
+        switch (type){
+        case 'sig':
+          assert(!decl.sig, 'sig'+seq+'b'+b+' exists '+t.meta.s);
+          break;
+        case 'd':
+          assert(!decl.fbuf.h, 'd'+seq+'b'+b+' exists '+t.meta.s);
+          break;
+        case 'M':
+          assert(!decl.M.h, 'M'+seq+'b'+b+' exists '+t.meta.s);
+          break;
+        default: assert.fail('invalid type '+type+'b'+b);
+        }
+      });
+    }
   }
 });
 
@@ -451,7 +461,7 @@ const cmd_eq = o=>etask(function*cmd_eq(){
     l = yield get_val((o.ctx ? o.ctx+'.' : '')+o.l, 'left');
     r = yield get_val(o.r, 'right');
   }
-  assert_buffer(l, r, o.meta);
+  assert_buffer(l, r, o.meta.s);
 });
 
 const test_run_single = o=>etask(function*_test_run_single(){
@@ -851,7 +861,9 @@ describe('scroll', ()=>{
           ==(M3 m2 m3 m0_1 m2_3 m0_3) decl(4) // branch
           put(sig4 d4 b1 err(invalid sig4,invalid d4))
           ==(sig4:sign(s2.d4+M3) m4:hleaf(s2.d4+s2.sig4) d4:s2.d4 M3 m2
-          m3 m0_1 m2_3 m0_3 sig4b1 d4b1) put(sig0 d0 m1) =M0`);
+          m3 m0_1 m2_3 m0_3
+          sig4b1:s.sig4 d4b1:s.d4 m3b1:s2.m3b1 m2_3b1:s2.m2_3b1
+          m0_3b1:s2.m0_3b1)`);
         // XXX: add test for sig/d insert + invalid
       });
       describe('top_M4', ()=>{

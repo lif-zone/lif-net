@@ -248,8 +248,10 @@ export default class Scroll {
     this.crypt = opt.crypt||Scroll.supported_crypt[0];
     assert.deepEqual(this.crypt, Scroll.supported_crypt[0], 'unsupported');
     this.prev_scroll = opt.prev_scroll;
-    this.b = [{size: 0, top: null, map: new Map()}];
+    this.b = [];
+    this.create_new_branch();
   }
+  create_new_branch(){ this.b.push({size: 0, top: null, map: new Map()}); }
   // XXX: use return =>
   decl(frames){
     let fbuf = new FrameBuffer({frames});
@@ -352,12 +354,13 @@ export default class Scroll {
       return;
     if (!verify_sig(sig, this.pub, d, prev_M))
       return push_error(errors, 'invalid sig'+seq);
-    if (xxx_branch && decl.sig && !decl.sig.equals(sig)){
-      xerr('XXX branch new top %s', seq);
-    }
     set_sig(sketch, seq, sig);
     check_set_sig(sketch, errors, seq, m, d, D, sig);
-    this.put_verified(sketch);
+    if (xxx_branch && decl.sig && !decl.sig.equals(sig)){
+      xerr.notice('XXX branch new top %s', seq);
+      this.put_verified(sketch, {b: true});
+    } else
+      this.put_verified(sketch);
   }
   sketch_calc_top_M(opt){
     let {top, seq, m, sketch, diff, errors} = opt;
@@ -415,17 +418,23 @@ export default class Scroll {
     set_m_hash(sketch, range, m);
     return m;
   }
-  put_verified(verified){
+  put_verified(verified, opt={}){
+    let b=0;
+    if (opt.b===true){
+      this.create_new_branch();
+      b = this.b.length-1;
+    } else if (opt.b!==undefined)
+      b = opt.b;
     for (let seq in verified){
       seq = +seq;
-      let v = verified[seq], decl = this.get_decl(seq);
+      let v = verified[seq], decl = this.get_decl(seq, {b});
       for (let type in v){
         let val = v[type];
         switch (type){
-        case 'M': decl.M.set_hash(val); break;
         case 'sig': decl.set_sig(val); break;
         case 'd': decl.fbuf.set_hash(val); break;
         case 'D': decl.fbuf.set_frames(val); break;
+        case 'M': decl.M.set_hash(val); break;
         case 'm':
           for (let s in val)
             decl.m_get([+s, +seq]).set_hash(val[s]);

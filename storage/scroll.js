@@ -271,20 +271,12 @@ export default class Scroll {
   }
   put(diff){
     let top = this.b[0].top, errors = {};
-    let a = Object.keys(diff), last_seq = +a[a.length-1]?.seq;
     assert(top, 'cannot put to empty scroll');
-    let i=0, j;
-    for (; i<a.length && +a[i]<=top.seq; i++)
-      this.put_single(+a[i], diff, errors, last_seq);
-    if (i==a.length)
-      return {errors};
-    // we get when there is new top. a new top requires signature verficiation
-    // (which is very expensive). so we first find a new top. afterwards we
-    // just verify using hash comparison
-    for (j=a.length-1; j>=i && +a[j]>top.seq; j--)
-      this.put_single(+a[j], diff, errors, last_seq);
-    for (; i<j && +a[i]<=top.seq; i++)
-      this.put_single(+a[i], diff, errors, last_seq);
+    let i=0, a = Object.keys(diff);
+    if (diff[0]) // XXX HACK: for case where we have only M0 (no mo)
+      this.put_single(0, diff, errors);
+    for (i=a.length-1; i>=0 && +a[i]; i--)
+      this.put_single(+a[i], diff, errors);
     return {errors};
   }
   put_single(seq, diff, errors){

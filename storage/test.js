@@ -154,7 +154,8 @@ const get_val = (exp, def_type='right')=>etask(function*_get_val(){
   case 'D': return scroll.seq_D(seq, {b});
   // XXX: do we need calc_m?
   case 'm': return r0==seq ? scroll.m_hash(seq, {b}) :
-    b ? scroll.m_hash(seq, {b}) : calc_m(scroll, o.range);
+    b ? scroll.m_hash(o.range, {b}) : calc_m(scroll, o.range);
+    // b ? scroll.m_hash(seq, {b}) : calc_m(scroll, o.range);
   }
   assert.fail('invalid val exp '+exp);
 });
@@ -653,15 +654,15 @@ describe('scroll', ()=>{
     describe('put', ()=>{
       describe('errors_invalid', ()=>{
         let s = `s.scroll(!prev_scroll) s.decl(1-32) s2..scroll(s..M0) ==M0`;
-        t('sig0', `${s} s.put(sig0:sig1 err(invalid sig0))`);
-        t('d0', `${s} s.put(d0:d1 err(invalid d0))`);
-        t('m0', `${s} s.put(m0:m1 err(invalid m0))`);
+        t('sig0', `${s} s.put(sig0:sig1 err(invalid sig0)) ==M0`);
+        t('d0', `${s} s.put(d0:d1 err(invalid d0)) ==M0`);
+        t('m0', `${s} s.put(m0:m1 err(invalid m0)) ==M0`);
         t('sig0 d0 m0', `${s} s.put(sig0:sig1 d0:d1 m0:d1
-          err(invalid sig0,invalid d0,invalid m0))`);
+          err(invalid sig0,invalid d0,invalid m0)) ==M0`);
         if (Scroll.xxx_branch)
-          t('sig1', `${s} s.put(sig1:sig0 err(invalid sig1,missing d1))`);
+          t('sig1', `${s} s.put(sig1:sig0 err(invalid sig1,missing d1)) ==M0`);
         else
-          t('sig1', `${s} s.put(sig1:sig0 err(invalid sig1))`);
+          t('sig1', `${s} s.put(sig1:sig0 err(invalid sig1)) ==M0`);
       });
       describe('errors_missing', ()=>{
         let s = `s.scroll(!prev_scroll) s.decl(1-32) s2..scroll(s..M0) ==M0`;
@@ -731,6 +732,7 @@ describe('scroll', ()=>{
           err(invalid sig3,missing sig2,missing sig1)) ==(M0 m0)`);
         t('add_d3_invalid_m2', `${s} put(sig3 d3 m0 m1 m2:m1
           err(invalid sig3,missing sig2,missing sig1)) ==(M0 m0)`);
+        t('add_d7', `${s} put(sig7 d7 m0 m1 m2_3 m4_5 m6 m7 sig6 d6)`);
         t('add_d32', `${s}
           put(m0 m1 m2_3 m4_7 m8_15 d32 sig32 m31 m16_23 m24_27 m28_29 m30)
           ==(M0 m0 m1 m0_1 m2_3 m0_3 m4_7 m0_7 m8_15 m0_15 m16_23 m16_31
@@ -784,7 +786,7 @@ describe('scroll', ()=>{
           sig3 d3 m0 m1 m2 m3 m2_3 m0_3 m0_1) put(sig8 d8 m4_7) =M8
           decl(9) M9=hroot(s2.m0_7+s2.m8_9) // branch
           put(sig9 d9 sig4 d4 m5 m4_5 m6_7 sig5 d5 sig6 d6 m7 sig7 d7 sig10
-          d10 err(invalid sig9,invalid d9,invalid sig10))
+          d10 err(invalid sig10, invalid sig9,invalid d9))
           M9=hroot(s2.m0_7+s2.m8_9) =M4 =M5 =M6 s2.M7=M7 !M10`);
       });
       describe('top_M1', ()=>{
@@ -857,14 +859,35 @@ describe('scroll', ()=>{
           ==(sig4:sign(s2.d4+M3) m4:hleaf(s2.d4+s2.sig4) d4:s2.d4 M3 m2
           m3 m0_1 m2_3 m0_3) put(sig0 d0 m1) =M0`);
         if (Scroll.xxx_branch)
-        t('xxx', `${s} put(m0_1 m2 m3)
+        t('xxx1', `${s} put(m0_1 m2 m3)
           ==(M3 m2 m3 m0_1 m2_3 m0_3) decl(4) // branch
           put(sig4 d4 b1 err(invalid sig4,invalid d4))
-          ==(sig4:sign(s2.d4+M3) m4:hleaf(s2.d4+s2.sig4) d4:s2.d4 M3 m2
-          m3 m0_1 m2_3 m0_3
-          sig4b1:s.sig4 d4b1:s.d4 m3b1:s2.m3b1 m2_3b1:s2.m2_3b1
-          m0_3b1:s2.m0_3b1)`);
+          ==(sig4:sign(s2.d4+M3) m4:hleaf(s2.d4+s2.sig4) s2.d4 M3 m2 m3 m0_1
+          m2_3 m0_3 sig4b1:sig4 d4b1:d4 m3b1:m3 m2_3b1:s.m2_3 m0_3b1:s.m0_3)
+          put(sig3 d3)
+          sig3=sig3
+          d3=d3
+//          sig3b1=sig3
+//          d3b1=d3
+          ==(sig4:sign(s2.d4+M3) m4:hleaf(s2.d4+s2.sig4) s2.d4 M3 m2 m3 m0_1
+          m2_3 m0_3 sig4b1:sig4 d4b1:d4 m3b1:m3 m2_3b1:s.m2_3 m0_3b1:s.m0_3
+          sig3 d3)
+        `);
+        if (Scroll.xxx_branch)
+        t('xxx2', `s.scroll(!prev_scroll) s.decl(1-32)
+          s2..scroll(s..M3) put(M0 m0 m1 m2 m3) decl(4-7)
+          s3..scroll(s2..M0)
+          s3.put(sig7:s2..sig7 d7 m0 m1 m2_3 m4_5 m6 m7 sig6 d6)
+          s3.put(sig7:s..sig7 d7 m0 m1 m2_3 m4_5 m6 m7 sig6 d6)
+        `);
+//      m4=hleaf(d4+sig4) sig4=sign(d4+M3) M4=hroot(m0_3+m4)
         // XXX: add test for sig/d insert + invalid
+          // =sig7
+          // s.m0_1=s2.m0_1
+          // s.m2_3=s2.m2_3
+          // s.m0_3=s2.m0_3
+          // s.m4=hleaf(s.d4+s.sig4)
+          // s2.m4=hleaf(s2.d4+s2.sig4)
       });
       describe('top_M4', ()=>{
         let s = `s.scroll(!prev_scroll) s.decl(1-32) s2..scroll(s..M4) ==M4`;

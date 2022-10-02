@@ -430,7 +430,7 @@ const cmd_test = t=>etask(function*cmd_test(){
           }
           return;
         }
-        if (tested[b][seq] && tested[b][seq][type])
+        if (tested[b] && tested[b][seq] && tested[b][seq][type])
           return;
         switch (type){
         case 'sig':
@@ -440,6 +440,7 @@ const cmd_test = t=>etask(function*cmd_test(){
           assert(!decl.fbuf.h, 'd'+seq+'b'+b+' exists '+t.meta.s);
           break;
         case 'M':
+          if (0) // XXX: enable
           assert(!decl.M.h, 'M'+seq+'b'+b+' exists '+t.meta.s);
           break;
         default: assert.fail('invalid type '+type+'b'+b);
@@ -715,11 +716,11 @@ describe('scroll', ()=>{
           err(missing m0)) ==M0`);
         // XXX add errors/missing to below tests
         t('add_d2', `${s} put(sig2 d2 sig1 d1 m1 m0)
-          ==(M0 sig2 d2 sig1 d1 m1 m0 m0_1)`);
+          ==(M0 sig2 d2 sig1 d1 m1 m0 m0_1 m2)`);
         t('add_d2D1', `${s} put(sig2 d2 sig1 D1 m1 m0)
-          ==(M0 sig2 d2 sig1 d1 D1 m1 m0 m0_1)`);
+          ==(M0 sig2 d2 sig1 d1 D1 m1 m0 m0_1 m2)`);
         t('add_D2', `${s} put(sig2 D2 sig1 D1 m1 m0)
-          ==(M0 sig2 D2 d2 sig1 d1 D1 m1 m0 m0_1)`);
+          ==(M0 sig2 D2 d2 sig1 d1 D1 m1 m0 m0_1 m2)`);
         t('add_d3', `${s} put(sig3 d3 m0 m1 m2)
           ==(M0 m0 sig3 d3 m0 m1 m2 m3 m2_3 m0_3 m0_1)`);
         t('add_d3_missing_sig3', `${s} put(d3 m0 m1 m2
@@ -754,7 +755,8 @@ describe('scroll', ()=>{
         t('seq9_branch', `${s} put(sig3 d3 m0 m1 m2) ==(M0 m0 sig3 d3
           m0 m1 m2 m3 m2_3 m0_3 m0_1) put(sig8 d8 m4_7) =M8
           decl(9) M9=hroot(m0_7+s2.m8_9) // branch
-          put(sig9 d9 err(invalid sig9,invalid d9)) M9=hroot(m0_7+s2.m8_9)
+          put(sig9 d9 err(invalid sig9,invalid d9))
+          M9=hroot(m0_7+s2.m8_9)
           put(sig4 d4 m5 m4_5 m6_7) =M4 s2.put(sig5 d5) =M5
           put(sig6 d6 m7) =M6 put(sig7 d7) =M7
           put(sig10 d10 err(invalid sig10)) !M10`);
@@ -852,7 +854,7 @@ describe('scroll', ()=>{
           ==M3`);
         t('m0_1m2m3_seq4_no_branch', `${s} put(m0_1 m2 m3)
           ==(M3 m2 m3 m0_1 m2_3 m0_3) put(sig4 d4)
-          ==(sig4 d4 M3 m2 m3 m0_1 m2_3 m0_3) put(sig0 d0 m1) =M0`);
+          ==(sig4 d4 M3 m2 m3 m0_1 m2_3 m0_3 m4) put(sig0 d0 m1) =M0`);
         t('m0_1m2m3_seq4_branch', `${s} put(m0_1 m2 m3)
           ==(M3 m2 m3 m0_1 m2_3 m0_3) decl(4) // branch
           put(sig4 d4 err(invalid sig4,invalid d4))
@@ -877,9 +879,15 @@ describe('scroll', ()=>{
         t('xxx2', `s.scroll(!prev_scroll) s.decl(1-32)
           s2..scroll(s..M3) put(M0 m0 m1 m2 m3) decl(4-7)
           s3..scroll(s2..M0)
-          s3.put(sig7:s2..sig7 d7 m0 m1 m2_3 m4_5 m6 m7 sig6 d6)
-          s3.put(sig7:s..sig7 d7 m0 m1 m2_3 m4_5 m6 m7 sig6 d6)
+          s3.put(sig7:s2..sig7 d7 m0 m1 m2_3 m4_5 m6 sig6 d6)
+          =sig7
+//          s3.put(sig7:s..sig7 d7 m0 m1 m2_3 m4_5 m6 sig6 d6)
+//          sig7b1=sig7
         `);
+//      m0_3 m4_5 m6
+//      m6=hleaf(d6+sig6) sig6=sign(d6+M5) M6=hroot(m0_3+m4_5+m6)
+//      m7=hleaf(d7+sig7) sig7=sign(d7+M6) M7=hroot(m0_7)
+
 //      m4=hleaf(d4+sig4) sig4=sign(d4+M3) M4=hroot(m0_3+m4)
         // XXX: add test for sig/d insert + invalid
           // =sig7

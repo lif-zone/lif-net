@@ -280,6 +280,7 @@ export default class Scroll {
     return {errors};
   }
   put_single(seq, diff, errors){
+    // XXX: need to check all brnaches
     let top = this.b[0].top, sketch = {};
     let decl=this.get_decl(seq), m=get_m_hash(diff, seq), D=get_D(diff, seq);
     let sig=get_sig(diff, seq), d=get_d_hash(diff, seq), dD=calc_D_hash(D);
@@ -353,6 +354,7 @@ export default class Scroll {
       this.put_verified(sketch, {b: true});
     } else
       this.put_verified(sketch);
+    this.M_hash(seq, {b: this.b.length-1}); // update new top
   }
   sketch_calc_top_M(opt){
     let {top, seq, m, sketch, diff, errors} = opt;

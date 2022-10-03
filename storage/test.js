@@ -857,52 +857,6 @@ describe('scroll', ()=>{
           put(sig4 d4 err(invalid sig4,invalid d4))
           ==(sig4:sign(s2.d4+M3) m4:hleaf(s2.d4+s2.sig4) d4:s2.d4 M3 m2
           m3 m0_1 m2_3 m0_3) put(sig0 d0 m1) =M0`);
-        t('xxx1', `${s} put(m0_1 m2 m3)
-          ==(M3 m2 m3 m0_1 m2_3 m0_3) decl(4) // branch
-          put(sig4 d4 m4 m0_1 m2 m3 b1)
-          ==(sig4:sign(s2.d4+M3) m4:hleaf(s2.d4+s2.sig4) s2.d4 M3 m2 m3 m0_1
-          m2_3 m0_3 sig4b1:sig4 d4b1:d4 m3b1:m3 m2_3b1:s.m2_3 m0_3b1:s.m0_3
-          m0_1b1:s.m0_1
-          m2b1:s.m2)
-          put(sig3 d3)
-          sig3=sig3
-          d3=d3
-//          sig3b1=sig3
-//          d3b1=d3
-          ==(sig4:sign(s2.d4+M3) m4:hleaf(s2.d4+s2.sig4) s2.d4 M3 m2 m3 m0_1
-          m2_3 m0_3 sig4b1:sig4 d4b1:d4 m3b1:m3 m2_3b1:s.m2_3 m0_3b1:s.m0_3
-          sig3 d3
-          sig3b1:s.sig3
-          d3b1:s.d3
-          m0_1b1:s.m0_1
-          m2b1:s.m2)
-        `);
-        t('xxx2', `s.scroll(!prev_scroll) s.decl(1-32)
-          s2..scroll(s..M3) put(M0 m0 m1 m2 m3) decl(4-7)
-          s3..scroll(s2..M0)
-          // XXX: test s3.put(sig7:s2..sig7 d7 m0 m1 m2_m3 m4_5 m6 sig6 d6)
-          s3.put(sig7:s2..sig7 d7 m0 m1 m2 m3 m4_5 m6 sig6 d6)
-          =sig7
-          // XXX why
-          s3.put(sig7:s..sig7 d7 m0 m1 m2 m3 m4_5 m6 sig6 d6)
-          m0b1=s.m0
-          m3b1=s.m3
-          m4_5b1=s.m4_5
-          sig7b0=s2.sig7
-          sig7b1=s.sig7
-        `);
-//      m0_3 m4_5 m6
-//      m6=hleaf(d6+sig6) sig6=sign(d6+M5) M6=hroot(m0_3+m4_5+m6)
-//      m7=hleaf(d7+sig7) sig7=sign(d7+M6) M7=hroot(m0_7)
-
-//      m4=hleaf(d4+sig4) sig4=sign(d4+M3) M4=hroot(m0_3+m4)
-        // XXX: add test for sig/d insert + invalid
-          // =sig7
-          // s.m0_1=s2.m0_1
-          // s.m2_3=s2.m2_3
-          // s.m0_3=s2.m0_3
-          // s.m4=hleaf(s.d4+s.sig4)
-          // s2.m4=hleaf(s2.d4+s2.sig4)
       });
       describe('top_M4', ()=>{
         let s = `s.scroll(!prev_scroll) s.decl(1-32) s2..scroll(s..M4) ==M4`;
@@ -947,6 +901,43 @@ describe('scroll', ()=>{
           missing m16_31,missing m0_31))
           ==(M31 m30 m31 m0_15 m16_23 m24_27 m28_29 m28_31
           m30_31 m24_31 m16_31 m0_31)`);
+      });
+      describe('branch', ()=>{
+        let s = `s.scroll(!prev_scroll) s.decl(1-32) s2..scroll(s..M3) ==M3`;
+        t('xxx1', `${s} put(m0_1 m2 m3)
+          ==(M3 m2 m3 m0_1 m2_3 m0_3) decl(4) // branch
+          put(sig4 d4 m4 m0_1 m2 m3 b1)
+          ==(sig4:sign(s2.d4+M3) m4:hleaf(s2.d4+s2.sig4) s2.d4 M3 m2 m3 m0_1
+          m2_3 m0_3 sig4b1:sig4 d4b1:d4 m3b1:m3 m2_3b1:s.m2_3 m0_3b1:s.m0_3
+          m0_1b1:s.m0_1
+          m2b1:s.m2)
+          put(sig3 d3)
+          sig3=sig3
+          d3=d3
+//          sig3b1=sig3
+//          d3b1=d3
+          ==(sig4:sign(s2.d4+M3) m4:hleaf(s2.d4+s2.sig4) s2.d4 M3 m2 m3 m0_1
+          m2_3 m0_3 sig4b1:sig4 d4b1:d4 m3b1:m3 m2_3b1:s.m2_3 m0_3b1:s.m0_3
+          sig3 d3
+          sig3b1:s.sig3
+          d3b1:s.d3
+          m0_1b1:s.m0_1
+          m2b1:s.m2)
+        `);
+        t('xxx2', `s.scroll(!prev_scroll) s.decl(1-32)
+          s2..scroll(s..M3) put(M0 m0 m1 m2 m3) decl(4-7)
+          s3..scroll(s2..M0)
+          // XXX: test s3.put(sig7:s2..sig7 d7 m0 m1 m2_m3 m4_5 m6 sig6 d6)
+          s3.put(sig7:s2..sig7 d7 m0 m1 m2 m3 m4_5 m6 sig6 d6)
+          =sig7
+          // XXX why
+          s3.put(sig7:s..sig7 d7 m0 m1 m2 m3 m4_5 m6 sig6 d6)
+          m0b1=s.m0
+          m3b1=s.m3
+          m4_5b1=s.m4_5
+          sig7b0=s2.sig7
+          sig7b1=s.sig7
+        `);
       });
     });
   });

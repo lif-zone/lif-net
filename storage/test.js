@@ -660,10 +660,7 @@ describe('scroll', ()=>{
         t('m0', `${s} s.put(m0:m1 err(invalid m0)) ==M0`);
         t('sig0 d0 m0', `${s} s.put(sig0:sig1 d0:d1 m0:d1
           err(invalid sig0,invalid d0,invalid m0)) ==M0`);
-        if (Scroll.xxx_branch)
-          t('sig1', `${s} s.put(sig1:sig0 err(invalid sig1,missing d1)) ==M0`);
-        else
-          t('sig1', `${s} s.put(sig1:sig0 err(invalid sig1)) ==M0`);
+        t('sig1', `${s} s.put(sig1:sig0 err(invalid sig1)) ==M0`);
       });
       describe('errors_missing', ()=>{
         let s = `s.scroll(!prev_scroll) s.decl(1-32) s2..scroll(s..M0) ==M0`;
@@ -860,12 +857,13 @@ describe('scroll', ()=>{
           put(sig4 d4 err(invalid sig4,invalid d4))
           ==(sig4:sign(s2.d4+M3) m4:hleaf(s2.d4+s2.sig4) d4:s2.d4 M3 m2
           m3 m0_1 m2_3 m0_3) put(sig0 d0 m1) =M0`);
-        if (Scroll.xxx_branch)
         t('xxx1', `${s} put(m0_1 m2 m3)
           ==(M3 m2 m3 m0_1 m2_3 m0_3) decl(4) // branch
-          put(sig4 d4 b1 err(invalid sig4,invalid d4))
+          put(sig4 d4 m4 m0_1 m2 m3 b1)
           ==(sig4:sign(s2.d4+M3) m4:hleaf(s2.d4+s2.sig4) s2.d4 M3 m2 m3 m0_1
-          m2_3 m0_3 sig4b1:sig4 d4b1:d4 m3b1:m3 m2_3b1:s.m2_3 m0_3b1:s.m0_3)
+          m2_3 m0_3 sig4b1:sig4 d4b1:d4 m3b1:m3 m2_3b1:s.m2_3 m0_3b1:s.m0_3
+          m0_1b1:s.m0_1
+          m2b1:s.m2)
           put(sig3 d3)
           sig3=sig3
           d3=d3
@@ -873,16 +871,25 @@ describe('scroll', ()=>{
 //          d3b1=d3
           ==(sig4:sign(s2.d4+M3) m4:hleaf(s2.d4+s2.sig4) s2.d4 M3 m2 m3 m0_1
           m2_3 m0_3 sig4b1:sig4 d4b1:d4 m3b1:m3 m2_3b1:s.m2_3 m0_3b1:s.m0_3
-          sig3 d3)
+          sig3 d3
+          sig3b1:s.sig3
+          d3b1:s.d3
+          m0_1b1:s.m0_1
+          m2b1:s.m2)
         `);
-        if (Scroll.xxx_branch)
         t('xxx2', `s.scroll(!prev_scroll) s.decl(1-32)
           s2..scroll(s..M3) put(M0 m0 m1 m2 m3) decl(4-7)
           s3..scroll(s2..M0)
-          s3.put(sig7:s2..sig7 d7 m0 m1 m2_3 m4_5 m6 sig6 d6)
+          // XXX: test s3.put(sig7:s2..sig7 d7 m0 m1 m2_m3 m4_5 m6 sig6 d6)
+          s3.put(sig7:s2..sig7 d7 m0 m1 m2 m3 m4_5 m6 sig6 d6)
           =sig7
-//          s3.put(sig7:s..sig7 d7 m0 m1 m2_3 m4_5 m6 sig6 d6)
-//          sig7b1=sig7
+          // XXX why
+          s3.put(sig7:s..sig7 d7 m0 m1 m2 m3 m4_5 m6 sig6 d6)
+          m0b1=s.m0
+          m3b1=s.m3
+          m4_5b1=s.m4_5
+          sig7b0=s2.sig7
+          sig7b1=s.sig7
         `);
 //      m0_3 m4_5 m6
 //      m6=hleaf(d6+sig6) sig6=sign(d6+M5) M6=hroot(m0_3+m4_5+m6)

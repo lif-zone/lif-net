@@ -8,7 +8,6 @@ import {Buffer} from 'buffer';
 import buf_util from '../peer-relay/buf_util.js';
 const b2s = buf_util.buf_to_str, beq = buf_util.buf_eq;
 const stringify = JSON.stringify.bind(JSON);
-const xxx_branch = false; // XXX WIP
 // https://en.wikipedia.org/wiki/Merkle_tree#Second_preimage_attack
 const LEAF_TYPE = enc_u64(0), PARENT_TYPE = enc_u64(1), ROOT_TYPE = enc_u64(2);
 function enc_u64(v){ return enc.encode(enc.uint64, v); }
@@ -175,6 +174,10 @@ function check_set_sig(sketch, errors, seq, m, d, D, sig){
 }
 
 function push_error(errors, s){ errors[s] = (errors[s]||0)+1; }
+function copy_errors(dst, src){
+  for (let e in src)
+    push_error(dst, e);
+}
 
 function seq_merkel_array_size(seq){
   let n=1;
@@ -251,38 +254,76 @@ export default class Scroll {
     this.b = [];
     this.create_new_branch();
   }
-  create_new_branch(){ this.b.push({size: 0, top: null, map: new Map()}); }
+  create_new_branch(opt={}){
+    let {b, seq} = opt;
+    if (b===undefined || seq===undefined){
+      assert(b===undefined && seq===undefined, 'invalid create_new_branch');
+      this.b.push({size: 0, top: null, map: new Map(), branch: {}});
+      return this.b.length-1;
+    }
+    let M = this.get_decl(seq).M_hash();
+    assert(M, 'missing M'+seq);
+    this.b.push({size: 0, top: null, map: new Map(), branch: {b, seq}});
+    let b2 = this.b.length-1;
+    this.notify_M({b: b2, seq: seq, M});
+    return b2;
+  }
   // XXX: use return =>
-  decl(frames){
+  decl(frames){ // XXX: support decl on branch
     let fbuf = new FrameBuffer({frames});
     let seq = this.b[0].size, ts = Date.now();
     assert(!this.b[0].map.get(seq), 'XXX TODO'); // XXX: support branch
     fbuf.unshift({seq, ts});
-    let decl = new Decl({scroll: this, seq, fbuf});
+    let decl = new Decl({scroll: this, b: 0, seq, fbuf});
     decl.sign();
     this.b[0].map.set(seq, decl);
     this.b[0].size++;
     return decl;
   }
   notify_M(opt){
-    let {seq, M} = opt;
-    if (!this.b[0].top || this.b[0].top.seq<seq)
-      this.b[0].top = {seq, M};
+    let {b, seq, M} = opt;
+    if (!this.b[b].top || this.b[b].top.seq<seq)
+      this.b[b].top = {seq, M};
   }
   put(diff){
-    let top = this.b[0].top, errors = {};
-    assert(top, 'cannot put to empty scroll');
-    let i=0, a = Object.keys(diff);
+    let errors = {};
     if (diff[0]) // XXX HACK: for case where we have only M0 (no mo)
       this.put_single(0, diff, errors);
-    for (i=a.length-1; i>=0 && +a[i]; i--)
-      this.put_single(+a[i], diff, errors);
+    let a = Object.keys(diff);
+    for (let i=a.length-1; i>=0 && +a[i]; i--){
+      let seq = +a[i], errors2={}, best = {b: 0, max_valid: 0};
+      for (let j=0; this.b.length>1 && j<this.b.length; j++){
+        let max_valid = this.find_max_valid_M({b: j, seq, diff});
+        if (best.max_valid < max_valid)
+          best = {b: j, max_valid};
+      }
+      let b = best.b;
+      let ret = this.put_single(seq, diff, errors2, {b});
+      if (ret?.branch){
+        let max_valid = best.max_valid ||
+          this.find_max_valid_M({b, seq, diff});
+        if (max_valid!==undefined)
+        {
+          errors2 = {};
+          let b2 = this.create_new_branch({b, seq: max_valid});
+          ret = this.put_single(seq, diff, errors2, {b: b2});
+          xerr.notice('XXX branch max_valid %s b%s ->b%s ret %O', max_valid,
+            b, b2, ret);
+          if (this.b[b2].top.seq==max_valid) // XXX: find better way
+            this.b.pop();
+        }
+      }
+      copy_errors(errors, errors2);
+    }
+
     return {errors};
   }
-  put_single(seq, diff, errors){
+  put_single(seq, diff, errors, opt={}){
     // XXX: need to check all brnaches
-    let top = this.b[0].top, sketch = {};
-    let decl=this.get_decl(seq), m=get_m_hash(diff, seq), D=get_D(diff, seq);
+    let b=opt.b||0;
+    let top = this.b[b].top, sketch = {};
+    let decl=this.get_decl(seq, {b}), m=get_m_hash(diff, seq);
+    let D=get_D(diff, seq);
     let sig=get_sig(diff, seq), d=get_d_hash(diff, seq), dD=calc_D_hash(D);
     let vm=decl.m_hash(seq), vsig=decl.sig_get(), vd=decl.d_hash();
     if (dD){
@@ -291,7 +332,7 @@ export default class Scroll {
           push_error(errors, 'invalid D'+seq);
           dD = null;
         } else
-          this.put_verified(set_d({}, seq, null, D));
+          this.put_verified(set_d({}, seq, null, D), {b});
       }
       if (d && !beq(dD, d)){
         push_error(errors, 'invalid D'+seq);
@@ -306,8 +347,7 @@ export default class Scroll {
         push_error(errors, 'invalid d'+seq);
       if (m && !beq(m, vm))
         push_error(errors, 'invalid m'+seq);
-      if (!xxx_branch || !seq) // otherwise, maybe branch
-        return;
+      return seq ? {branch: true} : undefined;
     }
     if (d && !sig)
       push_error(errors, 'missing sig'+seq);
@@ -315,21 +355,23 @@ export default class Scroll {
       push_error(errors, 'missing d'+seq);
     if (sig && d)
       m = m||hleaf(d, sig);
-    if (!xxx_branch && vm){
+    if (vm){
       check_set_sig(sketch, errors, seq, vm, d, D, sig);
-      this.put_verified(sketch);
+      this.put_verified(sketch, {b});
       return;
     }
     if (!m)
       return;
     if (seq<=top.seq){ // verify m belongs to existing top.M
-      let M = this.sketch_calc_top_M({top, seq, m, sketch, diff, errors});
+      let M = this.sketch_calc_top_M({top, seq, m, sketch, diff, errors, b});
       if (!M); // XXX push_error(errors, 'missing M'+top.seq)?
-      else if (!beq(M, top.M))
+      else if (!beq(M, top.M)){
         push_error(errors, 'invalid M'+top.seq);
+        return {branch: true}; // XXX: need test
+      }
       else {
         check_set_sig(sketch, errors, seq, m, d, D, sig);
-        this.put_verified(sketch);
+        this.put_verified(sketch, {b});
       }
       return;
     }
@@ -338,31 +380,29 @@ export default class Scroll {
       return push_error(errors, 'missing '+(sig ? 'd' : 'sig')+seq);
     if (!is_m_valid(m, d, sig, errors, 'invalid sig'+seq))
       return;
-    let old_top_m = this.get_decl(top.seq).m_hash(top.seq);
+    let old_top_m = this.get_decl(top.seq, {b}).m_hash(top.seq);
     if (is_null(old_top_m, errors, 'missing m'+top.seq))
       return;
     let prev_M = this.sketch_calc_top_M({top: {seq: seq-1},
-      seq: top.seq, m: old_top_m, sketch, diff, errors});
+      seq: top.seq, m: old_top_m, sketch, diff, errors, b});
     if (is_null(prev_M, errors, 'missing M'+(seq-1))) // XXX: add test
       return;
     if (!verify_sig(sig, this.pub, d, prev_M))
       return push_error(errors, 'invalid sig'+seq);
     set_sig(sketch, seq, sig);
     check_set_sig(sketch, errors, seq, m, d, D, sig);
-    if (xxx_branch && decl.sig && !decl.sig.equals(sig)){
-      xerr.notice('XXX branch new top %s', seq);
-      this.put_verified(sketch, {b: true});
-    } else
-      this.put_verified(sketch);
-    this.M_hash(seq, {b: this.b.length-1}); // update new top
+    if (decl.sig && !decl.sig.equals(sig))
+      return {branch: true};
+    this.put_verified(sketch, {b});
+    this.M_hash(seq, {b}); // update new top
   }
   sketch_calc_top_M(opt){
-    let {top, seq, m, sketch, diff, errors} = opt;
+    let {b, top, seq, m, sketch, diff, errors} = opt;
     assert(seq<=top.seq, 'top over seq');
     let roots = calc_roots(top.seq+1), a=[ROOT_TYPE];
     for (let i=0; i<roots.length; i++){
       let r = roots[i], mr;
-      mr = this.sketch_calc_m({range: r, sketch, diff, errors, force:
+      mr = this.sketch_calc_m({b, range: r, sketch, diff, errors, force:
         range_includes(r, [seq, seq]) ? {range: [seq, seq], m} : null});
       if (is_null(mr, errors, 'missing m'+range_str(r)))
         return null;
@@ -371,10 +411,10 @@ export default class Scroll {
     return hconcat(a);
   }
   sketch_calc_m(opt){
-    let {range, sketch, diff, errors, force} = opt;
+    let {b, range, sketch, diff, errors, force} = opt;
     if (force && range_eq(range, force.range))
       return set_m_hash(sketch, range, force.m);
-    let seq = range[1], decl = this.get_decl(seq);
+    let seq = range[1], decl = this.get_decl(seq, {b});
     let m = get_m_hash(diff, range), vm = decl.m_hash(range);
     if ((vm||m) && (!force || !range_includes(range, force.range))){
       if (m && !vm)
@@ -389,19 +429,19 @@ export default class Scroll {
       return set_m_hash(sketch, seq, hleaf(d, sig));
     }
     let [r1, r2] = range_split(range);
-    let m1, vm1, m2, vm2, decl1 = this.get_decl(r1[1]), decl2=decl;
+    let m1, vm1, m2, vm2, decl1 = this.get_decl(r1[1], {b}), decl2=decl;
     if (force && range_includes(r1, force.range))
-      m1 = this.sketch_calc_m({range: r1, sketch, diff, errors, force});
+      m1 = this.sketch_calc_m({b, range: r1, sketch, diff, errors, force});
     else if (vm1 = decl1.m_hash(r1));
     else if (m1 = get_m_hash(sketch, r1)||get_m_hash(diff, r1));
-    else if (m1 = this.sketch_calc_m({range: r1, sketch, diff, errors}));
+    else if (m1 = this.sketch_calc_m({b, range: r1, sketch, diff, errors}));
     if (is_null(m1||vm1, errors, 'missing m'+range_str(r1)))
       return null;
     if (force && range_includes(r2, force.range))
-      m2 = this.sketch_calc_m({range: r2, sketch, diff, errors, force});
+      m2 = this.sketch_calc_m({b, range: r2, sketch, diff, errors, force});
     else if (vm2 = decl2.m_hash(r2));
     else if (m2 = get_m_hash(sketch, r2)||get_m_hash(diff, r2));
-    else if (m2 = this.sketch_calc_m({range: r2, sketch, diff, errors}));
+    else if (m2 = this.sketch_calc_m({b, range: r2, sketch, diff, errors}));
     if (is_null(m2||vm2, errors, 'missing m'+range_str(r2)))
       return null;
     if (m1)
@@ -412,9 +452,67 @@ export default class Scroll {
     set_m_hash(sketch, range, m);
     return m;
   }
+  find_max_valid_M(opt){
+    let {b, seq, diff} = opt;
+    let roots = calc_roots(seq+1);
+    let ret;
+    for (let i=0; i<roots.length; i++){
+      let r = roots[i], max;
+      max = this.find_max_valid_m({b, range: r, diff});
+      if (!max)
+        break;
+      if (range_eq(r, max.range)){
+        ret = max.range[1];
+        continue;
+      }
+      let max2 = this.find_max_valid_M({b, seq: r[1]-1, diff});
+      return max2 ? max2 : max.range[1];
+    }
+    return ret;
+  }
+  find_max_valid_m(opt){
+    let {b, range, diff} = opt;
+    let seq = range[1], decl = this.get_decl(seq, {b});
+    let m = get_m_hash(diff, range), vm = decl.m_hash(range);
+    if (vm && m && vm.equals(m))
+      return {range, m};
+    if (range[0]==range[1])
+      return null;
+    let [r1, r2] = range_split(range);
+    let m1, vm1, m2, vm2, decl1 = this.get_decl(r1[1], {b}), decl2=decl;
+    vm1 = decl1.m_hash(r1);
+    m1 = get_m_hash(diff, r1);
+    vm2 = decl2.m_hash(r2);
+    m2 = get_m_hash(diff, r2);
+    if (!vm1)
+      return this.find_max_valid_m({b, range: r1, diff});
+    if (!m1 || !vm1.equals(m1)){
+      let max1 = this.find_max_valid_m({b, range: r1, diff});
+      if (!max1)
+        return null;
+      if (!range_eq(r1, max1.range))
+        return max1;
+      m1 = max1.m;
+    }
+    if (!vm2)
+      return {range: r1, m: m1};
+    if (!m2 || !vm2.equals(m2)){
+      let max2 = this.find_max_valid_m({b, range: r2, diff});
+      if (!max2)
+        return {range: r1, m: m1};
+      // XXX maybe return r1+max2.range and optimize find_max_valid_M
+      if (!range_eq(r2, max2.range))
+        return {range: r1, m: m1};
+      m2 = max2.m;
+    }
+    assert(vm, 'vm must exists');
+    assert(!m, 'm does not exists');
+    return {range, m: vm};
+  }
   put_verified(verified, opt={}){
     let b=0;
     if (opt.b===true){
+      assert.fail('XXX need info for create_new_branch');
       this.create_new_branch();
       b = this.b.length-1;
     } else if (opt.b!==undefined)
@@ -463,12 +561,14 @@ export default class Scroll {
   }
   get_decl(seq, opt={}){
     assert(typeof seq=='number', 'invalid seq '+seq);
-    let b = opt.b===undefined ? 0 : opt.b;
+    let b = opt.b===undefined ? 0 : opt.b, decl;
     assert(this.b[b], 'missing branch '+b);
-    let decl = this.b[b].map.get(seq);
+    if (this.b[b].branch.b!==undefined && seq <= this.b[b].branch.seq)
+      return this.get_decl(seq, {b: this.b[b].branch.b, create: opt.create});
+    decl = this.b[b].map.get(seq);
     if (decl || opt.create===false)
       return decl;
-    decl = new Decl({scroll: this, seq, fbuf: new FrameBuffer});
+    decl = new Decl({scroll: this, b, seq, fbuf: new FrameBuffer});
     this.b[b].map.set(seq, decl);
     this.b[b].size = Math.max(this.b[b].size, seq+1);
     return decl;
@@ -481,6 +581,7 @@ class Decl {
     assert(opt.scroll, 'must provide Scroll');
     let seq = this.seq = opt.seq;
     this.scroll = opt.scroll;
+    this.b = opt.b;
     this.fbuf = opt.fbuf;
     this.M = new Merkel_root({decl: this});
     this.m = [];
@@ -569,7 +670,7 @@ class Merkel_root {
       return this.h;
     this.h = h;
     if (h)
-      this.scroll.notify_M({seq: this.decl.seq, M: h});
+      this.scroll.notify_M({b: this.decl.b, seq: this.decl.seq, M: h});
     return h;
   }
 }
@@ -606,4 +707,3 @@ Scroll.verify_sig = verify_sig;
 Scroll.LEAF_TYPE = LEAF_TYPE;
 Scroll.PARENT_TYPE = PARENT_TYPE;
 Scroll.ROOT_TYPE = ROOT_TYPE;
-Scroll.xxx_branch = xxx_branch;

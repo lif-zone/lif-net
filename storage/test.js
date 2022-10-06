@@ -358,7 +358,7 @@ const cmd_clone = (curr, t)=>etask(function cmd_clone(){
   let dst = t.ctx;
   assert(!t_scroll[dst], 'scroll already exist '+dst);
   assert(!t.l, 'invalid arg '+t.meta.s);
-  let m = t.r.match(/^([a-z0-9_]+):(\d+)$/);
+  let m = t.r.match(/^([a-z0-9_]+):0-(\d+)$/);
   assert(m, 'invalid clone '+t.meta.s);
   let src = m[1], seq = +m[2];
   let s = dst+'.scroll(M0:'+src+'.M0)';
@@ -974,11 +974,11 @@ describe('scroll', ()=>{
           sig7b1=s.sig7
         `);
         let p = '';
-        t('xxx3', `s.scroll(!prev_scroll) s.decl(1-32)
-          s1.clone(s:1) s1.decl(2-32)
-          s2.clone(s:1) s2.decl(3-32)
-          s3.clone(s:1) s3.decl(4-32)
-          t..clone(s:32)
+        t('branch_seq1', `s.scroll(!prev_scroll) s.decl(1-32)
+          s1.clone(s:0-1) s1.decl(2-32)
+          s2.clone(s:0-1) s2.decl(3-32)
+          s3.clone(s:0-1) s3.decl(4-32)
+          t..clone(s:0-32)
           put(m0:s1..m0 m1 sig2 d2)
           ${p=`sig1b0=s.sig1 sig2b0=s.sig2 sig2b1=s1.sig2`} branch(b1:1:s1.M2)
           put(m0:s2..m0 m1 sig2 d2)
@@ -992,10 +992,10 @@ describe('scroll', ()=>{
           put(m0:s3..m0 m1 m2 sig3 d3)
           ${p+= ` sig3b3=s3.sig3`} branch(b1:1:s1.M3 b2:1:s2.M3 b3:1:s3.M3)
         `);
-        t('xxx4', `s.scroll(!prev_scroll) s.decl(1-32)
-          s1.clone(s:1) s1.decl(2-32)
-          s2.clone(s:2) s2.decl(3-32)
-          t..clone(s:32) sig1b0=s.sig1 sig2b0=s.sig2
+        t('branch_seq1_seq2', `s.scroll(!prev_scroll) s.decl(1-32)
+          s1.clone(s:0-1) s1.decl(2-32)
+          s2.clone(s:0-2) s2.decl(3-32)
+          t..clone(s:0-32) ${p=`sig1b0=s.sig1 sig2b0=s.sig2`}
           put(m0:s1..m0 m1 sig2 d2)
           sig1b0=s.sig1 sig2b0=s.sig2 sig2b1=s1.sig2
           branch(b1:1:s1.M2)
@@ -1009,6 +1009,31 @@ describe('scroll', ()=>{
           sig1b0=s.sig1 sig2b0=s.sig2 sig2b1=s1.sig2 sig3b1=s1.sig3
           sig3b2=s2.sig3
           branch(b1:1:s1.M3 b2:2:s2.M3)
+        `);
+        // XXX: test other put order (first s2, then s1)
+        t('1b0_2b1', `s.scroll(!prev_scroll) s.decl(1-32)
+          s1.clone(s:0-1) s1.decl(2-32)
+          s2.clone(s1:0-2) s2.decl(3-32)
+          t..clone(s:0-32) ${p=`sig1b0=s.sig1 sig2b0=s.sig2`}
+          put(m0:s1..m0 m1 sig2 d2)
+          ${p+=` sig2b1=s1.sig2`} branch(b1:1:s1.M2)
+          put(m0:s1..m0 m1 m2 sig3 d3) // XXX: add branch info
+          ${p+=` sig3b1=s1.sig3`} branch(b1:1:s1.M3)
+          put(m0:s2..m0 m1 m2 sig3 d3)
+          ${p+=` sig3b2=s2.sig3`} branch(b1:1:s1.M3 b2:2b1:s2.M3)
+          put(m0:s1..m0 m1 m2 m3 sig4 d4)
+          ${p+=` sig4b1=s1.sig4`} branch(b1:1:s1.M4 b2:2b1:s2.M3)
+          put(m0:s2..m0 m1 m2 m3 sig4 d4)
+          ${p+=` sig4b2=s2.sig4`} branch(b1:1:s1.M4 b2:2b1:s2.M4)
+        `);
+        t('1b0_2b1_rev', `s.scroll(!prev_scroll) s.decl(1-32)
+          s1.clone(s:0-1) s1.decl(2-32)
+          s2.clone(s1:0-2) s2.decl(3-32)
+          t..clone(s:0-32) ${p=`sig1b0=s.sig1 sig2b0=s.sig2`}
+          put(m0:s2..m0 m1 m2 sig3 d3)
+          ${p+=` sig3b1=s2.sig3`} branch(b1:1:s2.M3)
+          put(m0:s1..m0 m1 m2 sig3 d3)
+          ${p+=` sig3b2=s1.sig3`} branch(b1:1:s2.M3 b2:2b1:s1.M3)
         `);
         // add branch command to verify branch is correct
         // XXX: need tests with prev_scroll

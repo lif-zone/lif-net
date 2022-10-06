@@ -482,7 +482,7 @@ const cmd_branch = t=>etask(function*cmd_branch(){
       'branch '+i+' mismatch');
     delete tested[i];
   }
-  assert.deepEqual(tested, {}, 'branch not found');
+  assert.deepEqual(tested, {}, 'branch not found '+Object.keys(tested));
 });
 
 const cmd_eq = o=>etask(function*cmd_eq(){
@@ -940,6 +940,7 @@ describe('scroll', ()=>{
           m30_31 m24_31 m16_31 m0_31)`);
       });
       describe('branch', ()=>{
+        // XXX: need tests with prev_scroll
         let s = `s.scroll(!prev_scroll) s.decl(1-32) s2..scroll(s..M3) ==M3`;
         t('xxx1', `${s} put(m0_1 m2 m3)
           ==(M3 m2 m3 m0_1 m2_3 m0_3) decl(4) // branch
@@ -1024,8 +1025,7 @@ describe('scroll', ()=>{
           put(m0:s1..m0 m1 m2 m3 sig4 d4)
           ${p+=` sig4b1=s1.sig4`} branch(b1:1:s1.M4 b2:2b1:s2.M3)
           put(m0:s2..m0 m1 m2 m3 sig4 d4)
-          ${p+=` sig4b2=s2.sig4`} branch(b1:1:s1.M4 b2:2b1:s2.M4)
-        `);
+          ${p+=` sig4b2=s2.sig4`} branch(b1:1:s1.M4 b2:2b1:s2.M4)`);
         t('1b0_2b1_rev', `s.scroll(!prev_scroll) s.decl(1-32)
           s1.clone(s:0-1) s1.decl(2-32)
           s2.clone(s1:0-2) s2.decl(3-32)
@@ -1033,10 +1033,33 @@ describe('scroll', ()=>{
           put(m0:s2..m0 m1 m2 sig3 d3)
           ${p+=` sig3b1=s2.sig3`} branch(b1:1:s2.M3)
           put(m0:s1..m0 m1 m2 sig3 d3)
-          ${p+=` sig3b2=s1.sig3`} branch(b1:1:s2.M3 b2:2b1:s1.M3)
-        `);
-        // add branch command to verify branch is correct
-        // XXX: need tests with prev_scroll
+          ${p+=` sig3b2=s1.sig3`} branch(b1:1:s2.M3 b2:2b1:s1.M3)`);
+        t('3b0_8b0_15b0', `s.scroll(!prev_scroll) s.decl(1-32)
+          s1.clone(s:0-3) s1.decl(4-32) s2.clone(s:0-8) s2.decl(9-32)
+          s3.clone(s:0-15) s3.decl(16-32) t..clone(s:0-32)
+          put(s1..m0 m1 m2 m3 sig4 d4) branch(b1:3:s1.M4)
+          put(s2..m0 m1 m2_3 m4_7 m8 sig9 d9) branch(b1:3:s1.M4 b2:8:s2.M9)
+          put(s3..m0 m1 m2_3 m4_7 m8_15 sig16 d16)
+          branch(b1:3:s1.M4 b2:8:s2.M9 b3:15:s3.M16)`);
+        t('3b0_8b1_15b1_zzz1', `s.scroll(!prev_scroll) s.decl(1-32)
+          s1.clone(s:0-3) s1.decl(4-32) s2.clone(s1:0-8) s2.decl(9-32)
+          s3.clone(s1:0-15) s3.decl(16-32) t..clone(s:0-32)
+          put(s1..m0 m1 m2_3 sig4 d4) branch(b1:3:s1.M4)
+          // XXX: why it fails
+          // put(s1..sig5 d5 sig6 d6 sig7 d7 sig8 d8 d9 sig9)
+          put(s1..sig9 d9 m0 m1 m2_3 m4 m5 m6 m7 m8) branch(b1:3:s1.M9)
+          put(s2..m0 m1 m2_3 m4_7 m8 sig9 d9)
+          branch(b1:3:s1.M9  b2:8b1:s2.M9)`);
+        // XXX derry: do we need to update banch info (b2:8b1)
+        t('3b0_8b1_15b1_zzz2', `s.scroll(!prev_scroll) s.decl(1-32)
+          s1.clone(s:0-3) s1.decl(4-32) s2.clone(s1:0-8) s2.decl(9-32)
+          s3.clone(s1:0-15) s3.decl(16-32) t..clone(s:0-32)
+          put(s1..m0 m1 m2_3 sig4 d4) branch(b1:3:s1.M4)
+          put(s2..m0 m1 m2_3 m4_7 m8 sig9 d9)
+          branch(b1:3:s1.M4 b2:3:s2.M9)
+          put(s1..sig9 d9 m0 m1 m2 m3 m4 m5 m6 m7 m8)
+          branch(b1:3:s1.M9 b2:3:s2.M9)`);
+
       });
     });
   });

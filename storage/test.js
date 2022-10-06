@@ -1047,7 +1047,7 @@ describe('scroll', ()=>{
           put(s1..m0 m1 m2_3 sig4 d4) branch(b1:3:s1.M4)
           // XXX: why it fails
           // put(s1..sig5 d5 sig6 d6 sig7 d7 sig8 d8 d9 sig9)
-          put(s1..sig9 d9 m0 m1 m2_3 m4 m5 m6 m7 m8) branch(b1:3:s1.M9)
+          put(s1..sig9 d9 m0 m1 m2_3 m4 m5 m6_7 m8) branch(b1:3:s1.M9)
           put(s2..m0 m1 m2_3 m4_7 m8 sig9 d9)
           branch(b1:3:s1.M9  b2:8b1:s2.M9)`);
         // XXX derry: do we need to update banch info (b2:8b1)
@@ -1057,9 +1057,8 @@ describe('scroll', ()=>{
           put(s1..m0 m1 m2_3 sig4 d4) branch(b1:3:s1.M4)
           put(s2..m0 m1 m2_3 m4_7 m8 sig9 d9)
           branch(b1:3:s1.M4 b2:3:s2.M9)
-          put(s1..sig9 d9 m0 m1 m2 m3 m4 m5 m6 m7 m8)
+          put(s1..sig9 d9 m0 m1 m2_3 m4 m5 m6_7 m8)
           branch(b1:3:s1.M9 b2:3:s2.M9)`);
-
       });
     });
   });

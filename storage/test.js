@@ -973,28 +973,24 @@ describe('scroll', ()=>{
           sig7b0=s2.sig7
           sig7b1=s.sig7
         `);
+        let p = '';
         t('xxx3', `s.scroll(!prev_scroll) s.decl(1-32)
           s1.clone(s:1) s1.decl(2-32)
           s2.clone(s:1) s2.decl(3-32)
           s3.clone(s:1) s3.decl(4-32)
           t..clone(s:32)
           put(m0:s1..m0 m1 sig2 d2)
-          sig1b0=s.sig1 sig2b0=s.sig2 sig2b1=s1.sig2
-          branch(b1:1:s1.M2)
+          ${p=`sig1b0=s.sig1 sig2b0=s.sig2 sig2b1=s1.sig2`} branch(b1:1:s1.M2)
           put(m0:s2..m0 m1 sig2 d2)
-          sig1b0=s.sig1 sig2b0=s.sig2 sig2b1=s1.sig2 sig2b2=s2.sig2
-          branch(b1:1:s1.M2 b2:1:s2.M2)
+          ${p+=` sig2b2=s2.sig2`} branch(b1:1:s1.M2 b2:1:s2.M2)
           put(m0:s3..m0 m1 sig2 d2)
-          sig1b0=s.sig1 sig2b0=s.sig2 sig2b1=s1.sig2 sig2b2=s2.sig2
-          sig2b3=s3.sig2
-          branch(b1:1:s1.M2 b2:1:s2.M2 b3:1:s3.M2)
+          ${p+=` sig2b3=s3.sig2`} branch(b1:1:s1.M2 b2:1:s2.M2 b3:1:s3.M2)
           put(m0:s1..m0 m1 m2 sig3 d3)
-          sig3b0=s.sig3 sig3b1=s1.sig3
+          ${p+=` sig3b1=s1.sig3`} branch(b1:1:s1.M3 b2:1:s2.M2 b3:1:s3.M2)
           put(m0:s2..m0 m1 m2 sig3 d3)
-          sig3b0=s.sig3 sig3b1=s1.sig3 sig3b2=s2.sig3
+          ${p+= ` sig3b2=s2.sig3`} branch(b1:1:s1.M3 b2:1:s2.M3 b3:1:s3.M2)
           put(m0:s3..m0 m1 m2 sig3 d3)
-          sig3b0=s.sig3 sig3b1=s1.sig3 sig3b2=s2.sig3 sig3b3=s3.sig3
-          branch(b1:1:s1.M3 b2:1:s2.M3 b3:1:s3.M3)
+          ${p+= ` sig3b3=s3.sig3`} branch(b1:1:s1.M3 b2:1:s2.M3 b3:1:s3.M3)
         `);
         t('xxx4', `s.scroll(!prev_scroll) s.decl(1-32)
           s1.clone(s:1) s1.decl(2-32)

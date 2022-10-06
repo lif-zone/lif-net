@@ -1044,6 +1044,7 @@ describe('scroll', ()=>{
           ${p+=` sig3b1=s2.sig3`} branch(b1:1:s2.M3)
           put(m0:s1..m0 m1 m2 sig3 d3)
           ${p+=` sig3b2=s1.sig3`} branch(b1:1:s2.M3 b2:2b1:s1.M3)`);
+        // XXX: mv branch to put
         t('3b0_8b0_15b0', `s.scroll(!prev_scroll) s.decl(1-32)
           s1.clone(s:0-3) s1.decl(4-32) s2.clone(s:0-8) s2.decl(9-32)
           s3.clone(s:0-15) s3.decl(16-32) t..clone(s:0-32)

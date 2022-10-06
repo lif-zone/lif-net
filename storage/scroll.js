@@ -2,7 +2,6 @@
 'use strict'; /*jslint node:true, browser:true*/
 import assert from 'assert';
 import crypto from '../util/crypto.js';
-import xerr from '../util/xerr.js';
 import enc from 'compact-encoding';
 import {Buffer} from 'buffer';
 import buf_util from '../peer-relay/buf_util.js';
@@ -321,8 +320,6 @@ export default class Scroll {
           errors2 = {};
           let b2 = this.create_new_branch({b, seq: max_valid});
           ret = this.put_single(seq, diff, errors2, {b: b2});
-          xerr.notice('XXX branch max_valid %s b%s ->b%s ret %O', max_valid,
-            b, b2, ret);
           if (this.b[b2].top.seq==max_valid) // XXX: find better way
             this.b.pop();
         }
@@ -528,11 +525,7 @@ export default class Scroll {
   }
   put_verified(verified, opt={}){
     let b=0;
-    if (opt.b===true){
-      assert.fail('XXX need info for create_new_branch');
-      this.create_new_branch();
-      b = this.b.length-1;
-    } else if (opt.b!==undefined)
+    if (opt.b!==undefined)
       b = opt.b;
     for (let seq in verified){
       seq = +seq;

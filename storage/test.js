@@ -986,7 +986,7 @@ describe('scroll', ()=>{
           s1.clone(s:0-1) s1.decl(2-32) t..clone(s:0-32)
           put(sig0:s1..sig0 D0 sig1 D1 sig2 D2)
           sig1b0=s.sig1 sig2b0=s.sig2 sig2b1=s1.sig2 branch(b1:1:s1.M2)`);
-        t('branch_seq1', `s.scroll(!prev_scroll) s.decl(1-32)
+        t('1b0_1b0_1b0', `s.scroll(!prev_scroll) s.decl(1-32)
           s1.clone(s:0-1) s1.decl(2-32)
           s2.clone(s:0-1) s2.decl(3-32)
           s3.clone(s:0-1) s3.decl(4-32)
@@ -1004,7 +1004,7 @@ describe('scroll', ()=>{
           put(m0:s3..m0 m1 m2 sig3 d3)
           ${p+= ` sig3b3=s3.sig3`} branch(b1:1:s1.M3 b2:1:s2.M3 b3:1:s3.M3)
         `);
-        t('branch_seq1_seq2', `s.scroll(!prev_scroll) s.decl(1-32)
+        t('1b0_2b0', `s.scroll(!prev_scroll) s.decl(1-32)
           s1.clone(s:0-1) s1.decl(2-32)
           s2.clone(s:0-2) s2.decl(3-32)
           t..clone(s:0-32) ${p=`sig1b0=s.sig1 sig2b0=s.sig2`}

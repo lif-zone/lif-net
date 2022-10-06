@@ -278,7 +278,6 @@ export default class Scroll {
     this.notify_M({b: b2, seq: seq, M});
     return b2;
   }
-  // XXX: use return =>
   decl(frames){ // XXX: support decl on branch
     let fbuf = new FrameBuffer({frames});
     let seq = this.b[0].size, ts = Date.now();
@@ -330,7 +329,6 @@ export default class Scroll {
     return {errors};
   }
   put_single(seq, diff, errors, opt={}){
-    // XXX: need to check all brnaches
     let b=opt.b||0;
     let top = this.b[b].top, sketch = {};
     let decl=this.get_decl(seq, {b}), m=get_m_hash(diff, seq);
@@ -550,7 +548,6 @@ export default class Scroll {
     let roots=calc_roots(seq+1), a=[ROOT_TYPE];
     for (let i=0; i<roots.length; i++){
       let r = roots[i];
-      // XXX: get in parallel
       a.push(this.m_hash(r, opt), enc_u64(r[0]), enc_u64(r[1]-r[0]+1));
     }
     return hconcat_safe(a);
@@ -643,18 +640,16 @@ class Merkel_node {
     if (this.h)
       return this.h;
     let [s, e] = this.range, decl = this.decl;
-    if (s==e){ // XXX: need to get sig async?
+    if (s==e){
       let d = decl.fbuf.get_hash(), sig = decl.sig;
       if (!d || !sig)
         return null;
       return this.set_hash(hleaf(d, sig));
     }
-    // XXX: get in parallel
-    let d = (e-s+1)/2; // XXX: range_split
-    let decl1 = decl.scroll.get_decl(s+d-1, {b: this.b});
-    let decl2 = decl.scroll.get_decl(e, {b: this.b});
-    this.set_hash(hparent_safe(2*d, decl1.m_hash([s, s+d-1]),
-      decl2.m_hash([s+d, e])));
+    let [r1, r2] = range_split(this.range);
+    let decl1 = decl.scroll.get_decl(r1[1], {b: this.b});
+    let decl2 = decl.scroll.get_decl(r2[1], {b: this.b});
+    this.set_hash(hparent_safe(e-s+1, decl1.m_hash(r1), decl2.m_hash(r2)));
     return this.h;
   }
   set_hash(h){

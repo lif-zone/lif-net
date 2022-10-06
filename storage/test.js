@@ -869,6 +869,14 @@ describe('scroll', ()=>{
         t('m0_1m2', `${s} s2.put(m0_1 m2) ==(M2 m2 m0_1)`);
         t('m0_1m2_invalid_m0_1', `${s} put(m0_1:m1 m2 err(invalid M2)) ==M2`);
         t('m0_1m2_invalid_m2', `${s} put(m0_1 m2:m1 err(invalid M2)) ==M2`);
+        t('m0m1m2_sig3_d3', `${s} put(m0 m1 m2 sig3 d3)
+          ==(M3 sig3 d3 m0 m1 m2 m3 m0_1 m2_3 m0_3)`);
+        t('m0m1m2_sig3_d3', `${s} put(m0 m1 m2 sig3 d3)
+          ==(M3 sig3 d3 m0 m1 m2 m3 m0_1 m2_3 m0_3)`);
+        t('m0m1m2m3_sig4_d4', `${s} put(m0 m1 m2 m3 sig4 d4)
+          ==(M4 sig4 d4 m0 m1 m2 m3 m4 m0_1 m2_3 m0_3)`);
+        t('m0m1m2_3_sig4_d4_missing_m2',
+          `${s} put(m0 m1 m2_3 sig4 d4 err(missing m2)) ==(M2)`);
         // XXX: add test for sig/d insert + invalid
       });
       describe('top_M3', ()=>{

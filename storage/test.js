@@ -1030,7 +1030,6 @@ describe('scroll', ()=>{
           sig3b2=s2.sig3
           branch(b1:1:s1.M3 b2:2:s2.M3)
         `);
-        // XXX: test other put order (first s2, then s1)
         t('1b0_2b1', `s.scroll(!prev_scroll) s.decl(1-32)
           s1.clone(s:0-1) s1.decl(2-32)
           s2.clone(s1:0-2) s2.decl(3-32)

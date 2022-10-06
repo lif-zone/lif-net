@@ -44,6 +44,10 @@ class FrameBuffer {
         this.frames.push(f);
         continue;
       }
+      if (this.frames[i]?.buf && frames[i]?.buf &&
+        this.frames[i].buf.equals(frames[i].buf)){
+        continue;
+      }
       assert.fail('XXX TODO - support partial update of frames');
     }
   }
@@ -145,10 +149,17 @@ function set_sig(data, seq, val){
   return o.sig = val;
 }
 // XXX: need test
-function get_m_hash(data, r){
+function get_m_hash(data, r, use_d_sig){
   r = range_fix(r);
   let m = data[r[1]]?.m;
-  return m && m[r[0]] || null;
+  m = m && m[r[0]] || null;
+  if (m || !use_d_sig || r[0]!=r[1])
+    return m;
+  let D, d = get_d_hash(data, r[1]);
+  let sig = get_sig(data, r[1]);
+  if (!d && (D=get_D(data, r[1])))
+    d = calc_D_hash(D);
+  return d && sig ? hleaf(d, sig) : null;
 }
 // XXX: need test
 function set_m_hash(data, r, val){
@@ -479,7 +490,7 @@ export default class Scroll {
   find_max_valid_m(opt){
     let {b, range, diff} = opt;
     let seq = range[1], decl = this.get_decl(seq, {b});
-    let m = get_m_hash(diff, range), vm = decl.m_hash(range);
+    let m = get_m_hash(diff, range, true), vm = decl.m_hash(range);
     if (vm && m && vm.equals(m))
       return {range, m};
     if (range[0]==range[1])
@@ -487,9 +498,9 @@ export default class Scroll {
     let [r1, r2] = range_split(range);
     let m1, vm1, m2, vm2, decl1 = this.get_decl(r1[1], {b}), decl2=decl;
     vm1 = decl1.m_hash(r1);
-    m1 = get_m_hash(diff, r1);
+    m1 = get_m_hash(diff, r1, true);
     vm2 = decl2.m_hash(r2);
-    m2 = get_m_hash(diff, r2);
+    m2 = get_m_hash(diff, r2, true);
     if (!vm1)
       return this.find_max_valid_m({b, range: r1, diff});
     if (!m1 || !vm1.equals(m1)){

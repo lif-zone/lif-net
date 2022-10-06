@@ -363,7 +363,7 @@ const cmd_clone = (curr, t)=>etask(function cmd_clone(){
   let src = m[1], seq = +m[2];
   let s = dst+'.scroll(M0:'+src+'.M0)';
   for (let i=0; i<=seq; i++)
-    s += ' '+dst+'.put(sig'+i+':'+src+'.sig'+i+' d'+i+':'+src+'.d'+i+')';
+    s += ' '+dst+'.put(sig'+i+':'+src+'.sig'+i+' D'+i+':'+src+'.D'+i+')';
   tparser.parse_push(curr, s);
 });
 
@@ -975,6 +975,17 @@ describe('scroll', ()=>{
           sig7b1=s.sig7
         `);
         let p = '';
+        t('1b0', `s.scroll(!prev_scroll) s.decl(1-32) s1.clone(s:0-1)
+          s1.decl(2-32) t..clone(s:0-32) put(m0:s1..m0 m1 sig2 d2)
+          sig1b0=s.sig1 sig2b0=s.sig2 sig2b1=s1.sig2 branch(b1:1:s1.M2)`);
+         t('1b0_missing_m', `s.scroll(!prev_scroll) s.decl(1-32)
+          s1.clone(s:0-1) s1.decl(2-32) t..clone(s:0-32)
+          put(sig0:s1..sig0 d0 sig1 d1 sig2 d2)
+          sig1b0=s.sig1 sig2b0=s.sig2 sig2b1=s1.sig2 branch(b1:1:s1.M2)`);
+         t('1b0_missing_d', `s.scroll(!prev_scroll) s.decl(1-32)
+          s1.clone(s:0-1) s1.decl(2-32) t..clone(s:0-32)
+          put(sig0:s1..sig0 D0 sig1 D1 sig2 D2)
+          sig1b0=s.sig1 sig2b0=s.sig2 sig2b1=s1.sig2 branch(b1:1:s1.M2)`);
         t('branch_seq1', `s.scroll(!prev_scroll) s.decl(1-32)
           s1.clone(s:0-1) s1.decl(2-32)
           s2.clone(s:0-1) s2.decl(3-32)
@@ -1045,8 +1056,6 @@ describe('scroll', ()=>{
           s1.clone(s:0-3) s1.decl(4-32) s2.clone(s1:0-8) s2.decl(9-32)
           s3.clone(s1:0-15) s3.decl(16-32) t..clone(s:0-32)
           put(s1..m0 m1 m2_3 sig4 d4) branch(b1:3:s1.M4)
-          // XXX: why it fails
-          // put(s1..sig5 d5 sig6 d6 sig7 d7 sig8 d8 d9 sig9)
           put(s1..sig9 d9 m0 m1 m2_3 m4 m5 m6_7 m8) branch(b1:3:s1.M9)
           put(s2..m0 m1 m2_3 m4_7 m8 sig9 d9)
           branch(b1:3:s1.M9  b2:8b1:s2.M9)`);

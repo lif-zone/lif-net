@@ -304,23 +304,23 @@ export default class Scroll {
       this.put_single(0, diff, errors);
     let a = Object.keys(diff);
     for (let i=a.length-1; i>=0 && +a[i]; i--){
-      let seq = +a[i], errors2={}, best = {b: 0, max_valid: 0};
+      let seq = +a[i], errors2={}, best = {b: 0, max_common: 0};
       for (let j=0; this.b.length>1 && j<this.b.length; j++){
-        let max_valid = this.find_max_valid_M({b: j, seq, diff});
-        if (best.max_valid < max_valid)
-          best = {b: j, max_valid};
+        let max_common = this.find_max_common_M({b: j, seq, diff});
+        if (best.max_common < max_common)
+          best = {b: j, max_common};
       }
       let b = best.b;
       let ret = this.put_single(seq, diff, errors2, {b});
       if (ret?.branch){
-        let max_valid = best.max_valid ||
-          this.find_max_valid_M({b, seq, diff});
-        if (max_valid!==undefined)
+        let max_common = best.max_common ||
+          this.find_max_common_M({b, seq, diff});
+        if (max_common!==undefined)
         {
           errors2 = {};
-          let b2 = this.create_new_branch({b, seq: max_valid});
+          let b2 = this.create_new_branch({b, seq: max_common});
           ret = this.put_single(seq, diff, errors2, {b: b2});
-          if (this.b[b2].top.seq==max_valid) // XXX: find better way
+          if (this.b[b2].top.seq==max_common) // XXX: find better way
             this.b.pop();
         }
       }
@@ -466,25 +466,25 @@ export default class Scroll {
     set_m_hash(sketch, range, m);
     return m;
   }
-  find_max_valid_M(opt){
+  find_max_common_M(opt){
     let {b, seq, diff} = opt;
     let roots = calc_roots(seq+1);
     let ret;
     for (let i=0; i<roots.length; i++){
       let r = roots[i], max;
-      max = this.find_max_valid_m({b, range: r, diff});
+      max = this.find_max_common_m({b, range: r, diff});
       if (!max)
         break;
       if (range_eq(r, max.range)){
         ret = max.range[1];
         continue;
       }
-      let max2 = this.find_max_valid_M({b, seq: r[1]-1, diff});
+      let max2 = this.find_max_common_M({b, seq: r[1]-1, diff});
       return max2 ? max2 : max.range[1];
     }
     return ret;
   }
-  find_max_valid_m(opt){
+  find_max_common_m(opt){
     let {b, range, diff} = opt;
     let seq = range[1], decl = this.get_decl(seq, {b});
     let m = get_m_hash(diff, range, true), vm = decl.m_hash(range);
@@ -499,9 +499,9 @@ export default class Scroll {
     vm2 = decl2.m_hash(r2);
     m2 = get_m_hash(diff, r2, true);
     if (!vm1)
-      return this.find_max_valid_m({b, range: r1, diff});
+      return this.find_max_common_m({b, range: r1, diff});
     if (!m1 || !vm1.equals(m1)){
-      let max1 = this.find_max_valid_m({b, range: r1, diff});
+      let max1 = this.find_max_common_m({b, range: r1, diff});
       if (!max1)
         return null;
       if (!range_eq(r1, max1.range))
@@ -511,10 +511,10 @@ export default class Scroll {
     if (!vm2)
       return {range: r1, m: m1};
     if (!m2 || !vm2.equals(m2)){
-      let max2 = this.find_max_valid_m({b, range: r2, diff});
+      let max2 = this.find_max_common_m({b, range: r2, diff});
       if (!max2)
         return {range: r1, m: m1};
-      // XXX maybe return r1+max2.range and optimize find_max_valid_M
+      // XXX maybe return r1+max2.range and optimize find_max_common_M
       if (!range_eq(r2, max2.range))
         return {range: r1, m: m1};
       m2 = max2.m;

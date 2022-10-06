@@ -73,6 +73,11 @@ E.parse_get_next = function(curr){
   return {exp, s, at};
 };
 
+E.parse_push = function(curr, s){
+  let pre = curr.s.substr(0, curr.at), post = curr.s.substr(curr.at);
+  curr.s = pre+' '+s+' '+post;
+};
+
 E._parse_exp = function(s){
   s = s.trim();
   let c, parentesis = [], first, meta = {s};

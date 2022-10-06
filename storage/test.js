@@ -354,6 +354,19 @@ const cmd_scroll = t=>etask(function*cmd_scroll(){
   scroll.t = {name};
 });
 
+const cmd_clone = (curr, t)=>etask(function cmd_clone(){
+  let dst = t.ctx;
+  assert(!t_scroll[dst], 'scroll already exist '+dst);
+  assert(!t.l, 'invalid arg '+t.meta.s);
+  let m = t.r.match(/^([a-z0-9_]+):(\d+)$/);
+  assert(m, 'invalid clone '+t.meta.s);
+  let src = m[1], seq = +m[2];
+  let s = dst+'.scroll(M0:'+src+'.M0)';
+  for (let i=0; i<=seq; i++)
+    s += ' '+dst+'.put(sig'+i+':'+src+'.sig'+i+' d'+i+':'+src+'.d'+i+')';
+  tparser.parse_push(curr, s);
+});
+
 const cmd_decl = t=>etask(function*cmd_decl(){
   let name = t.ctx||get_def('left'), scroll = get_scroll(name);
   assert(!t.l, 'invalid left arg '+t.meta.s);
@@ -450,6 +463,28 @@ const cmd_test = t=>etask(function*cmd_test(){
   }
 });
 
+const cmd_branch = t=>etask(function*cmd_branch(){
+  let name = t.ctx||get_def('left'), scroll = get_scroll(name);
+  let tested = {};
+  for (let curr=t.r; curr = tparser.parse_get_next(curr);){
+    let m = curr.exp.match(/^b(\d)+:(\d+)(b(\d+))?(:(.*))?$/);
+    assert(m, 'invalid branch cmd '+t.meta.s);
+    let b = +m[1], seq_s = +m[2], b_s = +m[4]||0;
+    tested[b] = {b: b_s, seq: seq_s, M: m[6]};
+  }
+  for (let i=1; i<scroll.b.length; i++){
+    let o = scroll.b[i];
+    assert(tested[i], 'branch '+i+' missing');
+    assert.deepEqual({branch: {b: o.branch.b, seq: o.branch.seq},
+      top: {M: tested[i].M && o.top.M}},
+      {branch: {b: tested[i].b, seq: tested[i].seq},
+      top: {M: tested[i].M && (yield get_val(tested[i].M, 'right'))}},
+      'branch '+i+' mismatch');
+    delete tested[i];
+  }
+  assert.deepEqual(tested, {}, 'branch not found');
+});
+
 const cmd_eq = o=>etask(function*cmd_eq(){
   let l, r;
   if (!o.l){
@@ -466,21 +501,23 @@ const cmd_eq = o=>etask(function*cmd_eq(){
   assert_buffer(l, r, o.meta.s);
 });
 
-const test_run_single = o=>etask(function*_test_run_single(){
+const test_run_single = (curr, o)=>etask(function*_test_run_single(){
   let o2;
   switch (o.cmd){
   case 'scroll': yield cmd_scroll(o); break;
+  case 'clone': yield cmd_clone(curr, o); break;
   case 'decl': yield cmd_decl(o); break;
   case 'put': yield cmd_put(o); break;
   case 'test':
   case '==':
     yield cmd_test(o);
     break;
+  case 'branch': yield cmd_branch(o); break;
   case '//': break;
   case '=': yield cmd_eq(o); break;
   case '.':
   case '..':
-  case '...':
+  case '...': // XXX: rm from here
     assert(o.l, 'invalid "." operator');
     o2 = tparser.parse_exp(o.r);
     o2.ctx = o.l;
@@ -489,7 +526,7 @@ const test_run_single = o=>etask(function*_test_run_single(){
       set_def('right', o.l);
     } else if (o.cmd=='..')
       set_def('left', o.l);
-    yield test_run_single(o2);
+    yield test_run_single(curr, o2);
     break;
   default:
     if (o.cmd[0]=='!'){
@@ -506,7 +543,7 @@ const test_run = test=>etask(function*test_run(){
   for (let curr=test, i=0; curr = tparser.parse_get_next(curr); i++){
     let o = tparser.parse_exp(curr.exp);
     xerr.notice('cmd %s %s', i, o.meta.s);
-    yield test_run_single(o);
+    yield test_run_single(curr, o);
   }
   yield test_end();
 });
@@ -910,19 +947,17 @@ describe('scroll', ()=>{
           ==(sig4:sign(s2.d4+M3) m4:hleaf(s2.d4+s2.sig4) s2.d4 M3 m2 m3 m0_1
           m2_3 m0_3 sig4b1:sig4 d4b1:d4 m3b1:m3 m2_3b1:s.m2_3 m0_3b1:s.m0_3
           m0_1b1:s.m0_1
-          m2b1:s.m2)
+          m2b1:s.m2 m4b1:s.m4)
           put(sig3 d3)
           sig3=sig3
           d3=d3
-//          sig3b1=sig3
-//          d3b1=d3
           ==(sig4:sign(s2.d4+M3) m4:hleaf(s2.d4+s2.sig4) s2.d4 M3 m2 m3 m0_1
           m2_3 m0_3 sig4b1:sig4 d4b1:d4 m3b1:m3 m2_3b1:s.m2_3 m0_3b1:s.m0_3
           sig3 d3
           sig3b1:s.sig3
           d3b1:s.d3
           m0_1b1:s.m0_1
-          m2b1:s.m2)
+          m2b1:s.m2 m4b1:s.m4)
         `);
         t('xxx2', `s.scroll(!prev_scroll) s.decl(1-32)
           s2..scroll(s..M3) put(M0 m0 m1 m2 m3) decl(4-7)
@@ -938,6 +973,49 @@ describe('scroll', ()=>{
           sig7b0=s2.sig7
           sig7b1=s.sig7
         `);
+        t('xxx3', `s.scroll(!prev_scroll) s.decl(1-32)
+          s1.clone(s:1) s1.decl(2-32)
+          s2.clone(s:1) s2.decl(3-32)
+          s3.clone(s:1) s3.decl(4-32)
+          t..clone(s:32)
+          put(m0:s1..m0 m1 sig2 d2)
+          sig1b0=s.sig1 sig2b0=s.sig2 sig2b1=s1.sig2
+          put(m0:s2..m0 m1 sig2 d2)
+          sig1b0=s.sig1 sig2b0=s.sig2 sig2b1=s1.sig2 sig2b2=s2.sig2
+          put(m0:s3..m0 m1 sig2 d2)
+          sig1b0=s.sig1 sig2b0=s.sig2 sig2b1=s1.sig2 sig2b2=s2.sig2
+          sig2b3=s3.sig2
+          put(m0:s1..m0 m1 m2 sig3 d3)
+          sig3b0=s.sig3 sig3b1=s1.sig3
+          put(m0:s2..m0 m1 m2 sig3 d3)
+          sig3b0=s.sig3 sig3b1=s1.sig3 sig3b2=s2.sig3
+          put(m0:s3..m0 m1 m2 sig3 d3)
+          sig3b0=s.sig3 sig3b1=s1.sig3 sig3b2=s2.sig3 sig3b3=s3.sig3
+          // XXX: bug M
+          branch(b1:1:s1.M3 b2:1:s2.M3 b3:1:s3.M3)
+        `);
+        t('xxx4', `s.scroll(!prev_scroll) s.decl(1-32)
+          s1.clone(s:1) s1.decl(2-32)
+          s2.clone(s:2) s2.decl(3-32)
+          t..clone(s:32) sig1b0=s.sig1 sig2b0=s.sig2
+          put(m0:s1..m0 m1 sig2 d2)
+          sig1b0=s.sig1 sig2b0=s.sig2 sig2b1=s1.sig2
+          branch(b1:1:s1.M2)
+          put(m0:s2..m0 m1 m2 sig2 d2)
+          sig1b0=s.sig1 sig2b0=s.sig2 sig2b1=s1.sig2
+// XXX
+//          sig2b2=s2.sig2
+//          branch(b1:1:s1.M2)
+          put(m0:s1..m0 m1 m2 sig3 d3)
+          sig1b0=s.sig1 sig2b0=s.sig2 sig2b1=s1.sig2 sig3b1=s1.sig3
+          branch(b1:1:s1.M3)
+          put(m0:s2..m0 m1 m2 sig3 d3)
+          sig1b0=s.sig1 sig2b0=s.sig2 sig2b1=s1.sig2 sig3b1=s1.sig3
+          sig3b2=s2.sig3
+          branch(b1:1:s1.M3 b2:2:s2.M3)
+        `);
+        // add branch command to verify branch is correct
+        // XXX: need tests with prev_scroll
       });
     });
   });

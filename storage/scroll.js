@@ -261,7 +261,7 @@ export default class Scroll {
       this.b.push({size: 0, top: null, map: new Map(), branch: {}});
       return this.b.length-1;
     }
-    let M = this.get_decl(seq).M_hash();
+    let M = this.get_decl(seq, {b}).M_hash();
     assert(M, 'missing M'+seq);
     this.b.push({size: 0, top: null, map: new Map(), branch: {b, seq}});
     let b2 = this.b.length-1;
@@ -282,8 +282,11 @@ export default class Scroll {
   }
   notify_M(opt){
     let {b, seq, M} = opt;
-    if (!this.b[b].top || this.b[b].top.seq<seq)
+    if (!this.b[b].top || this.b[b].top.seq<seq){
       this.b[b].top = {seq, M};
+      assert.equal(b2s(M), b2s(this.M_hash(this.b[b].top.seq, {b})),
+        'invalid M'+seq+'b'+b);
+    }
   }
   put(diff){
     let errors = {};
@@ -341,13 +344,16 @@ export default class Scroll {
         d = dD;
     }
     if (vd && vsig){
-      if (sig && !beq(sig, vsig))
+      let branch;
+      if (sig && !beq(sig, vsig)){
         push_error(errors, 'invalid sig'+seq);
+        branch = true;
+      }
       if (d && !beq(d, vd))
         push_error(errors, 'invalid d'+seq);
       if (m && !beq(m, vm))
         push_error(errors, 'invalid m'+seq);
-      return seq ? {branch: true} : undefined;
+      return seq && branch ? {branch} : undefined;
     }
     if (d && !sig)
       push_error(errors, 'missing sig'+seq);
@@ -536,12 +542,12 @@ export default class Scroll {
       }
     }
   }
-  calc_root_hash(seq){
+  calc_root_hash(seq, opt){
     let roots=calc_roots(seq+1), a=[ROOT_TYPE];
     for (let i=0; i<roots.length; i++){
       let r = roots[i];
       // XXX: get in parallel
-      a.push(this.m_hash(r), enc_u64(r[0]), enc_u64(r[1]-r[0]+1));
+      a.push(this.m_hash(r, opt), enc_u64(r[0]), enc_u64(r[1]-r[0]+1));
     }
     return hconcat_safe(a);
   }
@@ -583,11 +589,11 @@ class Decl {
     this.scroll = opt.scroll;
     this.b = opt.b;
     this.fbuf = opt.fbuf;
-    this.M = new Merkel_root({decl: this});
     this.m = [];
     let ma = Scroll.merkel_ranges(seq);
     for (let i=0; i<ma.length; i++)
       this.m.push(new Merkel_node({decl: this, range: ma[i]}));
+    this.M = new Merkel_root({decl: this});
   }
   sign = ()=>{
     let scroll = this.scroll, d = this.fbuf.get_hash({skip: 0});
@@ -615,11 +621,11 @@ class Decl {
   }
   m_hash(range){
     let m = this.m_get(range);
-    return m.h || m.get_hash();
+    return m.get_hash();
   }
   M_hash(){
     let M = this.M;
-    return M.h || M.get_hash();
+    return M.get_hash();
   }
 }
 
@@ -627,6 +633,7 @@ class Merkel_node {
   constructor(opt){
     this.range = range_fix(opt.range);
     this.decl = opt.decl;
+    this.b = this.decl.b;
   }
   get_hash(){
     if (this.h)
@@ -640,8 +647,8 @@ class Merkel_node {
     }
     // XXX: get in parallel
     let d = (e-s+1)/2; // XXX: range_split
-    let decl1 = decl.scroll.get_decl(s+d-1);
-    let decl2 = decl.scroll.get_decl(e);
+    let decl1 = decl.scroll.get_decl(s+d-1, {b: this.b});
+    let decl2 = decl.scroll.get_decl(e, {b: this.b});
     this.set_hash(hparent_safe(2*d, decl1.m_hash([s, s+d-1]),
       decl2.m_hash([s+d, e])));
     return this.h;
@@ -658,11 +665,13 @@ class Merkel_root {
   constructor(opt){
     this.decl = opt.decl;
     this.scroll = opt.decl.scroll;
+    this.b = this.decl.b;
   }
   get_hash(){
     if (this.h)
       return this.h;
-    return this.set_hash(this.scroll.calc_root_hash(this.decl.seq));
+    return this.set_hash(this.scroll.calc_root_hash(this.decl.seq,
+      {b: this.b}));
   }
   set_hash(h){
     assert(!this.h || this.h.equals(h), 'hash changed');
@@ -670,7 +679,7 @@ class Merkel_root {
       return this.h;
     this.h = h;
     if (h)
-      this.scroll.notify_M({b: this.decl.b, seq: this.decl.seq, M: h});
+      this.scroll.notify_M({b: this.b, seq: this.decl.seq, M: h});
     return h;
   }
 }

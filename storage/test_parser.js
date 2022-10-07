@@ -133,12 +133,12 @@ E.parse_exp_arg = function(exp){
 
 E.parse_exp_arg_pair = function(exp){
   let m;
-  if (exp.includes(':')){
+  if (/^[^(]+:.*$/.test(exp)){
     m = exp.match(/^([^:]+):([^:]+)$/);
     assert(m, 'invalid arg_pair '+exp);
     return {l: m[1], r: m[2]};
   }
-  else if (m = exp.match(/^([^(^)]+)\(([^(^)]+)\)$/))
+  if (m = exp.match(/^([^(^)]+)\(([^(^)]+)\)$/))
     return {l: m[1], r: m[2]};
   m = exp.match(/(^[^.]*)(\.*)([^.]*)$/);
   assert(m, 'invalid arg_pair '+exp);

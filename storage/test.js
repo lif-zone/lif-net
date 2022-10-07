@@ -381,14 +381,20 @@ const cmd_decl = t=>etask(function*cmd_decl(){
   }
 });
 
-const cmd_put = t=>etask(function*cmd_put(){
+const cmd_put = (curr, t)=>etask(function*cmd_put(){
   let name = t.ctx||get_def('left'), scroll = get_scroll(name);
-  let diff = {}, err='';
+  let diff = {}, err='', tbranch, exp_branch='';
   for (let curr=t.r; curr = tparser.parse_get_next(curr);){
     let t2 = tparser.parse_exp_arg_pair(curr.exp);
     if (t2.l=='err'){
       assert(!err, 'err already defined');
       err = t2.r||true;
+      continue;
+    }
+    if (t2.l=='branch'){
+      tbranch = tbranch||{};
+      let o = parse_branch(t2.r);
+      tbranch[o.b] = o.o;
       continue;
     }
     if (/^b\d+$/.test(t2.l)){
@@ -405,9 +411,25 @@ const cmd_put = t=>etask(function*cmd_put(){
     } else
       seq_o[type] = val;
   }
+  if (tbranch){
+    for (let i=1; i<scroll.b.length || tbranch[i]; i++){
+      exp_branch += (exp_branch ? ' ' : '')+'b'+i+':';
+      if (tbranch[i]){
+        let o = tbranch[i];
+        exp_branch += o.seq+'b'+o.b+':'+o.M;
+        delete o[i];
+        continue;
+      }
+      let o = scroll.b[i];
+      exp_branch += (o.branch.seq||0)+'b'+(o.branch.b||0)+':'+name+
+        '.M'+o.top.seq+'b'+i;
+    }
+  }
   let ret = scroll.put(diff);
   assert.deepEqual(Object.keys(ret.errors), err ?
     string.split_trim(err, /,\s*/) : []);
+  if (exp_branch)
+    tparser.parse_push(curr, 'branch('+exp_branch+')');
 });
 
 const cmd_test = t=>etask(function*cmd_test(){
@@ -463,14 +485,19 @@ const cmd_test = t=>etask(function*cmd_test(){
   }
 });
 
+function parse_branch(s){
+  let m = s.match(/^b(\d)+:(\d+)(b(\d+))?(:(.*))?$/);
+  assert(m, 'invalid branch '+s);
+  let b = +m[1], seq_s = +m[2], b_s = +m[4]||0;
+  return {b, o: {b: b_s, seq: seq_s, M: m[6]}};
+}
+
 const cmd_branch = t=>etask(function*cmd_branch(){
   let name = t.ctx||get_def('left'), scroll = get_scroll(name);
   let tested = {};
   for (let curr=t.r; curr = tparser.parse_get_next(curr);){
-    let m = curr.exp.match(/^b(\d)+:(\d+)(b(\d+))?(:(.*))?$/);
-    assert(m, 'invalid branch cmd '+t.meta.s);
-    let b = +m[1], seq_s = +m[2], b_s = +m[4]||0;
-    tested[b] = {b: b_s, seq: seq_s, M: m[6]};
+    let o = parse_branch(curr.exp);
+    tested[o.b] = o.o;
   }
   for (let i=1; i<scroll.b.length; i++){
     let o = scroll.b[i];
@@ -507,7 +534,7 @@ const test_run_single = (curr, o)=>etask(function*_test_run_single(){
   case 'scroll': yield cmd_scroll(o); break;
   case 'clone': yield cmd_clone(curr, o); break;
   case 'decl': yield cmd_decl(o); break;
-  case 'put': yield cmd_put(o); break;
+  case 'put': yield cmd_put(curr, o); break;
   case 'test':
   case '==':
     yield cmd_test(o);
@@ -1051,7 +1078,6 @@ describe('scroll', ()=>{
           ${p+=` sig3b1=s2.sig3`} branch(b1:1:s2.M3)
           put(m0:s1..m0 m1 m2 sig3 d3)
           ${p+=` sig3b2=s1.sig3`} branch(b1:1:s2.M3 b2:2b1:s1.M3)`);
-        // XXX: mv branch to put
         // XXX change s:0-3 --> s.0_3 s..0_3
         // XXX add pc support pc1.s1.clone(s.0_3)
         t('3b0_8b0_15b0', `s.scroll(!prev_scroll) pc1.s.decl(1-32)
@@ -1066,27 +1092,24 @@ describe('scroll', ()=>{
         t('3b0_8b1_15b1_zzz1', `s.scroll(!prev_scroll) s.decl(1-32)
           s1.clone(s:0-3) s1.decl(4-32) s2.clone(s1:0-8) s2.decl(9-32)
           s3.clone(s1:0-15) s3.decl(16-32) t..clone(s:0-32)
-          put(s1..m0_3 sig4 d4) branch(b1:3:s1.M4)
-          put(s1..sig9 d9 m0_3 m4 m5 m6_7 m8) branch(b1:3:s1.M9)
-          put(s2..m0 m1 m2_3 m4_7 m8 sig9 d9)
+          put(s1..m0_3 sig4 d4 branch(b1:3:s1.M4))
+          put(s1..sig9 d9 m0_3 m4 m5 m6_7 m8 branch(b1:3:s1.M9))
+          put(s2..m0 m1 m2_3 m4_7 m8 sig9 d9 branch(b2:8b1:s2.M9))
           branch(b1:3:s1.M9 b2:8b1:s2.M9)`);
         // XXX derry: do we need to update branch info (b2:8b1)
         t('3b0_8b1_15b1_zzz2', `s.scroll(!prev_scroll) s.decl(1-32)
           s1.clone(s:0-3) s1.decl(4-32) s2.clone(s1:0-8) s2.decl(9-32)
           s3.clone(s1:0-15) s3.decl(16-32) t..clone(s:0-32)
-          put(s1..m0_3 sig4 d4) branch(b1:3:s1.M4)
-          put(s2..m0_3 m4_7 m8 sig9 d9)
-          branch(b1:3:s1.M4 b2:3:s2.M9)
-          put(s1..sig9 d9 m0 m1 m2_3 m4 m5 m6_7 m8)
+          put(s1..m0_3 sig4 d4 branch(b1:3:s1.M4))
+          put(s2..m0_3 m4_7 m8 sig9 d9 branch(b2:3:s2.M9))
+          put(s1..sig9 d9 m0 m1 m2_3 m4 m5 m6_7 m8 branch(b1:3:s1.M9))
           branch(b1:3:s1.M9 b2:3:s2.M9)`);
         // XXX: derry two branches that should be the same
         t('3b0_8b1_15b1_zzz3', `s.scroll(!prev_scroll) s.decl(1-32)
-          s1.clone(s:0-3) s1.decl(4-32)
-          t..clone(s:0-32)
-          put(s1..m0_3 sig4 d4) branch(b1:3:s1.M4)
-          put(s1..m0_3 m4_7 m8 sig9 d9)
-          branch(b1:3:s1.M4 b2:3:s1.M9)
-          put(s1..sig9 d9 m0 m1 m2_3 m4 m5 m6_7 m8)
+          s1.clone(s:0-3) s1.decl(4-32) t..clone(s:0-32)
+          put(s1..m0_3 sig4 d4 branch(b1:3:s1.M4))
+          put(s1..m0_3 m4_7 m8 sig9 d9 branch(b2:3:s1.M9))
+          put(s1..sig9 d9 m0 m1 m2_3 m4 m5 m6_7 m8 branch(b1:3:s1.M9))
           branch(b1:3:s1.M9 b2:3:s1.M9) // XXX need to unite now
         `);
       });

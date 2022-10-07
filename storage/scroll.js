@@ -314,8 +314,7 @@ export default class Scroll {
       if (ret?.branch){
         let max_common = best.max_common ||
           this.find_max_common_M({b, seq, diff});
-        if (max_common!==undefined)
-        {
+        if (max_common!==undefined){
           errors2 = {};
           let b2 = this.create_new_branch({b, seq: max_common});
           ret = this.put_single(seq, diff, errors2, {b: b2});

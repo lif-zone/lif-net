@@ -1052,13 +1052,16 @@ describe('scroll', ()=>{
           put(m0:s1..m0 m1 m2 sig3 d3)
           ${p+=` sig3b2=s1.sig3`} branch(b1:1:s2.M3 b2:2b1:s1.M3)`);
         // XXX: mv branch to put
-        t('3b0_8b0_15b0', `s.scroll(!prev_scroll) s.decl(1-32)
-          s1.clone(s:0-3) s1.decl(4-32) s2.clone(s:0-8) s2.decl(9-32)
-          s3.clone(s:0-15) s3.decl(16-32) t..clone(s:0-32)
+        // XXX change s:0-3 --> s.0_3 s..0_3
+        // XXX add pc support pc1.s1.clone(s.0_3)
+        t('3b0_8b0_15b0', `s.scroll(!prev_scroll) pc1.s.decl(1-32)
+          pc2.s1.clone(s:0-3) s1.decl(4-32) pc3.s2.clone(s:0-8) s2.decl(9-32)
+          pc4.s3.clone(s:0-15) s3.decl(16-32) pc5.t..clone(s:0-32)
           put(s1..m0 m1 m2 m3 sig4 d4) branch(b1:3:s1.M4)
           put(s2..m0 m1 m2_3 m4_7 m8 sig9 d9) branch(b1:3:s1.M4 b2:8:s2.M9)
           put(s3..m0 m1 m2_3 m4_7 m8_15 sig16 d16)
-          branch(b1:3:s1.M4 b2:8:s2.M9 b3:15:s3.M16)`);
+          branch(b1:3:s1.M4 b2:8:s2.M9 b3:15:s3.M16)
+`);
         // XXX: todo 15b1
         t('3b0_8b1_15b1_zzz1', `s.scroll(!prev_scroll) s.decl(1-32)
           s1.clone(s:0-3) s1.decl(4-32) s2.clone(s1:0-8) s2.decl(9-32)
@@ -1090,3 +1093,37 @@ describe('scroll', ()=>{
     });
   });
 });
+
+/* XXX:
+short:
+pc0.s0 0 1 2 3 4 5 6 7 8 9
+pc1.s1         a b c d e f (3b0)
+pc2.s2                   A (3b0 but real split 8b1)
+full:
+pc0.s0 0 1 2 3 4 5 6 7 8 9
+pc1.s1 0 1 2 3 a b c d e f (3b0)
+pc2.s2 0 1 2 3 a b c d e A (3b0 but real split 8b1)
+
+pct.t.
+    b1 0 1 2 3 a|b c        b1.a_?.dup_cmp = new Map().insert(b2, b3);
+    b2 0 1 2 3 a_B C f      b2.a_B.dup = new Map().insert(b1);
+    b3 0 1 2 3 a_C C f      b3.a_C.dup = new Map().insert(b1);
+    b3 0 1 2 3 a_b_c_d e_f_h_i f
+    b3 0 1 2 3     c_d e_f     g
+    m = b1.m4_7.siblings = new Map();
+    m.insert(b1);
+    m.insert(b2);
+    b2.m4_7.siblings = m;
+    --> at stage we have two branches 3b1 3b2
+    b2 0 1 2 3 a b c d e f
+    --> now we need to unite to one branch 3b1
+
+pct.t2
+    b0 0 1 2 3 4 5 6 7 8 9
+    b1 0 1 2 3 a
+    b2 0 1 2 3           A [s2.m4_7 s2.m8]
+    --> at stage we have two branches b1:3b0 b2:3b0
+    b1 0 1 2 3 a b c d e
+    b2 0 1 2 3 a b c d e A
+    --> now we update branch information b1:3b0 b2:8b1
+*/

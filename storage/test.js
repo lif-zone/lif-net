@@ -358,9 +358,11 @@ const cmd_clone = (curr, t)=>etask(function cmd_clone(){
   let dst = t.ctx;
   assert(!t_scroll[dst], 'scroll already exist '+dst);
   assert(!t.l, 'invalid arg '+t.meta.s);
-  let m = t.r.match(/^([a-z0-9_]+)\.0_(\d+)$/);
+  let m = t.r.match(/^([a-z0-9_]+)((\.)|(\.\.))0_(\d+)$/);
   assert(m, 'invalid clone '+t.meta.s);
-  let src = m[1], seq = +m[2];
+  let src = m[1], seq = +m[5];
+  if (m[2]=='..')
+    set_def('right', src);
   let s = dst+'.scroll(M0:'+src+'.M0)';
   for (let i=0; i<=seq; i++)
     s += ' '+dst+'.put(sig'+i+':'+src+'.sig'+i+' D'+i+':'+src+'.D'+i+')';
@@ -1078,7 +1080,6 @@ describe('scroll', ()=>{
           ${p+=` sig3b1=s2.sig3`} branch(b1:1:s2.M3)
           put(m0:s1..m0 m1 m2 sig3 d3)
           ${p+=` sig3b2=s1.sig3`} branch(b1:1:s2.M3 b2:2b1:s1.M3)`);
-        // XXX change s.0_3 --> s.0_3 s..0_3
         // XXX add pc support pc1.s1.clone(s.0_3)
         t('3b0_8b0_15b0', `s.scroll(!prev_scroll) pc1.s.decl(1-32)
           pc2.s1.clone(s.0_3) s1.decl(4-32) pc3.s2.clone(s.0_8) s2.decl(9-32)

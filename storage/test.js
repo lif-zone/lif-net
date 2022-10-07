@@ -1083,11 +1083,9 @@ describe('scroll', ()=>{
         t('3b0_8b0_15b0', `s.scroll(!prev_scroll) pc1.s.decl(1-32)
           pc2.s1.clone(s:0-3) s1.decl(4-32) pc3.s2.clone(s:0-8) s2.decl(9-32)
           pc4.s3.clone(s:0-15) s3.decl(16-32) pc5.t..clone(s:0-32)
-          put(s1..m0 m1 m2 m3 sig4 d4) branch(b1:3:s1.M4)
-          put(s2..m0 m1 m2_3 m4_7 m8 sig9 d9) branch(b1:3:s1.M4 b2:8:s2.M9)
-          put(s3..m0 m1 m2_3 m4_7 m8_15 sig16 d16)
-          branch(b1:3:s1.M4 b2:8:s2.M9 b3:15:s3.M16)
-`);
+          put(s1..m0 m1 m2 m3 sig4 d4 branch(b1:3:s1.M4))
+          put(s2..m0 m1 m2_3 m4_7 m8 sig9 d9 branch(b2:8:s2.M9))
+          put(s3..m0 m1 m2_3 m4_7 m8_15 sig16 d16 branch(b3:15:s3.M16))`);
         // XXX: todo 15b1
         t('3b0_8b1_15b1_zzz1', `s.scroll(!prev_scroll) s.decl(1-32)
           s1.clone(s:0-3) s1.decl(4-32) s2.clone(s1:0-8) s2.decl(9-32)

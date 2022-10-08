@@ -979,7 +979,7 @@ describe('scroll', ()=>{
       describe('branch', ()=>{
         // XXX: need tests with prev_scroll
         let s = `s.scroll(!prev_scroll) s.decl(1-32) s2..scroll(s..M3) ==M3`;
-        t('xxx1', `${s} put(m0_1 m2 m3)
+        t('xxx_rename1', `${s} put(m0_1 m2 m3)
           ==(M3 m2 m3 m0_1 m2_3 m0_3) decl(4) // branch
           put(sig4 d4 m4 m0_1 m2 m3 b1)
           ==(sig4:sign(s2.d4+M3) m4:hleaf(s2.d4+s2.sig4) s2.d4 M3 m2 m3 m0_1
@@ -997,7 +997,7 @@ describe('scroll', ()=>{
           m0_1b1:s.m0_1
           m2b1:s.m2 m4b1:s.m4)
         `);
-        t('xxx2', `s.scroll(!prev_scroll) s.decl(1-32)
+        t('xxx_rename2', `s.scroll(!prev_scroll) s.decl(1-32)
           s2..scroll(s..M3) put(M0 m0 m1 m2 m3) decl(4-7)
           s3..scroll(s2..M0)
           // XXX: test s3.put(sig7:s2..sig7 d7 m0 m1 m2_m3 m4_5 m6 sig6 d6)
@@ -1136,16 +1136,28 @@ describe('scroll', ()=>{
           b0 0 1 2 3 4
           b1 0 1 a_b c
           b2 0 1 a_B C
+          bupdate_
          */
-        if (0)
-        t('xxx1', `s0..scroll(!prev_scroll) decl(1-32)
-          s1..clone(s0.0_1) decl(2-32) s2..clone(s1.0_2) decl(3-32)
-          t..clone(s0.0_32)
+        t('fix_2b1_a', `s0..scroll(!prev_scroll) decl(1-32) s1..clone(s0.0_1)
+          decl(2-32) s2..clone(s1.0_2) decl(3-32) t..clone(s0.0_32)
+          put(s1..m0_1 m2 m3 sig4 d4 branch(b1:1:s1.M4))
+          put(s2..m0_1 m2 m3 sig4 d4 branch(b2:2b1:s2.M4))`);
+        t('fix_2b1_b', `s0..scroll(!prev_scroll) decl(1-32) s1..clone(s0.0_1)
+          decl(2-32) s2..clone(s1.0_2) decl(3-32) t..clone(s0.0_32)
+          put(s1..m0_1 m2_3 sig4 d4 branch(b1:1:s1.M4))
+          put(s2..m0_1 m2 m3 sig4 d4 branch(b2:1:s2.M4))
+          put(s1..m0_1 m2 m3 sig3 d3 branch(b2:2b1:s2.M4))`);
+        t('fix_2b2_a', `s0..scroll(!prev_scroll) decl(1-32) s1..clone(s0.0_1)
+          decl(2-32) s2..clone(s1.0_2) decl(3-32) t..clone(s0.0_32)
+          put(s1..m0_1 m2 m3 sig4 d4 branch(b1:1:s1.M4))
+          put(s2..m0_1 m2_3 sig4 d4 branch(b2:1:s2.M4))
+          put(s2..m0_1 m2 m3 sig3 d3 branch(b1:2b2:s1.M4))`);
+        t('fix_2b2_b', `s0..scroll(!prev_scroll) decl(1-32) s1..clone(s0.0_1)
+          decl(2-32) s2..clone(s1.0_2) decl(3-32) t..clone(s0.0_32)
           put(s1..m0_1 m2_3 sig4 d4 branch(b1:1:s1.M4))
           put(s2..m0_1 m2_3 sig4 d4 branch(b2:1:s2.M4))
-          put(s1..m0_1 m2 m3 sig3 d3)
-          branch(b1:1:s1.M4 b2:1:s2.M4)
-        `);
+          put(s1..m0_1 m2 m3 sig3 d3 branch(b1:1:s1.M4))
+          put(s2..m0_1 m2 m3 sig3 d3 branch(b1:2b2:s1.M4))`);
       });
     });
   });

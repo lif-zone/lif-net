@@ -1148,8 +1148,4 @@ pct.t2
     b1 0 1 2 3 a b c d e
     b2 0 1 2 3 a b c d e A
     --> now we update branch information b1:3b0 b2:8b1
-
-
-
-
 */

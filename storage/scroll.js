@@ -509,7 +509,7 @@ export default class Scroll {
     vm1 = decl1.m_hash(r1);
     m1 = diff ? get_m_hash(diff, r1, true) : this.m_hash(r1, {b: diff_b});
     vm2 = decl2.m_hash(r2);
-    m2 = diff ? get_m_hash(diff, r2, true) : this.m_hash(r2, {b: diff_b})
+    m2 = diff ? get_m_hash(diff, r2, true) : this.m_hash(r2, {b: diff_b});
     if (!vm1)
       return this.find_max_common_m({b, range: r1, diff, diff_b});
     if (!m1 || !vm1.equals(m1)){

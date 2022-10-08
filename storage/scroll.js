@@ -320,10 +320,14 @@ export default class Scroll {
           errors2 = {};
           let b2 = this.create_new_branch({b, seq: max_common});
           ret = this.put_single(seq, diff, errors2, {b: b2});
-          if (this.b[b2].top.seq==max_common) // XXX: find better way
+          copy_errors(errors, errors2);
+          // XXX: find better logic
+          if (ret?.branch || this.b[b2].top.seq<=max_common){
+            // XXX: test this scenario
             this.b.pop();
-          else
-            b = b2;
+            continue;
+          }
+          b = b2;
         }
       }
       // XXX: temporary unefficient code
@@ -510,6 +514,11 @@ export default class Scroll {
     m1 = diff ? get_m_hash(diff, r1, true) : this.m_hash(r1, {b: diff_b});
     vm2 = decl2.m_hash(r2);
     m2 = diff ? get_m_hash(diff, r2, true) : this.m_hash(r2, {b: diff_b});
+    // XXX: need calc_m if m1/m2 not provided
+    if (vm && !vm1 && !vm2 && m1 && m2 &&
+      vm.equals(hparent(range[1]-range[0]+1, m1, m2))){
+      return {range, m: vm};
+    }
     if (!vm1)
       return this.find_max_common_m({b, range: r1, diff, diff_b});
     if (!m1 || !vm1.equals(m1)){

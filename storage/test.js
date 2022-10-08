@@ -1080,6 +1080,24 @@ describe('scroll', ()=>{
           ${p+=` sig3b1=s2.sig3`} branch(b1:1:s2.M3)
           put(m0:s1..m0 m1 m2 sig3 d3)
           ${p+=` sig3b2=s1.sig3`} branch(b1:1:s2.M3 b2:2b1:s1.M3)`);
+        t('combined_m', `s0..scroll(!prev_scroll) decl(1-32)
+          s1..clone(s0.0_1) decl(2-32) t..clone(s0.0_32)
+          put(s1..m0_1 m2_3 sig4 d4 branch(b1:1:s1.M4))
+          put(s1..m0_1 m2_3 m2 m3 sig3 d3 branch(b1:1:s1.M4))`);
+        t('combined_m_missing', `s0..scroll(!prev_scroll) decl(1-32)
+          s1..clone(s0.0_1) decl(2-32) t..clone(s0.0_32)
+          put(s1..m0_1 m2_3 sig4 d4 branch(b1:1:s1.M4))
+          put(s1..m0_1 m2_3 m3 sig3 d3 branch(b1:1:s1.M4)
+            err(missing m2,missing m2_3, missing m0_3))`);
+        t('comobined_m_invalid', `s0..scroll(!prev_scroll) decl(1-32)
+          s1..clone(s0.0_1) decl(2-32) t..clone(s0.0_32)
+          put(s1..m0_1 m2_3 sig4 d4 branch(b1:1:s1.M4))
+          put(s1..m0_1 s0.m2 m3 sig3 d3 branch(b1:1:s1.M4)
+            err(invalid sig3))`);
+         t('split_m', `s0..scroll(!prev_scroll) decl(1-32)
+          s1..clone(s0.0_1) decl(2-32) t..clone(s0.0_32)
+          put(s1..m0_1 m2_3 sig4 d4 branch(b1:1:s1.M4))
+          put(s1..m0_1 m2 m3 sig3 d3 branch(b1:1:s1.M4)) t.sig3b1=s1.sig3`);
         // XXX add pc support pc1.s1.clone(s.0_3)
         t('3b0_8b0_15b0', `s.scroll(!prev_scroll) pc1.s.decl(1-32)
           pc2.s1.clone(s.0_3) s1.decl(4-32) pc3.s2.clone(s.0_8) s2.decl(9-32)
@@ -1110,6 +1128,23 @@ describe('scroll', ()=>{
           put(s1..m0_3 m4_7 m8 sig9 d9 branch(b2:3:s1.M9))
           put(s1..sig9 d9 m0 m1 m2_3 m4 m5 m6_7 m8) // XXX branch in put
           branch(b1:3:s1.M9 b2:9b1:s1.M9) // XXX need to unite now
+        `);
+        /*
+          s0 0 1 2 3 4
+          s1 0 1 a b c
+          s2 0 1 a B C
+          b0 0 1 2 3 4
+          b1 0 1 a_b c
+          b2 0 1 a_B C
+         */
+        if (0)
+        t('xxx1', `s0..scroll(!prev_scroll) decl(1-32)
+          s1..clone(s0.0_1) decl(2-32) s2..clone(s1.0_2) decl(3-32)
+          t..clone(s0.0_32)
+          put(s1..m0_1 m2_3 sig4 d4 branch(b1:1:s1.M4))
+          put(s2..m0_1 m2_3 sig4 d4 branch(b2:1:s2.M4))
+          put(s1..m0_1 m2 m3 sig3 d3)
+          branch(b1:1:s1.M4 b2:1:s2.M4)
         `);
       });
     });

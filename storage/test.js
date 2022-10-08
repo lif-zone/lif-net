@@ -1129,15 +1129,9 @@ describe('scroll', ()=>{
           put(s1..sig9 d9 m0 m1 m2_3 m4 m5 m6_7 m8) // XXX branch in put
           branch(b1:3:s1.M9 b2:9b1:s1.M9) // XXX need to unite now
         `);
-        /*
-          s0 0 1 2 3 4
-          s1 0 1 a b c
-          s2 0 1 a B C
-          b0 0 1 2 3 4
-          b1 0 1 a_b c
-          b2 0 1 a_B C
-          bupdate_
-         */
+        // b0 0 1 2 3 4
+        // b1 0 1 a_b c
+        // b2 0 1 a_B C
         t('fix_2b1_a', `s0..scroll(!prev_scroll) decl(1-32) s1..clone(s0.0_1)
           decl(2-32) s2..clone(s1.0_2) decl(3-32) t..clone(s0.0_32)
           put(s1..m0_1 m2 m3 sig4 d4 branch(b1:1:s1.M4))

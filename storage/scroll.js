@@ -416,7 +416,7 @@ export default class Scroll {
     let prev_M = this.sketch_calc_top_M({top: {seq: seq-1},
       seq: top.seq, m: old_top_m, sketch, diff, errors, b});
     if (is_null(prev_M, errors, 'missing M'+(seq-1))) // XXX: add test
-      return;
+      return {branch: true};
     if (!verify_sig(sig, this.pub, d, prev_M))
       return push_error(errors, 'invalid sig'+seq);
     set_sig(sketch, seq, sig);

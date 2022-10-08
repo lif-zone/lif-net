@@ -385,12 +385,16 @@ const cmd_decl = t=>etask(function*cmd_decl(){
 
 const cmd_put = (curr, t)=>etask(function*cmd_put(){
   let name = t.ctx||get_def('left'), scroll = get_scroll(name);
-  let diff = {}, err='', tbranch, exp_branch='';
+  let diff = {}, err='', tbranch, exp_branch='', skip_b;
   for (let curr=t.r; curr = tparser.parse_get_next(curr);){
     let t2 = tparser.parse_exp_arg_pair(curr.exp);
     if (t2.l=='err'){
       assert(!err, 'err already defined');
       err = t2.r||true;
+      continue;
+    }
+    if (t2.l=='^b'){
+      skip_b = true;
       continue;
     }
     if (t2.l=='branch'){
@@ -414,6 +418,7 @@ const cmd_put = (curr, t)=>etask(function*cmd_put(){
       seq_o[type] = val;
   }
   if (tbranch){
+    assert(!skip_b, 'invalid skip branch with branch '+tbranch);
     for (let i=1; i<scroll.b.length || tbranch[i]; i++){
       exp_branch += (exp_branch ? ' ' : '')+'b'+i+':';
       if (tbranch[i]){
@@ -426,12 +431,18 @@ const cmd_put = (curr, t)=>etask(function*cmd_put(){
       exp_branch += (o.branch.seq||0)+'b'+(o.branch.b||0)+':'+name+
         '.M'+o.top.seq+'b'+i;
     }
+  } else if (!skip_b){
+    for (let i=1; i<scroll.b.length; i++){
+      exp_branch += (exp_branch ? ' ' : '')+'b'+i+':';
+      let o = scroll.b[i];
+      exp_branch += (o.branch.seq||0)+'b'+(o.branch.b||0);
+    }
   }
   let ret = scroll.put(diff);
   assert.deepEqual(Object.keys(ret.errors), err ?
     string.split_trim(err, /,\s*/) : []);
-  if (exp_branch)
-    tparser.parse_push(curr, 'branch('+exp_branch+')');
+  if (!skip_b)
+    tparser.parse_push(curr, name+'.branch('+exp_branch+')');
 });
 
 const cmd_test = t=>etask(function*cmd_test(){
@@ -981,7 +992,7 @@ describe('scroll', ()=>{
         let s = `s.scroll(!prev_scroll) s.decl(1-32) s2..scroll(s..M3) ==M3`;
         t('xxx_rename1', `${s} put(m0_1 m2 m3)
           ==(M3 m2 m3 m0_1 m2_3 m0_3) decl(4) // branch
-          put(sig4 d4 m4 m0_1 m2 m3 b1)
+          put(sig4 d4 m4 m0_1 m2 m3 b1 branch(b1:3:s.M4))
           ==(sig4:sign(s2.d4+M3) m4:hleaf(s2.d4+s2.sig4) s2.d4 M3 m2 m3 m0_1
           m2_3 m0_3 sig4b1:sig4 d4b1:d4 m3b1:m3 m2_3b1:s.m2_3 m0_3b1:s.m0_3
           m0_1b1:s.m0_1
@@ -1004,7 +1015,7 @@ describe('scroll', ()=>{
           s3.put(sig7:s2..sig7 d7 m0 m1 m2 m3 m4_5 m6 sig6 d6)
           =sig7
           // XXX why
-          s3.put(sig7:s..sig7 d7 m0 m1 m2 m3 m4_5 m6 sig6 d6)
+          s3.put(sig7:s..sig7 d7 m0 m1 m2 m3 m4_5 m6 sig6 d6 branch(b1:3:s.M7))
           m0b1=s.m0
           m3b1=s.m3
           m4_5b1=s.m4_5
@@ -1013,48 +1024,48 @@ describe('scroll', ()=>{
         `);
         let p = '';
         t('1b0', `s.scroll(!prev_scroll) s.decl(1-32) s1.clone(s.0_1)
-          s1.decl(2-32) t..clone(s.0_32) put(m0:s1..m0 m1 sig2 d2)
+          s1.decl(2-32) t..clone(s.0_32) put(m0:s1..m0 m1 sig2 d2 ^b)
           sig1b0=s.sig1 sig2b0=s.sig2 sig2b1=s1.sig2 branch(b1:1:s1.M2)`);
          t('1b0_missing_m', `s.scroll(!prev_scroll) s.decl(1-32)
           s1.clone(s.0_1) s1.decl(2-32) t..clone(s.0_32)
-          put(sig0:s1..sig0 d0 sig1 d1 sig2 d2)
+          put(sig0:s1..sig0 d0 sig1 d1 sig2 d2 ^b)
           sig1b0=s.sig1 sig2b0=s.sig2 sig2b1=s1.sig2 branch(b1:1:s1.M2)`);
          t('1b0_missing_d', `s.scroll(!prev_scroll) s.decl(1-32)
           s1.clone(s.0_1) s1.decl(2-32) t..clone(s.0_32)
-          put(sig0:s1..sig0 D0 sig1 D1 sig2 D2)
+          put(sig0:s1..sig0 D0 sig1 D1 sig2 D2 ^b)
           sig1b0=s.sig1 sig2b0=s.sig2 sig2b1=s1.sig2 branch(b1:1:s1.M2)`);
         t('1b0_1b0_1b0', `s.scroll(!prev_scroll) s.decl(1-32)
           s1.clone(s.0_1) s1.decl(2-32)
           s2.clone(s.0_1) s2.decl(3-32)
           s3.clone(s.0_1) s3.decl(4-32)
           t..clone(s.0_32)
-          put(m0:s1..m0 m1 sig2 d2)
+          put(m0:s1..m0 m1 sig2 d2 ^b)
           ${p=`sig1b0=s.sig1 sig2b0=s.sig2 sig2b1=s1.sig2`} branch(b1:1:s1.M2)
-          put(m0:s2..m0 m1 sig2 d2)
+          put(m0:s2..m0 m1 sig2 d2 ^b)
           ${p+=` sig2b2=s2.sig2`} branch(b1:1:s1.M2 b2:1:s2.M2)
-          put(m0:s3..m0 m1 sig2 d2)
+          put(m0:s3..m0 m1 sig2 d2 ^b)
           ${p+=` sig2b3=s3.sig2`} branch(b1:1:s1.M2 b2:1:s2.M2 b3:1:s3.M2)
-          put(m0:s1..m0 m1 m2 sig3 d3)
+          put(m0:s1..m0 m1 m2 sig3 d3 ^b)
           ${p+=` sig3b1=s1.sig3`} branch(b1:1:s1.M3 b2:1:s2.M2 b3:1:s3.M2)
-          put(m0:s2..m0 m1 m2 sig3 d3)
+          put(m0:s2..m0 m1 m2 sig3 d3 ^b)
           ${p+= ` sig3b2=s2.sig3`} branch(b1:1:s1.M3 b2:1:s2.M3 b3:1:s3.M2)
-          put(m0:s3..m0 m1 m2 sig3 d3)
+          put(m0:s3..m0 m1 m2 sig3 d3 ^b)
           ${p+= ` sig3b3=s3.sig3`} branch(b1:1:s1.M3 b2:1:s2.M3 b3:1:s3.M3)
         `);
         t('1b0_2b0', `s.scroll(!prev_scroll) s.decl(1-32)
           s1.clone(s.0_1) s1.decl(2-32)
           s2.clone(s.0_2) s2.decl(3-32)
           t..clone(s.0_32) ${p=`sig1b0=s.sig1 sig2b0=s.sig2`}
-          put(m0:s1..m0 m1 sig2 d2)
+          put(m0:s1..m0 m1 sig2 d2 ^b)
           sig1b0=s.sig1 sig2b0=s.sig2 sig2b1=s1.sig2
           branch(b1:1:s1.M2)
-          put(m0:s2..m0 m1 m2 sig2 d2)
+          put(m0:s2..m0 m1 m2 sig2 d2 ^b)
           sig1b0=s.sig1 sig2b0=s.sig2 sig2b1=s1.sig2
           branch(b1:1:s1.M2)
-          put(m0:s1..m0 m1 m2 sig3 d3)
+          put(m0:s1..m0 m1 m2 sig3 d3 ^b)
           sig1b0=s.sig1 sig2b0=s.sig2 sig2b1=s1.sig2 sig3b1=s1.sig3
           branch(b1:1:s1.M3)
-          put(m0:s2..m0 m1 m2 sig3 d3)
+          put(m0:s2..m0 m1 m2 sig3 d3 ^b)
           sig1b0=s.sig1 sig2b0=s.sig2 sig2b1=s1.sig2 sig3b1=s1.sig3
           sig3b2=s2.sig3
           branch(b1:1:s1.M3 b2:2:s2.M3)
@@ -1063,22 +1074,22 @@ describe('scroll', ()=>{
           s1.clone(s.0_1) s1.decl(2-32)
           s2.clone(s1.0_2) s2.decl(3-32)
           t..clone(s.0_32) ${p=`sig1b0=s.sig1 sig2b0=s.sig2`}
-          put(m0:s1..m0 m1 sig2 d2)
+          put(m0:s1..m0 m1 sig2 d2 ^b)
           ${p+=` sig2b1=s1.sig2`} branch(b1:1:s1.M2)
-          put(m0:s1..m0 m1 m2 sig3 d3) // XXX: add branch info
+          put(m0:s1..m0 m1 m2 sig3 d3 ^b) // XXX: add branch info
           ${p+=` sig3b1=s1.sig3`} branch(b1:1:s1.M3)
-          put(m0:s2..m0 m1 m2 sig3 d3)
+          put(m0:s2..m0 m1 m2 sig3 d3 ^b)
           ${p+=` sig3b2=s2.sig3`} branch(b1:1:s1.M3 b2:2b1:s2.M3)
-          put(m0:s1..m0 m1 m2 m3 sig4 d4)
+          put(m0:s1..m0 m1 m2 m3 sig4 d4 ^b)
           ${p+=` sig4b1=s1.sig4`} branch(b1:1:s1.M4 b2:2b1:s2.M3)
-          put(m0:s2..m0 m1 m2 m3 sig4 d4)
+          put(m0:s2..m0 m1 m2 m3 sig4 d4 ^b)
           ${p+=` sig4b2=s2.sig4`} branch(b1:1:s1.M4 b2:2b1:s2.M4)`);
         t('1b0_2b1_rev', `s.scroll(!prev_scroll) s.decl(1-32)
           s1.clone(s.0_1) s1.decl(2-32) s2.clone(s1.0_2) s2.decl(3-32)
           t..clone(s.0_32) ${p=`sig1b0=s.sig1 sig2b0=s.sig2`}
-          put(m0:s2..m0 m1 m2 sig3 d3)
+          put(m0:s2..m0 m1 m2 sig3 d3 ^b)
           ${p+=` sig3b1=s2.sig3`} branch(b1:1:s2.M3)
-          put(m0:s1..m0 m1 m2 sig3 d3)
+          put(m0:s1..m0 m1 m2 sig3 d3 ^b)
           ${p+=` sig3b2=s1.sig3`} branch(b1:1:s2.M3 b2:2b1:s1.M3)`);
         t('combined_m', `s0..scroll(!prev_scroll) decl(1-32)
           s1..clone(s0.0_1) decl(2-32) t..clone(s0.0_32)
@@ -1119,16 +1130,39 @@ describe('scroll', ()=>{
           s3.clone(s1.0_15) s3.decl(16-32) t..clone(s.0_32)
           put(s1..m0_3 sig4 d4 branch(b1:3:s1.M4))
           put(s2..m0_3 m4_7 m8 sig9 d9 branch(b2:3:s2.M9))
-          put(s1..sig9 d9 m0 m1 m2_3 m4 m5 m6_7 m8) // XXX branch in put
+          put(s1..sig9 d9 m0 m1 m2_3 m4 m5 m6_7 m8 ^b) // XXX branch in put
           branch(b1:3:s1.M9 b2:8b1:s2.M9)`);
         // XXX: derry two branches that should be the same
         t('3b0_8b1_15b1_zzz3', `s.scroll(!prev_scroll) s.decl(1-32)
           s1.clone(s.0_3) s1.decl(4-32) t..clone(s.0_32)
           put(s1..m0_3 sig4 d4 branch(b1:3:s1.M4))
           put(s1..m0_3 m4_7 m8 sig9 d9 branch(b2:3:s1.M9))
-          put(s1..sig9 d9 m0 m1 m2_3 m4 m5 m6_7 m8) // XXX branch in put
+          put(s1..sig9 d9 m0 m1 m2_3 m4 m5 m6_7 m8 ^b) // XXX branch in put
           branch(b1:3:s1.M9 b2:9b1:s1.M9) // XXX need to unite now
         `);
+        // b0 a b c d e
+        // b1 a b c D E
+        s = `s0..scroll(!prev_scroll) decl(1-32) s1..clone(s0.0_2) decl(3-32)
+          t..clone(s0.0_1)`;
+        t('fix_2b0_a', `${s} put(s0..m0_1 m2 m3 sig4 d4 branch(b0:0:s0.M4))
+          put(s1..m0_1 m2 m3 sig4 d4 branch(b1:2b0:s1.M4))`);
+        // b0 a b c_d e
+        // b1 a b c D E
+        t('fix_2b0_b', `${s} put(s0..m0_1 m2_3 sig4 d4 branch(b0:0:s0.M4))
+          put(s1..m0_1 m2 m3 sig4 d4 branch(b1:1:s1.M4))
+          put(s0..m0_1 m2 m3 sig3 d3 branch(b1:2:s1.M4))`);
+        // b0 a b c d e
+        // b1 a b c_D E
+        t('fix_2b0_c', `${s} put(s0..m0_1 m2 m3 sig4 d4 branch(b0:0:s0.M4))
+          put(s1..m0_1 m2_3 sig4 d4 branch(b1:1:s1.M4))
+          put(s1..m0_1 m2 m3 sig3 d3 branch(b1:2:s1.M4))`);
+        // b0 a b c_d e
+        // b1 a b c_D E
+        t('fix_2b0_d', `${s} put(s0..m0_1 m2_3 sig4 d4 branch(b0:0:s0.M4))
+          put(s1..m0_1 m2_3 sig4 d4 branch(b1:1:s1.M4))
+          put(s0..m0_1 m2 m3 sig3 d3)
+          put(s1..m0_1 m2 m3 sig3 d3 branch(b1:2:s1.M4))`);
+        // b0 0 1 2 3 4
         // b1 0 1 a b c
         // b2 0 1 a B C
         t('fix_2b1_a', `s0..scroll(!prev_scroll) decl(1-32) s1..clone(s0.0_1)
@@ -1144,22 +1178,52 @@ describe('scroll', ()=>{
           put(s1..m0_1 m2 m3 sig3 d3 branch(b2:2b1:s2.M4))`);
         // b1 0 1 a b c
         // b2 0 1 a_B C
-        t('fix_2b2_a', `s0..scroll(!prev_scroll) decl(1-32) s1..clone(s0.0_1)
+        // XXX: b1:2b2 -> b2:2b1
+        t('fix_2b1_c', `s0..scroll(!prev_scroll) decl(1-32) s1..clone(s0.0_1)
           decl(2-32) s2..clone(s1.0_2) decl(3-32) t..clone(s0.0_32)
           put(s1..m0_1 m2 m3 sig4 d4 branch(b1:1:s1.M4))
           put(s2..m0_1 m2_3 sig4 d4 branch(b2:1:s2.M4))
           put(s2..m0_1 m2 m3 sig3 d3 branch(b1:2b2:s1.M4))`);
         // b1 0 1 a_b c
         // b2 0 1 a_B C
-        t('fix_2b2_b', `s0..scroll(!prev_scroll) decl(1-32) s1..clone(s0.0_1)
+        // XXX: b1:2b2 -> b2:2b1
+        t('fix_2b1_d', `s0..scroll(!prev_scroll) decl(1-32) s1..clone(s0.0_1)
           decl(2-32) s2..clone(s1.0_2) decl(3-32) t..clone(s0.0_32)
           put(s1..m0_1 m2_3 sig4 d4 branch(b1:1:s1.M4))
           put(s2..m0_1 m2_3 sig4 d4 branch(b2:1:s2.M4))
           put(s1..m0_1 m2 m3 sig3 d3 branch(b1:1:s1.M4))
           put(s2..m0_1 m2 m3 sig3 d3 branch(b1:2b2:s1.M4))`);
+        //    0 1 2 3 4 5 6 7 8
+        // b0 a b c d e_f_g_h i
+        // b1 a b c d E_F_G_H I
+        s = `s0..scroll(!prev_scroll) decl(1-32) s1..clone(s0.0_3) decl(4-32)
+          t..clone(s0.0_3)`;
+        t('xxx5', `${s}
+          put(s0..m0_3 m4_7 sig8 d8) M8=s0.M8
+          put(s1..m0_3 m4_7 sig8 d8 branch(b1:3:s1.M8))
+        `);
+        // XXX merge tests
+        s = `s..scroll(!prev_scroll) decl(1-32) t..clone(s..0_3)`;
+        // XXX: review and decide if we must require m0_3 or it should work
+        if (0) t('xxx_check', `${s}
+          put(sig4 d4 branch(b0:0:M4))
+          put(sig7 d7 m4_5 m6 branch(b0:0:M4)) // XXX m0_3
+        `);
+        // b0 a b c d e
+        // b1 a b c d e_f g h
+        t('xxx2_a', `${s}
+          put(sig4 d4 branch(b0:0:M4))
+          put(sig7 d7 m0_3 m4_5 m6 branch(b1:3:M7))
+          put(sig5 d5 m4 branch(b1:5:M7)) // XXX: need to merge here
+          put(sig6 d6 branch(b1:6:M7))
+          put(sig7 d7 branch(b1:7:M7))
+        `);
+        s = `s..scroll(!prev_scroll) decl(1-32) t..clone(s..0_4)`;
         // b0 0 1 2 3 4
-        // b1 0 1 a_b c
-        // b2 0 1 a
+        // b1 0 1 2 3 4_5 6_7 8 9
+        if (0) t('xxx3', `${s}
+          put(sig9 d9 m8 m6_7 m4_5)
+        `);
       });
     });
   });

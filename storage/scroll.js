@@ -2,6 +2,7 @@
 'use strict'; /*jslint node:true, browser:true*/
 import assert from 'assert';
 import crypto from '../util/crypto.js';
+import xerr from '../util/xerr.js';
 import enc from 'compact-encoding';
 import {Buffer} from 'buffer';
 import buf_util from '../peer-relay/buf_util.js';
@@ -304,6 +305,7 @@ export default class Scroll {
     let a = Object.keys(diff);
     for (let i=a.length-1; i>=0 && +a[i]; i--){
       let seq = +a[i], errors2={}, best = {b: 0, max_common: 0};
+      // XXX: optimize. do only once. and assume all diff is on the same branch
       for (let j=0; this.b.length>1 && j<this.b.length; j++){
         let max_common = this.find_max_common_M({b: j, seq, diff});
         if (best.max_common < max_common)
@@ -320,11 +322,24 @@ export default class Scroll {
           ret = this.put_single(seq, diff, errors2, {b: b2});
           if (this.b[b2].top.seq==max_common) // XXX: find better way
             this.b.pop();
+          else
+            b = b2;
+        }
+      }
+      // XXX: temporary unefficient code
+      for (let j=0; this.b.length>1 && j<this.b.length; j++){
+        if (j==b || this.b[b].branch.b==j)
+          continue;
+        let bseq = this.find_max_common_M({b, diff_b: j, seq});
+        if (this.b[j].branch.seq < bseq){
+          xerr.notice('XXX CHANGE b%s %O -> %O', j, this.b[j].branch,
+            {b, seq: bseq});
+          // XXX: need to rm uneeded decl now (and maybe unite branches)
+          this.b[j].branch = {b, seq: bseq};
         }
       }
       copy_errors(errors, errors2);
     }
-
     return {errors};
   }
   put_single(seq, diff, errors, opt={}){
@@ -464,27 +479,27 @@ export default class Scroll {
     return m;
   }
   find_max_common_M(opt){
-    let {b, seq, diff} = opt;
-    let roots = calc_roots(seq+1);
-    let ret;
+    let {b, seq, diff, diff_b} = opt, roots = calc_roots(seq+1), ret;
     for (let i=0; i<roots.length; i++){
       let r = roots[i], max;
-      max = this.find_max_common_m({b, range: r, diff});
+      max = this.find_max_common_m({b, range: r, diff, diff_b});
       if (!max)
         break;
       if (range_eq(r, max.range)){
         ret = max.range[1];
         continue;
       }
-      let max2 = this.find_max_common_M({b, seq: r[1]-1, diff});
+      let max2 = this.find_max_common_M({b, seq: r[1]-1, diff, diff_b});
       return max2 ? max2 : max.range[1];
     }
     return ret;
   }
   find_max_common_m(opt){
-    let {b, range, diff} = opt;
+    let {b, range, diff, diff_b} = opt;
     let seq = range[1], decl = this.get_decl(seq, {b});
-    let m = get_m_hash(diff, range, true), vm = decl.m_hash(range);
+    let m = diff ? get_m_hash(diff, range, true) :
+      this.m_hash(range, {b: diff_b});
+    let vm = decl.m_hash(range);
     if (vm && m && vm.equals(m))
       return {range, m};
     if (range[0]==range[1])
@@ -492,13 +507,13 @@ export default class Scroll {
     let [r1, r2] = range_split(range);
     let m1, vm1, m2, vm2, decl1 = this.get_decl(r1[1], {b}), decl2=decl;
     vm1 = decl1.m_hash(r1);
-    m1 = get_m_hash(diff, r1, true);
+    m1 = diff ? get_m_hash(diff, r1, true) : this.m_hash(r1, {b: diff_b});
     vm2 = decl2.m_hash(r2);
-    m2 = get_m_hash(diff, r2, true);
+    m2 = diff ? get_m_hash(diff, r2, true) : this.m_hash(r2, {b: diff_b})
     if (!vm1)
-      return this.find_max_common_m({b, range: r1, diff});
+      return this.find_max_common_m({b, range: r1, diff, diff_b});
     if (!m1 || !vm1.equals(m1)){
-      let max1 = this.find_max_common_m({b, range: r1, diff});
+      let max1 = this.find_max_common_m({b, range: r1, diff, diff_b});
       if (!max1)
         return null;
       if (!range_eq(r1, max1.range))
@@ -508,7 +523,7 @@ export default class Scroll {
     if (!vm2)
       return {range: r1, m: m1};
     if (!m2 || !vm2.equals(m2)){
-      let max2 = this.find_max_common_m({b, range: r2, diff});
+      let max2 = this.find_max_common_m({b, range: r2, diff, diff_b});
       if (!max2)
         return {range: r1, m: m1};
       // XXX maybe return r1+max2.range and optimize find_max_common_M

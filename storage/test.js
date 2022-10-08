@@ -1101,15 +1101,15 @@ describe('scroll', ()=>{
           s3.clone(s1.0_15) s3.decl(16-32) t..clone(s.0_32)
           put(s1..m0_3 sig4 d4 branch(b1:3:s1.M4))
           put(s2..m0_3 m4_7 m8 sig9 d9 branch(b2:3:s2.M9))
-          put(s1..sig9 d9 m0 m1 m2_3 m4 m5 m6_7 m8 branch(b1:3:s1.M9))
-          branch(b1:3:s1.M9 b2:3:s2.M9)`);
+          put(s1..sig9 d9 m0 m1 m2_3 m4 m5 m6_7 m8) // XXX branch in put
+          branch(b1:3:s1.M9 b2:8b1:s2.M9)`);
         // XXX: derry two branches that should be the same
         t('3b0_8b1_15b1_zzz3', `s.scroll(!prev_scroll) s.decl(1-32)
           s1.clone(s.0_3) s1.decl(4-32) t..clone(s.0_32)
           put(s1..m0_3 sig4 d4 branch(b1:3:s1.M4))
           put(s1..m0_3 m4_7 m8 sig9 d9 branch(b2:3:s1.M9))
-          put(s1..sig9 d9 m0 m1 m2_3 m4 m5 m6_7 m8 branch(b1:3:s1.M9))
-          branch(b1:3:s1.M9 b2:3:s1.M9) // XXX need to unite now
+          put(s1..sig9 d9 m0 m1 m2_3 m4 m5 m6_7 m8) // XXX branch in put
+          branch(b1:3:s1.M9 b2:9b1:s1.M9) // XXX need to unite now
         `);
       });
     });
@@ -1148,4 +1148,8 @@ pct.t2
     b1 0 1 2 3 a b c d e
     b2 0 1 2 3 a b c d e A
     --> now we update branch information b1:3b0 b2:8b1
+
+
+
+
 */

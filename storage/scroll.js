@@ -420,20 +420,20 @@ export default class Scroll {
       this.put_verified(sketch, {b});
       return ret;
     }
-    if (!m)
+    if (!m) // XXX: support also parent m (eg m4_5)
       return;
     if (seq<=top.seq){ // verify m belongs to existing top.M
-      let M = this.sketch_calc_top_M({top, seq, m, sketch, diff, errors, b});
-      if (!M); // XXX push_error(errors, 'missing M'+top.seq)?
-      else if (!beq(M, top.M)){
+      let M = this.sketch_calc_top_M({top, force: {range: [seq, seq], m},
+        sketch, diff, errors, b});
+      if (!M) // XXX push_error(errors, 'missing M'+top.seq)?
+        return {branch: true}; // XXX: need test
+      if (!beq(M, top.M)){
         push_error(errors, 'invalid M'+top.seq);
         return {branch: true}; // XXX: need test
       }
-      else {
-        // XXX: can this be branch if sig has error?
-        check_set_sig(sketch, errors, seq, m, d, D, sig);
-        this.put_verified(sketch, {b});
-      }
+      // XXX: can this be branch if sig has error?
+      check_set_sig(sketch, errors, seq, m, d, D, sig);
+      this.put_verified(sketch, {b});
       return;
     }
     // new top
@@ -441,11 +441,14 @@ export default class Scroll {
       return push_error(errors, 'missing '+(sig ? 'd' : 'sig')+seq);
     if (!is_m_valid(m, d, sig, errors, 'invalid sig'+seq))
       return;
-    let old_top_m = this.get_decl(top.seq, {b}).m_hash(top.seq);
-    if (is_null(old_top_m, errors, 'missing m'+top.seq))
+    // XXX: wrap this part nicely
+    let old_top = this.get_decl(top.seq, {b});
+    let old_top_r = old_top.m[old_top.m.length-1].range;
+    let old_force = {range: old_top_r, m: old_top.m_hash(old_top_r, {b})};
+    if (is_null(old_force.m, errors, 'missing m'+range_str(old_top_r)))
       return;
     let prev_M = this.sketch_calc_top_M({top: {seq: seq-1},
-      seq: top.seq, m: old_top_m, sketch, diff, errors, b});
+      force: old_force, sketch, diff, errors, b});
     if (is_null(prev_M, errors, 'missing M'+(seq-1))) // XXX: add test
       return {branch: true};
     if (!verify_sig(sig, this.pub, d, prev_M))
@@ -458,13 +461,14 @@ export default class Scroll {
     this.M_hash(seq, {b}); // update new top
   }
   sketch_calc_top_M(opt){
-    let {b, top, seq, m, sketch, diff, errors} = opt;
+    let {b, top, force, sketch, diff, errors} = opt, {range} = force;
+    let seq = force.range[1];
     assert(seq<=top.seq, 'top over seq');
     let roots = calc_roots(top.seq+1), a=[ROOT_TYPE];
     for (let i=0; i<roots.length; i++){
       let r = roots[i], mr;
       mr = this.sketch_calc_m({b, range: r, sketch, diff, errors, force:
-        range_includes(r, [seq, seq]) ? {range: [seq, seq], m} : null});
+        range_includes(r, range) ? force : null});
       if (is_null(mr, errors, 'missing m'+range_str(r)))
         return null;
       a.push(mr, enc_u64(r[0]), enc_u64(r[1]-r[0]+1));

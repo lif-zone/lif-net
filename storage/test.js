@@ -982,8 +982,7 @@ describe('scroll', ()=>{
           err(invalid M31)) ==M31`);
         t('seq29_missing_m28', `${s}
           put(d29 sig29 m0_15 m16_23 m24_27 m28_29 m30 m31
-          err(missing m28,missing m28_29,missing m28_31,missing m24_31,
-          missing m16_31,missing m0_31))
+          err(missing m28,missing m28_29))
           ==(M31 m30 m31 m0_15 m16_23 m24_27 m28_29 m28_31
           m30_31 m24_31 m16_31 m0_31)`);
       });
@@ -1264,8 +1263,33 @@ describe('scroll', ()=>{
         s = `s..scroll(!prev_scroll) decl(1-32) t..clone(s..0_4)`;
         // b0 0 1 2 3 4
         // b1 0 1 2 3 4_5 6_7 8 9
-        if (0) t('xxx3', `${s}
-          put(sig9 d9 m8 m6_7 m4_5)
+        // b2 0 1 2 3 4 5 6
+        // b3 0 1 2 3 4_5 6 7
+        t('xxx3_a', `${s}
+          put(sig9 d9 m8 m6_7 m4_5 m0_3 branch(b1:3:M9))
+          put(sig6 d6 m4 m5 m0_3 branch(b1:4:M9 b2:5b1:M6))
+          put(sig7 d7 m6 m4_5 m0_3 branch(b2:6b1:M6))
+          // XXX: at this point, we need to merge all
+          branch(b1:4:M9 b2:6b1:M6) =M4 !M5 // XXX: b0:0:M4
+        `);
+        // b0 0 1 2 3 4
+        // b1 0 1 2 3 4_5 6_7 8 9
+        // b2 0 1 2 3 4_5 6
+        // b3 0 1 2 3 4 5 6 7
+        t('xxx3_b', `${s}
+          put(sig9 d9 m8 m6_7 m4_5 m0_3 branch(b1:3:M9))
+          put(sig6 d6 m4_5 m0_3 branch(b1:3:M9 b2:5b1:M6))
+          put(sig7 d7 m6 m4 m5 m0_3 ^b)
+          // XXX: at this point, we need to merge all
+          branch(b1:4:M9 b2:6b1:M6) =M4 !M5 // XXX: b0:0:M4
+        `);
+      // m5=hleaf(d5+sig5) sig5=sign(d5+M4) M5=hroot(m0_3+m4_5)
+      // m6=hleaf(d6+sig6) sig6=sign(d6+M5) M6=hroot(m0_3+m4_5+m6)
+        t('xxx3_c', `${s}
+          put(sig6 d6 m4 m5 m0_3)
+        `);
+        t('xxx3_d', `${s}
+          put(sig6 d6 m4_5 m0_3 branch(b1:3:M6))
         `);
       });
     });

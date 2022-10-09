@@ -987,6 +987,19 @@ describe('scroll', ()=>{
           ==(M31 m30 m31 m0_15 m16_23 m24_27 m28_29 m28_31
           m30_31 m24_31 m16_31 m0_31)`);
       });
+      describe('extra_m', ()=>{
+        t('M4_a', `s..scroll(!prev_scroll) decl(1-32) t..clone(s..0_1)
+          put(m2_3 sig4 d4) =m2_3 =M4 put(m2 m3 sig4 d4) =m2 =m3`);
+        t('M4_b', `s..scroll(!prev_scroll) decl(1-32) t..clone(s..0_1)
+          put(m2_3 sig4 d4) =m2_3 =M4 put(m2 m3) =m2 =m3`);
+        t('M8_a', `s..scroll(!prev_scroll) decl(1-32) t..clone(s..0_3)
+          put(m0_3 m4_7 sig8 d8) put(m0_3 m4 m5 m6_7 sig8 d8) =m4 =m5`);
+        t('M8_b', `s..scroll(!prev_scroll) decl(1-32) t..clone(s..0_3)
+          put(m0_3 m4_7 sig8 d8)
+          put(m0_3 m4_5:m6_7 m6_7 sig8 d8) !m4_5 !m6_7
+          put(m0_3 m4_5 m6_7 sig8 d8) =m4_5 =m6_7
+          put(m0_3 m4 m5 m6_7) =m4 =m5 =m4_5`);
+      });
       describe('branch', ()=>{
         // XXX: need tests with prev_scroll
         let s = `s.scroll(!prev_scroll) s.decl(1-32) s2..scroll(s..M3) ==M3`;
@@ -1205,17 +1218,6 @@ describe('scroll', ()=>{
           put(s2..m0_1 m2_3 sig4 d4 branch(b2:1:s2.M4))
           put(s1..m0_1 m2 m3 sig3 d3 branch(b1:1:s1.M4))
           put(s2..m0_1 m2 m3 sig3 d3 branch(b1:2b2:s1.M4))`);
-        t('xxx6_a', `s..scroll(!prev_scroll) decl(1-32) t..clone(s..0_1)
-          put(m2_3 sig4 d4) =m2_3 =M4 put(m2 m3 sig4 d4) =m2 =m3`);
-        t('xxx6_b', `s..scroll(!prev_scroll) decl(1-32) t..clone(s..0_1)
-          put(m2_3 sig4 d4) =m2_3 =M4 put(m2 m3) =m2 =m3`);
-        t('xxx6_c', `s..scroll(!prev_scroll) decl(1-32) t..clone(s..0_3)
-          put(m0_3 m4_7 sig8 d8) put(m0_3 m4 m5 m6_7 sig8 d8) =m4 =m5`);
-        t('xxx6_d', `s..scroll(!prev_scroll) decl(1-32) t..clone(s..0_3)
-          put(m0_3 m4_7 sig8 d8)
-          put(m0_3 m4_5:m6_7 m6_7 sig8 d8) !m4_5 !m6_7
-          put(m0_3 m4_5 m6_7 sig8 d8) =m4_5 =m6_7
-          put(m0_3 m4 m5 m6_7) =m4 =m5 =m4_5`);
         //    0 1 2 3 4 5 6 7 8
         // b0 a b c d e_f_g_h i
         // b1 a b c d e_F_G_H I

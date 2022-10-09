@@ -1223,16 +1223,28 @@ describe('scroll', ()=>{
         // b1 a b c d e_F_G_H I
         s = `s0..scroll(!prev_scroll) decl(1-32) s1..clone(s0.0_4) decl(5-32)
           t..clone(s0.0_3)`;
-        t('xxx5_a', `${s}
-          put(s0..m0_3 m4_7 sig8 d8) =M8
+        t('M9_a', `${s} put(s0..m0_3 m4_7 sig8 d8)
           put(s1..m0_3 m4_7 sig8 d8 branch(b1:3:M8))
-          put(s0..m0_3 m4 m5 m6_7 sig8 d8) =m4 =m5
-//          put(s1..m0_3 m4 sig5 d5 ^b)
-//          put(s1..m0_3 m4 m5 m6_7 sig8 d8 ^b) t.m4b1=m4 t.m5b1=m5
-          put(s1..m0_3 m4 m5 m6_7 m8 sig9 d9 ^b) // t.m4b1=m4 t.m5b1=m5
-          t.m6_7b1=m6_7 t.m8b1=m8
-          branch(b1:4:s1.M9) // XXX: BUG: need b1:4:s1.M8
-        `);
+          put(s0..m0_3 m4 m5 m6_7 sig8 d8)
+          put(s1..m0_3 m4 m5 m6_7 m8 sig9 d9 branch(b1:4:s1.M9))`);
+        //    0 1 2 3 4 5 6 7 8
+        // b0 a b c d e_f_g_h i
+        // b1 a b c d e_f_G_H I
+        s = `s0..scroll(!prev_scroll) decl(1-32) s1..clone(s0.0_5) decl(6-32)
+          t..clone(s0.0_3)`;
+        t('M9_b', `${s} put(s0..m0_3 m4_7 sig8 d8)
+          put(s1..m0_3 m4_7 sig8 d8 branch(b1:3:M8))
+          put(s0..m0_3 m4_5 m6 m7 sig8 d8)
+          put(s1..m0_3 m4_5 m6 m7 m8 sig9 d9 branch(b1:5:s1.M9))`);
+        //    0 1 2 3 4 5 6 7 8
+        // b0 a b c d e_f_g_h i
+        // b1 a b c d e_f_g_H I
+        s = `s0..scroll(!prev_scroll) decl(1-32) s1..clone(s0.0_6) decl(7-32)
+          t..clone(s0.0_3)`;
+        t('M9_c', `${s} put(s0..m0_3 m4_7 sig8 d8)
+          put(s1..m0_3 m4_7 sig8 d8 branch(b1:3:M8))
+          put(s0..m0_3 m4_5 m6 m7 sig8 d8)
+          put(s1..m0_3 m4_5 m6 m7 m8 sig9 d9 branch(b1:6:s1.M9))`);
         // XXX merge tests
         s = `s..scroll(!prev_scroll) decl(1-32) t..clone(s..0_3)`;
         // XXX: review and decide if we must require m0_3 or it should work

@@ -178,8 +178,10 @@ function check_set_sig(sketch, errors, seq, m, d, D, sig){
     return push_error(errors, 'missing d'+seq);
   if (!sig)
     return push_error(errors, 'missing sig'+seq);
-  if (!beq(m, hleaf(d, sig)))
-    return push_error(errors, 'invalid sig'+seq);
+  if (!beq(m, hleaf(d, sig))){
+    push_error(errors, 'invalid sig'+seq);
+    return {branch: true};
+  }
   set_sig(sketch, seq, sig);
   set_d(sketch, seq, d, D);
 }
@@ -347,6 +349,34 @@ export default class Scroll {
     return {errors};
   }
   put_single(seq, diff, errors, opt={}){
+    let ret = this._put_single(seq, diff, errors, opt);
+    if (ret?.branch)
+      return ret;
+    if (!diff[seq]?.m)
+      return;
+    let b=opt.b||0, decl=this.get_decl(seq, {b}), a=Object.keys(diff[seq].m);
+    let max_range = decl.m[decl.m.length-1].range;
+    for (let i=0; i<a.length; i++)
+      this.copy_extra_m(diff[seq].m[a[i]], [+a[i], seq], max_range, diff, opt);
+  }
+  copy_extra_m(m, range, max_range, diff, opt){
+    let b=opt.b||0, vm = this.m_hash(range, {b});
+    if (vm)
+      return vm.equals(m);
+    if (range_eq(range, max_range))
+      return false;
+    let po = range_to_parent(range), sketch={}, errors={}, m2;
+    let r2 = range_eq(range, po.left) ? po.right : po.left;
+    if (!(m2 = this.sketch_calc_m({b, range: r2, sketch, diff, errors})))
+      return false;
+    let mp = hparent(po.parent[1]-po.parent[0]+1, range_eq(range, po.left) ?
+      m : m2, range_eq(range, po.left) ? m2 : m);
+    if (!this.copy_extra_m(mp, po.parent, max_range, diff, opt))
+      return false;
+    set_m_hash(sketch, range, m);
+    this.put_verified(sketch, {b});
+  }
+  _put_single(seq, diff, errors, opt={}){
     let b=opt.b||0;
     let top = this.b[b].top, sketch = {};
     let decl=this.get_decl(seq, {b}), m=get_m_hash(diff, seq);
@@ -386,9 +416,9 @@ export default class Scroll {
     if (sig && d)
       m = m||hleaf(d, sig);
     if (vm){
-      check_set_sig(sketch, errors, seq, vm, d, D, sig);
+      let ret = check_set_sig(sketch, errors, seq, vm, d, D, sig);
       this.put_verified(sketch, {b});
-      return;
+      return ret;
     }
     if (!m)
       return;
@@ -400,6 +430,7 @@ export default class Scroll {
         return {branch: true}; // XXX: need test
       }
       else {
+        // XXX: can this be branch if sig has error?
         check_set_sig(sketch, errors, seq, m, d, D, sig);
         this.put_verified(sketch, {b});
       }
@@ -499,10 +530,10 @@ export default class Scroll {
     return ret;
   }
   find_max_common_m(opt){
+    // XXX: need sketch to cache results
     let {b, range, diff, diff_b} = opt;
     let seq = range[1], decl = this.get_decl(seq, {b});
-    let m = diff ? get_m_hash(diff, range, true) :
-      this.m_hash(range, {b: diff_b});
+    let m = this.calc_m({range, diff, diff_b});
     let vm = decl.m_hash(range);
     if (vm && m && vm.equals(m))
       return {range, m};
@@ -511,16 +542,10 @@ export default class Scroll {
     let [r1, r2] = range_split(range);
     let m1, vm1, m2, vm2, decl1 = this.get_decl(r1[1], {b}), decl2=decl;
     vm1 = decl1.m_hash(r1);
-    m1 = diff ? get_m_hash(diff, r1, true) : this.m_hash(r1, {b: diff_b});
     vm2 = decl2.m_hash(r2);
-    m2 = diff ? get_m_hash(diff, r2, true) : this.m_hash(r2, {b: diff_b});
-    // XXX: need calc_m if m1/m2 not provided
-    if (vm && !vm1 && !vm2 && m1 && m2 &&
-      vm.equals(hparent(range[1]-range[0]+1, m1, m2))){
-      return {range, m: vm};
-    }
     if (!vm1)
       return this.find_max_common_m({b, range: r1, diff, diff_b});
+    m1 = this.calc_m({range: r1, diff, diff_b});
     if (!m1 || !vm1.equals(m1)){
       let max1 = this.find_max_common_m({b, range: r1, diff, diff_b});
       if (!max1)
@@ -531,6 +556,7 @@ export default class Scroll {
     }
     if (!vm2)
       return {range: r1, m: m1};
+    m2 = this.calc_m({range: r2, diff, diff_b});
     if (!m2 || !vm2.equals(m2)){
       let max2 = this.find_max_common_m({b, range: r2, diff, diff_b});
       if (!max2)
@@ -543,6 +569,23 @@ export default class Scroll {
     assert(vm, 'vm must exists');
     assert(!m, 'm does not exists');
     return {range, m: vm};
+  }
+  calc_m(opt){
+    let {range, diff, diff_b} = opt;
+    let m = diff ? get_m_hash(diff, range, true) :
+      this.m_hash(range, {b: diff_b});
+    if (m)
+      return m;
+    if (range[0]==range[1])
+      return null;
+    let [r1, r2] = range_split(range);
+    let m1 = this.calc_m({range: r1, diff, diff_b});
+    if (!m1)
+      return null;
+    let m2 = this.calc_m({range: r2, diff, diff_b});
+    if (!m2)
+      return null;
+    return hparent(range[1]-range[0]+1, m1, m2);
   }
   put_verified(verified, opt={}){
     let b=0;
@@ -660,6 +703,7 @@ class Merkel_node {
     this.b = this.decl.b;
   }
   get_hash(){
+    // XXX: optimize, don't run calc if there is no change in dependent data
     if (this.h)
       return this.h;
     let [s, e] = this.range, decl = this.decl;

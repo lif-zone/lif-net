@@ -1124,26 +1124,38 @@ describe('scroll', ()=>{
           put(s1..sig9 d9 m0_3 m4 m5 m6_7 m8 branch(b1:3:s1.M9))
           put(s2..m0 m1 m2_3 m4_7 m8 sig9 d9 branch(b2:8b1:s2.M9))
           branch(b1:3:s1.M9 b2:8b1:s2.M9)`);
-        // XXX derry: do we need to update branch info (b2:8b1)
+        /*
+        s0 0 1 2 3 4 5 6 7 8 9
+        s1 0 1 2 3 a b c d e f
+        s2 0 1 2 3 a b c d e F
+        b0 0 1 2 3 4 5 6 7 8 9
+        b1 0_1_2_3 a
+        b2 0_1_2_3 a_b_c_d e F
+        b3 0 1 2_3 a b c d e f
+        */
         t('3b0_8b1_15b1_zzz2', `s.scroll(!prev_scroll) s.decl(1-32)
           s1.clone(s.0_3) s1.decl(4-32) s2.clone(s1.0_8) s2.decl(9-32)
           s3.clone(s1.0_15) s3.decl(16-32) t..clone(s.0_32)
           put(s1..m0_3 sig4 d4 branch(b1:3:s1.M4))
           put(s2..m0_3 m4_7 m8 sig9 d9 branch(b2:3:s2.M9))
-          put(s1..sig9 d9 m0 m1 m2_3 m4 m5 m6_7 m8 ^b) // XXX branch in put
-          branch(b1:3:s1.M9 b2:8b1:s2.M9)`);
+          put(s1..sig9 d9 m0 m1 m2_3 m4 m5 m6_7 m8 ^b)
+          // XXX: need to unite b1<>b3
+          branch(b1:4b2:s1.M4 b2:3:s2.M9 b3:8b2:s1.M9)`);
+          // branch(b1:3:s1.M9 b2:8b1:s2.M9)`);
         // XXX: derry two branches that should be the same
         t('3b0_8b1_15b1_zzz3', `s.scroll(!prev_scroll) s.decl(1-32)
           s1.clone(s.0_3) s1.decl(4-32) t..clone(s.0_32)
           put(s1..m0_3 sig4 d4 branch(b1:3:s1.M4))
           put(s1..m0_3 m4_7 m8 sig9 d9 branch(b2:3:s1.M9))
-          put(s1..sig9 d9 m0 m1 m2_3 m4 m5 m6_7 m8 ^b) // XXX branch in put
-          branch(b1:3:s1.M9 b2:9b1:s1.M9) // XXX need to unite now
+          // XXX need to unite now b1/b2
+          put(s1..sig9 d9 m0 m1 m2_3 m4 m5 m6_7 m8 branch(b1:4b2:s1.M4))
         `);
         // b0 a b c d e
         // b1 a b c D E
         s = `s0..scroll(!prev_scroll) decl(1-32) s1..clone(s0.0_2) decl(3-32)
           t..clone(s0.0_1)`;
+        // XXX: fix branch syntax 2b0(b1)=s1.M4
+        // XXX: fix branch syntax t.2b0(b1).M4=s1.M4
         t('fix_2b0_a', `${s} put(s0..m0_1 m2 m3 sig4 d4 branch(b0:0:s0.M4))
           put(s1..m0_1 m2 m3 sig4 d4 branch(b1:2b0:s1.M4))`);
         // b0 a b c_d e
@@ -1193,14 +1205,31 @@ describe('scroll', ()=>{
           put(s2..m0_1 m2_3 sig4 d4 branch(b2:1:s2.M4))
           put(s1..m0_1 m2 m3 sig3 d3 branch(b1:1:s1.M4))
           put(s2..m0_1 m2 m3 sig3 d3 branch(b1:2b2:s1.M4))`);
+        t('xxx6_a', `s..scroll(!prev_scroll) decl(1-32) t..clone(s..0_1)
+          put(m2_3 sig4 d4) =m2_3 =M4 put(m2 m3 sig4 d4) =m2 =m3`);
+        t('xxx6_b', `s..scroll(!prev_scroll) decl(1-32) t..clone(s..0_1)
+          put(m2_3 sig4 d4) =m2_3 =M4 put(m2 m3) =m2 =m3`);
+        t('xxx6_c', `s..scroll(!prev_scroll) decl(1-32) t..clone(s..0_3)
+          put(m0_3 m4_7 sig8 d8) put(m0_3 m4 m5 m6_7 sig8 d8) =m4 =m5`);
+        t('xxx6_d', `s..scroll(!prev_scroll) decl(1-32) t..clone(s..0_3)
+          put(m0_3 m4_7 sig8 d8)
+          put(m0_3 m4_5:m6_7 m6_7 sig8 d8) !m4_5 !m6_7
+          put(m0_3 m4_5 m6_7 sig8 d8) =m4_5 =m6_7
+          put(m0_3 m4 m5 m6_7) =m4 =m5 =m4_5`);
         //    0 1 2 3 4 5 6 7 8
         // b0 a b c d e_f_g_h i
-        // b1 a b c d E_F_G_H I
-        s = `s0..scroll(!prev_scroll) decl(1-32) s1..clone(s0.0_3) decl(4-32)
+        // b1 a b c d e_F_G_H I
+        s = `s0..scroll(!prev_scroll) decl(1-32) s1..clone(s0.0_4) decl(5-32)
           t..clone(s0.0_3)`;
-        t('xxx5', `${s}
-          put(s0..m0_3 m4_7 sig8 d8) M8=s0.M8
-          put(s1..m0_3 m4_7 sig8 d8 branch(b1:3:s1.M8))
+        t('xxx5_a', `${s}
+          put(s0..m0_3 m4_7 sig8 d8) =M8
+          put(s1..m0_3 m4_7 sig8 d8 branch(b1:3:M8))
+          put(s0..m0_3 m4 m5 m6_7 sig8 d8) =m4 =m5
+//          put(s1..m0_3 m4 sig5 d5 ^b)
+//          put(s1..m0_3 m4 m5 m6_7 sig8 d8 ^b) t.m4b1=m4 t.m5b1=m5
+          put(s1..m0_3 m4 m5 m6_7 m8 sig9 d9 ^b) // t.m4b1=m4 t.m5b1=m5
+          t.m6_7b1=m6_7 t.m8b1=m8
+          branch(b1:4:s1.M9) // XXX: BUG: need b1:4:s1.M8
         `);
         // XXX merge tests
         s = `s..scroll(!prev_scroll) decl(1-32) t..clone(s..0_3)`;
@@ -1261,4 +1290,9 @@ pct.t2
     b1 0 1 2 3 a b c d e
     b2 0 1 2 3 a b c d e A
     --> now we update branch information b1:3b0 b2:8b1
+
+            0
+          1    2
+        a  b  c d
+        cd - 2 - 1 0
 */

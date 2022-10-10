@@ -44,17 +44,28 @@ function tjoin(v, cmd, arg){
   return arg ? s+'('+arg+')' : s;
 }
 
-function macro_to_m(val){
+function macro_to_m(val, dst){
+  const to_nd = ch=>{
+    let n = /[a-z]/.test(ch) ? ch.charCodeAt(0)-'a'.charCodeAt(0) :
+      /[A-Z]/.test(ch) ? ch.charCodeAt(0)-'A'.charCodeAt(0) : +ch;
+    let d = dst+(/[a-z]/.test(ch) ? '1' : /[A-Z]/.test(ch) ? '2' : '');
+    return {n, d};
+  };
+  assert(dst, 'missing dst');
   let s = '', a = string.split_ws(val);
   for (let i=0; i<a.length; i++){
-    if (/^\d+$/.test(a[i])){
-      let d = +a[i];
-      s = space(s)+(i==a.length-1 ? 'sig'+d+' d'+d : 'm'+d);
+    if (/^[\da-zA-Z]$/.test(a[i])){
+      let ch = a[i];
+      let {n, d} = to_nd(ch);
+      s = space(s)+(i==a.length-1 ? d+'.sig'+n+' '+d+'.d'+n : d+'.m'+n);
       continue;
     }
     let m = a[i].split('_');
     // XXX: need to assert if valid m
-    s = space(s)+'m'+m[0]+'_'+m[m.length-1];
+    assert(m.length>1, 'invalid m '+val);
+    let {n, d} = to_nd(m[m.length-1]);
+    let n0 = to_nd(m[0]).n;
+    s = space(s)+d+'.m'+n0+'_'+n;
   }
   return s;
 }
@@ -416,8 +427,8 @@ const cmd_decl = t=>etask(function*cmd_decl(){
 });
 
 function cmd_tput(curr, t){
-  let name = t.ctx||get_def('left');
-  tparser.parse_push(curr, tjoin(name, 'put', macro_to_m(t.r)+' ^b'));
+  let dst = t.ctx||get_def('left'), src = get_def('right');
+  tparser.parse_push(curr, tjoin(dst, 'put', macro_to_m(t.r, src)+' ^b'));
 }
 
 const cmd_put = (curr, t)=>etask(function*cmd_put(){
@@ -763,13 +774,26 @@ describe('scroll', ()=>{
   });
   describe('macro', ()=>{
     it('to_m', ()=>{
-      const t = (val, exp)=>assert.equal(macro_to_m(val), exp);
-      t('0', 'sig0 d0');
-      t('0 1', 'm0 sig1 d1');
-      t('0_1', 'm0_1');
-      t('0_1 2', 'm0_1 sig2 d2');
-      t('0_1_2_3 4_5 6', 'm0_3 m4_5 sig6 d6');
-      t('0_1 2        ', 'm0_1 sig2 d2');
+      const t = (val, exp)=>assert.equal(macro_to_m(val, 's'), exp);
+      t('0', 's.sig0 s.d0');
+      t('0 1', 's.m0 s.sig1 s.d1');
+      t('0_1', 's.m0_1');
+      t('0_1 2', 's.m0_1 s.sig2 s.d2');
+      t('0_1_2_3 4_5 6', 's.m0_3 s.m4_5 s.sig6 s.d6');
+      t('0_1 2        ', 's.m0_1 s.sig2 s.d2');
+      t('a', 's1.sig0 s1.d0');
+      t('a b', 's1.m0 s1.sig1 s1.d1');
+      t('a_b', 's1.m0_1');
+      t('a_b c', 's1.m0_1 s1.sig2 s1.d2');
+      t('a_b_c_d e_f g', 's1.m0_3 s1.m4_5 s1.sig6 s1.d6');
+      t('A', 's2.sig0 s2.d0');
+      t('A B', 's2.m0 s2.sig1 s2.d1');
+      t('A_B', 's2.m0_1');
+      t('A_B C', 's2.m0_1 s2.sig2 s2.d2');
+      t('A_B_C_D E_F G', 's2.m0_3 s2.m4_5 s2.sig6 s2.d6');
+      t('0 b', 's.m0 s1.sig1 s1.d1');
+      t('0 B', 's.m0 s2.sig1 s2.d1');
+      t('a B', 's1.m0 s2.sig1 s2.d1');
     });
   });
   describe('decl', ()=>{
@@ -1275,24 +1299,23 @@ describe('scroll', ()=>{
           put(s2..m0_1 m2 m3 sig4 d4 branch(b2:2b1:s2.M4))`);
         // b1 0 1 a_b c
         // b2 0 1 a B C
-        t('fix_2b1_b', `s0..scroll(!prev_scroll) decl(1-32) s1..clone(s0.0_1)
-          decl(2-32) s2..clone(s1.0_2) decl(3-32) t..clone(s0.0_32)
+        t('fix_2b1_b', `s..scroll(!prev_scroll) decl(1-32) s1..clone(s.0_1)
+          decl(2-32) s2..clone(s1.0_2) decl(3-32) t..clone(s.0_32)
           put(s1..m0_1 m2_3 sig4 d4 branch(b1:1:s1.M4))
           put(s2..m0_1 m2 m3 sig4 d4 branch(b2:1:s2.M4))
           put(s1..m0_1 m2 m3 sig3 d3 branch(b2:2b1:s2.M4))`);
-        // b1 0 1 a b c
-        // b2 0 1 a_B C
         // XXX: b1:2b2 -> b2:2b1
-        t('fix_2b1_c', `s0..scroll(!prev_scroll) decl(1-32) s1..clone(s0.0_1)
-          decl(2-32) s2..clone(s1.0_2) decl(3-32) t..clone(s0.0_32)
-          put(s1..m0_1 m2 m3 sig4 d4 branch(b1:1:s1.M4))
-          put(s2..m0_1 m2_3 sig4 d4 branch(b2:1:s2.M4))
-          put(s2..m0_1 m2 m3 sig3 d3 branch(b1:2b2:s1.M4))`);
+        t('fix_2b1_c', `s..scroll(!prev_scroll) decl(1-32) s1..clone(s.0_1)
+          decl(2-32) s2..clone(s1.0_2) decl(3-32) t..scroll(s..M0)
+          tput(0 1 2 3 4) b(M4)
+          tput(0_1 c d e) b(M4 1b0.M4=s1.M4)
+          tput(0_1 c_D E) b(M4 1b0.M4=s1.M4 1b0.M4=s2.M4)
+          tput(0_1 c D E) b(M4 2b2.M4=s1.M4 1b0.M4=s2.M4)`);
         // b1 0 1 a_b c
         // b2 0 1 a_B C
         // XXX: b1:2b2 -> b2:2b1
-        t('fix_2b1_d', `s0..scroll(!prev_scroll) decl(1-32) s1..clone(s0.0_1)
-          decl(2-32) s2..clone(s1.0_2) decl(3-32) t..clone(s0.0_32)
+        t('fix_2b1_d', `s..scroll(!prev_scroll) decl(1-32) s1..clone(s.0_1)
+          decl(2-32) s2..clone(s1.0_2) decl(3-32) t..clone(s.0_32)
           put(s1..m0_1 m2_3 sig4 d4 branch(b1:1:s1.M4))
           put(s2..m0_1 m2_3 sig4 d4 branch(b2:1:s2.M4))
           put(s1..m0_1 m2 m3 sig3 d3 branch(b1:1:s1.M4))

@@ -1363,12 +1363,18 @@ describe('scroll', ()=>{
           // XXX: at this point, we need to merge all
           branch(b1:4:M9 b2:6b1:M6) =M4 !M5 // XXX: b0:0:M4
         `);
-        t('xxx4', `s..scroll(!prev_scroll) decl(0-32) t..scroll(s..M0)
+        s = 's..scroll(!prev_scroll) decl(0-32)';
+        t('xxx4_a', `${s} t..scroll(s..M0)
+          tput(0 1 2 3 4          ) b(M4)
+          tput(0_1_2_3 4_5 6_7 8 9) b(M4 3b0.M9)
+          tput(0_1_2_3 4 5 6      ) b(M4 4b0.M9 5b1.M6)
+          tput(0_1_2_3 4_5 6 7    ) b(M4 4b0.M9 6b1.M6) // XXX: merge b(mM9)
+        `);
+        t('xxx4_b', `${s} t..scroll(s..M0)
           tput(0 1 2 3 4          ) b(M4)
           tput(0_1_2_3 4_5 6_7 8 9) b(M4 3b0.M9)
           tput(0_1_2_3 4_5 6      ) b(M4 3b0.M9 5b1.M6)
-          // XXX: need to merge all branches and test b(M9)
-          tput(0 1 2 3 4 5 6 7    ) b(M4 4b0.M9 6b1.M6)
+          tput(0_1_2_3 4 5 6 7    ) b(M4 4b0.M9 6b1.M6) // XXX: merge b(mM9)
         `);
       });
     });

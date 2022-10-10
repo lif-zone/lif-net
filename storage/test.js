@@ -36,6 +36,29 @@ afterEach(function(){
   xerr.set_buffered(false);
 });
 
+function space(s){ return s ? s+' ' : ''; }
+
+// XXX: need test
+function tjoin(v, cmd, arg){
+  let s = v ? v+'.'+cmd : cmd;
+  return arg ? s+'('+arg+')' : s;
+}
+
+function macro_to_m(val){
+  let s = '', a = string.split_ws(val);
+  for (let i=0; i<a.length; i++){
+    if (/^\d+$/.test(a[i])){
+      let d = +a[i];
+      s = space(s)+(i==a.length-1 ? 'sig'+d+' d'+d : 'm'+d);
+      continue;
+    }
+    let m = a[i].split('_');
+    // XXX: need to assert if valid m
+    s = space(s)+'m'+m[0]+'_'+m[m.length-1];
+  }
+  return s;
+}
+
 function parse_var(v){
   let m = v.match(/^([a-zA-Z]\d*)(\.|\.\.)([^.]*)$/);
   let ctx = m ? m[1] : '', def = m ? m[2]=='..' : false;
@@ -383,6 +406,12 @@ const cmd_decl = t=>etask(function*cmd_decl(){
   }
 });
 
+const cmd_tput = (curr, t)=>etask(function*cmd_put(){
+  let name = t.ctx||get_def('left'), scroll = get_scroll(name);
+  let s = tjoin(name, 'put', macro_to_m(t.r)+' ^b');
+  tparser.parse_push(curr, s);
+});
+
 const cmd_put = (curr, t)=>etask(function*cmd_put(){
   let name = t.ctx||get_def('left'), scroll = get_scroll(name);
   let diff = {}, err='', tbranch, exp_branch='', skip_b;
@@ -548,6 +577,7 @@ const test_run_single = (curr, o)=>etask(function*_test_run_single(){
   case 'clone': yield cmd_clone(curr, o); break;
   case 'decl': yield cmd_decl(o); break;
   case 'put': yield cmd_put(curr, o); break;
+  case 'tput': yield cmd_tput(curr, o); break;
   case 'test':
   case '==':
     yield cmd_test(o);
@@ -690,6 +720,17 @@ describe('scroll', ()=>{
       t('24_31', '16_31');
       t('0_15', '0_31');
       t('16_31', '0_31');
+    });
+  });
+  describe('macro', ()=>{
+    it('to_m', ()=>{
+      const t = (val, exp)=>assert.equal(macro_to_m(val), exp);
+      t('0', 'sig0 d0');
+      t('0 1', 'm0 sig1 d1');
+      t('0_1', 'm0_1');
+      t('0_1 2', 'm0_1 sig2 d2');
+      t('0_1_2_3 4_5 6', 'm0_3 m4_5 sig6 d6');
+      t('0_1 2        ', 'm0_1 sig2 d2');
     });
   });
   describe('decl', ()=>{
@@ -1283,8 +1324,15 @@ describe('scroll', ()=>{
           // XXX: at this point, we need to merge all
           branch(b1:4:M9 b2:6b1:M6) =M4 !M5 // XXX: b0:0:M4
         `);
-      // m5=hleaf(d5+sig5) sig5=sign(d5+M4) M5=hroot(m0_3+m4_5)
-      // m6=hleaf(d6+sig6) sig6=sign(d6+M5) M6=hroot(m0_3+m4_5+m6)
+        t('xxx4', `s..scroll(!prev_scroll) decl(0-32) t..scroll(s..M0)
+             tput(0 1 2 3 4          ) // branch(M4)
+             tput(0_1_2_3 4_5 6_7 8 9) branch(b1:3:M9)
+             // branch(M4 3b0.M9)
+             tput(0_1_2_3 4_5 6      ) branch(b1:3:M9 b2:5b1:M6)
+             // branch(M4 3b0.M9 5b1.M6)
+             tput(0 1 2 3 4 5 6 7    ) // branch(M9) // merge all branches
+             branch(b1:4:M9 b2:6b1:M6) =M4 !M5
+        `);
         t('xxx3_c', `${s}
           put(sig6 d6 m4 m5 m0_3)
         `);

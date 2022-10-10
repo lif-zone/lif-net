@@ -1376,6 +1376,21 @@ describe('scroll', ()=>{
           tput(0_1_2_3 4_5 6      ) b(M4 3b0.M9 5b1.M6)
           tput(0_1_2_3 4 5 6 7    ) b(M4 4b0.M9 6b1.M6) // XXX: merge b(mM9)
         `);
+        t('xxx4_c', `${s} t..scroll(s..M0)
+          tput(0 1 2            ) b(M2)
+          tput(0_1 2_3 4        ) b(M2 1b0.M4)
+          tput(0_1_2_3 4_5 6    ) b(M2 1b0.M4 3b1.M6)
+          tput(0_1_2_3 4_5_6_7 8) b(M2 1b0.M4 3b1.M6 3b1.M8)
+          // XXX: test insertion of differnt order in order to get to merge all
+        `);
+        // XXX: fixme
+        if (0) t('xxx4_d', `${s} t..scroll(s..M0)
+          tput(0 1 2            ) b(M2)
+          tput(0_1 2_3 4        ) b(M2 1b0.M4)
+          tput(0_1_2_3 4_5 6    ) b(M2 1b0.M4 3b1.M6)
+          tput(0_1_2_3 4_5 6_7 8) b(M2 1b0.M4 3b1.M6 5b2.M8)
+          // XXX: test insertion of differnt order in order to get to merge all
+        `);
       });
     });
   });

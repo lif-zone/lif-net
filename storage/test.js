@@ -237,6 +237,15 @@ describe('test_util', ()=>{
     t('s2..d0', 'd 0 0 s2 def');
     t('s2..m0_1b10', 'm 0_1 10 s2 def');
   });
+  it('parse_branch', ()=>{
+    const t = (val, exp)=>assert.deepEqual(parse_branch(val), exp);
+    t('M9=s.M9', {top: {seq: 9, M: 's.M9'}});
+    t('3.M9=s.M9', {top: {seq: 9, M: 's.M9'}, b: {seq: 3, b: 0}});
+    t('3b1.M9=s.M9', {top: {seq: 9, M: 's.M9'}, b: {seq: 3, b: 1}});
+    t('M9', {top: {seq: 9, M: 'M9'}});
+    t('3.M9', {top: {seq: 9, M: 'M9'}, b: {seq: 3, b: 0}});
+    t('3b1.M9', {top: {seq: 9, M: 'M9'}, b: {seq: 3, b: 1}});
+  });
 });
 
 describe('parser', ()=>{
@@ -406,11 +415,10 @@ const cmd_decl = t=>etask(function*cmd_decl(){
   }
 });
 
-const cmd_tput = (curr, t)=>etask(function*cmd_put(){
-  let name = t.ctx||get_def('left'), scroll = get_scroll(name);
-  let s = tjoin(name, 'put', macro_to_m(t.r)+' ^b');
-  tparser.parse_push(curr, s);
-});
+function cmd_tput(curr, t){
+  let name = t.ctx||get_def('left');
+  tparser.parse_push(curr, tjoin(name, 'put', macro_to_m(t.r)+' ^b'));
+}
 
 const cmd_put = (curr, t)=>etask(function*cmd_put(){
   let name = t.ctx||get_def('left'), scroll = get_scroll(name);
@@ -428,7 +436,7 @@ const cmd_put = (curr, t)=>etask(function*cmd_put(){
     }
     if (t2.l=='branch'){
       tbranch = tbranch||{};
-      let o = parse_branch(t2.r);
+      let o = xxx_parse_branch(t2.r);
       tbranch[o.b] = o.o;
       continue;
     }
@@ -528,17 +536,47 @@ const cmd_test = t=>etask(function*cmd_test(){
 });
 
 function parse_branch(s){
+  let m = s.match(/^([^=]+)=([^=]+)$/);
+  let l= m ? m[1] : s, r = m&&m[2];
+  m = l.match(/^((\d+)(b(\d+))?\.)?M(\d+)$/);
+  assert(m, 'invalid branch '+s);
+  r = r||'M'+m[5];
+  let top = {seq: +m[5], M: r};
+  let b = m[2] ? {seq: +m[2], b: +m[4]||0} : undefined;
+  return b ? {top, b} : {top};
+}
+
+// XXX: rm
+function xxx_parse_branch(s){
   let m = s.match(/^b(\d)+:(\d+)(b(\d+))?(:(.*))?$/);
   assert(m, 'invalid branch '+s);
   let b = +m[1], seq_s = +m[2], b_s = +m[4]||0;
   return {b, o: {b: b_s, seq: seq_s, M: m[6]}};
 }
 
+const cmd_b = t=>etask(function*cmd_branch(){
+  let name = t.ctx||get_def('left'), scroll = get_scroll(name);
+  let tested = {}, i=0;
+  for (let curr=t.r; curr = tparser.parse_get_next(curr); i++)
+    tested[i] = parse_branch(curr.exp);
+  assert.equal(i, scroll.b.length, 'branch count mismatch '+t.r);
+  for (i=0; i<scroll.b.length; i++){
+    let o = scroll.b[i];
+    assert.deepEqual(o.branch.b!==undefined ?
+      {seq: o.branch.seq, b: o.branch.b} : undefined,
+      tested[i].b, 'branch '+i+' mismatch '+t.r);
+    assert.equal(o.top.seq, tested[i].top.seq, 'top seq mismatch b'+i+
+      ' '+t.r);
+    assert_buffer(o.top.M, yield get_val(tested[i].top.M),
+      'top M mismatch b'+i+' '+t.r);
+  }
+});
+
 const cmd_branch = t=>etask(function*cmd_branch(){
   let name = t.ctx||get_def('left'), scroll = get_scroll(name);
   let tested = {};
   for (let curr=t.r; curr = tparser.parse_get_next(curr);){
-    let o = parse_branch(curr.exp);
+    let o = xxx_parse_branch(curr.exp);
     tested[o.b] = o.o;
   }
   for (let i=1; i<scroll.b.length; i++){
@@ -582,7 +620,8 @@ const test_run_single = (curr, o)=>etask(function*_test_run_single(){
   case '==':
     yield cmd_test(o);
     break;
-  case 'branch': yield cmd_branch(o); break;
+  case 'branch': yield cmd_branch(o); break; // XXX: rm branch
+  case 'b': yield cmd_b(o); break;
   case '//': break;
   case '=': yield cmd_eq(o); break;
   case '.':
@@ -1325,19 +1364,11 @@ describe('scroll', ()=>{
           branch(b1:4:M9 b2:6b1:M6) =M4 !M5 // XXX: b0:0:M4
         `);
         t('xxx4', `s..scroll(!prev_scroll) decl(0-32) t..scroll(s..M0)
-             tput(0 1 2 3 4          ) // branch(M4)
-             tput(0_1_2_3 4_5 6_7 8 9) branch(b1:3:M9)
-             // branch(M4 3b0.M9)
-             tput(0_1_2_3 4_5 6      ) branch(b1:3:M9 b2:5b1:M6)
-             // branch(M4 3b0.M9 5b1.M6)
-             tput(0 1 2 3 4 5 6 7    ) // branch(M9) // merge all branches
-             branch(b1:4:M9 b2:6b1:M6) =M4 !M5
-        `);
-        t('xxx3_c', `${s}
-          put(sig6 d6 m4 m5 m0_3)
-        `);
-        t('xxx3_d', `${s}
-          put(sig6 d6 m4_5 m0_3 branch(b1:3:M6))
+          tput(0 1 2 3 4          ) b(M4)
+          tput(0_1_2_3 4_5 6_7 8 9) b(M4 3b0.M9)
+          tput(0_1_2_3 4_5 6      ) b(M4 3b0.M9 5b1.M6)
+          // XXX: need to merge all branches and test b(M9)
+          tput(0 1 2 3 4 5 6 7    ) b(M4 4b0.M9 6b1.M6)
         `);
       });
     });

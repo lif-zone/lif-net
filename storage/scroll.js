@@ -519,6 +519,7 @@ export default class Scroll {
         ret = max.range[1];
         continue;
       }
+      // XXX: optimize, we now by now that we have max.range[1]
       let max2 = this.find_max_common_M({b, seq: r[1]-1, diff, diff_b});
       return max2 ? max2 : max.range[1];
     }

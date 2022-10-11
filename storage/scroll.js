@@ -588,17 +588,16 @@ export default class Scroll {
     if (b2.top.seq!=bseq && b1.top.seq!=bseq)
       return;
     // merge
-    if (b1.top.seq==bseq){
-      // XXX: need more efficient way (just iterate on decl with data
-      for (let i=0; i<=b2.top.seq; i++){
-        let src = this.get_decl(i, {b: i2, create: false});
-        if (!src)
-          continue;
-        let dst = this.get_decl(i, {b: i1});
-        dst.copy(src);
-      }
-      this.notify_M({b: i1, seq: b2.top.seq, M: b2.top.M});
+    // XXX: need more efficient way (just iterate on decl with data
+    for (let i=0; i<=b2.top.seq; i++){
+      let src = this.get_decl(i, {b: i2, create: false});
+      if (!src)
+        continue;
+      let dst = this.get_decl(i, {b: i1});
+      dst.copy(src);
     }
+    if (b2.top.seq > b1.top.seq)
+      this.notify_M({b: i1, seq: b2.top.seq, M: b2.top.M});
     // XXX also copy for b2.top.seq and all data in between
     for (let i=i2+1; i<this.b.length; i++){
       if (this.b[i].branch.b!=i2)

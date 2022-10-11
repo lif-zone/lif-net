@@ -578,6 +578,10 @@ export default class Scroll {
       return;
     [i1, i2] = i1<i2 ? [i1, i2] : [i2, i1];
     let b1=this.b[i1], b2=this.b[i2];
+    if (b2.branch.seq >= seq)
+      return;
+    if (b2.branch.seq >= b1.top.seq)
+      return;
     let bseq = this.find_max_common_M({b: i1, diff_b: i2, seq});
     assert((b1.branch.b||0)<i2, 'lower b'+i1+' cannot point upper b'+i2);
     if (b2.branch.seq >= bseq)

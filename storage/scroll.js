@@ -569,20 +569,22 @@ export default class Scroll {
       this.merge_single(b, j, seq);
     }
   }
+  // XXX: need to rm uneeded decl now when updating branches
   merge_single(i1, i2, seq){
-    let b1=this.b[i1], b2=this.b[i2];
     if (i2==i1)
       return;
+    [i1, i2] = i1<i2 ? [i1, i2] : [i2, i1];
+    let b1=this.b[i1], b2=this.b[i2];
     let bseq = this.find_max_common_M({b: i1, diff_b: i2, seq});
-    if (b2.branch.seq < bseq){
-      xerr.notice('XXX CHANGE b%s %O -> %O', i2, this.b[i2].branch,
-        {b: i1, seq: bseq});
-      // XXX: need to rm uneeded decl now (and maybe unite branches)
-      if (b1.branch.b==i2)
-        b1.branch = {b: i2, seq: bseq};
-      else
-        b2.branch = {b: i1, seq: bseq};
+    assert((b1.branch.b||0)<i2, 'lower b'+i1+' cannot point upper b'+i2);
+    if (b2.branch.seq >= bseq)
+      return;
+    if (b2.branch.b==i1){
+      b2.branch.seq = bseq;
+      return;
     }
+    b2.branch.b = i1;
+    b2.branch.seq = bseq;
   }
   calc_m(opt){
     let {range, diff, diff_b} = opt;

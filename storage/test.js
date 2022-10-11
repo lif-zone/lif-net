@@ -1256,15 +1256,15 @@ describe('scroll', ()=>{
           put(s2..m0_3 m4_7 m8 sig9 d9 branch(b2:3:s2.M9))
           put(s1..sig9 d9 m0 m1 m2_3 m4 m5 m6_7 m8 ^b)
           // XXX: need to unite b1<>b3
-          branch(b1:4b2:s1.M4 b2:3:s2.M9 b3:8b2:s1.M9)`);
-          // branch(b1:3:s1.M9 b2:8b1:s2.M9)`);
+          branch(b1:3:s1.M4 b2:4b1:s2.M9 b3:8b2:s1.M9)`);
         // XXX: derry two branches that should be the same
         t('3b0_8b1_15b1_zzz3', `s.scroll(!prev_scroll) s.decl(1-32)
           s1.clone(s.0_3) s1.decl(4-32) t..clone(s.0_32)
           put(s1..m0_3 sig4 d4 branch(b1:3:s1.M4))
           put(s1..m0_3 m4_7 m8 sig9 d9 branch(b2:3:s1.M9))
           // XXX need to unite now b1/b2
-          put(s1..sig9 d9 m0 m1 m2_3 m4 m5 m6_7 m8 branch(b1:4b2:s1.M4))
+          put(s1..sig9 d9 m0 m1 m2_3 m4 m5 m6_7 m8 ^b)
+            branch(b1:3:s1.M4 b2:4b1:s1.M9)
         `);
         // b0 a b c d e
         // b1 a b c D E
@@ -1304,22 +1304,20 @@ describe('scroll', ()=>{
           put(s1..m0_1 m2_3 sig4 d4 branch(b1:1:s1.M4))
           put(s2..m0_1 m2 m3 sig4 d4 branch(b2:1:s2.M4))
           put(s1..m0_1 m2 m3 sig3 d3 branch(b2:2b1:s2.M4))`);
-        // XXX: b1:2b2 -> b2:2b1
         t('fix_2b1_c', `s..scroll(!prev_scroll) decl(1-32) s1..clone(s.0_1)
           decl(2-32) s2..clone(s1.0_2) decl(3-32) t..scroll(s..M0)
           tput(0 1 2 3 4) b(M4)
           tput(0_1 c d e) b(M4 1b0.M4=s1.M4)
           tput(0_1 c_D E) b(M4 1b0.M4=s1.M4 1b0.M4=s2.M4)
-          tput(0_1 c D E) b(M4 2b2.M4=s1.M4 1b0.M4=s2.M4)`);
+          tput(0_1 c D E) b(M4 1b0.M4=s1.M4 2b1.M4=s2.M4)`);
         // b1 0 1 a_b c
         // b2 0 1 a_B C
-        // XXX: b1:2b2 -> b2:2b1
         t('fix_2b1_d', `s..scroll(!prev_scroll) decl(1-32) s1..clone(s.0_1)
           decl(2-32) s2..clone(s1.0_2) decl(3-32) t..clone(s.0_32)
           put(s1..m0_1 m2_3 sig4 d4 branch(b1:1:s1.M4))
           put(s2..m0_1 m2_3 sig4 d4 branch(b2:1:s2.M4))
           put(s1..m0_1 m2 m3 sig3 d3 branch(b1:1:s1.M4))
-          put(s2..m0_1 m2 m3 sig3 d3 branch(b1:2b2:s1.M4))`);
+          put(s2..m0_1 m2 m3 sig3 d3 ^b) branch(b1:1:s1.M4 b2:2b1:s2.M4)`);
         //    0 1 2 3 4 5 6 7 8
         // b0 a b c d e_f_g_h i
         // b1 a b c d e_F_G_H I

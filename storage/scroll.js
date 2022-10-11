@@ -566,18 +566,22 @@ export default class Scroll {
   merge_all(seq, b){
     // XXX: temporary unefficient code
     for (let j=0; this.b.length>1 && j<this.b.length; j++){
-      if (j==b || this.b[b].branch.b==j)
-        continue;
-      let bseq = this.find_max_common_M({b, diff_b: j, seq});
-      this.merge_single(b, j, bseq);
+      this.merge_single(b, j, seq);
     }
   }
-  merge_single(b1, b2, bseq){
-    if (this.b[b2].branch.seq < bseq){
-      xerr.notice('XXX CHANGE b%s %O -> %O', b2, this.b[b2].branch,
-        {b: b1, seq: bseq});
+  merge_single(i1, i2, seq){
+    let b1=this.b[i1], b2=this.b[i2];
+    if (i2==i1)
+      return;
+    let bseq = this.find_max_common_M({b: i1, diff_b: i2, seq});
+    if (b2.branch.seq < bseq){
+      xerr.notice('XXX CHANGE b%s %O -> %O', i2, this.b[i2].branch,
+        {b: i1, seq: bseq});
       // XXX: need to rm uneeded decl now (and maybe unite branches)
-      this.b[b2].branch = {b: b1, seq: bseq};
+      if (b1.branch.b==i2)
+        b1.branch = {b: i2, seq: bseq};
+      else
+        b2.branch = {b: i1, seq: bseq};
     }
   }
   calc_m(opt){

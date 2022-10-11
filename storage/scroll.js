@@ -598,11 +598,9 @@ export default class Scroll {
     }
     if (b2.top.seq > b1.top.seq)
       this.notify_M({b: i1, seq: b2.top.seq, M: b2.top.M});
-    // XXX also copy for b2.top.seq and all data in between
     for (let i=i2+1; i<this.b.length; i++){
       if (this.b[i].branch.b!=i2)
         continue;
-      // XXX: need to copy information from both trees and update info
       this.b[i].branch.b = i1;
     }
     this.b.splice(i2, 1);

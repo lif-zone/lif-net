@@ -332,7 +332,7 @@ export default class Scroll {
           b = b2;
         }
       }
-      this.merge_branch(seq, b);
+      this.merge_all(seq, b);
       copy_errors(errors, errors2);
     }
     return {errors};
@@ -563,18 +563,21 @@ export default class Scroll {
     assert(!m, 'm does not exists');
     return {range, m: vm};
   }
-  merge_branch(seq, b){
+  merge_all(seq, b){
     // XXX: temporary unefficient code
     for (let j=0; this.b.length>1 && j<this.b.length; j++){
       if (j==b || this.b[b].branch.b==j)
         continue;
       let bseq = this.find_max_common_M({b, diff_b: j, seq});
-      if (this.b[j].branch.seq < bseq){
-        xerr.notice('XXX CHANGE b%s %O -> %O', j, this.b[j].branch,
-          {b, seq: bseq});
-        // XXX: need to rm uneeded decl now (and maybe unite branches)
-        this.b[j].branch = {b, seq: bseq};
-      }
+      this.merge_single(b, j, bseq);
+    }
+  }
+  merge_single(b1, b2, bseq){
+    if (this.b[b2].branch.seq < bseq){
+      xerr.notice('XXX CHANGE b%s %O -> %O', b2, this.b[b2].branch,
+        {b: b1, seq: bseq});
+      // XXX: need to rm uneeded decl now (and maybe unite branches)
+      this.b[b2].branch = {b: b1, seq: bseq};
     }
   }
   calc_m(opt){

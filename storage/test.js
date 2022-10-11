@@ -1255,8 +1255,7 @@ describe('scroll', ()=>{
           put(s1..m0_3 sig4 d4 branch(b1:3:s1.M4))
           put(s2..m0_3 m4_7 m8 sig9 d9 branch(b2:3:s2.M9))
           put(s1..sig9 d9 m0 m1 m2_3 m4 m5 m6_7 m8 ^b)
-          // XXX: need to unite b1<>b3
-          branch(b1:3:s1.M4 b2:4b1:s2.M9 b3:8b2:s1.M9)`);
+          b(M32=s.M32 3b0.M9=s2.M9 8b1.M9=s1.M9)`);
         // XXX: derry two branches that should be the same
         t('3b0_8b1_15b1_zzz3', `s.scroll(!prev_scroll) s.decl(1-32)
           s1.clone(s.0_3) s1.decl(4-32) t..clone(s.0_32)
@@ -1264,8 +1263,7 @@ describe('scroll', ()=>{
           put(s1..m0_3 m4_7 m8 sig9 d9 branch(b2:3:s1.M9))
           // XXX need to unite now b1/b2
           put(s1..sig9 d9 m0 m1 m2_3 m4 m5 m6_7 m8 ^b)
-            branch(b1:3:s1.M4 b2:4b1:s1.M9)
-        `);
+          b(M32=s.M32 3b0.M9=s1.M9)`);
         // b0 a b c d e
         // b1 a b c D E
         s = `s0..scroll(!prev_scroll) decl(1-32) s1..clone(s0.0_2) decl(3-32)
@@ -1357,8 +1355,8 @@ describe('scroll', ()=>{
         t('xxx2_a', `${s}
           put(sig4 d4 branch(b0:0:M4))
           put(sig7 d7 m0_3 m4_5 m6 branch(b1:3:M7))
-          put(sig5 d5 ^b) b(M5 5b0.M7)
-          put(sig6 d6 ^b) b(M6 6b0.M7)
+          put(sig5 d5 ^b) b(M7)
+          put(sig6 d6 ^b) b(M7)
           put(sig7 d7 ^b) b(M7)
         `);
         s = `s..scroll(!prev_scroll) decl(1-32) t..clone(s..0_4)`;
@@ -1368,9 +1366,8 @@ describe('scroll', ()=>{
         // b3 0 1 2 3 4_5 6 7
         t('xxx3_a', `${s}
           put(sig9 d9 m8 m6_7 m4_5 m0_3 ^b) b(M4 3b0.M9)
-          put(sig6 d6 m4 m5 m0_3 ^b) b(M4 4b0.M9 5b1.M6)
-          put(sig7 d7 m6 m4_5 m0_3 ^b) b(M4 4b0.M9) // XXX: merge all
-        `);
+          put(sig6 d6 m4 m5 m0_3 ^b) b(M9 5b0.M6)
+          put(sig7 d7 m6 m4_5 m0_3 ^b) b(M9)`);
         // b0 0 1 2 3 4
         // b1 0 1 2 3 4_5 6_7 8 9
         // b2 0 1 2 3 4_5 6
@@ -1378,20 +1375,19 @@ describe('scroll', ()=>{
         t('xxx3_b', `${s}
           put(sig9 d9 m8 m6_7 m4_5 m0_3 ^b) b(M4 3b0.M9)
           put(sig6 d6 m4_5 m0_3 ^b) b(M4 3b0.M9 5b1.M6)
-          put(sig7 d7 m6 m4 m5 m0_3 ^b) b(M4 4b0.M9) // XXX: merge all
-        `);
+          put(sig7 d7 m6 m4 m5 m0_3 ^b) b(M9)`);
         s = 's..scroll(!prev_scroll) decl(0-32)';
         t('xxx4_a', `${s} t..scroll(s..M0)
           tput(0 1 2 3 4          ) b(M4)
           tput(0_1_2_3 4_5 6_7 8 9) b(M4 3b0.M9)
-          tput(0_1_2_3 4 5 6      ) b(M4 4b0.M9 5b1.M6)
-          tput(0_1_2_3 4_5 6 7    ) b(M4 4b0.M9) // XXX: merge b(mM9)
+          tput(0_1_2_3 4 5 6      ) b(M9 5b0.M6)
+          tput(0_1_2_3 4_5 6 7    ) b(M9)
         `);
         t('xxx4_b', `${s} t..scroll(s..M0)
           tput(0 1 2 3 4          ) b(M4)
           tput(0_1_2_3 4_5 6_7 8 9) b(M4 3b0.M9)
           tput(0_1_2_3 4_5 6      ) b(M4 3b0.M9 5b1.M6)
-          tput(0_1_2_3 4 5 6 7    ) b(M4 4b0.M9) // XXX: merge b(mM9)
+          tput(0_1_2_3 4 5 6 7    ) b(M9)
         `);
         t('xxx4_c', `${s} t..scroll(s..M0)
           tput(0 1 2            ) b(M2)

@@ -2,7 +2,6 @@
 'use strict'; /*jslint node:true, browser:true*/
 import assert from 'assert';
 import crypto from '../util/crypto.js';
-import xerr from '../util/xerr.js';
 import enc from 'compact-encoding';
 import {Buffer} from 'buffer';
 import buf_util from '../peer-relay/buf_util.js';
@@ -22,6 +21,7 @@ function to_frame(o){
   assert.fail('invalid frame data '+o);
 }
 
+// XXX: rename to Frame_buffer;
 class FrameBuffer {
   constructor(opt={}){
     let {frames} = opt;
@@ -570,6 +570,8 @@ export default class Scroll {
     }
   }
   merge_single(i1, i2, seq){
+    // XXX: test all possible merge of data (for eg, one branch has d/sig,
+    // other only hash)
     if (i2==i1)
       return;
     [i1, i2] = i1<i2 ? [i1, i2] : [i2, i1];
@@ -582,14 +584,26 @@ export default class Scroll {
     // relevant places on new branch
     b2.branch.b = i1;
     b2.branch.seq = bseq;
-    if (b2.top.seq!=bseq)
+    if (b2.top.seq!=bseq && b1.top.seq!=bseq)
       return;
     // merge
+    if (b1.top.seq==bseq){
+      // XXX: need more efficient way (just iterate on decl with data
+      for (let i=0; i<=b2.top.seq; i++){
+        let dst = this.get_decl(i, {b: i1});
+        let src = this.get_decl(i, {b: i2, create: false});
+        if (!src)
+          continue;
+        dst.copy(src);
+      }
+      this.notify_M({b: i1, seq: b2.top.seq, M: b2.top.M});
+    }
+    // XXX also copy for b2.top.seq and all data in between
     for (let i=i2+1; i<this.b.length; i++){
       if (this.b[i].branch.b!=i2)
         continue;
-      // XXX: need to copy information from both trees and update relevant info
-      this.b[i].branch = i1;
+      // XXX: need to copy information from both trees and update info
+      this.b[i].branch.b = i1;
     }
     this.b.splice(i2, 1);
   }
@@ -716,6 +730,16 @@ class Decl {
   M_hash(){
     let M = this.M;
     return M.get_hash();
+  }
+  copy(src){
+    assert.equal(this.seq, src.seq, 'can only copy from same seq');
+    if (src.M.h)
+      this.M.h = src.M.h;
+    for (let i=0; i<this.m.length; i++){
+      if (src.m[i].h)
+        this.m[i].h = src.m[i].h;
+    }
+    this.fbuf = src.fbuf; // XXX: need to keep existing fbuf info
   }
 }
 

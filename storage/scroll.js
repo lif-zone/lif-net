@@ -569,7 +569,6 @@ export default class Scroll {
       this.merge_single(b, j, seq);
     }
   }
-  // XXX: need to rm uneeded decl now when updating branches
   merge_single(i1, i2, seq){
     if (i2==i1)
       return;
@@ -579,12 +578,20 @@ export default class Scroll {
     assert((b1.branch.b||0)<i2, 'lower b'+i1+' cannot point upper b'+i2);
     if (b2.branch.seq >= bseq)
       return;
-    if (b2.branch.b==i1){
-      b2.branch.seq = bseq;
-      return;
-    }
+    // XXX: need to rm uneeded decl now when updating branches and update all
+    // relevant places on new branch
     b2.branch.b = i1;
     b2.branch.seq = bseq;
+    if (b2.top.seq!=bseq)
+      return;
+    // merge
+    for (let i=i2+1; i<this.b.length; i++){
+      if (this.b[i].branch.b!=i2)
+        continue;
+      // XXX: need to copy information from both trees and update relevant info
+      this.b[i].branch = i1;
+    }
+    this.b.splice(i2, 1);
   }
   calc_m(opt){
     let {range, diff, diff_b} = opt;

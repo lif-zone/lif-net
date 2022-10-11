@@ -332,6 +332,7 @@ export default class Scroll {
           b = b2;
         }
       }
+      // XXX: do it only if new data was added to branch (check put_verified)
       this.merge_all(seq, b);
       copy_errors(errors, errors2);
     }
@@ -341,6 +342,7 @@ export default class Scroll {
     let ret = this._put_single(seq, diff, errors, opt);
     if (ret?.branch)
       return ret;
+    // XXX: remove copy_extra_m and handle it inside put_single
     if (!diff[seq]?.m)
       return;
     let b=opt.b||0, decl=this.get_decl(seq, {b}), a=Object.keys(diff[seq].m);
@@ -565,9 +567,8 @@ export default class Scroll {
   }
   merge_all(seq, b){
     // XXX: temporary unefficient code
-    for (let j=0; this.b.length>1 && j<this.b.length; j++){
+    for (let j=0; this.b.length>1 && j<this.b.length; j++)
       this.merge_single(b, j, seq);
-    }
   }
   merge_single(i1, i2, seq){
     // XXX: test all possible merge of data (for eg, one branch has d/sig,
@@ -590,10 +591,10 @@ export default class Scroll {
     if (b1.top.seq==bseq){
       // XXX: need more efficient way (just iterate on decl with data
       for (let i=0; i<=b2.top.seq; i++){
-        let dst = this.get_decl(i, {b: i1});
         let src = this.get_decl(i, {b: i2, create: false});
         if (!src)
           continue;
+        let dst = this.get_decl(i, {b: i1});
         dst.copy(src);
       }
       this.notify_M({b: i1, seq: b2.top.seq, M: b2.top.M});

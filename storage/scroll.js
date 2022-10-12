@@ -237,6 +237,30 @@ function calc_roots(size){
   }
 }
 
+function calc_merge_info(seq){
+  let all = calc_roots(seq+1);
+  let last = all[all.length-1][1];
+  let any = [];
+  let curr = range_to_parent(all[0]).right;
+  while (true){
+    if (last < curr[0]){
+      any.unshift(curr);
+      if (curr[0]==curr[1])
+        break;
+      [curr] = range_split(curr);
+      continue;
+    }
+    if (curr[0]==curr[1])
+      break;
+    let [r1, r2] = range_split(curr);
+    if (last < r1[1])
+      curr = r1;
+    else
+      curr = r2;
+  }
+  return {all, any};
+}
+
 function verify_sig(sig, pub, d, M_prev){
   let buf = M_prev ? Buffer.concat([d, M_prev]) : d;
   return crypto.verify(sig, pub, crypto.blake2b(buf));
@@ -706,7 +730,7 @@ class Decl {
     this.b = opt.b;
     this.fbuf = opt.fbuf;
     this.m = [];
-    let ma = Scroll.merkel_ranges(seq);
+    let ma = merkel_ranges(seq);
     for (let i=0; i<ma.length; i++)
       this.m.push(new Merkel_node({decl: this, range: ma[i]}));
     this.M = new Merkel_root({decl: this});
@@ -831,6 +855,8 @@ Scroll.hparent = hparent; // XXX need test
 Scroll.hparent_safe = hparent_safe; // XXX need test
 Scroll.hleaf = hleaf; // XXX need test
 Scroll.calc_roots = calc_roots;
+Scroll.calc_merge_info = calc_merge_info;
+Scroll.range_split = range_split;
 Scroll.range_from_str = range_from_str;
 Scroll.range_str = range_str;
 Scroll.range_to_parent = range_to_parent;

@@ -617,11 +617,8 @@ export default class Scroll {
     let possible = false;
     for (let i=0; !possible && i<minfo.any.length; i++){
       let r = minfo.any[i];
-      if (this.m_hash(r, {b: i1})){
-        if (this.m_hash(r, {b: i2})){
-          possible = true;
-        }
-      }
+      if (this.m_hash(r, {b: i1}) && this.m_hash(r, {b: i2}))
+        possible = true;
     }
     if (!possible)
       return;

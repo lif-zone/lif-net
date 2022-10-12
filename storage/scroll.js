@@ -614,20 +614,17 @@ export default class Scroll {
     if (b2.branch.seq >= b1.top.seq)
       return;
     let minfo = calc_merge_info(b2.branch.seq);
-/* XXX: WIP
-    let possible = true;
-    for (let i=0; possible && i<minfo.any.length; i++){
+    let possible = false;
+    for (let i=0; !possible && i<minfo.any.length; i++){
       let r = minfo.any[i];
       if (this.m_hash(r, {b: i1})){
-        if (!this.m_hash(r, {b: i2})){
-          xerr.notice('XXX !possible seq %s r%s', seq, range_str(r));
-          possible = false;
+        if (this.m_hash(r, {b: i2})){
+          possible = true;
         }
       }
     }
-//    if (!possible)
-//      return; // assert.fail('xxx');
-*/
+    if (!possible)
+      return;
     if (b2.branch.b==b1.branch.b){
       bseq = this.find_max_common_M({b: i1, diff_b: i2, seq,
         common: b2.branch.seq});

@@ -616,9 +616,9 @@ export default class Scroll {
     let minfo = calc_merge_info(b2.branch.seq);
     let possible = false;
     for (let i=0; !possible && i<minfo.any.length; i++){
-      let r = minfo.any[i];
-      if (this.m_hash(r, {b: i1}) && this.m_hash(r, {b: i2}))
-        possible = true;
+      let r = minfo.any[i], m1, m2;
+      if ((m1=this.m_hash(r, {b: i1})) && (m2=this.m_hash(r, {b: i2})))
+        possible = m1.equals(m2);
     }
     if (!possible)
       return;
@@ -629,7 +629,7 @@ export default class Scroll {
       bseq = this.find_max_common_M({b: i1, diff_b: i2, seq});
     assert((b1.branch.b||0)<i2, 'lower b'+i1+' cannot point upper b'+i2);
     if (b2.branch.seq >= bseq)
-      return;
+      return xerr('need optimize merge');
     // XXX: need to rm uneeded decl now when updating branches and update all
     // relevant places on new branch
     b2.branch.b = i1;

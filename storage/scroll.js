@@ -334,6 +334,7 @@ export default class Scroll {
     for (let i=a.length-1; i>=0 && +a[i]; i--){
       let seq = +a[i], errors2={}, best = {b: 0, max_common: 0};
       // XXX: optimize. do only once. and assume all diff is on the same branch
+      // XXX: optimize, use !possible logic from merge_single
       for (let j=0; this.b.length>1 && j<this.b.length; j++){
         // XXX: optimize with {min_common} based on previous best branch
         let max_common = this.find_max_common_M({b: j, seq, diff});
@@ -357,6 +358,7 @@ export default class Scroll {
             continue;
           }
           b = b2;
+          this.update_branch(b, {init: true});
         }
       }
       // XXX: do it only if new data was added to branch (check put_verified)
@@ -613,10 +615,9 @@ export default class Scroll {
       return;
     if (b2.branch.seq >= b1.top.seq)
       return;
-    let minfo = calc_merge_info(b2.branch.seq);
-    let possible = false;
-    for (let i=0; !possible && i<minfo.any.length; i++){
-      let r = minfo.any[i], m1, m2;
+    let possible = false, any = b2.minfo.any;
+    for (let i=0; !possible && i<any.length; i++){
+      let r = any[i], m1, m2;
       if ((m1=this.m_hash(r, {b: i1})) && (m2=this.m_hash(r, {b: i2})))
         possible = m1.equals(m2);
     }
@@ -630,10 +631,7 @@ export default class Scroll {
     assert((b1.branch.b||0)<i2, 'lower b'+i1+' cannot point upper b'+i2);
     if (b2.branch.seq >= bseq)
       return xerr('need optimize merge');
-    // XXX: need to rm uneeded decl now when updating branches and update all
-    // relevant places on new branch
-    b2.branch.b = i1;
-    b2.branch.seq = bseq;
+    this.update_branch(i2, {b: i1, seq: bseq});
     if (b2.top.seq!=bseq && b1.top.seq!=bseq)
       return;
     // merge
@@ -647,13 +645,31 @@ export default class Scroll {
     }
     if (b2.top.seq > b1.top.seq)
       this.notify_M({b: i1, seq: b2.top.seq, M: b2.top.M});
-    for (let i=i2+1; i<this.b.length; i++){
+    this.b.splice(i2, 1);
+    for (let i=i2; i<this.b.length; i++){
       if (this.b[i].branch.b!=i2)
         continue;
       this.b[i].b--; // we are removing i2, need to update b number
-      this.b[i].branch.b = i1;
+      this.update_branch(this.b[i].b, {b: i1});
     }
-    this.b.splice(i2, 1);
+  }
+  update_branch(b, o){
+    // XXX: need to rm uneeded decl now when updating branches and update all
+    // relevant places on new branch
+    let src = this.b[b];
+    if (o.init){
+      assert(o.b===undefined && o.seq===undefined, 'invalid init');
+      assert(!src.info, 'invalid init');
+      src.minfo = calc_merge_info(src.branch.seq);
+    }
+    if (src.b==o.b && src.seq==o.sec)
+      return;
+    if (o.b!==undefined)
+      src.branch.b = o.b;
+    if (o.seq!==undefined){
+      src.branch.seq = o.seq;
+      src.minfo = calc_merge_info(src.branch.seq);
+    }
   }
   calc_m(opt){
     let {range, diff, diff_b} = opt;

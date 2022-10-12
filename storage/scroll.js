@@ -2,6 +2,7 @@
 'use strict'; /*jslint node:true, browser:true*/
 import assert from 'assert';
 import crypto from '../util/crypto.js';
+import xerr from '../util/xerr.js';
 import enc from 'compact-encoding';
 import {Buffer} from 'buffer';
 import buf_util from '../peer-relay/buf_util.js';
@@ -295,12 +296,13 @@ export default class Scroll {
     let {b, seq} = opt;
     if (b===undefined || seq===undefined){
       assert(b===undefined && seq===undefined, 'invalid create_new_branch');
-      this.b.push({size: 0, top: null, map: new Map(), branch: {}});
+      this.b.push({b: 0, size: 0, top: null, map: new Map(), branch: {}});
       return this.b.length-1;
     }
     let M = this.get_decl(seq, {b}).M_hash();
     assert(M, 'missing M'+seq);
-    this.b.push({size: 0, top: null, map: new Map(), branch: {b, seq}});
+    this.b.push({b: this.b.length, size: 0, top: null, map: new Map(),
+      branch: {b, seq}});
     let b2 = this.b.length-1;
     this.notify_M({b: b2, seq: seq, M});
     return b2;
@@ -611,6 +613,21 @@ export default class Scroll {
       return;
     if (b2.branch.seq >= b1.top.seq)
       return;
+    let minfo = calc_merge_info(b2.branch.seq);
+/* XXX: WIP
+    let possible = true;
+    for (let i=0; possible && i<minfo.any.length; i++){
+      let r = minfo.any[i];
+      if (this.m_hash(r, {b: i1})){
+        if (!this.m_hash(r, {b: i2})){
+          xerr.notice('XXX !possible seq %s r%s', seq, range_str(r));
+          possible = false;
+        }
+      }
+    }
+//    if (!possible)
+//      return; // assert.fail('xxx');
+*/
     if (b2.branch.b==b1.branch.b){
       bseq = this.find_max_common_M({b: i1, diff_b: i2, seq,
         common: b2.branch.seq});
@@ -639,6 +656,7 @@ export default class Scroll {
     for (let i=i2+1; i<this.b.length; i++){
       if (this.b[i].branch.b!=i2)
         continue;
+      this.b[i].b--; // we are removing i2, need to update b number
       this.b[i].branch.b = i1;
     }
     this.b.splice(i2, 1);
@@ -708,7 +726,7 @@ export default class Scroll {
   get_decl(seq, opt={}){
     assert(typeof seq=='number', 'invalid seq '+seq);
     let b = opt.b===undefined ? 0 : opt.b, decl;
-    assert(this.b[b], 'missing branch '+b);
+    assert(this.b[b], 'missing branch '+seq+'b'+b);
     if (this.b[b].branch.b!==undefined && seq <= this.b[b].branch.seq)
       return this.get_decl(seq, {b: this.b[b].branch.b, create: opt.create});
     decl = this.b[b].map.get(seq);
@@ -727,7 +745,8 @@ class Decl {
     assert(opt.scroll, 'must provide Scroll');
     let seq = this.seq = opt.seq;
     this.scroll = opt.scroll;
-    this.b = opt.b;
+    this.binfo = this.scroll.b[opt.b||0];
+    assert(this.binfo, 'branch '+opt.b+' not found');
     this.fbuf = opt.fbuf;
     this.m = [];
     let ma = merkel_ranges(seq);
@@ -783,7 +802,7 @@ class Merkel_node {
   constructor(opt){
     this.range = range_fix(opt.range);
     this.decl = opt.decl;
-    this.b = this.decl.b;
+    this.binfo = this.decl.binfo;
   }
   get_hash(){
     // XXX: optimize, don't run calc if there is no change in dependent data
@@ -797,8 +816,8 @@ class Merkel_node {
       return this.set_hash(hleaf(d, sig));
     }
     let [r1, r2] = range_split(this.range);
-    let decl1 = decl.scroll.get_decl(r1[1], {b: this.b});
-    let decl2 = decl.scroll.get_decl(r2[1], {b: this.b});
+    let decl1 = decl.scroll.get_decl(r1[1], {b: this.binfo.b});
+    let decl2 = decl.scroll.get_decl(r2[1], {b: this.binfo.b});
     this.set_hash(hparent_safe(e-s+1, decl1.m_hash(r1), decl2.m_hash(r2)));
     return this.h;
   }
@@ -814,13 +833,13 @@ class Merkel_root {
   constructor(opt){
     this.decl = opt.decl;
     this.scroll = opt.decl.scroll;
-    this.b = this.decl.b;
+    this.binfo = this.decl.binfo;
   }
   get_hash(){
     if (this.h)
       return this.h;
     return this.set_hash(this.scroll.calc_root_hash(this.decl.seq,
-      {b: this.b}));
+      {b: this.binfo.b}));
   }
   set_hash(h){
     assert(!this.h || this.h.equals(h), 'hash changed');
@@ -828,7 +847,7 @@ class Merkel_root {
       return this.h;
     this.h = h;
     if (h)
-      this.scroll.notify_M({b: this.b, seq: this.decl.seq, M: h});
+      this.scroll.notify_M({b: this.binfo.b, seq: this.decl.seq, M: h});
     return h;
   }
 }

@@ -491,6 +491,10 @@ const cmd_put = (curr, t)=>etask(function*cmd_put(){
     string.split_trim(err, /,\s*/) : []);
   if (!skip_b)
     tparser.parse_push(curr, name+'.branch('+exp_branch+')');
+  for (let i=0; i<scroll.b.length; i++){
+    scroll.b[i].map.forEach((decl, seq)=>assert.equal(decl.binfo.b, i,
+      'branch corruption b'+i+' seq '+seq));
+  }
 });
 
 const cmd_test = t=>etask(function*cmd_test(){
@@ -1382,10 +1386,9 @@ describe('scroll', ()=>{
         t('xxx2_a', `${s}
           put(sig4 d4 branch(b0:0:M4))
           put(sig7 d7 m0_3 m4_5 m6 branch(b1:3:M7))
-          put(sig5 d5 ^b) b(M7)
-          put(sig6 d6 ^b) b(M7)
-          put(sig7 d7 ^b) b(M7)
-        `);
+          put(m0_3 m4 sig5 d5 ^b) b(M7)
+          put(m0_3 m4_5 sig6 d6 ^b) b(M7)
+          put(m0_3 m4_5 m6 sig7 d7 ^b) b(M7)`);
         s = `s..scroll(!prev_scroll) decl(1-32) t..clone(s..0_4)`;
         // b0 0 1 2 3 4
         // b1 0 1 2 3 4_5 6_7 8 9

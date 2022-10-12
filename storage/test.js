@@ -1341,7 +1341,7 @@ describe('scroll', ()=>{
         t('fix_2b1_c', `s..scroll(!prev_scroll) decl(1-32) s1..clone(s.0_1)
           decl(2-32) s2..clone(s1.0_2) decl(3-32) t..scroll(s..M0)
           tput(0 1 2 3 4) b(M4)
-          tput(0_1 c d e) b(M4 1b0.M4=s1.M4) // XXX: 1b0.M4=s1
+          tput(0_1 c d e) b(M4 1b0.M4=s1.M4) // XXX: 1b0=s1.M4
           tput(0_1 c_D E) b(M4 1b0.M4=s1.M4 1b0.M4=s2.M4)
           tput(0_1 c D E) b(M4 1b0.M4=s1.M4 2b1.M4=s2.M4)`);
         // b1 0 1 a_b c

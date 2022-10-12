@@ -111,6 +111,13 @@ function assert_buffer(a, b, desc){
 
 }
 
+function assert_no_corruption(scroll){
+  for (let i=0; i<scroll.b.length; i++){
+    scroll.b[i].map.forEach((decl, seq)=>assert.equal(decl.binfo.b, i,
+      'branch corruption b'+i+' seq '+seq));
+  }
+}
+
 const calc_m = (scroll, range)=>etask(function*calc_m(){
   let [s, e] = range;
   assert(Number.isInteger(Math.log2(e-s+1)), 'invalid merkel range '+
@@ -491,10 +498,7 @@ const cmd_put = (curr, t)=>etask(function*cmd_put(){
     string.split_trim(err, /,\s*/) : []);
   if (!skip_b)
     tparser.parse_push(curr, name+'.branch('+exp_branch+')');
-  for (let i=0; i<scroll.b.length; i++){
-    scroll.b[i].map.forEach((decl, seq)=>assert.equal(decl.binfo.b, i,
-      'branch corruption b'+i+' seq '+seq));
-  }
+  assert_no_corruption(scroll);
 });
 
 const cmd_test = t=>etask(function*cmd_test(){
@@ -585,6 +589,7 @@ const cmd_b = t=>etask(function*cmd_branch(){
     assert_buffer(o.top.M, yield get_val(tested[i].top.M),
       'top M mismatch b'+i+' '+t.r);
   }
+  assert_no_corruption(scroll);
 });
 
 const cmd_branch = t=>etask(function*cmd_branch(){
@@ -605,6 +610,7 @@ const cmd_branch = t=>etask(function*cmd_branch(){
     delete tested[i];
   }
   assert.deepEqual(tested, {}, 'branch not found '+Object.keys(tested));
+  assert_no_corruption(scroll);
 });
 
 const cmd_eq = o=>etask(function*cmd_eq(){

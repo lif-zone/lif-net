@@ -309,6 +309,7 @@ export default class Scroll {
       let seq = +a[i], errors2={}, best = {b: 0, max_common: 0};
       // XXX: optimize. do only once. and assume all diff is on the same branch
       for (let j=0; this.b.length>1 && j<this.b.length; j++){
+        // XXX: optimize with {min_common} based on previous best branch
         let max_common = this.find_max_common_M({b: j, seq, diff});
         if (best.max_common < max_common)
           best = {b: j, max_common};
@@ -509,10 +510,11 @@ export default class Scroll {
     return m;
   }
   find_max_common_M(opt){
-    let {b, seq, diff, diff_b} = opt, roots = calc_roots(seq+1), ret;
+    let {b, seq, diff, diff_b, common} = opt, roots = calc_roots(seq+1), ret;
     for (let i=0; i<roots.length; i++){
       let r = roots[i], max;
-      max = this.find_max_common_m({b, range: r, diff, diff_b});
+      max = r[1]<=common ? {range: r} :
+        this.find_max_common_m({b, range: r, diff, diff_b, common});
       if (!max)
         break;
       if (range_eq(r, max.range)){
@@ -520,17 +522,20 @@ export default class Scroll {
         continue;
       }
       // XXX: optimize, we now by now that we have max.range[1]
-      let max2 = this.find_max_common_M({b, seq: r[1]-1, diff, diff_b});
+      let max2 = this.find_max_common_M({b, seq: r[1]-1, diff, diff_b,
+        common});
       return max2 ? max2 : max.range[1];
     }
     return ret;
   }
   find_max_common_m(opt){
     // XXX: need sketch to cache results
-    let {b, range, diff, diff_b} = opt;
+    let {b, range, diff, diff_b, common} = opt;
     let seq = range[1], decl = this.get_decl(seq, {b});
-    let m = this.calc_m({range, diff, diff_b});
     let vm = decl.m_hash(range);
+    if (vm && seq<=common) // XXX: add test for this secnario
+      return {range, m};
+    let m = this.calc_m({range, diff, diff_b});
     if (vm && m && vm.equals(m))
       return {range, m};
     if (range[0]==range[1])
@@ -576,13 +581,17 @@ export default class Scroll {
     // other only hash)
     if (i2==i1)
       return;
-    [i1, i2] = i1<i2 ? [i1, i2] : [i2, i1];
-    let b1=this.b[i1], b2=this.b[i2];
+    [i1, i2] = i1<i2 ? [i1, i2] : [i2, i1]; // XXX: asc_order(i1, i2)
+    let b1=this.b[i1], b2=this.b[i2], bseq;
     if (b2.branch.seq >= seq)
       return;
     if (b2.branch.seq >= b1.top.seq)
       return;
-    let bseq = this.find_max_common_M({b: i1, diff_b: i2, seq});
+    if (b2.branch.b==b1.branch.b){
+      bseq = this.find_max_common_M({b: i1, diff_b: i2, seq,
+        common: b2.branch.seq});
+    } else // XXX: calc common by checking if b2 depends on b1 somehow
+      bseq = this.find_max_common_M({b: i1, diff_b: i2, seq});
     assert((b1.branch.b||0)<i2, 'lower b'+i1+' cannot point upper b'+i2);
     if (b2.branch.seq >= bseq)
       return;

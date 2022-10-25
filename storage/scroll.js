@@ -641,8 +641,11 @@ export default class Scroll {
   }
   merge_all(seq, b){
     // XXX: temporary unefficient code
-    for (let j=0; this.b.length>1 && j<this.b.length; j++)
-      this.merge_single(b, j, seq);
+    for (let j=0; this.b.length>1 && j<this.b.length; j++){
+      let o = this.merge_single(b, j, seq);
+      if (o?.prev==b)
+        b = o.curr;
+    }
   }
   merge_single(i1, i2, seq){
     // XXX: test all merge of data. verify we don't lose anything
@@ -691,6 +694,7 @@ export default class Scroll {
     if (b2.top.seq > b1.top.seq)
       this.notify_M({b: i1, seq: b2.top.seq, M: b2.top.M});
     this.branch_remove(i2, i1);
+    return {curr: i1, prev: i2};
   }
   branch_remove(i2, i1){
     assert(i2, 'cannot remove branch 0');

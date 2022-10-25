@@ -584,7 +584,7 @@ const cmd_b = t=>etask(function*cmd_branch(){
   let tested = {}, i=0;
   for (let curr=t.r; curr = tparser.parse_get_next(curr); i++)
     tested[i] = parse_branch(curr.exp);
-  assert.equal(scroll.b.length, i ,'branch count mismatch '+t.r);
+  assert.equal(scroll.b.length, i, 'branch count mismatch '+t.r);
   for (i=0; i<scroll.b.length; i++){
     let o = scroll.b[i];
     assert.deepEqual(o.branch.b!==undefined ?
@@ -1438,7 +1438,7 @@ describe('scroll', ()=>{
           tput(0_1 2_3 4        ) b(M2 1v0.M4)
           tput(0_1_2_3 4_5 6    ) b(M2 1v0.M4 3v1.M6)
           tput(0_1_2_3 4_5_6_7 8) b(M2 1v0.M4 3v1.M6 3v1.M8)
-          // XXX: test insertion of differnt order in order to get to merge all
+          tput(0_1 2 3 4 5 6 7) b(M8)
         `);
         t('xxx4_d', `${s} t..scroll(s..M0)
           tput(0 1 2            ) b(M2)

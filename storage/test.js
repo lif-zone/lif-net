@@ -1420,7 +1420,7 @@ describe('scroll', ()=>{
           put(sig9 d9 m8 m6_7 m4_5 m0_3 ^b) b(M4 3v0.M9)
           put(sig6 d6 m4_5 m0_3 ^b) b(M4 3v0.M9 5v1.M6)
           put(sig7 d7 m6 m4 m5 m0_3 ^b) b(M9)`);
-        s = 's..scroll(!prev_scroll) decl(0-32)';
+        s = 's..scroll(!prev_scroll) decl(1-32)';
         t('xxx4_a', `${s} t..scroll(s..M0)
           tput(0 1 2 3 4          ) b(M4)
           tput(0_1_2_3 4_5 6_7 8 9) b(M4 3v0.M9)
@@ -1446,6 +1446,30 @@ describe('scroll', ()=>{
           tput(0_1_2_3 4_5 6    ) b(M2 1v0.M4 3v1.M6)
           tput(0_1_2_3 4_5 6_7 8) b(M2 1v0.M4 3v1.M6 5v2.M8)
           tput(0_1 2 3 4 5 6 7) b(M8)
+        `);
+        s = `s..scroll(!prev_scroll) decl(1-32)
+          s1..clone(s.0_4) decl(5-32) t..scroll(s..M0)`;
+        t('xxx5_not_final', `${s}
+          tput(0 1 2            ) b(M2)
+          tput(0_1 2_3 4        ) b(M2 1v0.M4)
+          tput(0_1_2_3 4_5 6    ) b(M2 1v0.M4 3v1.M6)
+          tput(0_1_2_3 4_5 6_7 8) b(M2 1v0.M4 3v1.M6 5v2.M8)
+          tput(0_1 2_3 4_f g    ) b(M2 1v0.M4 3v1.M6 5v2.M8 3v1.M6=s1.M6)
+          // XXX: how to mark not final branch point
+          tput(0_1 2 3 4 5 6 7  ) b(M8 3b0.M6=s1.M6)
+          tput(0_1 2_3 4 f      ) b(M8 4b0.M6=s1.M6)
+        `);
+        t('xxx5_branch_vbranch', `${s}
+          tput(0 1 2            ) b(M2)
+          tput(0_1 2_3 4        ) b(M2 1v0.M4)
+          tput(0_1_2_3 4_5 6    ) b(M2 1v0.M4 3v1.M6)
+          tput(0_1_2_3 4_5 6_7 8) b(M2 1v0.M4 3v1.M6 5v2.M8)
+          tput(0_1 2_3 4_f g    ) b(M2 1v0.M4 3v1.M6 5v2.M8 3v1.M6=s1.M6)
+          tput(0_1 2_3 4_f g_h i)
+            b(M2 1v0.M4 3v1.M6 5v2.M8 3v1.M6=s1.M6 5v4.M8=s1.M8)
+          tput(0_1 2 3 4 5 6 7  ) b(M8 3b0.M6=s1.M6 5v1.M8=s1.M8)
+          tput(0_1 2_3 4 f      ) b(M8 4b0.M6=s1.M6 5v1.M8=s1.M8)
+          tput(0_1 2_3 4 f g h  ) b(M8 4b0.M8=s1.M8)
         `);
       });
     });

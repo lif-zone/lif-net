@@ -704,13 +704,18 @@ export default class Scroll {
     this.b[this.b[i2].branch.b].branches.delete(i2);
     this.b.splice(i2, 1);
     for (let i=i2; i<this.b.length; i++){
-      if (this.b[i].branch.b!=i2)
+      this.b[i].b--; // we are removing i2, need to update b number
+      if (this.b[i].branch.b<i2)
         continue;
       // XXX: wrap nicely and do it more efficient (no need to delete/readd)
       this.b[this.b[i].branch.b].branches.delete(i);
-      this.b[i].b--; // we are removing i2, need to update b number
-      this.branch_update(this.b[i].b, {b: i1});
+      if (this.b[i].branch.b==i2)
+        this.branch_update(this.b[i].b, {b: i1});
+      else
+        this.branch_update(this.b[i].b, {b: this.b[i].b-1});
     }
+    for (let i=0; i<this.b.length; i++)
+      assert(this.b[i].b!=this.b[i].branch.b, 'branch corruption loop b'+i);
   }
   branch_update(b, o){
     // XXX: need to rm uneeded decl now when updating branches and update all

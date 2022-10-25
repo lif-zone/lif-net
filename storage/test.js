@@ -1477,8 +1477,9 @@ describe('scroll', ()=>{
           tput(0_1_2_3 4_5 6    ) b(M2 1v0.M4 3v1.M6)
           tput(0_1 2_3 4_f g    ) b(M2 1v0.M4 3v1.M6 3v1.M6=s1.M6)
           tput(0_1 2_3 4_f g_h i) b(M2 1v0.M4 3v1.M6 3v1.M6=s1.M6 5v3.M8=s1.M8)
-          tput(0_1 2 3 4 5 6    ) b(M6 3b0.M6=s1.M6 5v1.M8=s1.M8)
-          tput(0_1 2_3 4 f      ) b(M6 4b0.M6=s1.M6 5v1.M8=s1.M8)
+          // XXX syntax: how to specify final branch point (3b0/4b0)?
+          tput(0_1 2 3 4 5 6    ) b(M6 3b0.M6=s1.M6 5v1.M8=s1.M8) // 3b0 !final
+          tput(0_1 2_3 4 f      ) b(M6 4b0.M6=s1.M6 5v1.M8=s1.M8) // 4b0 final
           tput(0_1 2_3 4 f g h  ) b(M6 4b0.M8=s1.M8)
         `);
       });

@@ -112,8 +112,13 @@ function assert_buffer(a, b, desc){
 
 function assert_no_corruption(scroll){
   for (let i=0; i<scroll.b.length; i++){
-    scroll.b[i].map.forEach((decl, seq)=>assert.equal(decl.binfo.b, i,
+    let curr = scroll.b[i];
+    curr.map.forEach((decl, seq)=>assert.equal(decl.binfo.b, i,
       'branch corruption b'+i+' seq '+seq));
+    if (i){
+      assert.equal(scroll.b[curr.branch.b].branches.get(curr.b), curr,
+        'branch corruption b'+i);
+    }
   }
 }
 
@@ -1390,7 +1395,7 @@ describe('scroll', ()=>{
         // b1 a b c d e_f g h
         t('xxx2_a', `${s}
           put(sig4 d4 branch(b0:0:M4))
-          put(sig7 d7 m0_3 m4_5 m6 branch(b1:3:M7))
+          put(sig7 d7 m0_3 m4_5 m6 ^b) b(M4 3b0.M7)
           put(m0_3 m4 sig5 d5 ^b) b(M7)
           put(m0_3 m4_5 sig6 d6 ^b) b(M7)
           put(m0_3 m4_5 m6 sig7 d7 ^b) b(M7)`);
@@ -1431,8 +1436,7 @@ describe('scroll', ()=>{
           tput(0_1_2_3 4_5_6_7 8) b(M2 1b0.M4 3b1.M6 3b1.M8)
           // XXX: test insertion of differnt order in order to get to merge all
         `);
-        // XXX: fixme
-        if (0) t('xxx4_d', `${s} t..scroll(s..M0)
+        t('xxx4_d', `${s} t..scroll(s..M0)
           tput(0 1 2            ) b(M2)
           tput(0_1 2_3 4        ) b(M2 1b0.M4)
           tput(0_1_2_3 4_5 6    ) b(M2 1b0.M4 3b1.M6)

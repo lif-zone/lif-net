@@ -1,6 +1,7 @@
 // author: derry. coder: arik.
 'use strict'; /*jslint node:true, browser:true*/
 import assert from 'assert';
+import {EventEmitter} from 'events';
 import crypto from '../util/crypto.js';
 import xerr from '../util/xerr.js';
 import enc from 'compact-encoding';
@@ -23,8 +24,9 @@ function to_frame(o){
 }
 
 // XXX: rename to Frame_buffer;
-class FrameBuffer {
+class FrameBuffer extends EventEmitter {
   constructor(opt={}){
+    super();
     let {frames} = opt;
     this.frames = [];
     for (let i=0; i<frames?.length; i++)
@@ -51,12 +53,15 @@ class FrameBuffer {
       }
       assert.fail('XXX TODO - support partial update of frames');
     }
+    this.get_hash(); // XXX: optimize and don't calc hash to emit can_hash
   }
   set_hash(h){
     assert(!this.h || this.h.equals(h), 'hash changed');
     if (this.h)
       return this.h;
-    return this.h = h;
+    if (this.h = h)
+      this.emit('can_hash');
+    return h;
   }
 }
 
@@ -280,7 +285,38 @@ function is_m_valid(m, d, sig, errors, err){
   push_error(errors, err);
   return false;
 }
+// one sec, I restart my phone. lost connection on phone.
+/* XXX derry:
+XXX: add to test for deciding branch type (fake, real, real_unknown)
+Scroll = {pub, key, crypt, prev_scroll, b}
+Scroll.b = [{b:0,...}, {b: 1,...},
+  {b:2, top: {seq, M}, branch-->parent: {b: 1, seq: 5}, map, branches: Map},
+  ...]
+Scroll.b[2].map = Map of Decl (only for declartions about branch.b)
+Decl = {scroll, binfo, fbuf, m, M}
+Decl.m = [m3, m2_3, m0_3]
 
+Branch has no id - identified by array position. after merge, position change
+
+Problem 1:
+b0
+b1: 5b0
+b2: 8b1
+
+after b0/b1 merge:
+b0
+b1: 8b0 // previous b2. all branch position after 1 changed and need to fix
+
+Problem 2:
+let m5_6b0 = scroll.m_get([6, 7], {b: 0});
+let m5_6b1 = scroll.m_get([6, 7], {b: 1});
+m5_6b1.on('can_hash', ()=>{});
+after merge (b0/b1 merge), m5_6b1 doesn't exist any more.
+
+Problem 3: storage. how will was save branches if it has no id.
+and after merge, we need to fix all entries?
+
+*/
 export default class Scroll {
   constructor(opt){
     assert(opt.pub, 'missing pub key');
@@ -296,13 +332,14 @@ export default class Scroll {
     let {b, seq} = opt;
     if (b===undefined || seq===undefined){
       assert(b===undefined && seq===undefined, 'invalid create_new_branch');
-      this.b.push({b: 0, size: 0, top: null, map: new Map(), branch: {}});
+      this.b.push({b: 0, size: 0, top: null, map: new Map(), branch: {},
+        branches: new Map()});
       return this.b.length-1;
     }
     let M = this.get_decl(seq, {b}).M_hash();
     assert(M, 'missing M'+seq);
     this.b.push({b: this.b.length, size: 0, top: null, map: new Map(),
-      branch: {b, seq}});
+      branch: {b, seq}, branches: new Map()});
     let b2 = this.b.length-1;
     this.notify_M({b: b2, seq: seq, M});
     return b2;
@@ -316,6 +353,7 @@ export default class Scroll {
     decl.sign();
     this.b[0].map.set(seq, decl);
     this.b[0].size++;
+    decl.init();
     return decl;
   }
   notify_M(opt){
@@ -334,7 +372,8 @@ export default class Scroll {
     for (let i=a.length-1; i>=0 && +a[i]; i--){
       let seq = +a[i], errors2={}, best = {b: 0, max_common: 0};
       // XXX: optimize. do only once. and assume all diff is on the same branch
-      // XXX: optimize, use !possible logic from merge_single
+      // XXX: optimize, use !mergable logic from merge_single and also
+      // take into account all
       for (let j=0; this.b.length>1 && j<this.b.length; j++){
         // XXX: optimize with {min_common} based on previous best branch
         let max_common = this.find_max_common_M({b: j, seq, diff});
@@ -358,7 +397,7 @@ export default class Scroll {
             continue;
           }
           b = b2;
-          this.update_branch(b, {init: true});
+          this.branch_update(b, {init: true});
         }
       }
       // XXX: do it only if new data was added to branch (check put_verified)
@@ -538,6 +577,7 @@ export default class Scroll {
     return m;
   }
   find_max_common_M(opt){
+    // XXX: optimization: take into account all from calc_merge_info?
     let {b, seq, diff, diff_b, common} = opt, roots = calc_roots(seq+1), ret;
     for (let i=0; i<roots.length; i++){
       let r = roots[i], max;
@@ -605,23 +645,23 @@ export default class Scroll {
       this.merge_single(b, j, seq);
   }
   merge_single(i1, i2, seq){
-    // XXX: test all possible merge of data (for eg, one branch has d/sig,
-    // other only hash)
+    // XXX: test all merge of data. verify we don't lose anything
+    // (for eg, one branch has d/sig other only hash)
     if (i2==i1)
       return;
-    [i1, i2] = i1<i2 ? [i1, i2] : [i2, i1]; // XXX: asc_order(i1, i2)
+    [i1, i2] = i1<i2 ? [i1, i2] : [i2, i1];
     let b1=this.b[i1], b2=this.b[i2], bseq;
     if (b2.branch.seq >= seq)
       return;
     if (b2.branch.seq >= b1.top.seq)
       return;
-    let possible = false, any = b2.minfo.any;
-    for (let i=0; !possible && i<any.length; i++){
+    let mergable = false, any = b2.minfo.any;
+    for (let i=0; !mergable && i<any.length; i++){
       let r = any[i], m1, m2;
       if ((m1=this.m_hash(r, {b: i1})) && (m2=this.m_hash(r, {b: i2})))
-        possible = m1.equals(m2);
+        mergable = m1.equals(m2);
     }
-    if (!possible)
+    if (!mergable)
       return;
     if (b2.branch.b==b1.branch.b){
       bseq = this.find_max_common_M({b: i1, diff_b: i2, seq,
@@ -631,7 +671,7 @@ export default class Scroll {
     assert((b1.branch.b||0)<i2, 'lower b'+i1+' cannot point upper b'+i2);
     if (b2.branch.seq >= bseq)
       return xerr('need optimize merge');
-    this.update_branch(i2, {b: i1, seq: bseq});
+    this.branch_update(i2, {b: i1, seq: bseq});
     if (b2.top.seq!=bseq && b1.top.seq!=bseq)
       return;
     // merge
@@ -645,31 +685,56 @@ export default class Scroll {
     }
     if (b2.top.seq > b1.top.seq)
       this.notify_M({b: i1, seq: b2.top.seq, M: b2.top.M});
+    this.branch_remove(i2, i1);
+  }
+  branch_remove(i2, i1){
+    assert(i2, 'cannot remove branch 0');
+    assert(i1>=0, 'must provide new branch');
+    assert(i1<i2, 'new branch must be smaller');
+    // XXX: wrap nicely
+    this.b[this.b[i2].branch.b].branches.delete(i2);
     this.b.splice(i2, 1);
     for (let i=i2; i<this.b.length; i++){
       if (this.b[i].branch.b!=i2)
         continue;
+      // XXX: wrap nicely and do it more efficient (no need to delete/readd)
+      this.b[this.b[i].branch.b].branches.delete(i);
       this.b[i].b--; // we are removing i2, need to update b number
-      this.update_branch(this.b[i].b, {b: i1});
+      this.branch_update(this.b[i].b, {b: i1});
     }
   }
-  update_branch(b, o){
+  branch_update(b, o){
     // XXX: need to rm uneeded decl now when updating branches and update all
     // relevant places on new branch
+    assert(o.b!=b, 'branch loop '+b);
     let src = this.b[b];
+    assert.equal(src.b, b, 'branch corruption '+b);
     if (o.init){
       assert(o.b===undefined && o.seq===undefined, 'invalid init');
       assert(!src.info, 'invalid init');
-      src.minfo = calc_merge_info(src.branch.seq);
+      this.update_mergable(src.b);
+      return;
     }
     if (src.b==o.b && src.seq==o.sec)
       return;
     if (o.b!==undefined)
       src.branch.b = o.b;
-    if (o.seq!==undefined){
+    if (o.seq!==undefined)
       src.branch.seq = o.seq;
-      src.minfo = calc_merge_info(src.branch.seq);
+    // XXX: do it only if needed (seq change or branch change)
+    this.update_mergable(src.b);
+  }
+  update_mergable(b){
+    // XXX: do it only if needed (seq change or branch change)
+    let b_o = this.b[b];
+    b_o.minfo = calc_merge_info(b_o.branch.seq);
+    let main_b = b_o.branch.b;
+    let main_o = this.b[main_b];
+    if (main_o.branches.get(b)){
+      assert.equal(main_o.branches.get(b), b_o, 'branch corruption '+b);
+      return;
     }
+    main_o.branches.set(b, b_o);
   }
   calc_m(opt){
     let {range, diff, diff_b} = opt;
@@ -729,6 +794,11 @@ export default class Scroll {
     let decl = this.get_decl(e, opt);
     return decl.m_hash(range);
   }
+  m_get(range, opt){
+    let [, e] = range = range_fix(range);
+    let decl = this.get_decl(e, opt);
+    return decl.m_get(range);
+  }
   M_hash(seq, opt){
     let decl = this.get_decl(seq, opt);
     return decl ? decl.M_hash() : null;
@@ -745,12 +815,14 @@ export default class Scroll {
     decl = new Decl({scroll: this, b, seq, fbuf: new FrameBuffer});
     this.b[b].map.set(seq, decl);
     this.b[b].size = Math.max(this.b[b].size, seq+1);
+    decl.init();
     return decl;
   }
 }
 
-class Decl {
+class Decl extends EventEmitter {
   constructor(opt){
+    super();
     assert(opt.seq>=0, 'must provide Decl seq');
     assert(opt.scroll, 'must provide Scroll');
     let seq = this.seq = opt.seq;
@@ -763,6 +835,10 @@ class Decl {
     for (let i=0; i<ma.length; i++)
       this.m.push(new Merkel_node({decl: this, range: ma[i]}));
     this.M = new Merkel_root({decl: this});
+  }
+  init(){
+    for (let i=0; i<this.m.length; i++)
+      this.m[i].init();
   }
   sign = ()=>{
     let scroll = this.scroll, d = this.fbuf.get_hash({skip: 0});
@@ -778,7 +854,10 @@ class Decl {
     assert(!this.sig || this.sig.equals(sig), 'sig changed');
     if (this.sig)
       return this.sig;
-    return this.sig = sig;
+    this.sig = sig;
+    if (sig)
+      this.emit('sig', sig);
+    return sig;
   }
   sig_get(){ return this.sig; }
   d_hash(){ return this.fbuf.get_hash(); }
@@ -808,16 +887,52 @@ class Decl {
   }
 }
 
-class Merkel_node {
+class Merkel_node extends EventEmitter {
   constructor(opt){
+    super();
     this.range = range_fix(opt.range);
     this.decl = opt.decl;
     this.binfo = this.decl.binfo;
+    this.can_hash = false;
+  }
+  init(){
+    let decl = this.decl, scroll = decl.scroll;
+    let [s, e] = this.range, b = this.binfo.b;
+    if (s==e){
+      const on_can_hash = ()=>{
+        this.can_hash = !!(decl.fbuf.get_hash() && decl.sig_get());
+        if (this.can_hash)
+          this.emit('can_hash');
+      };
+      // XXX: need to check fbuf.can_hash()
+      if (!(this.can_hash = !!(decl.fbuf.get_hash() && decl.sig_get()))){
+        decl.fbuf.on('can_hash', on_can_hash);
+        decl.on('sig', on_can_hash);
+      }
+    } else {
+      let [r1, r2] = range_split(this.range);
+      let m1 = scroll.m_get(r1, {b}), m2 = scroll.m_get(r2, {b});
+      const on_can_hash_m = ()=>{
+        this.can_hash = m1.can_hash && m2.can_hash;
+        if (this.can_hash)
+          this.emit('can_hash');
+      };
+      if (m1.can_hash && m2.can_hash)
+        this.can_hash = true;
+      else {
+        if (!m1.can_hash)
+          m1.on('can_hash', on_can_hash_m);
+        if (!m2.can_hash)
+          m2.on('can_hash', on_can_hash_m);
+      }
+    }
   }
   get_hash(){
     // XXX: optimize, don't run calc if there is no change in dependent data
     if (this.h)
       return this.h;
+    if (!this.can_hash)
+      return null;
     let [s, e] = this.range, decl = this.decl;
     if (s==e){
       let d = decl.fbuf.get_hash(), sig = decl.sig;
@@ -835,7 +950,12 @@ class Merkel_node {
     assert(!this.h || this.h.equals(h), 'hash changed');
     if (this.h)
       return this.h;
-    return this.h = h;
+    this.h = h;
+    if (h && !this.can_hash){
+      this.can_hash = true;
+      this.emit('can_hash');
+    }
+    return h;
   }
 }
 
@@ -846,6 +966,7 @@ class Merkel_root {
     this.binfo = this.decl.binfo;
   }
   get_hash(){
+    // XXX: need can_hash
     if (this.h)
       return this.h;
     return this.set_hash(this.scroll.calc_root_hash(this.decl.seq,

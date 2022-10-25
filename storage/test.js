@@ -262,11 +262,13 @@ describe('test_util', ()=>{
   it('parse_branch', ()=>{
     const t = (val, exp)=>assert.deepEqual(parse_branch(val), exp);
     t('M9=s.M9', {top: {seq: 9, M: 's.M9'}});
-    t('3.M9=s.M9', {top: {seq: 9, M: 's.M9'}, b: {seq: 3, b: 0}});
-    t('3b1.M9=s.M9', {top: {seq: 9, M: 's.M9'}, b: {seq: 3, b: 1}});
+    t('3.M9=s.M9', {top: {seq: 9, M: 's.M9'}, b: {seq: 3, b: 0, type: 'v'}});
+    t('3b1.M9=s.M9', {top: {seq: 9, M: 's.M9'}, b: {seq: 3, b: 1, type: 'b'}});
+    t('3v1.M9=s.M9', {top: {seq: 9, M: 's.M9'}, b: {seq: 3, b: 1, type: 'v'}});
     t('M9', {top: {seq: 9, M: 'M9'}});
-    t('3.M9', {top: {seq: 9, M: 'M9'}, b: {seq: 3, b: 0}});
-    t('3b1.M9', {top: {seq: 9, M: 'M9'}, b: {seq: 3, b: 1}});
+    t('3.M9', {top: {seq: 9, M: 'M9'}, b: {seq: 3, b: 0, type: 'v'}});
+    t('3b1.M9', {top: {seq: 9, M: 'M9'}, b: {seq: 3, b: 1, type: 'b'}});
+    t('3v1.M9', {top: {seq: 9, M: 'M9'}, b: {seq: 3, b: 1, type: 'v'}});
   });
 });
 
@@ -561,11 +563,11 @@ const cmd_test = t=>etask(function*cmd_test(){
 function parse_branch(s){
   let m = s.match(/^([^=]+)=([^=]+)$/);
   let l= m ? m[1] : s, r = m&&m[2];
-  m = l.match(/^((\d+)(b(\d+))?\.)?M(\d+)$/);
+  m = l.match(/^((\d+)(([b|v])(\d+))?\.)?M(\d+)$/);
   assert(m, 'invalid branch '+s);
-  r = r||'M'+m[5];
-  let top = {seq: +m[5], M: r};
-  let b = m[2] ? {seq: +m[2], b: +m[4]||0} : undefined;
+  r = r||'M'+m[6];
+  let top = {seq: +m[6], M: r};
+  let b = m[2] ? {seq: +m[2], b: +m[5]||0, type: m[4]||'v'} : undefined;
   return b ? {top, b} : {top};
 }
 
@@ -586,7 +588,7 @@ const cmd_b = t=>etask(function*cmd_branch(){
   for (i=0; i<scroll.b.length; i++){
     let o = scroll.b[i];
     assert.deepEqual(o.branch.b!==undefined ?
-      {seq: o.branch.seq, b: o.branch.b} : undefined,
+      {seq: o.branch.seq, b: o.branch.b, type: o.branch.type} : undefined,
       tested[i].b, 'branch '+i+' mismatch '+t.r);
     assert.equal(o.top.seq, tested[i].top.seq, 'top seq mismatch b'+i+
       ' '+t.r);
@@ -1293,10 +1295,12 @@ describe('scroll', ()=>{
         t('3b0_8b1_15b1_zzz2', `s.scroll(!prev_scroll) s.decl(1-32)
           s1.clone(s.0_3) s1.decl(4-32) s2.clone(s1.0_8) s2.decl(9-32)
           s3.clone(s1.0_15) s3.decl(16-32) t..clone(s.0_32)
-          put(s1..m0_3 sig4 d4 branch(b1:3:s1.M4))
-          put(s2..m0_3 m4_7 m8 sig9 d9 branch(b2:3:s2.M9))
+          put(s1..m0_3 sig4 d4 ^b) b(M32=s.M32 3b0.M4=s1.M4)
+          put(s2..m0_3 m4_7 m8 sig9 d9 ^b)
+          b(M32=s.M32 3b0.M4=s1.M4 3b0.M9=s2.M9)
           put(s1..sig9 d9 m0 m1 m2_3 m4 m5 m6_7 m8 ^b)
-          b(M32=s.M32 3b0.M9=s2.M9 8b1.M9=s1.M9)`);
+          b(M32=s.M32 3b0.M9=s2.M9 8b1.M9=s1.M9)
+        `);
         // XXX: derry two branches that should be the same
         t('3b0_8b1_15b1_zzz3', `s.scroll(!prev_scroll) s.decl(1-32)
           s1.clone(s.0_3) s1.decl(4-32) t..clone(s.0_32)
@@ -1395,7 +1399,7 @@ describe('scroll', ()=>{
         // b1 a b c d e_f g h
         t('xxx2_a', `${s}
           put(sig4 d4 branch(b0:0:M4))
-          put(sig7 d7 m0_3 m4_5 m6 ^b) b(M4 3b0.M7)
+          put(sig7 d7 m0_3 m4_5 m6 ^b) b(M4 3v0.M7)
           put(m0_3 m4 sig5 d5 ^b) b(M7)
           put(m0_3 m4_5 sig6 d6 ^b) b(M7)
           put(m0_3 m4_5 m6 sig7 d7 ^b) b(M7)`);
@@ -1405,42 +1409,42 @@ describe('scroll', ()=>{
         // b2 0 1 2 3 4 5 6
         // b3 0 1 2 3 4_5 6 7
         t('xxx3_a', `${s}
-          put(sig9 d9 m8 m6_7 m4_5 m0_3 ^b) b(M4 3b0.M9)
-          put(sig6 d6 m4 m5 m0_3 ^b) b(M9 5b0.M6)
+          put(sig9 d9 m8 m6_7 m4_5 m0_3 ^b) b(M4 3v0.M9)
+          put(sig6 d6 m4 m5 m0_3 ^b) b(M9 5v0.M6)
           put(sig7 d7 m6 m4_5 m0_3 ^b) b(M9)`);
         // b0 0 1 2 3 4
         // b1 0 1 2 3 4_5 6_7 8 9
         // b2 0 1 2 3 4_5 6
         // b3 0 1 2 3 4 5 6 7
         t('xxx3_b', `${s}
-          put(sig9 d9 m8 m6_7 m4_5 m0_3 ^b) b(M4 3b0.M9)
-          put(sig6 d6 m4_5 m0_3 ^b) b(M4 3b0.M9 5b1.M6)
+          put(sig9 d9 m8 m6_7 m4_5 m0_3 ^b) b(M4 3v0.M9)
+          put(sig6 d6 m4_5 m0_3 ^b) b(M4 3v0.M9 5v1.M6)
           put(sig7 d7 m6 m4 m5 m0_3 ^b) b(M9)`);
         s = 's..scroll(!prev_scroll) decl(0-32)';
         t('xxx4_a', `${s} t..scroll(s..M0)
           tput(0 1 2 3 4          ) b(M4)
-          tput(0_1_2_3 4_5 6_7 8 9) b(M4 3b0.M9)
-          tput(0_1_2_3 4 5 6      ) b(M9 5b0.M6)
+          tput(0_1_2_3 4_5 6_7 8 9) b(M4 3v0.M9)
+          tput(0_1_2_3 4 5 6      ) b(M9 5v0.M6)
           tput(0_1_2_3 4_5 6 7    ) b(M9)
         `);
         t('xxx4_b', `${s} t..scroll(s..M0)
           tput(0 1 2 3 4          ) b(M4)
-          tput(0_1_2_3 4_5 6_7 8 9) b(M4 3b0.M9)
-          tput(0_1_2_3 4_5 6      ) b(M4 3b0.M9 5b1.M6)
+          tput(0_1_2_3 4_5 6_7 8 9) b(M4 3v0.M9)
+          tput(0_1_2_3 4_5 6      ) b(M4 3v0.M9 5v1.M6)
           tput(0_1_2_3 4 5 6 7    ) b(M9)
         `);
         t('xxx4_c', `${s} t..scroll(s..M0)
           tput(0 1 2            ) b(M2)
-          tput(0_1 2_3 4        ) b(M2 1b0.M4)
-          tput(0_1_2_3 4_5 6    ) b(M2 1b0.M4 3b1.M6)
-          tput(0_1_2_3 4_5_6_7 8) b(M2 1b0.M4 3b1.M6 3b1.M8)
+          tput(0_1 2_3 4        ) b(M2 1v0.M4)
+          tput(0_1_2_3 4_5 6    ) b(M2 1v0.M4 3v1.M6)
+          tput(0_1_2_3 4_5_6_7 8) b(M2 1v0.M4 3v1.M6 3v1.M8)
           // XXX: test insertion of differnt order in order to get to merge all
         `);
         t('xxx4_d', `${s} t..scroll(s..M0)
           tput(0 1 2            ) b(M2)
-          tput(0_1 2_3 4        ) b(M2 1b0.M4)
-          tput(0_1_2_3 4_5 6    ) b(M2 1b0.M4 3b1.M6)
-          tput(0_1_2_3 4_5 6_7 8) b(M2 1b0.M4 3b1.M6 5b2.M8)
+          tput(0_1 2_3 4        ) b(M2 1v0.M4)
+          tput(0_1_2_3 4_5 6    ) b(M2 1v0.M4 3v1.M6)
+          tput(0_1_2_3 4_5 6_7 8) b(M2 1v0.M4 3v1.M6 5v2.M8)
           // XXX: test insertion of differnt order in order to get to merge all
         `);
       });

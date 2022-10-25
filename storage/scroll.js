@@ -332,14 +332,14 @@ export default class Scroll {
     let {b, seq} = opt;
     if (b===undefined || seq===undefined){
       assert(b===undefined && seq===undefined, 'invalid create_new_branch');
-      this.b.push({b: 0, size: 0, top: null, map: new Map(), branch: {},
-        branches: new Map()});
+      this.b.push({b: 0, size: 0, top: null, map: new Map(),
+        branch: {}, branches: new Map()});
       return this.b.length-1;
     }
     let M = this.get_decl(seq, {b}).M_hash();
     assert(M, 'missing M'+seq);
-    this.b.push({b: this.b.length, size: 0, top: null, map: new Map(),
-      branch: {b, seq}, branches: new Map()});
+    this.b.push({b: this.b.length, size: 0, top: null,
+      map: new Map(), branch: {b, seq, type: 'v'}, branches: new Map()});
     let b2 = this.b.length-1;
     this.notify_M({b: b2, seq: seq, M});
     return b2;
@@ -655,14 +655,19 @@ export default class Scroll {
       return;
     if (b2.branch.seq >= b1.top.seq)
       return;
-    let mergable = false, any = b2.minfo.any;
-    for (let i=0; !mergable && i<any.length; i++){
+    let mergable = false, real_branch = false, any = b2.minfo.any;
+    for (let i=0; !real_branch && i<any.length; i++){
       let r = any[i], m1, m2;
-      if ((m1=this.m_hash(r, {b: i1})) && (m2=this.m_hash(r, {b: i2})))
-        mergable = m1.equals(m2);
+      if ((m1=this.m_hash(r, {b: i1})) && (m2=this.m_hash(r, {b: i2}))){
+        real_branch = !m1.equals(m2);
+        mergable = mergable || !real_branch;
+      }
     }
-    if (!mergable)
+    if (!mergable){
+      if (real_branch && b2.branch.b==i1)
+        this.branch_update(i2, {type: real_branch ? 'b' : 'v'});
       return;
+    }
     if (b2.branch.b==b1.branch.b){
       bseq = this.find_max_common_M({b: i1, diff_b: i2, seq,
         common: b2.branch.seq});
@@ -671,7 +676,7 @@ export default class Scroll {
     assert((b1.branch.b||0)<i2, 'lower b'+i1+' cannot point upper b'+i2);
     if (b2.branch.seq >= bseq)
       return xerr('need optimize merge');
-    this.branch_update(i2, {b: i1, seq: bseq});
+    this.branch_update(i2, {b: i1, seq: bseq, type: real_branch ? 'b' : 'v'});
     if (b2.top.seq!=bseq && b1.top.seq!=bseq)
       return;
     // merge
@@ -709,6 +714,7 @@ export default class Scroll {
     assert(o.b!=b, 'branch loop '+b);
     let src = this.b[b];
     assert.equal(src.b, b, 'branch corruption '+b);
+    assert(src.branch.type, 'missing branch type');
     if (o.init){
       assert(o.b===undefined && o.seq===undefined, 'invalid init');
       assert(!src.info, 'invalid init');
@@ -717,10 +723,19 @@ export default class Scroll {
     }
     if (src.b==o.b && src.seq==o.sec)
       return;
-    if (o.b!==undefined)
+    if (o.b!==undefined){
+      assert(src.branch!=o.b || o.type===undefined || src.branch.type!='b' ||
+        o.type=='b', 'real branch type change b'+src.b);
       src.branch.b = o.b;
+    }
     if (o.seq!==undefined)
       src.branch.seq = o.seq;
+    if (o.type!==undefined){
+      assert(['v', 'b'].includes(o.type), 'invalid branch type '+o.type);
+      assert(o.b || src.branch.type!='b' || o.type=='b',
+        'real branch type change b'+src.b);
+      src.branch.type = o.type;
+    }
     // XXX: do it only if needed (seq change or branch change)
     this.update_mergable(src.b);
   }

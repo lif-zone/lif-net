@@ -643,11 +643,16 @@ export default class Scroll {
     return {range, m: vm};
   }
   merge_all(seq, b){
-    // XXX: temporary unefficient code
-    for (let j=0; this.b.length>1 && j<this.b.length; j++){
-      let o = this.merge_single(b, j, seq);
-      if (o?.prev==b)
-        b = o.curr;
+    // XXX HACK: terrible unefficient loop. Need to listen to merkle changes
+    // and just merge those can are mergable
+    for (let i=0; this.b.length>1 && i<this.b.length; i++){
+      for (let j=0; this.b.length>1 && j<this.b.length; j++){
+        if (i==j)
+          continue;
+        let o = this.merge_single(i, j, seq);
+        if (o?.prev==i)
+          i = o.curr;
+      }
     }
   }
   merge_single(i1, i2, seq){

@@ -650,6 +650,7 @@ const test_run_single = (curr, o)=>etask(function*_test_run_single(){
   case 'branch': yield cmd_branch(o); break; // XXX: rm branch
   case 'b': yield cmd_b(o); break;
   case '//': break;
+  case 'dbg': debugger; break; // eslint-disable-line no-debugger
   case '=': yield cmd_eq(o); break;
   case '.':
   case '..':
@@ -1437,7 +1438,7 @@ describe('scroll', ()=>{
           tput(0 1 2            ) b(M2)
           tput(0_1 2_3 4        ) b(M2 1v0.M4)
           tput(0_1_2_3 4_5 6    ) b(M2 1v0.M4 3v1.M6)
-          tput(0_1_2_3 4_5_6_7 8) b(M2 1v0.M4 3v1.M6 3v1.M8)
+          tput(0_1_2_3 4_5_6_7 8) b(M2 1v0.M4 3v1.M6 3v2.M8)
           tput(0_1 2 3 4 5 6 7) b(M8)
         `);
         t('xxx4_d', `${s} t..scroll(s..M0)
@@ -1454,7 +1455,7 @@ describe('scroll', ()=>{
           tput(0_1 2_3 4        ) b(M2 1v0.M4)
           tput(0_1_2_3 4_5 6    ) b(M2 1v0.M4 3v1.M6)
           tput(0_1_2_3 4_5 6_7 8) b(M2 1v0.M4 3v1.M6 5v2.M8)
-          tput(0_1 2_3 4_f g    ) b(M2 1v0.M4 3v1.M6 5v2.M8 3v1.M6=s1.M6)
+          tput(0_1 2_3 4_f g    ) b(M2 1v0.M4 3v1.M6 5v2.M8 3b3.M6=s1.M6)
           // XXX: how to mark not final branch point
           tput(0_1 2 3 4 5 6 7  ) b(M8 3b0.M6=s1.M6)
           tput(0_1 2_3 4 f      ) b(M8 4b0.M6=s1.M6)
@@ -1464,23 +1465,39 @@ describe('scroll', ()=>{
           tput(0_1 2_3 4        ) b(M2 1v0.M4)
           tput(0_1_2_3 4_5 6    ) b(M2 1v0.M4 3v1.M6)
           tput(0_1_2_3 4_5 6_7 8) b(M2 1v0.M4 3v1.M6 5v2.M8)
-          tput(0_1 2_3 4_f g    ) b(M2 1v0.M4 3v1.M6 5v2.M8 3v1.M6=s1.M6)
+          tput(0_1 2_3 4_f g    ) b(M2 1v0.M4 3v1.M6 5v2.M8 3b3.M6=s1.M6)
           tput(0_1 2_3 4_f g_h i)
-            b(M2 1v0.M4 3v1.M6 5v2.M8 3v1.M6=s1.M6 5v4.M8=s1.M8)
+            b(M2 1v0.M4 3v1.M6 5v2.M8 3b3.M6=s1.M6 5v4.M8=s1.M8)
           tput(0_1 2 3 4 5 6 7  ) b(M8 3b0.M6=s1.M6 5v1.M8=s1.M8)
           tput(0_1 2_3 4 f      ) b(M8 4b0.M6=s1.M6 5v1.M8=s1.M8)
           tput(0_1 2_3 4 f g h  ) b(M8 4b0.M8=s1.M8)
         `);
+        // XXX BUG: need to push into all different branches
         t('xxx6_branch_vbranch', `${s}
           tput(0 1 2            ) b(M2)
           tput(0_1 2_3 4        ) b(M2 1v0.M4)
           tput(0_1_2_3 4_5 6    ) b(M2 1v0.M4 3v1.M6)
-          tput(0_1_2_3 4_f g    ) b(M2 1v0.M4 3v1.M6 3v1.M6=s1.M6)
-          tput(0_1_2_3 4_f g_h i) b(M2 1v0.M4 3v1.M6 3v1.M6=s1.M6 5v3.M8=s1.M8)
+          tput(0_1_2_3 4_f g    ) b(M2 1v0.M4 3v1.M6 3b2.M6=s1.M6)
+          tput(0_1_2_3 4_f g_h i) b(M2 1v0.M4 3v1.M6 3b2.M6=s1.M6 5v3.M8=s1.M8)
           // XXX syntax: how to specify final branch point (3b0/4b0)?
-          tput(0_1 2 3 4 5 6    ) b(M6 3b0.M6=s1.M6 5v1.M8=s1.M8) // 3b0 !final
-          tput(0_1_2_3 4 f      ) b(M6 4b0.M6=s1.M6 5v1.M8=s1.M8) // 4b0 final
-          tput(0_1_2_3 4 f g h  ) b(M6 4b0.M8=s1.M8)
+          tput(0_1 2 3 4 5 6    ) b(M2 1v0.M6 3b1.M6=s1.M6 5v2.M8=s1.M8)
+// XXX          m3b1=s.m3
+// XXX          m3b0=s.m3
+          // XXX 3b1 !final. need to use 3_4b1
+          tput(0_1_2_3 4 f      ) b(M2 1v0.M6 3b1.M6=s1.M6 5v2.M8=s1.M8)
+          tput(0_1_2_3 4 f g h  ) b(M2 1v0.M6 4b1.M8=s1.M8)
+        `);
+        t('xxx7_select_longest_a', `${s}
+          tput(0 1 2            ) b(M2)
+          tput(0_1 2_3 4        ) b(M2 1v0.M4)
+          tput(0_1_2_3 4_5 6    ) b(M2 1v0.M4 3v1.M6)
+          tput(0_1_2_3 4_f g    ) b(M2 1v0.M4 3v1.M6 3b2.M6=s1.M6)
+        `);
+        t('xxx7_select_longest_b', `${s}
+          tput(0 1 2            ) b(M2)
+          tput(0_1 2_3 4_5_6_7 8) b(M2 1v0.M8)
+          tput(0_1_2_3 4_5 6    ) b(M2 1v0.M8 3v1.M6)
+          tput(0_1_2_3 4_f g    ) b(M2 1v0.M8 3v1.M6 3v1.M6=s1.M6)
         `);
         // XXX: support 3_4b0 for non-final brnaching point
       });
@@ -1552,7 +1569,7 @@ m2_3
 
           tput(0_1_2_3 4_f g_h i) b(M2 1v0.M4 3v1.M6 3v1.M6=s1.M6 5v3.M8=s1.M8)
           // XXX syntax: how to specify final branch point (3b0/4b0)?
-          tput(0_1_2 3 4 5 6    ) b(M6 3_4b0.M6=s1.M6 5v1.M8=s1.M8) // 3b0 !final
+          tput(0_1_2 3 4 5 6    ) b(M6 3_4b0.M6=s1.M6 5v1.M8=s1.M8) // !final
           tput(0_1_2_3 4 f      ) b(M6 4b0.M6=s1.M6 5v1.M8=s1.M8) // 4b0 final
           tput(0_1_2_3 4 f g h  ) b(M6 4b0.M8=s1.M8)
         `);

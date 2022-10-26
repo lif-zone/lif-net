@@ -377,8 +377,11 @@ export default class Scroll {
       for (let j=0; this.b.length>1 && j<this.b.length; j++){
         // XXX: optimize with {min_common} based on previous best branch
         let max_common = this.find_max_common_M({b: j, seq, diff});
-        if (best.max_common < max_common)
-          best = {b: j, max_common};
+        let top = this.b[j].top.seq;
+        if (best.max_common < max_common ||
+          best.max_common==max_common && best.top < top){
+          best = {b: j, max_common, top};
+        }
       }
       let b = best.b;
       let ret = this.put_single(seq, diff, errors2, {b});

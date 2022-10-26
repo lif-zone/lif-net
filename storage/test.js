@@ -1475,13 +1475,14 @@ describe('scroll', ()=>{
           tput(0 1 2            ) b(M2)
           tput(0_1 2_3 4        ) b(M2 1v0.M4)
           tput(0_1_2_3 4_5 6    ) b(M2 1v0.M4 3v1.M6)
-          tput(0_1 2_3 4_f g    ) b(M2 1v0.M4 3v1.M6 3v1.M6=s1.M6)
-          tput(0_1 2_3 4_f g_h i) b(M2 1v0.M4 3v1.M6 3v1.M6=s1.M6 5v3.M8=s1.M8)
+          tput(0_1_2_3 4_f g    ) b(M2 1v0.M4 3v1.M6 3v1.M6=s1.M6)
+          tput(0_1_2_3 4_f g_h i) b(M2 1v0.M4 3v1.M6 3v1.M6=s1.M6 5v3.M8=s1.M8)
           // XXX syntax: how to specify final branch point (3b0/4b0)?
           tput(0_1 2 3 4 5 6    ) b(M6 3b0.M6=s1.M6 5v1.M8=s1.M8) // 3b0 !final
-          tput(0_1 2_3 4 f      ) b(M6 4b0.M6=s1.M6 5v1.M8=s1.M8) // 4b0 final
-          tput(0_1 2_3 4 f g h  ) b(M6 4b0.M8=s1.M8)
+          tput(0_1_2_3 4 f      ) b(M6 4b0.M6=s1.M6 5v1.M8=s1.M8) // 4b0 final
+          tput(0_1_2_3 4 f g h  ) b(M6 4b0.M8=s1.M8)
         `);
+        // XXX: support 3_4b0 for non-final brnaching point
       });
     });
   });
@@ -1524,4 +1525,40 @@ pct.t2
           1    2
         a  b  c d
         cd - 2 - 1 0
+*/
+
+/* XXX: derry
+        t('xxx6_branch_vbranch', `${s}
+          tput(0 1 2            ) b(M2)
+          //       0123 01 23? 4
+0123x
+have 0 1 2. add 4: 0 1 x2_3 4
+1 2_3 4
+          tput(0_1 2_3 4        ) b(M2 1v0.M4)
+0 1 2_3x 4
+01234567 0123x 45x6x7x
+          tput(0_1_2_3 4_5 6    ) b(M2 1v0.M4 3v1.M6)
+0 1 2_3x 4_5x 6
+01234567 0123x 45x67x
+6: {m[0]: m6}
+          tput(0_1_2_3 4_f g    ) b(M2 1v0.M4 3v1.M6 3v1.M6=s1.M6)
+0 1 2_3x 4_5x 6
+0 1 2_3x 4x_fx g
+01234567 {0123x {01 {0 1} 23x {2 3x}} 45xg7x {45x g7x {{m=[6,g]} {7x}}}
+6: {m[0]: m6, m[1]: mg}
+
+m2_3
+3: {m: [m3, m2_3, m0_3}}
+
+          tput(0_1_2_3 4_f g_h i) b(M2 1v0.M4 3v1.M6 3v1.M6=s1.M6 5v3.M8=s1.M8)
+          // XXX syntax: how to specify final branch point (3b0/4b0)?
+          tput(0_1_2 3 4 5 6    ) b(M6 3_4b0.M6=s1.M6 5v1.M8=s1.M8) // 3b0 !final
+          tput(0_1_2_3 4 f      ) b(M6 4b0.M6=s1.M6 5v1.M8=s1.M8) // 4b0 final
+          tput(0_1_2_3 4 f g h  ) b(M6 4b0.M8=s1.M8)
+        `);
+        // XXX: support 3_4b0 for non-final brnaching point
+      });
+    });
+
+
 */

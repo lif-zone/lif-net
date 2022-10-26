@@ -288,13 +288,16 @@ function is_m_valid(m, d, sig, errors, err){
 // one sec, I restart my phone. lost connection on phone.
 /* XXX derry:
 XXX: add to test for deciding branch type (fake, real, real_unknown)
+
+NOW:
 Scroll = {pub, key, crypt, prev_scroll, b}
-Scroll.b = [{b:0,...}, {b: 1,...},
-  {b:2, top: {seq, M}, branch-->parent: {b: 1, seq: 5}, map, branches: Map},
-  ...]
+Scroll.b = [..., {b:2, top: {seq, M}, branch-->parent: {b: 1, seq: 5}, map,
+  branches: Map}, ...]
 Scroll.b[2].map = Map of Decl (only for declartions about branch.b)
 Decl = {scroll, binfo, fbuf, m, M}
 Decl.m = [m3, m2_3, m0_3]
+
+NEW:
 
 Branch has no id - identified by array position. after merge, position change
 
@@ -333,13 +336,13 @@ export default class Scroll {
     if (b===undefined || seq===undefined){
       assert(b===undefined && seq===undefined, 'invalid create_new_branch');
       this.b.push({b: 0, size: 0, top: null, map: new Map(),
-        branch: {}, branches: new Map()});
+        parent: {}, branches: new Map()});
       return this.b.length-1;
     }
     let M = this.get_decl(seq, {b}).M_hash();
     assert(M, 'missing M'+seq);
     this.b.push({b: this.b.length, size: 0, top: null,
-      map: new Map(), branch: {b, seq, type: 'v'}, branches: new Map()});
+      map: new Map(), parent: {b, seq, type: 'v'}, branches: new Map()});
     let b2 = this.b.length-1;
     this.notify_M({b: b2, seq: seq, M});
     return b2;
@@ -662,9 +665,9 @@ export default class Scroll {
       return;
     [i1, i2] = i1<i2 ? [i1, i2] : [i2, i1];
     let b1=this.b[i1], b2=this.b[i2], bseq;
-    if (b2.branch.seq >= seq)
+    if (b2.parent.seq >= seq)
       return;
-    if (b2.branch.seq >= b1.top.seq)
+    if (b2.parent.seq >= b1.top.seq)
       return;
     let mergable = false, real_branch = false, any = b2.minfo.any;
     for (let i=0; !real_branch && i<any.length; i++){
@@ -675,17 +678,17 @@ export default class Scroll {
       }
     }
     if (!mergable){
-      if (real_branch && b2.branch.b==i1)
+      if (real_branch && b2.parent.b==i1)
         this.branch_update(i2, {type: real_branch ? 'b' : 'v'});
       return;
     }
-    if (b2.branch.b==b1.branch.b){
+    if (b2.parent.b==b1.parent.b){
       bseq = this.find_max_common_M({b: i1, diff_b: i2, seq,
-        common: b2.branch.seq});
+        common: b2.parent.seq});
     } else // XXX: calc common by checking if b2 depends on b1 somehow
       bseq = this.find_max_common_M({b: i1, diff_b: i2, seq});
-    assert((b1.branch.b||0)<i2, 'lower b'+i1+' cannot point upper b'+i2);
-    if (b2.branch.seq >= bseq)
+    assert((b1.parent.b||0)<i2, 'lower b'+i1+' cannot point upper b'+i2);
+    if (b2.parent.seq >= bseq)
       return xerr('need optimize merge');
     this.branch_update(i2, {b: i1, seq: bseq, type: real_branch ? 'b' : 'v'});
     if (b2.top.seq!=bseq && b1.top.seq!=bseq)
@@ -709,21 +712,21 @@ export default class Scroll {
     assert(i1>=0, 'must provide new branch');
     assert(i1<i2, 'new branch must be smaller');
     // XXX: wrap nicely
-    this.b[this.b[i2].branch.b].branches.delete(i2);
+    this.b[this.b[i2].parent.b].branches.delete(i2);
     this.b.splice(i2, 1);
     for (let i=i2; i<this.b.length; i++){
       this.b[i].b--; // we are removing i2, need to update b number
-      if (this.b[i].branch.b<i2)
+      if (this.b[i].parent.b<i2)
         continue;
       // XXX: wrap nicely and do it more efficient (no need to delete/readd)
-      this.b[this.b[i].branch.b].branches.delete(i);
-      if (this.b[i].branch.b==i2)
+      this.b[this.b[i].parent.b].branches.delete(i);
+      if (this.b[i].parent.b==i2)
         this.branch_update(this.b[i].b, {b: i1});
       else
         this.branch_update(this.b[i].b, {b: this.b[i].b-1});
     }
     for (let i=0; i<this.b.length; i++)
-      assert(this.b[i].b!=this.b[i].branch.b, 'branch corruption loop b'+i);
+      assert(this.b[i].b!=this.b[i].parent.b, 'branch corruption loop b'+i);
   }
   branch_update(b, o){
     // XXX: need to rm uneeded decl now when updating branches and update all
@@ -731,7 +734,7 @@ export default class Scroll {
     assert(o.b!=b, 'branch loop '+b);
     let src = this.b[b];
     assert.equal(src.b, b, 'branch corruption '+b);
-    assert(src.branch.type, 'missing branch type');
+    assert(src.parent.type, 'missing branch type');
     if (o.init){
       assert(o.b===undefined && o.seq===undefined, 'invalid init');
       assert(!src.info, 'invalid init');
@@ -741,17 +744,17 @@ export default class Scroll {
     if (src.b==o.b && src.seq==o.sec)
       return;
     if (o.b!==undefined){
-      assert(src.branch!=o.b || o.type===undefined || src.branch.type!='b' ||
+      assert(src.parent!==o.b || o.type===undefined || src.parent.type!='b' ||
         o.type=='b', 'real branch type change b'+src.b);
-      src.branch.b = o.b;
+      src.parent.b = o.b;
     }
     if (o.seq!==undefined)
-      src.branch.seq = o.seq;
+      src.parent.seq = o.seq;
     if (o.type!==undefined){
       assert(['v', 'b'].includes(o.type), 'invalid branch type '+o.type);
-      assert(o.b || src.branch.type!='b' || o.type=='b',
+      assert(o.b || src.parent.type!='b' || o.type=='b',
         'real branch type change b'+src.b);
-      src.branch.type = o.type;
+      src.parent.type = o.type;
     }
     // XXX: do it only if needed (seq change or branch change)
     this.update_mergable(src.b);
@@ -759,8 +762,8 @@ export default class Scroll {
   update_mergable(b){
     // XXX: do it only if needed (seq change or branch change)
     let b_o = this.b[b];
-    b_o.minfo = calc_merge_info(b_o.branch.seq);
-    let main_b = b_o.branch.b;
+    b_o.minfo = calc_merge_info(b_o.parent.seq);
+    let main_b = b_o.parent.b;
     let main_o = this.b[main_b];
     if (main_o.branches.get(b)){
       assert.equal(main_o.branches.get(b), b_o, 'branch corruption '+b);
@@ -839,8 +842,8 @@ export default class Scroll {
     assert(typeof seq=='number', 'invalid seq '+seq);
     let b = opt.b===undefined ? 0 : opt.b, decl;
     assert(this.b[b], 'missing branch '+seq+'b'+b);
-    if (this.b[b].branch.b!==undefined && seq <= this.b[b].branch.seq)
-      return this.get_decl(seq, {b: this.b[b].branch.b, create: opt.create});
+    if (this.b[b].parent.b!==undefined && seq <= this.b[b].parent.seq)
+      return this.get_decl(seq, {b: this.b[b].parent.b, create: opt.create});
     decl = this.b[b].map.get(seq);
     if (decl || opt.create===false)
       return decl;

@@ -116,7 +116,7 @@ function assert_no_corruption(scroll){
     curr.map.forEach((decl, seq)=>assert.equal(decl.binfo.b, i,
       'branch corruption b'+i+' seq '+seq));
     if (i){
-      assert.equal(scroll.b[curr.branch.b].branches.get(curr.b), curr,
+      assert.equal(scroll.b[curr.parent.b].branches.get(curr.b), curr,
         'branch corruption b'+i);
     }
   }
@@ -489,14 +489,14 @@ const cmd_put = (curr, t)=>etask(function*cmd_put(){
         continue;
       }
       let o = scroll.b[i];
-      exp_branch += (o.branch.seq||0)+'b'+(o.branch.b||0)+':'+name+
+      exp_branch += (o.parent.seq||0)+'b'+(o.parent.b||0)+':'+name+
         '.M'+o.top.seq+'b'+i;
     }
   } else if (!skip_b){
     for (let i=1; i<scroll.b.length; i++){
       exp_branch += (exp_branch ? ' ' : '')+'b'+i+':';
       let o = scroll.b[i];
-      exp_branch += (o.branch.seq||0)+'b'+(o.branch.b||0);
+      exp_branch += (o.parent.seq||0)+'b'+(o.parent.b||0);
     }
   }
   let ret = scroll.put(diff);
@@ -587,8 +587,8 @@ const cmd_b = t=>etask(function*cmd_branch(){
   assert.equal(scroll.b.length, i, 'branch count mismatch '+t.r);
   for (i=0; i<scroll.b.length; i++){
     let o = scroll.b[i];
-    assert.deepEqual(o.branch.b!==undefined ?
-      {seq: o.branch.seq, b: o.branch.b, type: o.branch.type} : undefined,
+    assert.deepEqual(o.parent.b!==undefined ?
+      {seq: o.parent.seq, b: o.parent.b, type: o.parent.type} : undefined,
       tested[i].b, 'branch '+i+' mismatch '+t.r);
     assert.equal(o.top.seq, tested[i].top.seq, 'top seq mismatch b'+i+
       ' '+t.r);
@@ -608,9 +608,9 @@ const cmd_branch = t=>etask(function*cmd_branch(){
   for (let i=1; i<scroll.b.length; i++){
     let o = scroll.b[i];
     assert(tested[i], 'branch '+i+' missing');
-    assert.deepEqual({branch: {b: o.branch.b, seq: o.branch.seq},
+    assert.deepEqual({parent: {b: o.parent.b, seq: o.parent.seq},
       top: {M: tested[i].M && o.top.M}},
-      {branch: {b: tested[i].b, seq: tested[i].seq},
+      {parent: {b: tested[i].b, seq: tested[i].seq},
       top: {M: tested[i].M && (yield get_val(tested[i].M, 'right'))}},
       'branch '+i+' mismatch');
     delete tested[i];

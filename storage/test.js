@@ -1495,6 +1495,22 @@ describe('scroll', ()=>{
           tput(0_1_2_3 4_5 6    ) b(M2 1v0.M8 3v1.M6)
           tput(0_1_2_3 4_f g    ) b(M2 1v0.M8 3v1.M6 3v1.M6=s1.M6)
         `);
+        t('xxx8_a', `${s}
+          tput(0 1              ) b(M1)
+          tput(0 1 2            ) b(M2)
+          tput(0 1 2 3          ) b(M3)
+          tput(0 1 2_3 4        ) b(M4)
+          tput(0_1_2_3 4 5      ) b(M5)
+          tput(0_1_2_3 4_5 6    ) b(M6)
+          tput(0_1_2_3 4_5 6 7  ) b(M7)
+          tput(0_1_2_3 4_5_6_7 8) b(M8)
+        `);
+        t('xxx8_b', `${s}
+          tput(0 1              ) b(M1)
+          tput(0 1 2_3 4        ) b(M4)
+          tput(0 1 2_3 4_5_6_7 8) b(M4 3v0.M8)
+          tput(0 1 2_3 4 5 6_7 8) b(M8)
+        `);
         // XXX: support 3_4b0 for non-final brnaching point
       });
     });

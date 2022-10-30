@@ -53,14 +53,14 @@ class FrameBuffer extends EventEmitter {
       }
       assert.fail('XXX TODO - support partial update of frames');
     }
-    this.get_hash(); // XXX: optimize and don't calc hash to emit can_hash
+    this.get_hash();
   }
   set_hash(h){
     assert(!this.h || this.h.equals(h), 'hash changed');
     if (this.h)
       return this.h;
     if (this.h = h)
-      this.emit('can_hash');
+      this.emit('hash');
     return h;
   }
 }
@@ -307,7 +307,6 @@ m3 = {range: [3, 3], branch: [2: 0x123]} // map of branch id -> hash
 M = {branch: Map} // map of branch id -> hash
 fbuf = {branch: Map} // map of branch id to _fbuf
 
-// XXX: change can_hash -> hash and calcualte hash
 m2_3.on('hash', function(o, ...){
   let {id} = o; // branch id
 });
@@ -327,7 +326,7 @@ b1: 8b0 // previous b2. all branch position after 1 changed and need to fix
 Problem 2:
 let m5_6b0 = scroll.m_get([6, 7], {b: 0});
 let m5_6b1 = scroll.m_get([6, 7], {b: 1});
-m5_6b1.on('can_hash', ()=>{});
+m5_6b1.on('hash', ()=>{});
 after merge (b0/b1 merge), m5_6b1 doesn't exist any more.
 
 Problem 3: storage. how will was save branches if it has no id.
@@ -942,46 +941,33 @@ class Merkel_node extends EventEmitter {
     this.range = range_fix(opt.range);
     this.decl = opt.decl;
     this.binfo = this.decl.binfo;
-    this.can_hash = false;
   }
   init(){
     let decl = this.decl, scroll = decl.scroll;
     let [s, e] = this.range, b = this.binfo.b;
     if (s==e){
-      const on_can_hash = ()=>{
-        this.can_hash = !!(decl.fbuf.get_hash() && decl.sig_get());
-        if (this.can_hash)
-          this.emit('can_hash');
-      };
-      // XXX: need to check fbuf.can_hash()
-      if (!(this.can_hash = !!(decl.fbuf.get_hash() && decl.sig_get()))){
-        decl.fbuf.on('can_hash', on_can_hash);
-        decl.on('sig', on_can_hash);
+      if (!(decl.fbuf.get_hash() && decl.sig_get())){
+        const on_hash = ()=>this.get_hash();
+        decl.fbuf.on('hash', on_hash);
+        decl.on('sig', on_hash);
       }
     } else {
       let [r1, r2] = range_split(this.range);
       let m1 = scroll.m_get(r1, {b}), m2 = scroll.m_get(r2, {b});
-      const on_can_hash_m = ()=>{
-        this.can_hash = m1.can_hash && m2.can_hash;
-        if (this.can_hash)
-          this.emit('can_hash');
+      const on_hash_m = ()=>{
+        if (m1.h && m2.h)
+          this.get_hash();
       };
-      if (m1.can_hash && m2.can_hash)
-        this.can_hash = true;
-      else {
-        if (!m1.can_hash)
-          m1.on('can_hash', on_can_hash_m);
-        if (!m2.can_hash)
-          m2.on('can_hash', on_can_hash_m);
-      }
+      if (!m1.hash)
+        m1.on('hash', on_hash_m);
+      if (!m2.hash)
+        m2.on('hash', on_hash_m);
     }
   }
   get_hash(){
     // XXX: optimize, don't run calc if there is no change in dependent data
     if (this.h)
       return this.h;
-    if (!this.can_hash)
-      return null;
     let [s, e] = this.range, decl = this.decl;
     if (s==e){
       let d = decl.fbuf.get_hash(), sig = decl.sig;
@@ -999,11 +985,8 @@ class Merkel_node extends EventEmitter {
     assert(!this.h || this.h.equals(h), 'hash changed');
     if (this.h)
       return this.h;
-    this.h = h;
-    if (h && !this.can_hash){
-      this.can_hash = true;
-      this.emit('can_hash');
-    }
+    if (this.h = h)
+      this.emit('hash');
     return h;
   }
 }
@@ -1015,13 +998,13 @@ class Merkel_root {
     this.binfo = this.decl.binfo;
   }
   get_hash(){
-    // XXX: need can_hash
     if (this.h)
       return this.h;
     return this.set_hash(this.scroll.calc_root_hash(this.decl.seq,
       {b: this.binfo.b}));
   }
   set_hash(h){
+    // XXX: need hash event
     assert(!this.h || this.h.equals(h), 'hash changed');
     if (this.h)
       return this.h;

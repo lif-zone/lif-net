@@ -348,13 +348,13 @@ export default class Scroll {
     let {b, seq} = opt;
     if (b===undefined || seq===undefined){
       assert(b===undefined && seq===undefined, 'invalid create_new_branch');
-      this.b.push({b: 0, size: 0, top: null, map: new Map(),
+      this.b.push({b: 0, top: null, map: new Map(),
         parent: {}, branches: new Map()});
       return this.b.length-1;
     }
     let M = this.get_decl(seq, {b}).M_hash();
     assert(M, 'missing M'+seq);
-    this.b.push({b: this.b.length, size: 0, top: null,
+    this.b.push({b: this.b.length, top: null,
       map: new Map(), parent: {b, seq, type: 'v'}, branches: new Map()});
     let b2 = this.b.length-1;
     this.notify_M({b: b2, seq: seq, M});
@@ -362,14 +362,14 @@ export default class Scroll {
   }
   decl(frames){ // XXX: support decl on branch
     let fbuf = new FrameBuffer({frames});
-    let seq = this.b[0].size, ts = Date.now();
-    assert(!this.b[0].map.get(seq), 'XXX TODO'); // XXX: support branch
+    let seq = this.b[0].top ? this.b[0].top.seq+1 : 0, ts = Date.now();
+    assert(!this.b[0].map.get(seq), 'XXX TODO '+seq); // XXX: support branch
     fbuf.unshift({seq, ts});
     let decl = new Decl({scroll: this, b: 0, seq, fbuf});
     decl.sign();
     this.b[0].map.set(seq, decl);
-    this.b[0].size++;
     decl.init();
+    decl.M.get_hash();
     return decl;
   }
   notify_M(opt){
@@ -862,7 +862,6 @@ export default class Scroll {
       return decl;
     decl = new Decl({scroll: this, b, seq, fbuf: new FrameBuffer});
     this.b[b].map.set(seq, decl);
-    this.b[b].size = Math.max(this.b[b].size, seq+1);
     decl.init();
     return decl;
   }

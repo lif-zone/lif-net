@@ -127,7 +127,8 @@ const calc_m = (scroll, range)=>etask(function*calc_m(){
   assert(Number.isInteger(Math.log2(e-s+1)), 'invalid merkel range '+
   range_str(range));
   let q = [];
-  assert(e<scroll.b[0].size, 'scroll too small '+e+'<'+scroll.b[0].size);
+  assert(e<scroll.b[0].top.seq+1, 'scroll too small '+
+    e+'<'+scroll.b[0].top.seq+1);
   for (let i=s; i<=e; i++)
     q.push({s: i, e: i, m: yield scroll.m_hash(i)});
   while (q.length!=1){

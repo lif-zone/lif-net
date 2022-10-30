@@ -113,7 +113,7 @@ function assert_buffer(a, b, desc){
 function assert_no_corruption(scroll){
   for (const [i] of scroll.branch){
     let curr = scroll.branch.get(i);
-    curr.map.forEach((decl, seq)=>assert.equal(decl.binfo.b, i,
+    curr.map.forEach((decl, seq)=>assert.equal(decl.b, i,
       'branch corruption b'+i+' seq '+seq));
     if (i){
       assert.equal(scroll.branch.get(curr.parent.b).branches.get(curr.b), curr,

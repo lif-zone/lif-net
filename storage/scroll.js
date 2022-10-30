@@ -876,8 +876,8 @@ class Decl extends EventEmitter {
     assert(opt.scroll, 'must provide Scroll');
     let seq = this.seq = opt.seq;
     this.scroll = opt.scroll;
-    this.binfo = this.scroll.branch.get(opt.b||0);
-    assert(this.binfo, 'branch '+opt.b+' not found');
+    this.b = opt.b||0;
+    assert(this.scroll.branch.get(this.b), 'branch '+opt.b+' not found');
     this.fbuf = opt.fbuf;
     this.m = [];
     let ma = merkel_ranges(seq);
@@ -941,11 +941,11 @@ class Merkel_node extends EventEmitter {
     super();
     this.range = range_fix(opt.range);
     this.decl = opt.decl;
-    this.binfo = this.decl.binfo;
+    this.b = this.decl.b;
   }
   init(){
     let decl = this.decl, scroll = decl.scroll;
-    let [s, e] = this.range, b = this.binfo.b;
+    let [s, e] = this.range, b = this.b;
     if (s==e){
       if (!(decl.fbuf.get_hash() && decl.sig_get())){
         const on_hash = ()=>this.get_hash();
@@ -977,8 +977,8 @@ class Merkel_node extends EventEmitter {
       return this.set_hash(hleaf(d, sig));
     }
     let [r1, r2] = range_split(this.range);
-    let decl1 = decl.scroll.get_decl(r1[1], {b: this.binfo.b});
-    let decl2 = decl.scroll.get_decl(r2[1], {b: this.binfo.b});
+    let decl1 = decl.scroll.get_decl(r1[1], {b: this.b});
+    let decl2 = decl.scroll.get_decl(r2[1], {b: this.b});
     this.set_hash(hparent_safe(e-s+1, decl1.m_hash(r1), decl2.m_hash(r2)));
     return this.h;
   }
@@ -996,13 +996,13 @@ class Merkel_root {
   constructor(opt){
     this.decl = opt.decl;
     this.scroll = opt.decl.scroll;
-    this.binfo = this.decl.binfo;
+    this.b = this.decl.b;
   }
   get_hash(){
     if (this.h)
       return this.h;
     return this.set_hash(this.scroll.calc_root_hash(this.decl.seq,
-      {b: this.binfo.b}));
+      {b: this.b}));
   }
   set_hash(h){
     // XXX: need hash event
@@ -1011,7 +1011,7 @@ class Merkel_root {
       return this.h;
     this.h = h;
     if (h)
-      this.scroll.notify_M({b: this.binfo.b, seq: this.decl.seq, M: h});
+      this.scroll.notify_M({b: this.b, seq: this.decl.seq, M: h});
     return h;
   }
 }

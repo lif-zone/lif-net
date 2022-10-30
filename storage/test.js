@@ -111,12 +111,12 @@ function assert_buffer(a, b, desc){
 }
 
 function assert_no_corruption(scroll){
-  for (let i=0; i<scroll.branch.length; i++){
-    let curr = scroll.branch[i];
+  for (const [i] of scroll.branch){
+    let curr = scroll.branch.get(i);
     curr.map.forEach((decl, seq)=>assert.equal(decl.binfo.b, i,
       'branch corruption b'+i+' seq '+seq));
     if (i){
-      assert.equal(scroll.branch[curr.parent.b].branches.get(curr.b), curr,
+      assert.equal(scroll.branch.get(curr.parent.b).branches.get(curr.b), curr,
         'branch corruption b'+i);
     }
   }
@@ -127,8 +127,8 @@ const calc_m = (scroll, range)=>etask(function*calc_m(){
   assert(Number.isInteger(Math.log2(e-s+1)), 'invalid merkel range '+
   range_str(range));
   let q = [];
-  assert(e<scroll.branch[0].top.seq+1, 'scroll too small '+
-    e+'<'+scroll.branch[0].top.seq+1);
+  assert(e<scroll.branch.get(0).top.seq+1, 'scroll too small '+
+    e+'<'+scroll.branch.get(0).top.seq+1);
   for (let i=s; i<=e; i++)
     q.push({s: i, e: i, m: yield scroll.m_hash(i)});
   while (q.length!=1){
@@ -147,6 +147,10 @@ const calc_m = (scroll, range)=>etask(function*calc_m(){
     assert.equal(b2s(scroll_m), b2s(test_m));
   return scroll_m||test_m;
 });
+
+function b_pos2id(scroll, pos){ return Array.from(scroll.branch.keys())[pos]; }
+function b_id2pos(scroll, bid){
+  return Array.from(scroll.branch.keys()).indexOf(bid); }
 
 const get_val = (exp, def_type='right')=>etask(function*_get_val(){
   let m;
@@ -193,6 +197,8 @@ const get_val = (exp, def_type='right')=>etask(function*_get_val(){
   if (o.def)
     set_def(def_type, o.ctx);
   let name = o.ctx||get_def(def_type||'right'), scroll = get_scroll(name);
+  if (b)
+    b = b_pos2id(scroll, b);
   switch (type){
   case 'sig': return scroll.seq_sig(seq, {b});
   case 'M': return scroll.M_hash(seq, {b});
@@ -488,8 +494,8 @@ const cmd_test = t=>etask(function*cmd_test(){
     let exp = yield get_val(r);
     assert_buffer(val, exp, curr.exp);
   }
-  for (let b=0; b<scroll.branch.length; b++){
-    for (let seq=0; seq<scroll.branch[b].size; seq++){
+  for (const [b] of scroll.branch){
+    for (let seq=0; seq<=scroll.branch.get(b).top.seq; seq++){
       seq = +seq;
       let decl = yield scroll.get_decl(seq, {b}); // XXX {create: false}
       ['sig', 'd', 'M', 'm'].forEach(type=>{
@@ -541,15 +547,16 @@ const cmd_b = t=>etask(function*cmd_b(){
   let tested = {}, i=0;
   for (let curr=t.r; curr = tparser.parse_get_next(curr); i++)
     tested[i] = parse_branch(curr.exp);
-  assert.equal(scroll.branch.length, i, 'branch count mismatch '+t.r);
-  for (i=0; i<scroll.branch.length; i++){
-    let o = scroll.branch[i];
+  assert.equal(scroll.branch.size, i, 'branch count mismatch '+t.r);
+  for (const [i, o] of scroll.branch){
+    let ii = b_id2pos(scroll, i);
     assert.deepEqual(o.parent.b!==undefined ?
-      {seq: o.parent.seq, b: o.parent.b, type: o.parent.type} : undefined,
-      tested[i].b, 'branch '+i+' mismatch '+t.r);
-    assert.equal(o.top.seq, tested[i].top.seq, 'top seq mismatch b'+i+
+      {seq: o.parent.seq, b: b_id2pos(scroll, o.parent.b),
+      type: o.parent.type} :
+      undefined, tested[ii].b, 'branch '+i+' mismatch '+t.r);
+    assert.equal(o.top.seq, tested[ii].top.seq, 'top seq mismatch b'+i+
       ' '+t.r);
-    assert_buffer(o.top.M, yield get_val(tested[i].top.M),
+    assert_buffer(o.top.M, yield get_val(tested[ii].top.M),
       'top M mismatch b'+i+' '+t.r);
   }
   assert_no_corruption(scroll);
@@ -579,14 +586,11 @@ const test_run_single = (curr, o)=>etask(function*_test_run_single(){
   case 'decl': yield cmd_decl(o); break;
   case 'put': yield cmd_put(curr, o); break;
   case 'tput': yield cmd_tput(curr, o); break;
-  case 'test':
-  case '==':
-    yield cmd_test(o);
-    break;
+  case '=': yield cmd_eq(o); break;
+  case '==': yield cmd_test(o); break;
   case 'b': yield cmd_b(o); break;
   case '//': break;
   case 'dbg': debugger; break; // eslint-disable-line no-debugger
-  case '=': yield cmd_eq(o); break;
   case '.':
   case '..':
   case '...': // XXX: rm from here

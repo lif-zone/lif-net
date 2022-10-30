@@ -111,12 +111,12 @@ function assert_buffer(a, b, desc){
 }
 
 function assert_no_corruption(scroll){
-  for (let i=0; i<scroll.b.length; i++){
-    let curr = scroll.b[i];
+  for (let i=0; i<scroll.branch.length; i++){
+    let curr = scroll.branch[i];
     curr.map.forEach((decl, seq)=>assert.equal(decl.binfo.b, i,
       'branch corruption b'+i+' seq '+seq));
     if (i){
-      assert.equal(scroll.b[curr.parent.b].branches.get(curr.b), curr,
+      assert.equal(scroll.branch[curr.parent.b].branches.get(curr.b), curr,
         'branch corruption b'+i);
     }
   }
@@ -127,8 +127,8 @@ const calc_m = (scroll, range)=>etask(function*calc_m(){
   assert(Number.isInteger(Math.log2(e-s+1)), 'invalid merkel range '+
   range_str(range));
   let q = [];
-  assert(e<scroll.b[0].top.seq+1, 'scroll too small '+
-    e+'<'+scroll.b[0].top.seq+1);
+  assert(e<scroll.branch[0].top.seq+1, 'scroll too small '+
+    e+'<'+scroll.branch[0].top.seq+1);
   for (let i=s; i<=e; i++)
     q.push({s: i, e: i, m: yield scroll.m_hash(i)});
   while (q.length!=1){
@@ -481,7 +481,7 @@ const cmd_put = (curr, t)=>etask(function*cmd_put(){
   }
   if (tbranch){
     assert(!skip_b, 'invalid skip branch with branch '+tbranch);
-    for (let i=1; i<scroll.b.length || tbranch[i]; i++){
+    for (let i=1; i<scroll.branch.length || tbranch[i]; i++){
       exp_branch += (exp_branch ? ' ' : '')+'b'+i+':';
       if (tbranch[i]){
         let o = tbranch[i];
@@ -489,14 +489,14 @@ const cmd_put = (curr, t)=>etask(function*cmd_put(){
         delete o[i];
         continue;
       }
-      let o = scroll.b[i];
+      let o = scroll.branch[i];
       exp_branch += (o.parent.seq||0)+'b'+(o.parent.b||0)+':'+name+
         '.M'+o.top.seq+'b'+i;
     }
   } else if (!skip_b){
-    for (let i=1; i<scroll.b.length; i++){
+    for (let i=1; i<scroll.branch.length; i++){
       exp_branch += (exp_branch ? ' ' : '')+'b'+i+':';
-      let o = scroll.b[i];
+      let o = scroll.branch[i];
       exp_branch += (o.parent.seq||0)+'b'+(o.parent.b||0);
     }
   }
@@ -525,8 +525,8 @@ const cmd_test = t=>etask(function*cmd_test(){
     let exp = yield get_val(r);
     assert_buffer(val, exp, curr.exp);
   }
-  for (let b=0; b<scroll.b.length; b++){
-    for (let seq=0; seq<scroll.b[b].size; seq++){
+  for (let b=0; b<scroll.branch.length; b++){
+    for (let seq=0; seq<scroll.branch[b].size; seq++){
       seq = +seq;
       let decl = yield scroll.get_decl(seq, {b}); // XXX {create: false}
       ['sig', 'd', 'M', 'm'].forEach(type=>{
@@ -585,9 +585,9 @@ const cmd_b = t=>etask(function*cmd_branch(){
   let tested = {}, i=0;
   for (let curr=t.r; curr = tparser.parse_get_next(curr); i++)
     tested[i] = parse_branch(curr.exp);
-  assert.equal(scroll.b.length, i, 'branch count mismatch '+t.r);
-  for (i=0; i<scroll.b.length; i++){
-    let o = scroll.b[i];
+  assert.equal(scroll.branch.length, i, 'branch count mismatch '+t.r);
+  for (i=0; i<scroll.branch.length; i++){
+    let o = scroll.branch[i];
     assert.deepEqual(o.parent.b!==undefined ?
       {seq: o.parent.seq, b: o.parent.b, type: o.parent.type} : undefined,
       tested[i].b, 'branch '+i+' mismatch '+t.r);
@@ -606,8 +606,8 @@ const cmd_branch = t=>etask(function*cmd_branch(){
     let o = xxx_parse_branch(curr.exp);
     tested[o.b] = o.o;
   }
-  for (let i=1; i<scroll.b.length; i++){
-    let o = scroll.b[i];
+  for (let i=1; i<scroll.branch.length; i++){
+    let o = scroll.branch[i];
     assert(tested[i], 'branch '+i+' missing');
     assert.deepEqual({parent: {b: o.parent.b, seq: o.parent.seq},
       top: {M: tested[i].M && o.top.M}},

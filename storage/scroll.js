@@ -823,10 +823,10 @@ export default class Scroll {
         case 'sig': decl.set_sig(val); break;
         case 'd': decl.fbuf.set_hash(val); break;
         case 'D': decl.fbuf.set_frames(val); break;
-        case 'M': decl.M.set_hash(val); break;
+        case 'M': decl.M.set_hash(b, val); break;
         case 'm':
           for (let s in val)
-            decl.m_get([+s, +seq]).set_hash(val[s]);
+            decl.m_get([+s, +seq]).set_hash(b, val[s]);
           break;
         default: assert.fail('invalid verified type '+type);
         }
@@ -995,16 +995,18 @@ class Merkel_node extends EventEmitter {
       let d = decl.fbuf.get_hash(), sig = decl.sig;
       if (!d || !sig)
         return null;
-      return this.set_hash(hleaf(d, sig));
+      return this.set_hash(b, hleaf(d, sig));
     }
     let [r1, r2] = range_split(this.range);
     let decl1 = decl.scroll.get_decl(r1[1], {b});
     let decl2 = decl.scroll.get_decl(r2[1], {b});
-    this.set_hash(hparent_safe(e-s+1, decl1.m_hash(b, r1),
+    this.set_hash(b, hparent_safe(e-s+1, decl1.m_hash(b, r1),
       decl2.m_hash(b, r2)));
     return this.h;
   }
-  set_hash(h){
+  set_hash(b, h){
+    assert(b!==undefined && h!==undefined, 'XXX WIP missing b');
+    assert.equal(this.b, this.decl.to_b(b), 'XXX WIP');
     assert(!this.h || this.h.equals(h), 'hash changed');
     if (this.h)
       return this.h;
@@ -1025,10 +1027,12 @@ class Merkel_root {
     assert.equal(this.b, this.decl.to_b(b), 'XXX WIP');
     if (this.h)
       return this.h;
-    return this.set_hash(this.scroll.calc_root_hash(this.decl.seq,
+    return this.set_hash(b, this.scroll.calc_root_hash(this.decl.seq,
       {b: this.b}));
   }
-  set_hash(h){
+  set_hash(b, h){
+    assert(b!==undefined && h!==undefined, 'XXX WIP missing b');
+    assert.equal(this.b, this.decl.to_b(b), 'XXX WIP');
     // XXX: need hash event
     assert(!this.h || this.h.equals(h), 'hash changed');
     if (this.h)
@@ -1051,7 +1055,7 @@ Scroll.open = function(opt){
   let scroll = new Scroll(opt);
   assert(opt.M && /^\d+$/.test(opt.M.seq) && opt.M.h, 'scroll.open missing M');
   let decl = scroll.get_decl(opt.M.seq);
-  decl.M.set_hash(opt.M.h);
+  decl.M.set_hash(0, opt.M.h);
   return scroll;
 };
 

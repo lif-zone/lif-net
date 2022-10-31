@@ -474,7 +474,7 @@ export default class Scroll {
     let decl=this.get_decl(seq, {b}), m=get_m_hash(diff, seq);
     let D=get_D(diff, seq);
     let sig=get_sig(diff, seq), d=get_d_hash(diff, seq), dD=calc_D_hash(D);
-    let vm=decl.m_hash(b, seq), vsig=decl.sig_get(), vd=decl.d_hash();
+    let vm=decl.m_hash(b, seq), vsig=decl.sig_get(b), vd=decl.d_hash();
     if (dD){
       if (vd){
         if (!beq(dD, vd)){
@@ -820,7 +820,7 @@ export default class Scroll {
       for (let type in v){
         let val = v[type];
         switch (type){
-        case 'sig': decl.set_sig(val); break;
+        case 'sig': decl.set_sig(b, val); break;
         case 'd': decl.fbuf.set_hash(val); break;
         case 'D': decl.fbuf.set_frames(val); break;
         case 'M': decl.M.set_hash(b, val); break;
@@ -908,10 +908,12 @@ class Decl extends EventEmitter {
       : scroll.prev_scroll ? Buffer.concat([d, scroll.prev_scroll]) : d;
     let sig = crypto.sign(crypto.blake2b(buf), scroll.key);
     assert(!this.sig || this.sig.equals(sig), 'sig mismatch');
-    this.set_sig(sig);
+    this.set_sig(this.b, sig);
     this.fbuf.unshift({sig});
   }
-  set_sig(sig){
+  set_sig(b, sig){
+    assert(b!==undefined && sig!==undefined, 'XXX WIP missing b');
+    assert.equal(this.b, this.to_b(b), 'XXX WIP');
     assert(!this.sig || this.sig.equals(sig), 'sig changed');
     if (this.sig)
       return this.sig;
@@ -920,7 +922,11 @@ class Decl extends EventEmitter {
       this.emit('sig', sig);
     return sig;
   }
-  sig_get(){ return this.sig; }
+  sig_get(b){
+    assert(b!==undefined, 'XXX WIP missing b');
+    assert.equal(this.b, this.to_b(b), 'XXX WIP');
+    return this.sig;
+  }
   d_hash(){ return this.fbuf.get_hash(); }
   m_get(b, range){
     assert(b!==undefined && range!==undefined, 'XXX WIP missing b');
@@ -968,7 +974,7 @@ class Merkel_node extends EventEmitter {
     let decl = this.decl, scroll = decl.scroll;
     let [s, e] = this.range, b = this.b;
     if (s==e){
-      if (!(decl.fbuf.get_hash() && decl.sig_get())){
+      if (!(decl.fbuf.get_hash() && decl.sig_get(b))){
         const on_hash = ()=>{
           if (!this.decl.scroll.branch.get(b)) // XXX HACK: due branch merge
             return;

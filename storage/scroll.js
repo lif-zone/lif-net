@@ -727,7 +727,7 @@ export default class Scroll {
       if (!src)
         continue;
       let dst = this.get_decl(i, {b: i1});
-      dst.copy(src);
+      dst.copy(i1, i2, src);
     }
     if (b2.top.seq > b1.top.seq)
       this.notify_M({b: i1, seq: b2.top.seq, M: b2.top.M});
@@ -942,7 +942,10 @@ class Decl extends EventEmitter {
     let M = this.M;
     return M.get_hash(b);
   }
-  copy(src){
+  copy(bdst, bsrc, src){ // XXX WIP: rm src
+    assert(bdst!==undefined && bsrc!==undefined && src!==undefined, 'XXX WIP');
+    assert.equal(this.b, this.to_b(bdst), 'XXX WIP');
+    assert.equal(src.b, this.to_b(bsrc), 'XXX WIP');
     assert.equal(this.seq, src.seq, 'can only copy from same seq');
     if (src.M.h)
       this.M.h = src.M.h;

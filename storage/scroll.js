@@ -355,12 +355,22 @@ export default class Scroll {
         parent: {}, branches: new Map()});
       return bid;
     }
-    let M = this.get_decl(seq, {b}).M_hash();
+    let M = this.get_decl(seq, {b}).M_hash(b);
     assert(M, 'missing M'+seq);
     this.branch.set(bid, {b: bid, top: null,
       map: new Map(), parent: {b, seq, type: 'v'}, branches: new Map()});
     this.notify_M({b: bid, seq: seq, M});
     return bid;
+  }
+  to_b(b, seq){
+    assert(typeof seq=='number' && seq>=0, 'invalid seq '+seq);
+    assert(this.branch.get(b), 'missing branch '+seq+'b'+b);
+    if (this.branch.get(b).parent.b!==undefined &&
+      seq<=this.branch.get(b).parent.seq){
+      // XXX: rm recursion
+      return this.to_b(this.branch.get(b).parent.b, seq);
+    }
+    return b;
   }
   decl(frames){ // XXX: support decl on branch
     let ts = Date.now(), fbuf = new FrameBuffer({frames});
@@ -371,7 +381,7 @@ export default class Scroll {
     decl.sign();
     this.branch.get(0).map.set(seq, decl);
     decl.init();
-    decl.M.get_hash();
+    decl.M.get_hash(0);
     return decl;
   }
   notify_M(opt){
@@ -464,7 +474,7 @@ export default class Scroll {
     let decl=this.get_decl(seq, {b}), m=get_m_hash(diff, seq);
     let D=get_D(diff, seq);
     let sig=get_sig(diff, seq), d=get_d_hash(diff, seq), dD=calc_D_hash(D);
-    let vm=decl.m_hash(seq), vsig=decl.sig_get(), vd=decl.d_hash();
+    let vm=decl.m_hash(b, seq), vsig=decl.sig_get(), vd=decl.d_hash();
     if (dD){
       if (vd){
         if (!beq(dD, vd)){
@@ -526,7 +536,7 @@ export default class Scroll {
     // XXX: wrap this part nicely
     let old_top = this.get_decl(top.seq, {b});
     let old_top_r = old_top.m[old_top.m.length-1].range;
-    let old_force = {range: old_top_r, m: old_top.m_hash(old_top_r, {b})};
+    let old_force = {range: old_top_r, m: old_top.m_hash(b, old_top_r)};
     if (is_null(old_force.m, errors, 'missing m'+range_str(old_top_r)))
       return;
     let prev_M = this.sketch_calc_top_M({top: {seq: seq-1},
@@ -562,7 +572,7 @@ export default class Scroll {
     if (force && range_eq(range, force.range))
       return set_m_hash(sketch, range, force.m);
     let seq = range[1], decl = this.get_decl(seq, {b});
-    let m = get_m_hash(diff, range), vm = decl.m_hash(range);
+    let m = get_m_hash(diff, range), vm = decl.m_hash(b, range);
     if ((vm||m) && (!force || !range_includes(range, force.range))){
       if (m && !vm)
         set_m_hash(sketch, range, m);
@@ -579,14 +589,14 @@ export default class Scroll {
     let m1, vm1, m2, vm2, decl1 = this.get_decl(r1[1], {b}), decl2=decl;
     if (force && range_includes(r1, force.range))
       m1 = this.sketch_calc_m({b, range: r1, sketch, diff, errors, force});
-    else if (vm1 = decl1.m_hash(r1));
+    else if (vm1 = decl1.m_hash(b, r1));
     else if (m1 = get_m_hash(sketch, r1)||get_m_hash(diff, r1));
     else if (m1 = this.sketch_calc_m({b, range: r1, sketch, diff, errors}));
     if (is_null(m1||vm1, errors, 'missing m'+range_str(r1)))
       return null;
     if (force && range_includes(r2, force.range))
       m2 = this.sketch_calc_m({b, range: r2, sketch, diff, errors, force});
-    else if (vm2 = decl2.m_hash(r2));
+    else if (vm2 = decl2.m_hash(b, r2));
     else if (m2 = get_m_hash(sketch, r2)||get_m_hash(diff, r2));
     else if (m2 = this.sketch_calc_m({b, range: r2, sketch, diff, errors}));
     if (is_null(m2||vm2, errors, 'missing m'+range_str(r2)))
@@ -623,7 +633,7 @@ export default class Scroll {
     // XXX: need sketch to cache results
     let {b, range, diff, diff_b, common} = opt;
     let seq = range[1], decl = this.get_decl(seq, {b});
-    let vm = decl.m_hash(range);
+    let vm = decl.m_hash(b, range);
     if (vm && seq<=common) // XXX: add test for this secnario
       return {range, m};
     let m = this.calc_m({range, diff, diff_b});
@@ -633,8 +643,8 @@ export default class Scroll {
       return null;
     let [r1, r2] = range_split(range);
     let m1, vm1, m2, vm2, decl1 = this.get_decl(r1[1], {b}), decl2=decl;
-    vm1 = decl1.m_hash(r1);
-    vm2 = decl2.m_hash(r2);
+    vm1 = decl1.m_hash(b, r1);
+    vm2 = decl2.m_hash(b, r2);
     if (!vm1)
       return this.find_max_common_m({b, range: r1, diff, diff_b});
     m1 = this.calc_m({range: r1, diff, diff_b});
@@ -839,7 +849,7 @@ export default class Scroll {
   m_hash(range, opt){
     let [, e] = range = range_fix(range);
     let decl = this.get_decl(e, opt);
-    return decl.m_hash(range);
+    return decl.m_hash(decl.b, range);
   }
   m_get(range, opt){
     let [, e] = range = range_fix(range);
@@ -848,7 +858,7 @@ export default class Scroll {
   }
   M_hash(seq, opt){
     let decl = this.get_decl(seq, opt);
-    return decl ? decl.M_hash() : null;
+    return decl ? decl.M_hash(decl.b) : null;
   }
   get_decl(seq, opt={}){
     assert(typeof seq=='number', 'invalid seq '+seq);
@@ -885,6 +895,7 @@ class Decl extends EventEmitter {
       this.m.push(new Merkel_node({decl: this, range: ma[i]}));
     this.M = new Merkel_root({decl: this});
   }
+  to_b(b){ return this.scroll.to_b(b, this.seq); }
   init(){
     for (let i=0; i<this.m.length; i++)
       this.m[i].init();
@@ -916,13 +927,15 @@ class Decl extends EventEmitter {
     assert(i<this.m.length);
     return this.m[i];
   }
-  m_hash(range){
+  m_hash(b, range){
+    assert(b!==undefined && range!==undefined, 'XXX WIP missing b');
     let m = this.m_get(range);
-    return m.get_hash();
+    return m.get_hash(b);
   }
-  M_hash(){
+  M_hash(b){
+    assert(b!==undefined, 'XXX WIP missing Merkel_root b');
     let M = this.M;
-    return M.get_hash();
+    return M.get_hash(b);
   }
   copy(src){
     assert.equal(this.seq, src.seq, 'can only copy from same seq');
@@ -948,7 +961,11 @@ class Merkel_node extends EventEmitter {
     let [s, e] = this.range, b = this.b;
     if (s==e){
       if (!(decl.fbuf.get_hash() && decl.sig_get())){
-        const on_hash = ()=>this.get_hash();
+        const on_hash = ()=>{
+          if (!this.decl.scroll.branch.get(b)) // XXX HACK: due branch merge
+            return;
+          this.get_hash(b);
+        }
         decl.fbuf.on('hash', on_hash);
         decl.on('sig', on_hash);
       }
@@ -956,8 +973,10 @@ class Merkel_node extends EventEmitter {
       let [r1, r2] = range_split(this.range);
       let m1 = scroll.m_get(r1, {b}), m2 = scroll.m_get(r2, {b});
       const on_hash_m = ()=>{
+        if (!this.decl.scroll.branch.get(b)) // XXX HACK: due branch merge
+          return;
         if (m1.h && m2.h)
-          this.get_hash();
+          this.get_hash(b);
       };
       if (!m1.hash)
         m1.on('hash', on_hash_m);
@@ -965,7 +984,9 @@ class Merkel_node extends EventEmitter {
         m2.on('hash', on_hash_m);
     }
   }
-  get_hash(){
+  get_hash(b){
+    assert(b!==undefined, 'XXX WIP missing b');
+    assert.equal(this.b, this.decl.to_b(b), 'XXX WIP');
     // XXX: optimize, don't run calc if there is no change in dependent data
     if (this.h)
       return this.h;
@@ -977,9 +998,10 @@ class Merkel_node extends EventEmitter {
       return this.set_hash(hleaf(d, sig));
     }
     let [r1, r2] = range_split(this.range);
-    let decl1 = decl.scroll.get_decl(r1[1], {b: this.b});
-    let decl2 = decl.scroll.get_decl(r2[1], {b: this.b});
-    this.set_hash(hparent_safe(e-s+1, decl1.m_hash(r1), decl2.m_hash(r2)));
+    let decl1 = decl.scroll.get_decl(r1[1], {b});
+    let decl2 = decl.scroll.get_decl(r2[1], {b});
+    this.set_hash(hparent_safe(e-s+1, decl1.m_hash(b, r1),
+      decl2.m_hash(b, r2)));
     return this.h;
   }
   set_hash(h){
@@ -998,7 +1020,9 @@ class Merkel_root {
     this.scroll = opt.decl.scroll;
     this.b = this.decl.b;
   }
-  get_hash(){
+  get_hash(b){
+    assert(b!==undefined, 'XXX WIP missing Merkel_root b');
+    assert.equal(this.b, this.decl.to_b(b), 'XXX WIP');
     if (this.h)
       return this.h;
     return this.set_hash(this.scroll.calc_root_hash(this.decl.seq,

@@ -474,7 +474,7 @@ export default class Scroll {
     let decl=this.get_decl(seq, {b}), m=get_m_hash(diff, seq);
     let D=get_D(diff, seq);
     let sig=get_sig(diff, seq), d=get_d_hash(diff, seq), dD=calc_D_hash(D);
-    let vm=decl.m_hash(b, seq), vsig=decl.sig_get(b), vd=decl.d_hash();
+    let vm=decl.m_hash(b, seq), vsig=decl.sig_get(b), vd=decl.d_hash(b);
     if (dD){
       if (vd){
         if (!beq(dD, vd)){
@@ -821,8 +821,8 @@ export default class Scroll {
         let val = v[type];
         switch (type){
         case 'sig': decl.set_sig(b, val); break;
-        case 'd': decl.fbuf.set_hash(val); break;
-        case 'D': decl.fbuf.set_frames(val); break;
+        case 'd': decl.fbuf_get(b).set_hash(val); break;
+        case 'D': decl.fbuf_get(b).set_frames(val); break;
         case 'M': decl.M.set_hash(b, val); break;
         case 'm':
           for (let s in val)
@@ -845,8 +845,10 @@ export default class Scroll {
   unlock(){} // XXX: TODO
   // XXX WIP: change opt to b
   seq_sig(seq, opt){ return this.get_decl(seq, opt)?.sig; }
-  seq_d(seq, opt){ return this.get_decl(seq, opt).fbuf.get_hash(); }
-  seq_D(seq, opt){ return this.get_decl(seq, opt).fbuf.get_frames(); }
+  seq_d(seq, opt){
+    return this.get_decl(seq, opt).fbuf_get(opt.b||0).get_hash(); }
+  seq_D(seq, opt){
+    return this.get_decl(seq, opt).fbuf_get(opt.b||0).get_frames(); }
   m_hash(range, opt){
     let [, e] = range = range_fix(range);
     let decl = this.get_decl(e, opt);
@@ -927,7 +929,16 @@ class Decl extends EventEmitter {
     assert.equal(this.b, this.to_b(b), 'XXX WIP');
     return this.sig;
   }
-  d_hash(){ return this.fbuf.get_hash(); }
+  fbuf_get(b){
+    assert(b!==undefined, 'XXX WIP missing b');
+    assert.equal(this.b, this.to_b(b), 'XXX WIP');
+    return this.fbuf;
+  }
+  d_hash(b){
+    assert(b!==undefined, 'XXX WIP missing b');
+    assert.equal(this.b, this.to_b(b), 'XXX WIP');
+    return this.fbuf_get(b).get_hash();
+  }
   m_get(b, range){
     assert(b!==undefined && range!==undefined, 'XXX WIP missing b');
     assert.equal(this.b, this.to_b(b), 'XXX WIP');
@@ -974,7 +985,7 @@ class Merkel_node extends EventEmitter {
     let decl = this.decl, scroll = decl.scroll;
     let [s, e] = this.range, b = this.b;
     if (s==e){
-      if (!(decl.fbuf.get_hash() && decl.sig_get(b))){
+      if (!(decl.fbuf_get(b).get_hash() && decl.sig_get(b))){
         const on_hash = ()=>{
           if (!this.decl.scroll.branch.get(b)) // XXX HACK: due branch merge
             return;
@@ -1006,7 +1017,7 @@ class Merkel_node extends EventEmitter {
       return this.h;
     let [s, e] = this.range, decl = this.decl;
     if (s==e){
-      let d = decl.fbuf.get_hash(), sig = decl.sig;
+      let d = decl.fbuf_get(b).get_hash(), sig = decl.sig;
       if (!d || !sig)
         return null;
       return this.set_hash(b, hleaf(d, sig));

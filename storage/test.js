@@ -505,7 +505,7 @@ const cmd_test = t=>etask(function*cmd_test(){
             let s = a[i][0];
             if (tested[b] && tested[b][seq]?.m[s])
               continue;
-            assert(!decl.m_get([s, seq]).h, 'm'+range_str([s, seq])+'b'+b+
+            assert(!decl.m_get(b, [s, seq]).h, 'm'+range_str([s, seq])+'b'+b+
               ' exists '+t.meta.s);
           }
           return;

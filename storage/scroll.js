@@ -826,7 +826,7 @@ export default class Scroll {
         case 'M': decl.M.set_hash(b, val); break;
         case 'm':
           for (let s in val)
-            decl.m_get([+s, +seq]).set_hash(b, val[s]);
+            decl.m_get(b, [+s, +seq]).set_hash(b, val[s]);
           break;
         default: assert.fail('invalid verified type '+type);
         }
@@ -843,6 +843,7 @@ export default class Scroll {
   }
   lock(){} // XXX: TODO
   unlock(){} // XXX: TODO
+  // XXX WIP: change opt to b
   seq_sig(seq, opt){ return this.get_decl(seq, opt)?.sig; }
   seq_d(seq, opt){ return this.get_decl(seq, opt).fbuf.get_hash(); }
   seq_D(seq, opt){ return this.get_decl(seq, opt).fbuf.get_frames(); }
@@ -854,7 +855,7 @@ export default class Scroll {
   m_get(range, opt){
     let [, e] = range = range_fix(range);
     let decl = this.get_decl(e, opt);
-    return decl.m_get(range);
+    return decl.m_get(decl.b, range);
   }
   M_hash(seq, opt){
     let decl = this.get_decl(seq, opt);
@@ -921,7 +922,9 @@ class Decl extends EventEmitter {
   }
   sig_get(){ return this.sig; }
   d_hash(){ return this.fbuf.get_hash(); }
-  m_get(range){
+  m_get(b, range){
+    assert(b!==undefined && range!==undefined, 'XXX WIP missing b');
+    assert.equal(this.b, this.to_b(b), 'XXX WIP');
     let i = merkel_array_pos(range);
     assert.deepEqual(this.m[i].range, range_fix(range));
     assert(i<this.m.length);
@@ -929,11 +932,13 @@ class Decl extends EventEmitter {
   }
   m_hash(b, range){
     assert(b!==undefined && range!==undefined, 'XXX WIP missing b');
-    let m = this.m_get(range);
+    assert.equal(this.b, this.to_b(b), 'XXX WIP');
+    let m = this.m_get(b, range);
     return m.get_hash(b);
   }
   M_hash(b){
     assert(b!==undefined, 'XXX WIP missing Merkel_root b');
+    assert.equal(this.b, this.to_b(b), 'XXX WIP');
     let M = this.M;
     return M.get_hash(b);
   }

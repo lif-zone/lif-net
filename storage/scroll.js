@@ -965,7 +965,7 @@ class Merkel_node extends EventEmitter {
           if (!this.decl.scroll.branch.get(b)) // XXX HACK: due branch merge
             return;
           this.get_hash(b);
-        }
+        };
         decl.fbuf.on('hash', on_hash);
         decl.on('sig', on_hash);
       }

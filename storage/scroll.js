@@ -372,6 +372,7 @@ export default class Scroll {
     this.crypt = opt.crypt||Scroll.supported_crypt[0];
     assert.deepEqual(this.crypt, Scroll.supported_crypt[0], 'unsupported');
     this.prev_scroll = opt.prev_scroll;
+    this.dmap = new Map();
     this.branch = new Map();
     this.branch.next_id = 0;
     this.create_new_branch();
@@ -383,14 +384,14 @@ export default class Scroll {
       assert(b===undefined && seq===undefined, 'invalid create_new_branch');
       assert.equal(bid, 0);
       // XXX: change parent to null
-      this.branch.set(bid, {b: bid, top: null, map: new Map(),
-        parent: {}, branches: new Map()});
+      this.branch.set(bid, {b: bid, top: null, parent: {},
+        branches: new Map()});
       return bid;
     }
     let M = this.get_decl(seq, {b}).M_hash(b);
     assert(M, 'missing M'+seq);
-    this.branch.set(bid, {b: bid, top: null,
-      map: new Map(), parent: {b, seq, type: 'v'}, branches: new Map()});
+    this.branch.set(bid, {b: bid, top: null, parent: {b, seq, type: 'v'},
+      branches: new Map()});
     this.notify_M({b: bid, seq: seq, M});
     return bid;
   }
@@ -407,11 +408,11 @@ export default class Scroll {
   decl(frames){ // XXX: support decl on branch
     let ts = Date.now(), fbuf_group = new Frame_buffer_group({frames});
     let seq = this.branch.get(0).top ? this.branch.get(0).top.seq+1 : 0;
-    assert(!this.branch.get(0).map.get(seq), 'XXX TODO '+seq); // XXX: branch
+    assert(!this.dmap.get(seq), 'XXX TODO '+seq); // XXX: branch
     fbuf_group.get(0).unshift({seq, ts});
     let decl = new Decl({scroll: this, b: 0, seq, fbuf_group});
     decl.sign();
-    this.branch.get(0).map.set(seq, decl);
+    this.dmap.set(seq, decl);
     decl.init(0);
     decl.M.get_hash(0);
     return decl;
@@ -579,7 +580,7 @@ export default class Scroll {
       return push_error(errors, 'invalid sig'+seq);
     set_sig(sketch, seq, sig);
     check_set_sig(sketch, errors, seq, m, d, D, sig);
-    if (decl.sig && !decl.sig.equals(sig))
+    if (vsig && !vsig.equals(sig))
       return {branch: true};
     this.put_verified(sketch, {b});
     this.M_hash(seq, {b}); // update new top
@@ -783,6 +784,7 @@ export default class Scroll {
     }
   }
   branch_update(b, o){
+    // XXX: need to copy data/sig if avail
     // XXX: need to rm uneeded decl now when updating branches and update all
     // relevant places on new branch
     assert(o.b!=b, 'branch loop '+b);
@@ -876,7 +878,12 @@ export default class Scroll {
   lock(){} // XXX: TODO
   unlock(){} // XXX: TODO
   // XXX WIP: change opt to b
-  seq_sig(seq, opt){ return this.get_decl(seq, opt)?.sig; }
+  seq_sig(seq, opt){
+    let decl = this.get_decl(seq, opt);
+    if (!decl)
+      return;
+    return decl.sig_get(opt.b||0);
+  }
   seq_d(seq, opt){
     return this.get_decl(seq, opt).d_hash(opt.b||0); }
   seq_D(seq, opt){
@@ -904,12 +911,12 @@ export default class Scroll {
       return this.get_decl(seq, {b: this.branch.get(b).parent.b,
         create: opt.create});
     }
-    decl = this.branch.get(b).map.get(seq);
+    decl = this.dmap.get(seq);
     if (decl || opt.create===false)
       return decl;
     decl = new Decl({scroll: this, b, seq,
       fbuf_group: new Frame_buffer_group});
-    this.branch.get(b).map.set(seq, decl);
+    this.dmap.set(seq, decl);
     decl.init(b);
     return decl;
   }
@@ -924,6 +931,7 @@ class Decl extends EventEmitter {
     this.scroll = opt.scroll;
     assert(this.scroll.branch.get(opt.b||0), 'branch '+opt.b+' not found');
     this.fbuf_group = opt.fbuf_group;
+    this.bmap = new Map();
     this.m = [];
     let ma = merkel_ranges(seq);
     for (let i=0; i<ma.length; i++)
@@ -942,26 +950,30 @@ class Decl extends EventEmitter {
     let buf = this.seq ? Buffer.concat([d, scroll.M_hash(this.seq-1)])
       : scroll.prev_scroll ? Buffer.concat([d, scroll.prev_scroll]) : d;
     let sig = crypto.sign(crypto.blake2b(buf), scroll.key);
-    assert(!this.sig || this.sig.equals(sig), 'sig mismatch');
     this.set_sig(0, sig);
     this.fbuf_get(0).unshift({sig});
   }
   set_sig(b, sig){
     assert(b!==undefined && sig!==undefined, 'XXX WIP missing b');
-    assert(!this.sig || this.sig.equals(sig), 'sig changed');
-    if (this.sig)
-      return this.sig;
-    this.sig = sig;
+    b = this.to_b(b);
+    let sig_curr = this.bmap.get(b);
+    if (sig_curr){
+      assert(sig_curr.equals(sig), 'sig changed');
+      return sig_curr;
+    }
+    this.bmap.set(b, sig);
     if (sig)
       this.emit('sig', {b});
     return sig;
   }
   sig_get(b){
     assert(b!==undefined, 'XXX WIP missing b');
-    return this.sig;
+    b = this.to_b(b);
+    return this.bmap.get(b);
   }
   fbuf_get(b){
     assert(b!==undefined, 'XXX WIP missing b');
+    b = this.to_b(b);
     return this.fbuf_group.get(this.to_b(b));
   }
   d_hash(b){
@@ -988,11 +1000,13 @@ class Decl extends EventEmitter {
   copy(bdst, bsrc, src){ // XXX WIP: rm src
     assert(bdst!==undefined && bsrc!==undefined && src!==undefined, 'XXX WIP');
     assert.equal(this.seq, src.seq, 'can only copy from same seq');
-    if (src.M.h)
-      this.M.h = src.M.h;
+    let M = src.M.get_hash(bsrc);
+    if (M)
+      this.M.set_hash(bdst, M);
     for (let i=0; i<this.m.length; i++){
-      if (src.m[i].h)
-        this.m[i].h = src.m[i].h;
+      let m = src.m[i].get_hash(bsrc);
+      if (m)
+        this.m[i].set_hash(bdst, m);
     }
     this.fbuf_group.take(bdst, src.fbuf_group);
   }
@@ -1003,6 +1017,7 @@ class Merkel_node extends EventEmitter {
     super();
     this.range = range_fix(opt.range);
     this.decl = opt.decl;
+    this.bmap = new Map();
   }
   init(b){ // XXX WIP: rm branch
     let decl = this.decl, scroll = decl.scroll;
@@ -1031,12 +1046,14 @@ class Merkel_node extends EventEmitter {
   }
   get_hash(b){
     assert(b!==undefined, 'XXX WIP missing b');
+    b = this.decl.to_b(b);
+    let h = this.bmap.get(b);
     // XXX: optimize, don't run calc if there is no change in dependent data
-    if (this.h)
-      return this.h;
+    if (h)
+      return h;
     let [s, e] = this.range, decl = this.decl;
     if (s==e){
-      let d = decl.d_hash(b), sig = decl.sig;
+      let d = decl.d_hash(b), sig = decl.sig_get(b);
       if (!d || !sig)
         return null;
       return this.set_hash(b, hleaf(d, sig));
@@ -1044,16 +1061,19 @@ class Merkel_node extends EventEmitter {
     let [r1, r2] = range_split(this.range);
     let decl1 = decl.scroll.get_decl(r1[1], {b});
     let decl2 = decl.scroll.get_decl(r2[1], {b});
-    this.set_hash(b, hparent_safe(e-s+1, decl1.m_hash(b, r1),
+    return this.set_hash(b, hparent_safe(e-s+1, decl1.m_hash(b, r1),
       decl2.m_hash(b, r2)));
-    return this.h;
   }
   set_hash(b, h){
     assert(b!==undefined && h!==undefined, 'XXX WIP missing b');
-    assert(!this.h || this.h.equals(h), 'hash changed');
-    if (this.h)
-      return this.h;
-    if (this.h = h)
+    b = this.decl.to_b(b);
+    let h_curr = this.bmap.get(b);
+    if (h_curr){
+      assert(h_curr.equals(h), 'hash changed');
+      return h_curr;
+    }
+    this.bmap.set(b, h);
+    if (h)
       this.emit('hash', {b});
     return h;
   }
@@ -1063,20 +1083,26 @@ class Merkel_root {
   constructor(opt){
     this.decl = opt.decl;
     this.scroll = opt.decl.scroll;
+    this.bmap = new Map();
   }
   get_hash(b){
     assert(b!==undefined, 'XXX WIP missing Merkel_root b');
-    if (this.h)
-      return this.h;
+    b = this.decl.to_b(b);
+    let h = this.bmap.get(b);
+    if (h)
+      return h;
     return this.set_hash(b, this.scroll.calc_root_hash(this.decl.seq, {b}));
   }
   set_hash(b, h){
     assert(b!==undefined && h!==undefined, 'XXX WIP missing b');
-    // XXX: need hash event
-    assert(!this.h || this.h.equals(h), 'hash changed');
-    if (this.h)
-      return this.h;
-    this.h = h;
+    b = this.decl.to_b(b);
+    let h_curr = this.bmap.get(b);
+    if (h_curr){
+      assert(h_curr.equals(h), 'hash changed');
+      return h_curr;
+    }
+    // XXX: need emit('hash') event
+    this.bmap.set(b, h);
     if (h)
       this.scroll.notify_M({b, seq: this.decl.seq, M: h});
     return h;

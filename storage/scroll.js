@@ -1020,15 +1020,13 @@ class Merkel_node extends EventEmitter {
     let [s, e] = this.range, b = this.b;
     // XXX: add event testing
     if (s==e){
-      if (!(decl.d_hash(b) && decl.sig_get(b))){
-        const on_hash = opt=>{
-          if (!this.decl.scroll.branch.get(b)) // XXX HACK: due branch merge
-            return;
-          this.get_hash(opt.b);
-        };
-        decl.fbuf_group.on('hash', on_hash);
-        decl.on('sig', on_hash);
-      }
+      const on_hash = opt=>{
+        if (!this.decl.scroll.branch.get(b)) // XXX HACK: due branch merge
+          return;
+        this.get_hash(opt.b);
+      };
+      decl.fbuf_group.on('hash', on_hash);
+      decl.on('sig', on_hash);
     } else {
       let [r1, r2] = range_split(this.range);
       let m1 = scroll.m_get(r1, {b}), m2 = scroll.m_get(r2, {b});
@@ -1038,10 +1036,8 @@ class Merkel_node extends EventEmitter {
         if (m1.h && m2.h)
           this.get_hash(opt.b);
       };
-      if (!m1.hash)
-        m1.on('hash', on_hash_m);
-      if (!m2.hash)
-        m2.on('hash', on_hash_m);
+      m1.on('hash', on_hash_m);
+      m2.on('hash', on_hash_m);
     }
   }
   get_hash(b){

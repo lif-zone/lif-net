@@ -39,7 +39,7 @@ class Frame_buffer_group extends EventEmitter {
     if (fbuf)
       return fbuf;
     fbuf = new Frame_buffer();
-    fbuf.on_hash = ()=>{ this.emit({b}); };
+    fbuf.on_hash = ()=>{ this.emit('hash', {b}); };
     fbuf.on('hash', fbuf.on_hash);
     this.bmap.set(b, fbuf);
     return fbuf;
@@ -705,16 +705,27 @@ export default class Scroll {
     assert(!m, 'm does not exists');
     return {range, m: vm};
   }
-  merge_all(seq, b){
+  merge_all(seq, b){ // XXX: why do we need seq and b here?
     if (this.branch.size<=1)
       return;
-    // XXX HACK: terrible unefficient loop. Need to listen to merkle changes
-    // and just merge those can are mergeable
-    for (const [i] of this.branch){
-      for (const [j] of this.branch){
-        if (j<=i)
+    let cont = true;
+    while (cont){
+      cont = false;
+      // XXX: improve it, we need to keep list of merge_queue
+      for (const [i, b_o] of this.branch){
+        if (i==0)
           continue;
-        this.merge_single(i, j, seq);
+        if (b_o.minfo.merge_list.size){
+          cont = true;
+          this.merge_single(Array.from(b_o.minfo.merge_list.keys())[0], i,
+            seq);
+        }
+        else if (b_o.minfo.real_list.size){
+          if (b_o.parent.type!='b' && b_o.minfo.real_list.get(b_o.parent.b)){
+            cont = true;
+            this.merge_single(b_o.parent.b, i, seq);
+          }
+        }
       }
     }
   }
@@ -723,17 +734,15 @@ export default class Scroll {
     // (for eg, one branch has d/sig other only hash)
     assert(i1<i2, 'invalid branch merge '+i1+' '+i2);
     let b1=this.branch.get(i1), b2=this.branch.get(i2), bseq;
-    if (b2.parent.seq >= seq)
+    let mergeable = b2.minfo.merge_list.get(i1);
+    let real_branch = b2.minfo.real_list.get(i1);
+    if (b2.parent.seq >= seq){
+      assert(!mergeable && real_branch);
       return;
-    if (b2.parent.seq >= b1.top.seq)
+    }
+    if (b2.parent.seq >= b1.top.seq){
+      assert(!mergeable && real_branch);
       return;
-    let mergeable = false, real_branch = false, any = b2.minfo.any;
-    for (let i=0; !real_branch && i<any.length; i++){
-      let r = any[i], m1, m2;
-      if ((m1=this.m_hash(r, {b: i1})) && (m2=this.m_hash(r, {b: i2}))){
-        real_branch = !m1.equals(m2);
-        mergeable = mergeable || !real_branch;
-      }
     }
     if (!mergeable){
       if (real_branch && b2.parent.b==i1)
@@ -813,17 +822,58 @@ export default class Scroll {
     this.update_mergeable(src.b);
   }
   update_mergeable(b){
-    // XXX: do it only if needed (seq change or branch change)
-    let b_o = this.branch.get(b);
-    if (b_o.minfo?.seq!=b_o.parent.seq)
-      b_o.minfo = calc_merge_info(b_o.parent.seq);
-    let parent_b = b_o.parent.b;
-    let parent_o = this.branch.get(parent_b);
-    if (parent_o.branches.get(b)){
-      assert.equal(parent_o.branches.get(b), b_o, 'branch corruption '+b);
-      return;
+    assert(b>0, 'invalid branch');
+    let b_o = this.branch.get(b), p_o = this.branch.get(b_o.parent.b);
+    if (!p_o.branches.get(b))
+      p_o.branches.set(b, b_o);
+    assert.equal(p_o.branches.get(b), b_o, 'branch corruption '+b);
+    if (b_o.minfo){
+      if (b_o.minfo.parent.b==b_o.parent.b &&
+        b_o.minfo.parent.seq==b_o.parent.seq){
+        return;
+      }
+      let any = b_o.minfo.any;
+      for (let r, m, i=0; i<any.length&&(r = any[i])&&(m=this.m_get(r)); i++)
+        m.off('hash', b_o.minfo.on_hash);
     }
-    parent_o.branches.set(b, b_o);
+    let any = calc_merge_info(b_o.parent.seq).any;
+    // XXX: maybe we can reuse some of merge_list & real_list
+    b_o.minfo = {any, merge_list: new Map, real_list: new Map,
+      parent: {b: b_o.parent.b, seq: b_o.parent.seq}};
+    b_o.minfo.on_hash = opt=>{
+      let r = opt.range, bb = opt.b, m1, m2;
+      if (!this.branch.get(b)) // XXX HACK: due branch merge
+        return;
+      if (!this.branch.get(bb)) // XXX HACK: due branch merge
+        return;
+      if (bb<b){
+        if (b_o.minfo.merge_list.get(bb))
+          return;
+        if ((m1=this.m_hash(r, {b: b})) && (m2=this.m_hash(r, {b: bb}))){
+          if (m1.equals(m2))
+            b_o.minfo.merge_list.set(bb, true);
+          else
+            b_o.minfo.real_list.set(bb, true);
+        }
+      }
+      else if (bb==b){
+        for (const [j] of this.branch){ // XXX: can we skip obvious ones
+          if (j==b || j>b || b_o.minfo.merge_list.get(j))
+            continue;
+          if ((m1=this.m_hash(r, {b: b})) && (m2=this.m_hash(r, {b: j}))){
+            if (m1.equals(m2))
+              b_o.minfo.merge_list.set(j, true);
+            else
+              b_o.minfo.real_list.set(j, true);
+          }
+        }
+      }
+    };
+    for (let i=0; i<any.length; i++){
+      let r = any[i], m=this.m_get(r);
+      m.on('hash', b_o.minfo.on_hash);
+      b_o.minfo.on_hash({range: r, b: b});
+    }
   }
   calc_m(opt){
     let {range, diff, diff_b} = opt;
@@ -1061,7 +1111,7 @@ class Merkel_node extends EventEmitter {
     }
     this.bmap.set(b, h);
     if (h)
-      this.emit('hash', {b});
+      this.emit('hash', {b, range: this.range});
     return h;
   }
 }

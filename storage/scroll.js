@@ -380,6 +380,7 @@ export default class Scroll {
     let decl = new Decl({scroll: this, b: 0, seq, fbuf});
     decl.sign();
     this.branch.get(0).map.set(seq, decl);
+    decl.init();
     decl.M.get_hash(0);
     return decl;
   }
@@ -876,6 +877,7 @@ export default class Scroll {
       return decl;
     decl = new Decl({scroll: this, b, seq, fbuf: new FrameBuffer});
     this.branch.get(b).map.set(seq, decl);
+    decl.init();
     return decl;
   }
 }
@@ -897,6 +899,10 @@ class Decl extends EventEmitter {
     this.M = new Merkel_root({decl: this});
   }
   to_b(b){ return this.scroll.to_b(b, this.seq); }
+  init(){
+    for (let i=0; i<this.m.length; i++)
+      this.m[i].init();
+  }
   sign = ()=>{
     let scroll = this.scroll, d = this.fbuf.get_hash({skip: 0});
     assert(scroll.key, 'cannot sign without key');
@@ -915,7 +921,7 @@ class Decl extends EventEmitter {
       return this.sig;
     this.sig = sig;
     if (sig)
-      this.emit('sig', sig);
+      this.emit('sig', {b});
     return sig;
   }
   sig_get(b){
@@ -975,6 +981,34 @@ class Merkel_node extends EventEmitter {
     this.decl = opt.decl;
     this.b = this.decl.b;
   }
+  init(){
+    let decl = this.decl, scroll = decl.scroll;
+    let [s, e] = this.range, b = this.b;
+    if (s==e){
+      if (!(decl.fbuf_get(b).get_hash() && decl.sig_get(b))){
+        const on_hash = ()=>{
+          if (!this.decl.scroll.branch.get(b)) // XXX HACK: due branch merge
+            return;
+          this.get_hash(b);
+        };
+        decl.fbuf.on('hash', on_hash);
+        decl.on('sig', on_hash);
+      }
+    } else {
+      let [r1, r2] = range_split(this.range);
+      let m1 = scroll.m_get(r1, {b}), m2 = scroll.m_get(r2, {b});
+      const on_hash_m = opt=>{
+        if (!this.decl.scroll.branch.get(b)) // XXX HACK: due branch merge
+          return;
+        if (m1.h && m2.h)
+          this.get_hash(opt.b);
+      };
+      if (!m1.hash)
+        m1.on('hash', on_hash_m);
+      if (!m2.hash)
+        m2.on('hash', on_hash_m);
+    }
+  }
   get_hash(b){
     assert(b!==undefined, 'XXX WIP missing b');
     assert.equal(this.b, this.decl.to_b(b), 'XXX WIP');
@@ -1002,7 +1036,7 @@ class Merkel_node extends EventEmitter {
     if (this.h)
       return this.h;
     if (this.h = h)
-      this.emit('hash');
+      this.emit('hash', {b});
     return h;
   }
 }

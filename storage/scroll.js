@@ -712,7 +712,7 @@ export default class Scroll {
     // and just merge those can are mergeable
     for (const [i] of this.branch){
       for (const [j] of this.branch){
-        if (i==j)
+        if (j<=i)
           continue;
         this.merge_single(i, j, seq);
       }
@@ -721,9 +721,7 @@ export default class Scroll {
   merge_single(i1, i2, seq){
     // XXX: test all merge of data. verify we don't lose anything
     // (for eg, one branch has d/sig other only hash)
-    if (i2==i1)
-      return;
-    [i1, i2] = i1<i2 ? [i1, i2] : [i2, i1];
+    assert(i1<i2, 'invalid branch merge '+i1+' '+i2);
     let b1=this.branch.get(i1), b2=this.branch.get(i2), bseq;
     if (b2.parent.seq >= seq)
       return;

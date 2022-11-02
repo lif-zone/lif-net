@@ -929,9 +929,9 @@ class Decl extends EventEmitter {
     this.M = new Merkel_root({decl: this});
   }
   to_b(b){ return this.scroll.to_b(b, this.seq); }
-  init(b){ // XXX WIP: rm branch
+  init(){
     for (let i=0; i<this.m.length; i++)
-      this.m[i].init(b);
+      this.m[i].init();
   }
   sign = ()=>{
     // XXX: support branch for sign
@@ -1007,13 +1007,13 @@ class Merkel_node extends EventEmitter {
     this.decl = opt.decl;
     this.bmap = new Map();
   }
-  init(b){ // XXX WIP: rm branch
+  init(){
     let decl = this.decl, scroll = decl.scroll;
     let [s, e] = this.range;
     // XXX: add event testing + cleanup of event handlers on merge
     if (s==e){
       const on_hash = opt=>{
-        if (!this.decl.scroll.branch.get(b)) // XXX HACK: due branch merge
+        if (!this.decl.scroll.branch.get(opt.b)) // XXX HACK: due branch merge
           return;
         this.get_hash(opt.b);
       };

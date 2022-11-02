@@ -1018,7 +1018,7 @@ class Merkel_node extends EventEmitter {
   init(){
     let decl = this.decl, scroll = decl.scroll;
     let [s, e] = this.range, b = this.b;
-    // XXX: add event testing
+    // XXX: add event testing + cleanup of event handlers on merge
     if (s==e){
       const on_hash = opt=>{
         if (!this.decl.scroll.branch.get(b)) // XXX HACK: due branch merge

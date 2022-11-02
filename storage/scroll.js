@@ -720,13 +720,14 @@ export default class Scroll {
           this.merge_single(Array.from(b_o.minfo.merge_list.keys())[0], i,
             seq);
         }
-        else if (b_o.minfo.real_list.size){
-          if (b_o.parent.type!='b' && b_o.minfo.real_list.get(b_o.parent.b)){
-            cont = true;
-            this.merge_single(b_o.parent.b, i, seq);
-          }
-        }
       }
+    }
+    // XXX: can we improve and avoid traverssing all branches
+    for (const [i, b_o] of this.branch){
+      if (i==0)
+        continue;
+      if (b_o.parent.type!='b' && b_o.minfo.real_list.get(b_o.parent.b))
+        this.merge_single(b_o.parent.b, i, seq);
     }
   }
   merge_single(i1, i2, seq){
@@ -777,17 +778,11 @@ export default class Scroll {
     assert(i2, 'cannot remove branch 0');
     assert(i1>=0, 'must provide new branch');
     assert(i1<i2, 'new branch must be smaller');
-    // XXX: wrap nicely
-    this.branch.get(this.branch.get(i2).parent.b).branches.delete(i2);
+    let b2 = this.branch.get(i2);
+    this.branch.get(b2.parent.b).branches.delete(i2);
+    for (const [i] of b2.branches)
+      this.branch_update(i, {b: i1});
     this.branch.delete(i2);
-    for (const [i] of this.branch){ // XXX: use i2 branches
-      if (this.branch.get(i).parent.b==i2)
-        this.branch_update(this.branch.get(i).b, {b: i1});
-    }
-    for (const [i] of this.branch){ // XXX: rm
-      assert(this.branch.get(i).b!=this.branch.get(i).parent.b,
-        'branch corruption loop b'+i);
-    }
   }
   branch_update(b, o){
     // XXX: need to copy data/sig if avail
@@ -808,6 +803,7 @@ export default class Scroll {
     if (o.b!==undefined){
       assert(src.parent!==o.b || o.type===undefined || src.parent.type!='b' ||
         o.type=='b', 'real branch type change b'+src.b);
+      this.branch.get(src.parent.b).branches.delete(src.b);
       src.parent.b = o.b;
     }
     if (o.seq!==undefined)

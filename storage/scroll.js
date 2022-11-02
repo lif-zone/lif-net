@@ -433,7 +433,7 @@ export default class Scroll {
     for (let i=a.length-1; i>=0 && +a[i]; i--){
       let seq = +a[i], errors2={}, best = {b: 0, max_common: 0};
       // XXX: optimize. do only once. and assume all diff is on the same branch
-      // XXX: optimize, use !mergable logic from merge_single and also
+      // XXX: optimize, use !mergeable logic from merge_single and also
       // take into account all
       if (this.branch.size>1){
         for (const [j, branch] of this.branch){
@@ -709,7 +709,7 @@ export default class Scroll {
     if (this.branch.size<=1)
       return;
     // XXX HACK: terrible unefficient loop. Need to listen to merkle changes
-    // and just merge those can are mergable
+    // and just merge those can are mergeable
     for (const [i] of this.branch){
       for (const [j] of this.branch){
         if (i==j)
@@ -729,15 +729,15 @@ export default class Scroll {
       return;
     if (b2.parent.seq >= b1.top.seq)
       return;
-    let mergable = false, real_branch = false, any = b2.minfo.any;
+    let mergeable = false, real_branch = false, any = b2.minfo.any;
     for (let i=0; !real_branch && i<any.length; i++){
       let r = any[i], m1, m2;
       if ((m1=this.m_hash(r, {b: i1})) && (m2=this.m_hash(r, {b: i2}))){
         real_branch = !m1.equals(m2);
-        mergable = mergable || !real_branch;
+        mergeable = mergeable || !real_branch;
       }
     }
-    if (!mergable){
+    if (!mergeable){
       if (real_branch && b2.parent.b==i1)
         this.branch_update(i2, {type: real_branch ? 'b' : 'v'});
       return;
@@ -793,7 +793,7 @@ export default class Scroll {
     if (o.init){
       assert(o.b===undefined && o.seq===undefined, 'invalid init');
       assert(!src.info, 'invalid init');
-      this.update_mergable(src.b);
+      this.update_mergeable(src.b);
       return;
     }
     if (src.b==o.b && src.seq==o.sec)
@@ -812,9 +812,9 @@ export default class Scroll {
       src.parent.type = o.type;
     }
     // XXX: do it only if needed (seq change or branch change)
-    this.update_mergable(src.b);
+    this.update_mergeable(src.b);
   }
-  update_mergable(b){
+  update_mergeable(b){
     // XXX: do it only if needed (seq change or branch change)
     let b_o = this.branch.get(b);
     b_o.minfo = calc_merge_info(b_o.parent.seq);

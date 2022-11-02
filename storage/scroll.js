@@ -364,8 +364,9 @@ Problem 3: storage. how will was save branches if it has no id.
 and after merge, we need to fix all entries?
 
 */
-export default class Scroll {
+export default class Scroll extends EventEmitter {
   constructor(opt){
+    super();
     assert(opt.pub, 'missing pub key');
     this.pub = opt.pub;
     this.key = opt.key;
@@ -783,6 +784,7 @@ export default class Scroll {
     for (const [i] of b2.branches)
       this.branch_update(i, {b: i1});
     this.branch.delete(i2);
+    this.emit('branch-removed', {b: i2, b_new: i1});
   }
   branch_update(b, o){
     // XXX: need to copy data/sig if avail
@@ -823,25 +825,28 @@ export default class Scroll {
     if (!p_o.branches.get(b))
       p_o.branches.set(b, b_o);
     assert.equal(p_o.branches.get(b), b_o, 'branch corruption '+b);
-    if (b_o.minfo){
-      if (b_o.minfo.parent.b==b_o.parent.b &&
-        b_o.minfo.parent.seq==b_o.parent.seq){
-        return;
-      }
-      let any = b_o.minfo.any;
-      for (let r, m, i=0; i<any.length&&(r = any[i])&&(m=this.m_get(r)); i++)
-        m.off('hash', b_o.minfo.on_hash);
+    if (b_o.minfo && b_o.minfo.parent.b==b_o.parent.b &&
+      b_o.minfo.parent.seq==b_o.parent.seq){
+      return;
     }
+    if (b_o.minfo)
+      b_o.minfo.cleanup();
     let any = calc_merge_info(b_o.parent.seq).any;
     // XXX: maybe we can reuse some of merge_list & real_list
     b_o.minfo = {any, merge_list: new Map, real_list: new Map,
       parent: {b: b_o.parent.b, seq: b_o.parent.seq}};
+    // XXX: find way to avoid creating run-time functions (wrap in class)
+    b_o.minfo.cleanup = opt=>{
+      if (opt && opt.b!=b)
+        return;
+      let any = b_o.minfo.any;
+      for (let r, m, i=0; i<any.length&&(r = any[i])&&(m=this.m_get(r)); i++)
+        m.off('hash', b_o.minfo.on_hash);
+      this.off('branch-removed', b_o.minfo.cleanup);
+    };
+    this.on('branch-removed', b_o.minfo.cleanup);
     b_o.minfo.on_hash = opt=>{
       let r = opt.range, bb = opt.b, m1, m2;
-      if (!this.branch.get(b)) // XXX HACK: due branch merge
-        return;
-      if (!this.branch.get(bb)) // XXX HACK: due branch merge
-        return;
       if (bb<b){
         if (b_o.minfo.merge_list.get(bb))
           return;
@@ -1057,19 +1062,13 @@ class Merkel_node extends EventEmitter {
     let [s, e] = this.range;
     // XXX: add event testing + cleanup of event handlers on merge
     if (s==e){
-      const on_hash = opt=>{
-        if (!this.decl.scroll.branch.get(opt.b)) // XXX HACK: due branch merge
-          return;
-        this.get_hash(opt.b);
-      };
+      const on_hash = opt=>this.get_hash(opt.b);
       decl.fbuf_group.on('hash', on_hash);
       decl.on('sig', on_hash);
     } else {
       let [r1, r2] = range_split(this.range);
       let m1 = scroll.m_get(r1), m2 = scroll.m_get(r2);
       const on_hash_m = opt=>{
-        if (!this.decl.scroll.branch.get(opt.b)) // XXX HACK: due branch merge
-          return;
         if (m1.h && m2.h)
           this.get_hash(opt.b);
       };

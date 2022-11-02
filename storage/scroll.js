@@ -23,8 +23,7 @@ function to_frame(o){
   assert.fail('invalid frame data '+o);
 }
 
-// XXX: rename to Frame_buffer;
-class FrameBuffer extends EventEmitter {
+class Frame_buffer extends EventEmitter {
   constructor(opt={}){
     super();
     let {frames} = opt;
@@ -36,7 +35,7 @@ class FrameBuffer extends EventEmitter {
   get_hash(opt={}){
     if (this.h)
       return this.h;
-    return this.set_hash(FrameBuffer.calc_hash(this.frames,
+    return this.set_hash(Frame_buffer.calc_hash(this.frames,
       {safe: true, skip: opt.skip}));
   }
   get_frames(){ return Array.from(this.frames); }
@@ -65,7 +64,7 @@ class FrameBuffer extends EventEmitter {
   }
 }
 
-FrameBuffer.calc_hash = function(frames, opt={}){
+Frame_buffer.calc_hash = function(frames, opt={}){
   let buf;
   if (!frames.length)
     return null;
@@ -144,7 +143,7 @@ function set_d(data, seq, d, D){
 function calc_D_hash(D){
   if (!D)
     return;
-  return FrameBuffer.calc_hash(D);
+  return Frame_buffer.calc_hash(D);
 }
 
 // XXX: need test
@@ -373,7 +372,7 @@ export default class Scroll {
     return b;
   }
   decl(frames){ // XXX: support decl on branch
-    let ts = Date.now(), fbuf = new FrameBuffer({frames});
+    let ts = Date.now(), fbuf = new Frame_buffer({frames});
     let seq = this.branch.get(0).top ? this.branch.get(0).top.seq+1 : 0;
     assert(!this.branch.get(0).map.get(seq), 'XXX TODO '+seq); // XXX: branch
     fbuf.unshift({seq, ts});
@@ -875,7 +874,7 @@ export default class Scroll {
     decl = this.branch.get(b).map.get(seq);
     if (decl || opt.create===false)
       return decl;
-    decl = new Decl({scroll: this, b, seq, fbuf: new FrameBuffer});
+    decl = new Decl({scroll: this, b, seq, fbuf: new Frame_buffer});
     this.branch.get(b).map.set(seq, decl);
     decl.init();
     return decl;

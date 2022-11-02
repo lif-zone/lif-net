@@ -517,7 +517,7 @@ const cmd_test = t=>etask(function*cmd_test(){
           assert(!decl.sig, 'sig'+seq+'b'+b+' exists '+t.meta.s);
           break;
         case 'd':
-          assert(!decl.fbuf.h, 'd'+seq+'b'+b+' exists '+t.meta.s);
+          assert(!decl.fbuf_get(b).h, 'd'+seq+'b'+b+' exists '+t.meta.s);
           break;
         case 'M':
           if (0) // XXX: enable

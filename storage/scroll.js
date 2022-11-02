@@ -13,6 +13,12 @@ const stringify = JSON.stringify.bind(JSON);
 const LEAF_TYPE = enc_u64(0), PARENT_TYPE = enc_u64(1), ROOT_TYPE = enc_u64(2);
 function enc_u64(v){ return enc.encode(enc.uint64, v); }
 
+// XXX: move to util (make it part of map)
+function map_key0(map){
+  let o = map[Symbol.iterator]().next();
+  return o.value && o.value[0];
+}
+
 function to_frame(o){
   if (Buffer.isBuffer(o))
     return {buf: o};
@@ -376,6 +382,7 @@ export default class Scroll extends EventEmitter {
     this.dmap = new Map();
     this.branch = new Map();
     this.branch.next_id = 0;
+    this.merge_list = new Map;
     this.create_new_branch();
   }
   create_new_branch(opt={}){
@@ -709,19 +716,10 @@ export default class Scroll extends EventEmitter {
   merge_all(seq, b){ // XXX: why do we need seq and b here?
     if (this.branch.size<=1)
       return;
-    let cont = true;
-    while (cont){
-      cont = false;
-      // XXX: improve it, we need to keep list of merge_queue
-      for (const [i, b_o] of this.branch){
-        if (i==0)
-          continue;
-        if (b_o.minfo.merge_list.size){
-          cont = true;
-          this.merge_single(Array.from(b_o.minfo.merge_list.keys())[0], i,
-            seq);
-        }
-      }
+    while (this.merge_list.size){
+      let i = map_key0(this.merge_list);
+      let b_o = this.branch.get(i);
+      this.merge_single(map_key0(b_o.minfo.merge_list), i, seq);
     }
     // XXX: can we improve and avoid traverssing all branches
     for (const [i, b_o] of this.branch){
@@ -843,6 +841,7 @@ export default class Scroll extends EventEmitter {
       for (let r, m, i=0; i<any.length&&(r = any[i])&&(m=this.m_get(r)); i++)
         m.off('hash', b_o.minfo.on_hash);
       this.off('branch-removed', b_o.minfo.cleanup);
+      this.merge_list.delete(b);
     };
     this.on('branch-removed', b_o.minfo.cleanup);
     b_o.minfo.on_hash = opt=>{
@@ -851,8 +850,10 @@ export default class Scroll extends EventEmitter {
         if (b_o.minfo.merge_list.get(bb))
           return;
         if ((m1=this.m_hash(r, {b: b})) && (m2=this.m_hash(r, {b: bb}))){
-          if (m1.equals(m2))
+          if (m1.equals(m2)){
             b_o.minfo.merge_list.set(bb, true);
+            this.merge_list.set(b, true);
+          }
           else
             b_o.minfo.real_list.set(bb, true);
         }
@@ -862,8 +863,10 @@ export default class Scroll extends EventEmitter {
           if (j==b || j>b || b_o.minfo.merge_list.get(j))
             continue;
           if ((m1=this.m_hash(r, {b: b})) && (m2=this.m_hash(r, {b: j}))){
-            if (m1.equals(m2))
+            if (m1.equals(m2)){
               b_o.minfo.merge_list.set(j, true);
+              this.merge_list.set(b, true);
+            }
             else
               b_o.minfo.real_list.set(j, true);
           }

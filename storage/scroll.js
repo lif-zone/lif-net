@@ -881,19 +881,19 @@ export default class Scroll {
     return this.get_decl(seq, opt).d_hash(opt.b||0); }
   seq_D(seq, opt){
     return this.get_decl(seq, opt).fbuf_get(opt.b||0).get_frames(); }
-  m_hash(range, opt){
+  m_hash(range, opt={}){
     let [, e] = range = range_fix(range);
     let decl = this.get_decl(e, opt);
-    return decl.m_hash(decl.b, range);
+    return decl.m_hash(opt.b||0, range);
   }
-  m_get(range, opt){
+  m_get(range, opt={}){
     let [, e] = range = range_fix(range);
     let decl = this.get_decl(e, opt);
-    return decl.m_get(decl.b, range);
+    return decl.m_get(opt.b||0, range);
   }
-  M_hash(seq, opt){
+  M_hash(seq, opt={}){
     let decl = this.get_decl(seq, opt);
-    return decl ? decl.M_hash(decl.b) : null;
+    return decl ? decl.M_hash(opt.b||0) : null;
   }
   get_decl(seq, opt={}){
     assert(typeof seq=='number', 'invalid seq '+seq);
@@ -922,8 +922,7 @@ class Decl extends EventEmitter {
     assert(opt.scroll, 'must provide Scroll');
     let seq = this.seq = opt.seq;
     this.scroll = opt.scroll;
-    this.b = opt.b||0;
-    assert(this.scroll.branch.get(this.b), 'branch '+opt.b+' not found');
+    assert(this.scroll.branch.get(opt.b||0), 'branch '+opt.b+' not found');
     this.fbuf_group = opt.fbuf_group;
     this.m = [];
     let ma = merkel_ranges(seq);
@@ -944,12 +943,11 @@ class Decl extends EventEmitter {
       : scroll.prev_scroll ? Buffer.concat([d, scroll.prev_scroll]) : d;
     let sig = crypto.sign(crypto.blake2b(buf), scroll.key);
     assert(!this.sig || this.sig.equals(sig), 'sig mismatch');
-    this.set_sig(this.b, sig);
+    this.set_sig(0, sig);
     this.fbuf_get(0).unshift({sig});
   }
   set_sig(b, sig){
     assert(b!==undefined && sig!==undefined, 'XXX WIP missing b');
-    assert.equal(this.b, this.to_b(b), 'XXX WIP');
     assert(!this.sig || this.sig.equals(sig), 'sig changed');
     if (this.sig)
       return this.sig;
@@ -960,22 +958,18 @@ class Decl extends EventEmitter {
   }
   sig_get(b){
     assert(b!==undefined, 'XXX WIP missing b');
-    assert.equal(this.b, this.to_b(b), 'XXX WIP');
     return this.sig;
   }
   fbuf_get(b){
     assert(b!==undefined, 'XXX WIP missing b');
-    assert.equal(this.b, this.to_b(b), 'XXX WIP');
     return this.fbuf_group.get(this.to_b(b));
   }
   d_hash(b){
     assert(b!==undefined, 'XXX WIP missing b');
-    assert.equal(this.b, this.to_b(b), 'XXX WIP');
     return this.fbuf_get(b).get_hash();
   }
   m_get(b, range){
     assert(b!==undefined && range!==undefined, 'XXX WIP missing b');
-    assert.equal(this.b, this.to_b(b), 'XXX WIP');
     let i = merkel_array_pos(range);
     assert.deepEqual(this.m[i].range, range_fix(range));
     assert(i<this.m.length);
@@ -983,20 +977,16 @@ class Decl extends EventEmitter {
   }
   m_hash(b, range){
     assert(b!==undefined && range!==undefined, 'XXX WIP missing b');
-    assert.equal(this.b, this.to_b(b), 'XXX WIP');
     let m = this.m_get(b, range);
     return m.get_hash(b);
   }
   M_hash(b){
     assert(b!==undefined, 'XXX WIP missing Merkel_root b');
-    assert.equal(this.b, this.to_b(b), 'XXX WIP');
     let M = this.M;
     return M.get_hash(b);
   }
   copy(bdst, bsrc, src){ // XXX WIP: rm src
     assert(bdst!==undefined && bsrc!==undefined && src!==undefined, 'XXX WIP');
-    assert.equal(this.b, this.to_b(bdst), 'XXX WIP');
-    assert.equal(src.b, this.to_b(bsrc), 'XXX WIP');
     assert.equal(this.seq, src.seq, 'can only copy from same seq');
     if (src.M.h)
       this.M.h = src.M.h;

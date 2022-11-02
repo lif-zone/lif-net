@@ -382,6 +382,7 @@ export default class Scroll {
     if (b===undefined || seq===undefined){
       assert(b===undefined && seq===undefined, 'invalid create_new_branch');
       assert.equal(bid, 0);
+      // XXX: change parent to null
       this.branch.set(bid, {b: bid, top: null, map: new Map(),
         parent: {}, branches: new Map()});
       return bid;
@@ -1079,26 +1080,22 @@ class Merkel_root {
   constructor(opt){
     this.decl = opt.decl;
     this.scroll = opt.decl.scroll;
-    this.b = this.decl.b;
   }
   get_hash(b){
     assert(b!==undefined, 'XXX WIP missing Merkel_root b');
-    assert.equal(this.b, this.decl.to_b(b), 'XXX WIP');
     if (this.h)
       return this.h;
-    return this.set_hash(b, this.scroll.calc_root_hash(this.decl.seq,
-      {b: this.b}));
+    return this.set_hash(b, this.scroll.calc_root_hash(this.decl.seq, {b}));
   }
   set_hash(b, h){
     assert(b!==undefined && h!==undefined, 'XXX WIP missing b');
-    assert.equal(this.b, this.decl.to_b(b), 'XXX WIP');
     // XXX: need hash event
     assert(!this.h || this.h.equals(h), 'hash changed');
     if (this.h)
       return this.h;
     this.h = h;
     if (h)
-      this.scroll.notify_M({b: this.b, seq: this.decl.seq, M: h});
+      this.scroll.notify_M({b, seq: this.decl.seq, M: h});
     return h;
   }
 }

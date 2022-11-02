@@ -412,7 +412,7 @@ export default class Scroll {
     let decl = new Decl({scroll: this, b: 0, seq, fbuf_group});
     decl.sign();
     this.branch.get(0).map.set(seq, decl);
-    decl.init();
+    decl.init(0);
     decl.M.get_hash(0);
     return decl;
   }
@@ -910,7 +910,7 @@ export default class Scroll {
     decl = new Decl({scroll: this, b, seq,
       fbuf_group: new Frame_buffer_group});
     this.branch.get(b).map.set(seq, decl);
-    decl.init();
+    decl.init(b);
     return decl;
   }
 }
@@ -932,9 +932,9 @@ class Decl extends EventEmitter {
     this.M = new Merkel_root({decl: this});
   }
   to_b(b){ return this.scroll.to_b(b, this.seq); }
-  init(){
+  init(b){ // XXX WIP: rm branch
     for (let i=0; i<this.m.length; i++)
-      this.m[i].init();
+      this.m[i].init(b);
   }
   sign = ()=>{
     // XXX: support branch for sign
@@ -1013,11 +1013,10 @@ class Merkel_node extends EventEmitter {
     super();
     this.range = range_fix(opt.range);
     this.decl = opt.decl;
-    this.b = this.decl.b;
   }
-  init(){
+  init(b){ // XXX WIP: rm branch
     let decl = this.decl, scroll = decl.scroll;
-    let [s, e] = this.range, b = this.b;
+    let [s, e] = this.range;
     // XXX: add event testing + cleanup of event handlers on merge
     if (s==e){
       const on_hash = opt=>{
@@ -1042,7 +1041,6 @@ class Merkel_node extends EventEmitter {
   }
   get_hash(b){
     assert(b!==undefined, 'XXX WIP missing b');
-    assert.equal(this.b, this.decl.to_b(b), 'XXX WIP');
     // XXX: optimize, don't run calc if there is no change in dependent data
     if (this.h)
       return this.h;
@@ -1062,7 +1060,6 @@ class Merkel_node extends EventEmitter {
   }
   set_hash(b, h){
     assert(b!==undefined && h!==undefined, 'XXX WIP missing b');
-    assert.equal(this.b, this.decl.to_b(b), 'XXX WIP');
     assert(!this.h || this.h.equals(h), 'hash changed');
     if (this.h)
       return this.h;

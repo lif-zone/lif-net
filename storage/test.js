@@ -498,7 +498,7 @@ const cmd_test = t=>etask(function*cmd_test(){
   for (const [b] of scroll.branch){
     for (let seq=0; seq<=scroll.branch.get(b).top.seq; seq++){
       seq = +seq;
-      let decl = yield scroll.get_decl(seq, {b}); // XXX {create: false}
+      let decl = yield scroll.get_decl(seq); // XXX {create: false}
       ['sig', 'd', 'M', 'm'].forEach(type=>{
         if (type=='m'){
           let a = Scroll.merkel_ranges(seq);

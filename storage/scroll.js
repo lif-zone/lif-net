@@ -295,7 +295,7 @@ function calc_merge_info(seq){
     else
       curr = r2;
   }
-  return {all, any};
+  return {seq, all, any};
 }
 
 function verify_sig(sig, pub, d, M_prev){
@@ -817,14 +817,15 @@ export default class Scroll {
   update_mergeable(b){
     // XXX: do it only if needed (seq change or branch change)
     let b_o = this.branch.get(b);
-    b_o.minfo = calc_merge_info(b_o.parent.seq);
-    let main_b = b_o.parent.b;
-    let main_o = this.branch.get(main_b);
-    if (main_o.branches.get(b)){
-      assert.equal(main_o.branches.get(b), b_o, 'branch corruption '+b);
+    if (b_o.minfo?.seq!=b_o.parent.seq)
+      b_o.minfo = calc_merge_info(b_o.parent.seq);
+    let parent_b = b_o.parent.b;
+    let parent_o = this.branch.get(parent_b);
+    if (parent_o.branches.get(b)){
+      assert.equal(parent_o.branches.get(b), b_o, 'branch corruption '+b);
       return;
     }
-    main_o.branches.set(b, b_o);
+    parent_o.branches.set(b, b_o);
   }
   calc_m(opt){
     let {range, diff, diff_b} = opt;

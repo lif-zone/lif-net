@@ -860,7 +860,7 @@ export default class Scroll {
         case 'M': decl.M.set_hash(b, val); break;
         case 'm':
           for (let s in val)
-            decl.m_get(b, [+s, +seq]).set_hash(b, val[s]);
+            decl.m_get([+s, +seq]).set_hash(b, val[s]);
           break;
         default: assert.fail('invalid verified type '+type);
         }
@@ -893,10 +893,10 @@ export default class Scroll {
     let decl = this.get_decl(e, opt);
     return decl.m_hash(opt.b||0, range);
   }
-  m_get(range, opt={}){
+  m_get(range){
     let [, e] = range = range_fix(range);
-    let decl = this.get_decl(e, opt);
-    return decl.m_get(opt.b||0, range);
+    let decl = this.get_decl(e);
+    return decl.m_get(range);
   }
   M_hash(seq, opt={}){
     let decl = this.get_decl(seq, opt);
@@ -980,8 +980,7 @@ class Decl extends EventEmitter {
     assert(b!==undefined, 'XXX WIP missing b');
     return this.fbuf_get(b).get_hash();
   }
-  m_get(b, range){
-    assert(b!==undefined && range!==undefined, 'XXX WIP missing b');
+  m_get(range){
     let i = merkel_array_pos(range);
     assert.deepEqual(this.m[i].range, range_fix(range));
     assert(i<this.m.length);
@@ -989,7 +988,7 @@ class Decl extends EventEmitter {
   }
   m_hash(b, range){
     assert(b!==undefined && range!==undefined, 'XXX WIP missing b');
-    let m = this.m_get(b, range);
+    let m = this.m_get(range);
     return m.get_hash(b);
   }
   M_hash(b){
@@ -1033,7 +1032,7 @@ class Merkel_node extends EventEmitter {
       decl.on('sig', on_hash);
     } else {
       let [r1, r2] = range_split(this.range);
-      let m1 = scroll.m_get(r1, {b}), m2 = scroll.m_get(r2, {b});
+      let m1 = scroll.m_get(r1), m2 = scroll.m_get(r2);
       const on_hash_m = opt=>{
         if (!this.decl.scroll.branch.get(opt.b)) // XXX HACK: due branch merge
           return;

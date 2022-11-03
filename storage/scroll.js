@@ -882,8 +882,6 @@ export default class Scroll extends EventEmitter {
     }
     return hconcat_safe(a);
   }
-  lock(){} // XXX: TODO
-  unlock(){} // XXX: TODO
   seq_sig(b, seq){
     let decl = this.get_decl(seq);
     if (!decl)

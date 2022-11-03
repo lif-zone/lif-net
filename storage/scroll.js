@@ -951,7 +951,6 @@ class Decl extends EventEmitter {
     this.fbuf_get(0).unshift({sig});
   }
   set_sig(b, sig){
-    assert(b!==undefined && sig!==undefined, 'XXX WIP missing b');
     b = this.to_b(b);
     let sig_curr = this.bmap.get(b);
     if (sig_curr){
@@ -963,24 +962,12 @@ class Decl extends EventEmitter {
       this.emit('sig', {b});
     return sig;
   }
-  sig_get(b){
-    assert(b!==undefined, 'XXX WIP missing b');
-    b = this.to_b(b);
-    return this.bmap.get(b);
-  }
-  fbuf_get(b){
-    assert(b!==undefined, 'XXX WIP missing b');
-    b = this.to_b(b);
-    return this.fbuf_group.get(this.to_b(b));
-  }
-  d_hash(b){
-    assert(b!==undefined, 'XXX WIP missing b');
-    return this.fbuf_get(b).get_hash();
-  }
+  sig_get(b){ return this.bmap.get(this.to_b(b)); }
+  fbuf_get(b){ return this.fbuf_group.get(this.to_b(b)); }
+  d_hash(b){ return this.fbuf_get(b).get_hash(); }
   m_get(range){
     let i = merkel_array_pos(range);
     assert.deepEqual(this.m[i].range, r_fix(range));
-    assert(i<this.m.length);
     return this.m[i];
   }
   m_hash(b, range){

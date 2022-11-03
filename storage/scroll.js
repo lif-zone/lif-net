@@ -47,6 +47,7 @@ class Frame_buffer_group extends EventEmitter {
     return fbuf;
   }
   copy(bsrc, bdst){
+    // XXX: do we need to_b()
     let fbuf = this.get(bsrc);
     this.bmap.delete(bdst);
     // XXX: need to merge existing fbuf info + test it
@@ -981,6 +982,7 @@ class Decl extends EventEmitter {
     return M.get_hash(b);
   }
   copy(bdst, bsrc){
+    // XXX: do we need to_b()
     assert(bdst!==undefined && bsrc!==undefined, 'XXX WIP');
     let M = this.M.get_hash(bsrc);
     if (M)

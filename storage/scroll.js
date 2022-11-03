@@ -30,30 +30,29 @@ class Frame_buffer_group extends EventEmitter {
     super();
     this.bmap = new XMap();
     let fbuf = new Frame_buffer(opt);
-    // XXX HACK: find better solution for on_hash
-    fbuf.on_hash = ()=>{ this.emit({b: 0}); };
-    fbuf.on('hash', fbuf.on_hash);
+    fbuf.on('hash', this.on_hash);
+    fbuf.group_info = {_: this, b: 0};
     this.bmap.set(0, fbuf);
   }
+  on_hash(){ this.group_info._.emit('hash', {b: this.group_info.b}); }
   get(b){
-    assert(b!==undefined, 'XXX WIP missing b');
+    assert(b>=0, 'invalid b'+b);
     let fbuf = this.bmap.get(b);
     if (fbuf)
       return fbuf;
     fbuf = new Frame_buffer();
-    fbuf.on_hash = ()=>{ this.emit('hash', {b}); };
-    fbuf.on('hash', fbuf.on_hash);
+    fbuf.group_info = {_: this, b};
+    fbuf.on('hash', this.on_hash);
     this.bmap.set(b, fbuf);
     return fbuf;
   }
-  take(b, src){
-    // XXX: need to merge existing fbuf info
-    let fbuf = src.get(b);
-    src.off('hash', fbuf.on_hash);
-    src.bmap.delete(b);
-    fbuf.on_hash = ()=>{ this.emit({b}); };
-    fbuf.on('hash', fbuf.on_hash);
-    this.bmap.set(b, fbuf);
+  copy(bsrc, bdst){
+    let fbuf = this.get(bsrc);
+    this.bmap.delete(bdst);
+    // XXX: need to merge existing fbuf info + test it
+    assert(!this.bmap.get(bdst), 'XXX TODO');
+    fbuf.group_info = {_: this, b: bsrc};
+    this.bmap.set(bsrc, fbuf);
   }
 }
 
@@ -1004,7 +1003,8 @@ class Decl extends EventEmitter {
       if (m)
         this.m[i].set_hash(bdst, m);
     }
-    this.fbuf_group.take(bdst, this.fbuf_group);
+    // XXX: test
+    this.fbuf_group.copy(bdst, bsrc);
   }
 }
 

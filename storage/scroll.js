@@ -968,16 +968,8 @@ class Decl extends EventEmitter {
     assert.deepEqual(this.m[i].range, r_fix(range));
     return this.m[i];
   }
-  m_hash(b, range){
-    assert(b!==undefined && range!==undefined, 'XXX WIP missing b');
-    let m = this.m_get(range);
-    return m.get_hash(b);
-  }
-  M_hash(b){
-    assert(b!==undefined, 'XXX WIP missing Merkel_root b');
-    let M = this.M;
-    return M.get_hash(b);
-  }
+  m_hash(b, range){ return this.m_get(range).get_hash(b); }
+  M_hash(b){ return this.M.get_hash(b); }
   copy(bdst, bsrc){
     // XXX: do we need to_b()
     assert(bdst!==undefined && bsrc!==undefined, 'XXX WIP');

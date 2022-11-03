@@ -1032,7 +1032,6 @@ class Merkel_node extends EventEmitter {
       decl2.m_hash(b, r2)));
   }
   set_hash(b, h){
-    assert(b!==undefined && h!==undefined, 'XXX WIP missing b');
     b = this.decl.to_b(b);
     let h_curr = this.bmap.get(b);
     if (h_curr){

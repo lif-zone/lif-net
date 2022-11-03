@@ -12,8 +12,8 @@ import string from '../util/string.js';
 import xsinon from '../util/sinon.js';
 import Scroll from './scroll.js';
 import buf_util from '../peer-relay/buf_util.js';
+import {r_str, r_from_str, r_parent} from './range.js';
 const b2s = buf_util.buf_to_str, s2b = buf_util.buf_from_str;
-const {range_str, range_from_str} = Scroll;
 function enc_u64(v){ return enc.encode(enc.uint64, v); }
 
 let t_scroll, t_genesis_scroll, t_prev_scroll, t_keypair, t_def;
@@ -77,7 +77,7 @@ function parse_var(v){
   m = v.match(/^(sig|m|M|d|D)((\d+)|((\d+)_(\d+)))$/);
   m = v.match(/^(sig|m|M|d|D)((\d+)|((\d+)_(\d+)))(b(\d+))?$/);
   assert.equal(m?.length, 9, 'invalid var '+v);
-  let type = m[1], range = Scroll.range_from_str(m[2]), seq = range[1];
+  let type = m[1], range = r_from_str(m[2]), seq = range[1];
   let b = m[8] ? +m[8] : 0;
   assert(type=='m' || range[0]==range[1], 'invalid range '+v);
   return {seq, type, range, b, ctx, def};
@@ -125,7 +125,7 @@ function assert_no_corruption(scroll){
 const calc_m = (scroll, range)=>etask(function*calc_m(){
   let [s, e] = range;
   assert(Number.isInteger(Math.log2(e-s+1)), 'invalid merkel range '+
-  range_str(range));
+  r_str(range));
   let q = [];
   assert(e<scroll.branch.get(0).top.seq+1, 'scroll too small '+
     e+'<'+scroll.branch.get(0).top.seq+1);
@@ -179,8 +179,7 @@ const get_val = (exp, def_type='right')=>etask(function*_get_val(){
     let a=[Scroll.ROOT_TYPE], vars = m[1].split('+');
     for (let i=0; i<vars.length; i++){
       let v = vars[i];
-      let r = Scroll.range_from_str(
-        v.replace(/^([a-zA-Z]+[\d]+\.)?m(.*)$/, '$2'));
+      let r = r_from_str(v.replace(/^([a-zA-Z]+[\d]+\.)?m(.*)$/, '$2'));
       a.push(yield get_val(v));
       a.push(enc_u64(r[0]));
       a.push(enc_u64(r[1]-r[0]+1));
@@ -237,10 +236,49 @@ const test_start = ()=>etask(function*test_start(){
 function test_end(){
 }
 
+describe('range', ()=>{
+  it('r_from_str', ()=>{
+    const t = (val, exp)=>assert.deepEqual(r_from_str(val), exp);
+    t('1', [1, 1]);
+    t('10', [10, 10]);
+    t('10_100', [10, 100]);
+  });
+  it('r_parent', ()=>{
+    const t = (val, exp)=>{
+      let _val = r_from_str(val), e = r_from_str(exp);
+      let res = r_parent(_val);
+      assert.deepEqual(res.parent, e, 'failed parent '+val);
+      let d = (e[1] - e[0]+1)/2;
+      assert.deepEqual(res.left, [e[0], e[0]+d-1]);
+      assert.deepEqual(res.right, [e[0]+d, e[1]]);
+    };
+    t('0', '0_1');
+    t('1', '0_1');
+    t('2', '2_3');
+    t('3', '2_3');
+    t('4', '4_5');
+    t('5', '4_5');
+    t('6', '6_7');
+    t('7', '6_7');
+    t('0_1', '0_3');
+    t('2_3', '0_3');
+    t('4_5', '4_7');
+    t('6_7', '4_7');
+    t('0_3', '0_7');
+    t('4_7', '0_7');
+    t('0_7', '0_15');
+    t('8_15', '0_15');
+    t('16_23', '16_31');
+    t('24_31', '16_31');
+    t('0_15', '0_31');
+    t('16_31', '0_31');
+  });
+});
+
 describe('test_util', ()=>{
   it('parse_var', ()=>{
     const t = (v, exp)=>{
-      let a = exp.split(' '), range = Scroll.range_from_str(a[1]);
+      let a = exp.split(' '), range = r_from_str(a[1]);
       let b = a[2] ? +a[2] : 0, ctx = a[3]||'', def = a[4]=='def'||false;
       let exp2 = {type: a[0], seq: range[1], range, b, ctx, def};
       assert.deepEqual(parse_var(v), exp2);
@@ -505,7 +543,7 @@ const cmd_test = t=>etask(function*cmd_test(){
             let s = a[i][0];
             if (tested[b] && tested[b][seq]?.m[s])
               continue;
-            assert(!decl.m_get([s, seq]).h, 'm'+range_str([s, seq])+'b'+b+
+            assert(!decl.m_get([s, seq]).h, 'm'+r_str([s, seq])+'b'+b+
               ' exists '+t.meta.s);
           }
           return;
@@ -664,17 +702,11 @@ describe('scroll', ()=>{
       t([8, 15], 3);
       t([0, 15], 4);
     });
-    it('range_from_str', ()=>{
-      const t = (val, exp)=>assert.deepEqual(Scroll.range_from_str(val), exp);
-      t('1', [1, 1]);
-      t('10', [10, 10]);
-      t('10_100', [10, 100]);
-    });
     it('calc_roots', ()=>{
       const t = (seq, exp)=>{
         let roots = Scroll.calc_roots(seq+1);
         let a = [];
-        roots.forEach(r=>a.push(Scroll.range_str(r)));
+        roots.forEach(r=>a.push(r_str(r)));
         assert.equal(a.join(' '), exp);
       };
       t(0, '0');
@@ -701,10 +733,10 @@ describe('scroll', ()=>{
       const t = (seq, exp_all, exp_any)=>{
         let ret = Scroll.calc_merge_info(seq);
         let a = [];
-        ret.all.forEach(r=>a.push(Scroll.range_str(r)));
+        ret.all.forEach(r=>a.push(r_str(r)));
         assert.equal(a.join(' '), exp_all, 'all mismatch seq '+seq);
         a = [];
-        ret.any.forEach(r=>a.push(Scroll.range_str(r)));
+        ret.any.forEach(r=>a.push(r_str(r)));
         assert.equal(a.join(' '), exp_any, 'any mismatch seq '+seq);
       };
       t(0, '0', '1');
@@ -723,36 +755,6 @@ describe('scroll', ()=>{
       t(13, '0_7 8_11 12_13', '14 14_15');
       t(14, '0_7 8_11 12_13 14', '15');
       t(15, '0_15', '16 16_17 16_19 16_23 16_31');
-    });
-    it('range_to_parent', ()=>{
-      const t = (val, exp)=>{
-        let _val = range_from_str(val), e = range_from_str(exp);
-        let res = Scroll.range_to_parent(_val);
-        assert.deepEqual(res.parent, e, 'failed parent '+val);
-        let d = (e[1] - e[0]+1)/2;
-        assert.deepEqual(res.left, [e[0], e[0]+d-1]);
-        assert.deepEqual(res.right, [e[0]+d, e[1]]);
-      };
-      t('0', '0_1');
-      t('1', '0_1');
-      t('2', '2_3');
-      t('3', '2_3');
-      t('4', '4_5');
-      t('5', '4_5');
-      t('6', '6_7');
-      t('7', '6_7');
-      t('0_1', '0_3');
-      t('2_3', '0_3');
-      t('4_5', '4_7');
-      t('6_7', '4_7');
-      t('0_3', '0_7');
-      t('4_7', '0_7');
-      t('0_7', '0_15');
-      t('8_15', '0_15');
-      t('16_23', '16_31');
-      t('24_31', '16_31');
-      t('0_15', '0_31');
-      t('16_31', '0_31');
     });
   });
   describe('macro', ()=>{

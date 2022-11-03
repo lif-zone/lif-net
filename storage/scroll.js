@@ -8,6 +8,7 @@ import enc from 'compact-encoding';
 import XMap from '../util/map.js';
 import {Buffer} from 'buffer';
 import buf_util from '../peer-relay/buf_util.js';
+import {r_fix, r_parent, r_eq, r_includes, r_str, r_split} from './range.js';
 const b2s = buf_util.buf_to_str, beq = buf_util.buf_eq;
 const stringify = JSON.stringify.bind(JSON);
 // https://en.wikipedia.org/wiki/Merkle_tree#Second_preimage_attack
@@ -129,37 +130,6 @@ function hparent_safe(size, left, right){
   return left && right ? hparent(size, left, right) : null; }
 function hleaf(h, sig){ return hconcat([LEAF_TYPE, h, sig]); }
 
-// XXX: need test
-function range_split(range){
-  let [s, e] = range;
-  assert(s!=e, 'invalid range split '+range);
-  let d = (e-s+1)/2;
-  assert(Number.isInteger(d), 'invalid range '+range);
-  return [[s, s+d-1], [s+d, e]];
-}
-
-function range_from_str(range){
-  let m = (''+range).match(/^(\d+)(_(\d+))?$/); // 10 or 10_15
-  return [+m[1], m[3]!==undefined ? +m[3] : +m[1]];
-}
-
-function range_str(range){
-  return range[0]==range[1] ? ''+range[1] : range[0]+'_'+range[1];
-}
-
-// XXX need test
-function range_includes(r, r2){ return r2[0]>=r[0] && r2[1]<=r[1]; }
-
-// XXX need test
-function range_eq(a, b){ return a[0]==b[0] && a[1]==b[1]; }
-
-function range_to_parent(r){
-  let d = r[1]-r[0]+1;
-  let p = [r[0], r[1]+d];
-  if (p[0] % (2*d) != 0)
-    p = [r[0]-d, r[1]];
-  return {parent: p, left: [p[0], p[0]+d-1], right: [p[0]+d, p[1]]};
-}
 
 // XXX: need test
 function get_d_hash(data, seq){ return data[seq]?.d; }
@@ -188,7 +158,7 @@ function set_sig(data, seq, val){
 }
 // XXX: need test
 function get_m_hash(data, r, use_d_sig){
-  r = range_fix(r);
+  r = r_fix(r);
   let m = data[r[1]]?.m;
   m = m && m[r[0]] || null;
   if (m || !use_d_sig || r[0]!=r[1])
@@ -201,11 +171,11 @@ function get_m_hash(data, r, use_d_sig){
 }
 // XXX: need test
 function set_m_hash(data, r, val){
-  r = range_fix(r);
+  r = r_fix(r);
   let o = data[r[1]] = data[r[1]]||{};
   o.m = o.m||{};
-  assert(!o.m[r[0]] || o.m[r[0]].equals(val), 'set m'+range_str(r)+
-    ' diffent vals');
+  assert(!o.m[r[0]] || o.m[r[0]].equals(val), 'set m'+r_str(r)+
+    ' differnt vals');
   return o.m[r[0]] = val;
 }
 
@@ -244,18 +214,8 @@ function merkel_ranges(seq){
   return a;
 }
 
-function range_fix(range){
-  assert(typeof range=='number' || Array.isArray(range), 'invalid '+range);
-  if (typeof range=='number')
-    return [range, range];
-  if (range.length==1)
-    return [range[0], range[0]];
-  assert(range.length==2);
-  return range;
-}
-
 function merkel_array_pos(range){
-  range = range_fix(range);
+  range = r_fix(range);
   return seq_merkel_array_size(range[1]-range[0])-1;
 }
 
@@ -279,18 +239,18 @@ function calc_merge_info(seq){
   let all = calc_roots(seq+1);
   let last = all[all.length-1][1];
   let any = [];
-  let curr = range_to_parent(all[0]).right;
+  let curr = r_parent(all[0]).right;
   while (true){
     if (last < curr[0]){
       any.unshift(curr);
       if (curr[0]==curr[1])
         break;
-      [curr] = range_split(curr);
+      [curr] = r_split(curr);
       continue;
     }
     if (curr[0]==curr[1])
       break;
-    let [r1, r2] = range_split(curr);
+    let [r1, r2] = r_split(curr);
     if (last < r1[1])
       curr = r1;
     else
@@ -491,14 +451,14 @@ export default class Scroll extends EventEmitter {
     let b=opt.b||0, vm = this.m_hash(range, {b});
     if (vm)
       return vm.equals(m);
-    if (range_eq(range, max_range))
+    if (r_eq(range, max_range))
       return false;
-    let po = range_to_parent(range), sketch={}, errors={}, m2;
-    let r2 = range_eq(range, po.left) ? po.right : po.left;
+    let po = r_parent(range), sketch={}, errors={}, m2;
+    let r2 = r_eq(range, po.left) ? po.right : po.left;
     if (!(m2 = this.sketch_calc_m({b, range: r2, sketch, diff, errors})))
       return false;
-    let mp = hparent(po.parent[1]-po.parent[0]+1, range_eq(range, po.left) ?
-      m : m2, range_eq(range, po.left) ? m2 : m);
+    let mp = hparent(po.parent[1]-po.parent[0]+1, r_eq(range, po.left) ?
+      m : m2, r_eq(range, po.left) ? m2 : m);
     if (!this.copy_extra_m(mp, po.parent, max_range, diff, opt))
       return false;
     set_m_hash(sketch, range, m);
@@ -573,7 +533,7 @@ export default class Scroll extends EventEmitter {
     let old_top = this.get_decl(top.seq);
     let old_top_r = old_top.m[old_top.m.length-1].range;
     let old_force = {range: old_top_r, m: old_top.m_hash(b, old_top_r)};
-    if (is_null(old_force.m, errors, 'missing m'+range_str(old_top_r)))
+    if (is_null(old_force.m, errors, 'missing m'+r_str(old_top_r)))
       return;
     let prev_M = this.sketch_calc_top_M({top: {seq: seq-1},
       force: old_force, sketch, diff, errors, b});
@@ -596,8 +556,8 @@ export default class Scroll extends EventEmitter {
     for (let i=0; i<roots.length; i++){
       let r = roots[i], mr;
       mr = this.sketch_calc_m({b, range: r, sketch, diff, errors, force:
-        range_includes(r, range) ? force : null});
-      if (is_null(mr, errors, 'missing m'+range_str(r)))
+        r_includes(r, range) ? force : null});
+      if (is_null(mr, errors, 'missing m'+r_str(r)))
         return null;
       a.push(mr, enc_u64(r[0]), enc_u64(r[1]-r[0]+1));
     }
@@ -605,11 +565,11 @@ export default class Scroll extends EventEmitter {
   }
   sketch_calc_m(opt){
     let {b, range, sketch, diff, errors, force} = opt;
-    if (force && range_eq(range, force.range))
+    if (force && r_eq(range, force.range))
       return set_m_hash(sketch, range, force.m);
     let seq = range[1], decl = this.get_decl(seq);
     let m = get_m_hash(diff, range), vm = decl.m_hash(b, range);
-    if ((vm||m) && (!force || !range_includes(range, force.range))){
+    if ((vm||m) && (!force || !r_includes(range, force.range))){
       if (m && !vm)
         set_m_hash(sketch, range, m);
       return vm||m;
@@ -617,25 +577,25 @@ export default class Scroll extends EventEmitter {
     if (range[0]==range[1]){
       assert(!m);
       let d = get_d_hash(diff, seq), sig = get_sig(diff, seq);
-      if (is_null(d&&sig, errors, 'missing m'+range_str(range)))
+      if (is_null(d&&sig, errors, 'missing m'+r_str(range)))
         return null;
       return set_m_hash(sketch, seq, hleaf(d, sig));
     }
-    let [r1, r2] = range_split(range);
+    let [r1, r2] = r_split(range);
     let m1, vm1, m2, vm2, decl1 = this.get_decl(r1[1]), decl2=decl;
-    if (force && range_includes(r1, force.range))
+    if (force && r_includes(r1, force.range))
       m1 = this.sketch_calc_m({b, range: r1, sketch, diff, errors, force});
     else if (vm1 = decl1.m_hash(b, r1));
     else if (m1 = get_m_hash(sketch, r1)||get_m_hash(diff, r1));
     else if (m1 = this.sketch_calc_m({b, range: r1, sketch, diff, errors}));
-    if (is_null(m1||vm1, errors, 'missing m'+range_str(r1)))
+    if (is_null(m1||vm1, errors, 'missing m'+r_str(r1)))
       return null;
-    if (force && range_includes(r2, force.range))
+    if (force && r_includes(r2, force.range))
       m2 = this.sketch_calc_m({b, range: r2, sketch, diff, errors, force});
     else if (vm2 = decl2.m_hash(b, r2));
     else if (m2 = get_m_hash(sketch, r2)||get_m_hash(diff, r2));
     else if (m2 = this.sketch_calc_m({b, range: r2, sketch, diff, errors}));
-    if (is_null(m2||vm2, errors, 'missing m'+range_str(r2)))
+    if (is_null(m2||vm2, errors, 'missing m'+r_str(r2)))
       return null;
     if (m1)
       set_m_hash(sketch, r1, m1);
@@ -654,7 +614,7 @@ export default class Scroll extends EventEmitter {
         this.find_max_common_m({b, range: r, diff, diff_b, common});
       if (!max)
         break;
-      if (range_eq(r, max.range)){
+      if (r_eq(r, max.range)){
         ret = max.range[1];
         continue;
       }
@@ -677,7 +637,7 @@ export default class Scroll extends EventEmitter {
       return {range, m};
     if (range[0]==range[1])
       return null;
-    let [r1, r2] = range_split(range);
+    let [r1, r2] = r_split(range);
     let m1, vm1, m2, vm2, decl1 = this.get_decl(r1[1]), decl2=decl;
     vm1 = decl1.m_hash(b, r1);
     vm2 = decl2.m_hash(b, r2);
@@ -688,7 +648,7 @@ export default class Scroll extends EventEmitter {
       let max1 = this.find_max_common_m({b, range: r1, diff, diff_b});
       if (!max1)
         return null;
-      if (!range_eq(r1, max1.range))
+      if (!r_eq(r1, max1.range))
         return max1;
       m1 = max1.m;
     }
@@ -700,7 +660,7 @@ export default class Scroll extends EventEmitter {
       if (!max2)
         return {range: r1, m: m1};
       // XXX maybe return r1+max2.range and optimize find_max_common_M
-      if (!range_eq(r2, max2.range))
+      if (!r_eq(r2, max2.range))
         return {range: r1, m: m1};
       m2 = max2.m;
     }
@@ -882,7 +842,7 @@ export default class Scroll extends EventEmitter {
       return m;
     if (range[0]==range[1])
       return null;
-    let [r1, r2] = range_split(range);
+    let [r1, r2] = r_split(range);
     let m1 = this.calc_m({range: r1, diff, diff_b});
     if (!m1)
       return null;
@@ -935,12 +895,12 @@ export default class Scroll extends EventEmitter {
   seq_D(seq, opt){
     return this.get_decl(seq).fbuf_get(opt.b||0).get_frames(); }
   m_hash(range, opt={}){
-    let [, e] = range = range_fix(range);
+    let [, e] = range = r_fix(range);
     let decl = this.get_decl(e);
     return decl.m_hash(opt.b||0, range);
   }
   m_get(range){
-    let [, e] = range = range_fix(range);
+    let [, e] = range = r_fix(range);
     let decl = this.get_decl(e);
     return decl.m_get(range);
   }
@@ -1020,7 +980,7 @@ class Decl extends EventEmitter {
   }
   m_get(range){
     let i = merkel_array_pos(range);
-    assert.deepEqual(this.m[i].range, range_fix(range));
+    assert.deepEqual(this.m[i].range, r_fix(range));
     assert(i<this.m.length);
     return this.m[i];
   }
@@ -1051,7 +1011,7 @@ class Decl extends EventEmitter {
 class Merkel_node extends EventEmitter {
   constructor(opt){
     super();
-    this.range = range_fix(opt.range);
+    this.range = r_fix(opt.range);
     this.decl = opt.decl;
     this.bmap = new XMap();
   }
@@ -1064,7 +1024,7 @@ class Merkel_node extends EventEmitter {
       decl.fbuf_group.on('hash', on_hash);
       decl.on('sig', on_hash);
     } else {
-      let [r1, r2] = range_split(this.range);
+      let [r1, r2] = r_split(this.range);
       let m1 = scroll.m_get(r1), m2 = scroll.m_get(r2);
       const on_hash_m = opt=>{
         if (m1.h && m2.h)
@@ -1088,7 +1048,7 @@ class Merkel_node extends EventEmitter {
         return null;
       return this.set_hash(b, hleaf(d, sig));
     }
-    let [r1, r2] = range_split(this.range);
+    let [r1, r2] = r_split(this.range);
     let decl1 = decl.scroll.get_decl(r1[1]);
     let decl2 = decl.scroll.get_decl(r2[1]);
     return this.set_hash(b, hparent_safe(e-s+1, decl1.m_hash(b, r1),
@@ -1162,10 +1122,6 @@ Scroll.hparent_safe = hparent_safe; // XXX need test
 Scroll.hleaf = hleaf; // XXX need test
 Scroll.calc_roots = calc_roots;
 Scroll.calc_merge_info = calc_merge_info;
-Scroll.range_split = range_split;
-Scroll.range_from_str = range_from_str;
-Scroll.range_str = range_str;
-Scroll.range_to_parent = range_to_parent;
 Scroll.seq_merkel_array_size = seq_merkel_array_size;
 Scroll.merkel_ranges = merkel_ranges;
 Scroll.merkel_array_pos = merkel_array_pos;

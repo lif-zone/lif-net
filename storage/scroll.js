@@ -884,7 +884,6 @@ export default class Scroll extends EventEmitter {
   }
   lock(){} // XXX: TODO
   unlock(){} // XXX: TODO
-  // XXX WIP: change opt to b
   seq_sig(b, seq){
     let decl = this.get_decl(seq);
     if (!decl)
@@ -892,8 +891,8 @@ export default class Scroll extends EventEmitter {
     return decl.sig_get(b);
   }
   seq_d(b, seq){ return this.get_decl(seq).d_hash(b); }
-  seq_D(b, seq){
-    return this.get_decl(seq).fbuf_get(b).get_frames(); }
+  seq_D(b, seq){ return this.get_decl(seq).fbuf_get(b).get_frames(); }
+  // XXX WIP: change opt to b
   m_hash(range, opt={}){
     let [, e] = range = r_fix(range);
     let decl = this.get_decl(e);

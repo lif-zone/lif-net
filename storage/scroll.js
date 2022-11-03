@@ -885,15 +885,15 @@ export default class Scroll extends EventEmitter {
   lock(){} // XXX: TODO
   unlock(){} // XXX: TODO
   // XXX WIP: change opt to b
-  seq_sig(seq, opt){
+  seq_sig(b, seq){
     let decl = this.get_decl(seq);
     if (!decl)
       return;
-    return decl.sig_get(opt.b||0);
+    return decl.sig_get(b);
   }
-  seq_d(seq, opt){ return this.get_decl(seq).d_hash(opt.b||0); }
-  seq_D(seq, opt){
-    return this.get_decl(seq).fbuf_get(opt.b||0).get_frames(); }
+  seq_d(b, seq){ return this.get_decl(seq).d_hash(b); }
+  seq_D(b, seq){
+    return this.get_decl(seq).fbuf_get(b).get_frames(); }
   m_hash(range, opt={}){
     let [, e] = range = r_fix(range);
     let decl = this.get_decl(e);
@@ -1024,7 +1024,6 @@ class Merkel_node extends EventEmitter {
     }
   }
   get_hash(b){
-    assert(b!==undefined, 'XXX WIP missing b');
     b = this.decl.to_b(b);
     let h = this.bmap.get(b);
     // XXX: optimize, don't run calc if there is no change in dependent data
@@ -1065,7 +1064,6 @@ class Merkel_root {
     this.bmap = new XMap();
   }
   get_hash(b){
-    assert(b!==undefined, 'XXX WIP missing Merkel_root b');
     b = this.decl.to_b(b);
     let h = this.bmap.get(b);
     if (h)
@@ -1073,7 +1071,6 @@ class Merkel_root {
     return this.set_hash(b, this.scroll.calc_root_hash(this.decl.seq, {b}));
   }
   set_hash(b, h){
-    assert(b!==undefined && h!==undefined, 'XXX WIP missing b');
     b = this.decl.to_b(b);
     let h_curr = this.bmap.get(b);
     if (h_curr){

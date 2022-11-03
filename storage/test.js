@@ -199,10 +199,10 @@ const get_val = (exp, def_type='right')=>etask(function*_get_val(){
   if (b)
     b = b_pos2id(scroll, b);
   switch (type){
-  case 'sig': return scroll.seq_sig(seq, {b});
+  case 'sig': return scroll.seq_sig(b, seq);
   case 'M': return scroll.M_hash(seq, {b});
-  case 'd': return scroll.seq_d(seq, {b});
-  case 'D': return scroll.seq_D(seq, {b});
+  case 'd': return scroll.seq_d(b, seq);
+  case 'D': return scroll.seq_D(b, seq);
   // XXX: do we need calc_m?
   case 'm': return r0==seq ? scroll.m_hash(seq, {b}) :
     b ? scroll.m_hash(o.range, {b}) : calc_m(scroll, o.range);

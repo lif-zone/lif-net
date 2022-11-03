@@ -14,6 +14,7 @@ import xescape from './escape.js';
 import rate_limit from './rate_limit.js';
 import match from './match.js';
 import events from './events.js';
+import XMap from './map.js';
 import assert from 'assert';
 import xsinon from './sinon.js';
 import sinon from 'sinon';
@@ -24,6 +25,55 @@ const seq = xtest.seq, ms = date.ms, assign = Object.assign;
 
 if (xutil.is_inspect())
   debugger; // eslint-disable-line no-debugger
+
+describe('xmap', function(){
+  it('key_at', ()=>{
+    let map = new XMap();
+    const t = (i, exp)=>assert.equal(map.key_at(i), exp);
+    t(0, undefined);
+    t(1, undefined);
+    map.set('a', 'aa');
+    t(0, 'a');
+    t(1, undefined);
+    t(2, undefined);
+    map.set('b', 'bb');
+    t(0, 'a');
+    t(1, 'b');
+    map.set('c', 'cc');
+    t(0, 'a');
+    t(1, 'b');
+    t(2, 'c');
+    t(3, undefined);
+    map.set('b', 'bb2');
+    t(0, 'a');
+    t(1, 'b');
+    t(2, 'c');
+    t(3, undefined);
+  });
+  it('value_at', ()=>{
+    let map = new XMap();
+    const t = (i, exp)=>assert.equal(map.value_at(i), exp);
+    t(0, undefined);
+    t(1, undefined);
+    map.set('a', 'aa');
+    t(0, 'aa');
+    t(1, undefined);
+    t(2, undefined);
+    map.set('b', 'bb');
+    t(0, 'aa');
+    t(1, 'bb');
+    map.set('c', 'cc');
+    t(0, 'aa');
+    t(1, 'bb');
+    t(2, 'cc');
+    t(3, undefined);
+    map.set('b', 'bb2');
+    t(0, 'aa');
+    t(1, 'bb2');
+    t(2, 'cc');
+    t(3, undefined);
+  });
+});
 
 describe('sinon', function(){
     let seq_with_called = ()=>{

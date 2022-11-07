@@ -5,7 +5,6 @@ import {EventEmitter} from 'events';
 import crypto from '../util/crypto.js';
 import xerr from '../util/xerr.js';
 import enc from 'compact-encoding';
-import XMap from '../util/map.js';
 import {Buffer} from 'buffer';
 import buf_util from '../peer-relay/buf_util.js';
 import {r_fix, r_parent, r_eq, r_includes, r_str, r_split} from './range.js';
@@ -28,7 +27,7 @@ function to_frame(o){
 class Frame_buffer_map extends EventEmitter {
   constructor(opt={}){
     super();
-    this.bmap = new XMap();
+    this.bmap = new Map();
     let fbuf = new Frame_buffer(opt);
     fbuf.on('hash', this.on_hash);
     fbuf.map_info = {_: this, b: 0};
@@ -277,6 +276,12 @@ function is_m_valid(m, d, sig, errors, err){
   push_error(errors, err);
   return false;
 }
+
+function get_one(){
+  let o = this[Symbol.iterator]().next();
+  return o ? o.value[0] : undefined;
+}
+
 // one sec, I restart my phone. lost connection on phone.
 /* XXX derry:
 XXX: add to test for deciding branch type (fake, real, real_unknown)
@@ -284,27 +289,27 @@ XXX: add to test for deciding branch type (fake, real, real_unknown)
 NOW:
 Scroll = {pub, key, crypt, prev_scroll, b}
 Scroll.b = [..., {b: 2, top: {seq, M}, parent: {b: 1, seq: 5}, map,
-  branches: XMap}, ...]
-Scroll.b[2].map = XMap of Decl (only for declartions about branch.b)
+  branches: Map}, ...]
+Scroll.b[2].map = Map of Decl (only for declartions about branch.b)
 Decl = {scroll, binfo, fbuf, m, M}
 Decl.m = [m3, m2_3, m0_3]
 
 NEW:
-Scroll = {pub, key, crypt, prev_scroll, branch, decl} // XMap of Decl
+Scroll = {pub, key, crypt, prev_scroll, branch, decl} // Map of Decl
 Scroll.branch = [...,
   {id: 2, top: {seq, M}, parent: {id: 1, seq: 5}, branches}, ...]
 Decl = {scroll, seq: 3, fbuf, m: [m3, m2_3, m0_3], M}
 m2_3 = {range: [2, 3], branch: [1: 0x234, 2: 0x456]}
 m3 = {range: [3, 3], branch: [2: 0x123]} // map of branch id -> hash
-M = {branch: XMap} // map of branch id -> hash
-fbuf = {branch: XMap} // map of branch id to _fbuf
+M = {branch: Map} // map of branch id -> hash
+fbuf = {branch: Map} // map of branch id to _fbuf
 
 m2_3.on('hash', function(o, ...){
   let {id} = o; // branch id
 });
 
 // branch id is auto_inc integer (garbage collection)
-// map, branches: sparse array (XMap of int)
+// map, branches: sparse array (Map of int)
 
 Problem 1:
 b0
@@ -334,10 +339,11 @@ export default class Scroll extends EventEmitter {
     this.crypt = opt.crypt||Scroll.supported_crypt[0];
     assert.deepEqual(this.crypt, Scroll.supported_crypt[0], 'unsupported');
     this.prev_scroll = opt.prev_scroll;
-    this.dmap = new XMap();
-    this.branch = new XMap();
+    this.dmap = new Map();
+    this.branch = new Map();
     this.branch.next_id = 0;
-    this.merge_list = new XMap;
+    this.merge_list = new Map;
+    this.merge_list.get_one = get_one;
     this.create_new_branch();
   }
   create_new_branch(opt={}){
@@ -348,13 +354,13 @@ export default class Scroll extends EventEmitter {
       assert.equal(bid, 0);
       // XXX: change parent to null
       this.branch.set(bid, {b: bid, top: null, parent: {},
-        branches: new XMap()});
+        branches: new Map()});
       return bid;
     }
     let M = this.get_decl(seq).M_hash(b);
     assert(M, 'missing M'+seq);
     this.branch.set(bid, {b: bid, top: null, parent: {b, seq, type: 'v'},
-      branches: new XMap()});
+      branches: new Map()});
     this.notify_M({b: bid, seq: seq, M});
     return bid;
   }
@@ -672,9 +678,9 @@ export default class Scroll extends EventEmitter {
     if (this.branch.size<=1)
       return;
     while (this.merge_list.size){
-      let i = this.merge_list.key_at(0);
+      let i = this.merge_list.get_one();
       let b_o = this.branch.get(i);
-      this.merge_single(b_o.minfo.merge_list.key_at(0), i, seq);
+      this.merge_single(b_o.minfo.merge_list.get_one(), i, seq);
     }
     // XXX: can we improve and avoid traverssing all branches
     for (const [i, b_o] of this.branch){
@@ -786,8 +792,9 @@ export default class Scroll extends EventEmitter {
       b_o.minfo.cleanup();
     let any = calc_merge_info(b_o.parent.seq).any;
     // XXX: maybe we can reuse some of merge_list & real_list
-    b_o.minfo = {any, merge_list: new XMap, real_list: new XMap,
+    b_o.minfo = {any, merge_list: new Map, real_list: new Map,
       parent: {b: b_o.parent.b, seq: b_o.parent.seq}};
+    b_o.minfo.merge_list.get_one = get_one;
     // XXX: find way to avoid creating run-time functions (wrap in class)
     b_o.minfo.cleanup = opt=>{
       if (opt && opt.b!=b)
@@ -926,7 +933,7 @@ class Decl extends EventEmitter {
     this.scroll = opt.scroll;
     assert(this.scroll.branch.get(opt.b||0), 'branch '+opt.b+' not found');
     this.fbuf_map = opt.fbuf_map;
-    this.bmap = new XMap();
+    this.bmap = new Map();
     this.m = [];
     let ma = merkel_ranges(seq);
     for (let i=0; i<ma.length; i++)
@@ -991,7 +998,7 @@ class Merkel_node extends EventEmitter {
     super();
     this.range = r_fix(opt.range);
     this.decl = opt.decl;
-    this.bmap = new XMap();
+    this.bmap = new Map();
   }
   init(){
     let decl = this.decl, scroll = decl.scroll;
@@ -1049,7 +1056,7 @@ class Merkel_root {
   constructor(opt){
     this.decl = opt.decl;
     this.scroll = opt.decl.scroll;
-    this.bmap = new XMap();
+    this.bmap = new Map();
   }
   get_hash(b){
     b = this.decl.to_b(b);

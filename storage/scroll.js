@@ -25,23 +25,23 @@ function to_frame(o){
   assert.fail('invalid frame data '+o);
 }
 
-class Frame_buffer_group extends EventEmitter {
+class Frame_buffer_map extends EventEmitter {
   constructor(opt={}){
     super();
     this.bmap = new XMap();
     let fbuf = new Frame_buffer(opt);
     fbuf.on('hash', this.on_hash);
-    fbuf.group_info = {_: this, b: 0};
+    fbuf.map_info = {_: this, b: 0};
     this.bmap.set(0, fbuf);
   }
-  on_hash(){ this.group_info._.emit('hash', {b: this.group_info.b}); }
+  on_hash(){ this.map_info._.emit('hash', {b: this.map_info.b}); }
   get(b){
     assert(b>=0, 'invalid b'+b);
     let fbuf = this.bmap.get(b);
     if (fbuf)
       return fbuf;
     fbuf = new Frame_buffer();
-    fbuf.group_info = {_: this, b};
+    fbuf.map_info = {_: this, b};
     fbuf.on('hash', this.on_hash);
     this.bmap.set(b, fbuf);
     return fbuf;
@@ -52,7 +52,7 @@ class Frame_buffer_group extends EventEmitter {
     this.bmap.delete(bdst);
     // XXX: need to merge existing fbuf info + test it
     assert(!this.bmap.get(bdst), 'XXX TODO');
-    fbuf.group_info = {_: this, b: bsrc};
+    fbuf.map_info = {_: this, b: bsrc};
     this.bmap.set(bsrc, fbuf);
   }
 }
@@ -369,11 +369,11 @@ export default class Scroll extends EventEmitter {
     return b;
   }
   decl(frames){ // XXX: support decl on branch
-    let ts = Date.now(), fbuf_group = new Frame_buffer_group({frames});
+    let ts = Date.now(), fbuf_map = new Frame_buffer_map({frames});
     let seq = this.branch.get(0).top ? this.branch.get(0).top.seq+1 : 0;
     assert(!this.dmap.get(seq), 'XXX TODO '+seq); // XXX: branch
-    fbuf_group.get(0).unshift({seq, ts});
-    let decl = new Decl({scroll: this, b: 0, seq, fbuf_group});
+    fbuf_map.get(0).unshift({seq, ts});
+    let decl = new Decl({scroll: this, b: 0, seq, fbuf_map});
     decl.sign();
     this.dmap.set(seq, decl);
     decl.init(0);
@@ -910,7 +910,7 @@ export default class Scroll extends EventEmitter {
     let decl = this.dmap.get(seq);
     if (decl || opt.create===false)
       return decl;
-    decl = new Decl({scroll: this, seq, fbuf_group: new Frame_buffer_group});
+    decl = new Decl({scroll: this, seq, fbuf_map: new Frame_buffer_map});
     this.dmap.set(seq, decl);
     decl.init(opt.b||0);
     return decl;
@@ -925,7 +925,7 @@ class Decl extends EventEmitter {
     let seq = this.seq = opt.seq;
     this.scroll = opt.scroll;
     assert(this.scroll.branch.get(opt.b||0), 'branch '+opt.b+' not found');
-    this.fbuf_group = opt.fbuf_group;
+    this.fbuf_map = opt.fbuf_map;
     this.bmap = new XMap();
     this.m = [];
     let ma = merkel_ranges(seq);
@@ -961,7 +961,7 @@ class Decl extends EventEmitter {
     return sig;
   }
   sig_get(b){ return this.bmap.get(this.to_b(b)); }
-  fbuf_get(b){ return this.fbuf_group.get(this.to_b(b)); }
+  fbuf_get(b){ return this.fbuf_map.get(this.to_b(b)); }
   d_hash(b){ return this.fbuf_get(b).get_hash(); }
   m_get(range){
     let i = merkel_array_pos(range);
@@ -982,7 +982,7 @@ class Decl extends EventEmitter {
         this.m[i].set_hash(bdst, m);
     }
     // XXX: test
-    this.fbuf_group.copy(bdst, bsrc);
+    this.fbuf_map.copy(bdst, bsrc);
   }
 }
 
@@ -999,7 +999,7 @@ class Merkel_node extends EventEmitter {
     // XXX: add event testing + cleanup of event handlers on merge
     if (s==e){
       const on_hash = opt=>this.get_hash(opt.b);
-      decl.fbuf_group.on('hash', on_hash);
+      decl.fbuf_map.on('hash', on_hash);
       decl.on('sig', on_hash);
     } else {
       let [r1, r2] = r_split(this.range);

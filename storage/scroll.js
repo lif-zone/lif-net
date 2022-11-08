@@ -291,8 +291,8 @@ export default class Scroll extends EventEmitter {
     this.dmap = new Map();
     this.branch = new Map();
     this.branch.next_id = 0;
-    this.merge_list = new Map;
-    this.merge_list.get_one = get_one;
+    this.merge_queue = new Map;
+    this.merge_queue.get_one = get_one;
     this.create_new_branch();
   }
   create_new_branch(opt={}){
@@ -615,16 +615,16 @@ export default class Scroll extends EventEmitter {
   merge_all(seq, b){
     if (this.branch.size<=1)
       return;
-    while (this.merge_list.size){
-      let i = this.merge_list.get_one();
+    while (this.merge_queue.size){
+      let i = this.merge_queue.get_one();
       let b_o = this.branch.get(i);
-      this.merge_single(b_o.minfo.merge_list.get_one(), i, seq);
+      this.merge_single(b_o.minfo.merge_queue.get_one(), i, seq);
     }
     // XXX: can we improve and avoid traverssing all branches
     for (const [i, b_o] of this.branch){
       if (i==0)
         continue;
-      if (b_o.parent?.type!='b' && b_o.minfo.real_list.get(b_o.parent?.b))
+      if (b_o.parent?.type!='b' && b_o.minfo.real_map.get(b_o.parent?.b))
         this.merge_single(b_o.parent.b, i, seq);
     }
   }
@@ -633,8 +633,8 @@ export default class Scroll extends EventEmitter {
     // (for eg, one branch has d/sig other only hash)
     assert(i1<i2, 'invalid branch merge '+i1+' '+i2);
     let b1=this.branch.get(i1), b2=this.branch.get(i2), bseq;
-    let mergeable = b2.minfo.merge_list.get(i1);
-    let real_branch = b2.minfo.real_list.get(i1);
+    let mergeable = b2.minfo.merge_queue.get(i1);
+    let real_branch = b2.minfo.real_map.get(i1);
     if (b2.parent?.seq >= seq){
       assert(!mergeable && real_branch);
       return;
@@ -711,7 +711,6 @@ export default class Scroll extends EventEmitter {
         'real branch type change b'+src.b);
       src.parent.type = o.type;
     }
-    // XXX: do it only if needed (seq change or branch change)
     this.update_mergeable(src.b);
   }
   update_mergeable(b){
@@ -727,11 +726,10 @@ export default class Scroll extends EventEmitter {
     if (b_o.minfo)
       b_o.minfo.cleanup();
     let any = calc_merge_info(b_o.parent?.seq).any;
-    // XXX: maybe we can reuse some of merge_list & real_list
-    b_o.minfo = {any, merge_list: new Map, real_list: new Map,
+    // XXX: maybe we can reuse some of merge_queue & real_map
+    b_o.minfo = {any, merge_queue: new Map, real_map: new Map,
       parent: {b: b_o.parent?.b, seq: b_o.parent?.seq}};
-    b_o.minfo.merge_list.get_one = get_one;
-    // XXX: find way to avoid creating run-time functions (wrap in class)
+    b_o.minfo.merge_queue.get_one = get_one;
     b_o.minfo.cleanup = opt=>{
       if (opt && opt.b!=b)
         return;
@@ -739,38 +737,38 @@ export default class Scroll extends EventEmitter {
       for (let r, m, i=0; i<any.length&&(r = any[i])&&(m=this.m_get(r)); i++)
         m.off('hash', b_o.minfo.on_hash);
       this.off('branch-removed', b_o.minfo.cleanup);
-      this.merge_list.delete(b);
+      this.merge_queue.delete(b);
     };
-    this.on('branch-removed', b_o.minfo.cleanup);
     b_o.minfo.on_hash = opt=>{
       let r = opt.range, bb = opt.b, m1, m2;
       if (bb<b){
-        if (b_o.minfo.merge_list.get(bb))
+        if (b_o.minfo.merge_queue.get(bb))
           return;
         if ((m1=this.m_hash(r, {b: b})) && (m2=this.m_hash(r, {b: bb}))){
           if (m1.equals(m2)){
-            b_o.minfo.merge_list.set(bb, true);
-            this.merge_list.set(b, true);
+            b_o.minfo.merge_queue.set(bb, true);
+            this.merge_queue.set(b, true);
           }
           else
-            b_o.minfo.real_list.set(bb, true);
+            b_o.minfo.real_map.set(bb, true);
         }
       }
       else if (bb==b){
         for (const [j] of this.branch){ // XXX: can we skip obvious ones
-          if (j==b || j>b || b_o.minfo.merge_list.get(j))
+          if (j==b || j>b || b_o.minfo.merge_queue.get(j))
             continue;
           if ((m1=this.m_hash(r, {b: b})) && (m2=this.m_hash(r, {b: j}))){
             if (m1.equals(m2)){
-              b_o.minfo.merge_list.set(j, true);
-              this.merge_list.set(b, true);
+              b_o.minfo.merge_queue.set(j, true);
+              this.merge_queue.set(b, true);
             }
             else
-              b_o.minfo.real_list.set(j, true);
+              b_o.minfo.real_map.set(j, true);
           }
         }
       }
     };
+    this.on('branch-removed', b_o.minfo.cleanup);
     for (let i=0; i<any.length; i++){
       let r = any[i], m=this.m_get(r);
       m.on('hash', b_o.minfo.on_hash);

@@ -474,14 +474,13 @@ export default class Scroll extends EventEmitter {
       return push_error(errors, 'missing '+(sig ? 'd' : 'sig')+seq);
     if (!is_m_valid(m, d, sig, errors, 'invalid sig'+seq))
       return;
-    // XXX: wrap this part nicely
-    let old_top = this.get_decl(top.seq);
-    let old_top_r = old_top.m[old_top.m.length-1].range;
-    let old_force = {range: old_top_r, m: old_top.m_hash(b, old_top_r)};
-    if (is_null(old_force.m, errors, 'missing m'+r_str(old_top_r)))
+    let prev_top = this.get_decl(top.seq);
+    let prev_top_r = prev_top.m[prev_top.m.length-1].range;
+    let prev_force = {range: prev_top_r, m: prev_top.m_hash(b, prev_top_r)};
+    if (is_null(prev_force.m, errors, 'missing m'+r_str(prev_top_r)))
       return;
     let prev_M = this.sketch_calc_top_M({top: {seq: seq-1},
-      force: old_force, sketch, diff, errors, b});
+      force: prev_force, sketch, diff, errors, b});
     if (is_null(prev_M, errors, 'missing M'+(seq-1))) // XXX: add test
       return {branch: true};
     if (!verify_sig(sig, this.pub, d, prev_M))

@@ -73,14 +73,18 @@ class Frame_buffer extends EventEmitter {
   }
   get_frames(){ return Array.from(this.frames); }
   set_frames(frames){
+    let offset=0;
+    if (this.frames[0]?.sig)
+      offset = 1;
     for (let i=0; i<frames.length; i++){
       let f = frames[i];
-      if (!this.frames[i]){
+      let ii = i+offset;
+      if (!this.frames[ii]){
         this.frames.push(f);
         continue;
       }
-      if (this.frames[i]?.buf && frames[i]?.buf &&
-        this.frames[i].buf.equals(frames[i].buf)){
+      if (this.frames[ii]?.buf && frames[i]?.buf &&
+        this.frames[ii].buf.equals(frames[i].buf)){
         continue;
       }
       assert.fail('XXX TODO - support partial update of frames');
@@ -114,6 +118,8 @@ Frame_buffer.calc_hash = function(frames, opt={}){
       f.h = crypto.blake2b(f.buf);
     buf = buf ? Buffer.concat([buf, f.h]) : f.h;
   }
+  if (!buf)
+    return null;
   return crypto.blake2b(buf);
 };
 
@@ -147,6 +153,7 @@ function calc_D_hash(D){
   return Frame_buffer.calc_hash(D);
 }
 
+// XXX: sig need to be part of data
 function get_sig(data, seq){ return data[seq]?.sig; }
 function set_sig(data, seq, val){
   let o = data[seq] = data[seq]||{};
@@ -322,7 +329,6 @@ export default class Scroll extends EventEmitter {
   decl(frames){ // XXX: support decl on branch
     let ts = Date.now(), data = new Data({frames});
     let seq = this.branch.get(0).top ? this.branch.get(0).top.seq+1 : 0;
-    assert(!this.dmap.get(seq), 'XXX TODO '+seq); // XXX: branch
     data.get(0).unshift({seq, ts});
     let decl = new Decl({scroll: this, b: 0, seq, data});
     decl.sign();
@@ -795,7 +801,7 @@ export default class Scroll extends EventEmitter {
       for (let type in v){
         let val = v[type];
         switch (type){
-        case 'sig': decl.set_sig(b, val); break;
+        case 'sig': decl.sig_set(b, val); break;
         case 'd': decl.fbuf_get(b).set_hash(val); break;
         case 'D': decl.fbuf_get(b).set_frames(val); break;
         case 'M': decl.M.set_hash(b, val); break;
@@ -854,22 +860,21 @@ class Decl extends EventEmitter {
   constructor(opt){
     super();
     assert(opt.seq>=0, 'must provide Decl seq');
-    let seq = this.seq = opt.seq;
+    assert(opt.scroll.branch.get(opt.b||0), 'branch '+opt.b+' not found');
+    assert(opt.data instanceof Data, 'invalid data '+opt.data);
     this.scroll = opt.scroll;
-    assert(this.scroll.branch.get(opt.b||0), 'branch '+opt.b+' not found');
+    this.seq = opt.seq;
     this.data = opt.data;
-    this.bmap = new Map(); // XXX: move to Sig class (can we get it from Data)
     this.m = [];
-    let ma = merkel_ranges(seq);
-    for (let i=0; i<ma.length; i++)
+    for (let i=0, ma=merkel_ranges(this.seq); i<ma.length; i++)
       this.m.push(new Merkel_node({decl: this, range: ma[i]}));
     this.M = new Merkel_root({decl: this});
   }
-  to_b(b){ return this.scroll.to_b(b, this.seq); }
   init(){
     for (let i=0; i<this.m.length; i++)
       this.m[i].init();
   }
+  to_b(b){ return this.scroll.to_b(b, this.seq); }
   sign = ()=>{
     // XXX: support branch for sign
     let scroll = this.scroll, d = this.fbuf_get(0).get_hash({skip: 0});
@@ -877,22 +882,18 @@ class Decl extends EventEmitter {
     let buf = this.seq ? Buffer.concat([d, scroll.M_hash(0, this.seq-1)])
       : scroll.prev_scroll ? Buffer.concat([d, scroll.prev_scroll]) : d;
     let sig = crypto.sign(crypto.blake2b(buf), scroll.key);
-    this.set_sig(0, sig);
-    this.fbuf_get(0).unshift({sig});
+    this.sig_set(0, sig);
   }
-  set_sig(b, sig){
-    b = this.to_b(b);
-    let sig_curr = this.bmap.get(b);
-    if (sig_curr){
-      assert(sig_curr.equals(sig), 'sig changed');
-      return sig_curr;
-    }
-    this.bmap.set(b, sig);
-    if (sig)
-      this.emit('sig', {b});
+  sig_set(b, sig){
+    this.fbuf_get(b).unshift({sig});
     return sig;
   }
-  sig_get(b){ return this.bmap.get(this.to_b(b)); }
+  sig_get(b){
+    let frames = this.fbuf_get(b).frames;
+    // XXX: find better way to access buffer as json
+    return frames.length ?
+      Buffer.from(JSON.parse(frames[0].buf.toString()).sig) : null;
+  }
   fbuf_get(b){ return this.data.get(this.to_b(b)); }
   d_hash(b){ return this.fbuf_get(b).get_hash(); }
   m_get(range){

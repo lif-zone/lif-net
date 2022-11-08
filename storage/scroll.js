@@ -739,33 +739,26 @@ export default class Scroll extends EventEmitter {
       this.off('branch-removed', b_o.minfo.cleanup);
       this.merge_queue.delete(b);
     };
-    b_o.minfo.on_hash = opt=>{
-      let r = opt.range, bb = opt.b, m1, m2;
-      if (bb<b){
-        if (b_o.minfo.merge_queue.get(bb))
-          return;
-        if ((m1=this.m_hash(r, {b: b})) && (m2=this.m_hash(r, {b: bb}))){
-          if (m1.equals(m2)){
-            b_o.minfo.merge_queue.set(bb, true);
-            this.merge_queue.set(b, true);
-          }
-          else
-            b_o.minfo.real_map.set(bb, true);
-        }
+    const update_merge_queue = (r, bb)=>{
+      if (b_o.minfo.merge_queue.get(bb))
+        return;
+      let m1, m2;
+      if ((m1=this.m_hash(r, {b: b})) && (m2=this.m_hash(r, {b: bb}))){
+        if (!m1.equals(m2))
+          return b_o.minfo.real_map.set(bb, true);
+        b_o.minfo.merge_queue.set(bb, true);
+        this.merge_queue.set(b, true);
       }
-      else if (bb==b){
-        for (const [j] of this.branch){ // XXX: can we skip obvious ones
-          if (j==b || j>b || b_o.minfo.merge_queue.get(j))
-            continue;
-          if ((m1=this.m_hash(r, {b: b})) && (m2=this.m_hash(r, {b: j}))){
-            if (m1.equals(m2)){
-              b_o.minfo.merge_queue.set(j, true);
-              this.merge_queue.set(b, true);
-            }
-            else
-              b_o.minfo.real_map.set(j, true);
-          }
-        }
+    };
+    b_o.minfo.on_hash = opt=>{
+      let r = opt.range, bb = opt.b;
+      if (bb<b)
+        update_merge_queue(r, bb);
+      if (bb!=b)
+        return;
+      for (const [j] of this.branch){ // XXX: can we skip obvious ones
+        if (j<b)
+          update_merge_queue(r, j);
       }
     };
     this.on('branch-removed', b_o.minfo.cleanup);

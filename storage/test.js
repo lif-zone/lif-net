@@ -684,6 +684,21 @@ describe('scroll', ()=>{
       t(14, 1);
       t(15, 5);
     });
+    it('merkel_ranges', ()=>{
+      const t = (seq, exp)=>{
+        let a = [];
+        exp.split(' ').forEach(s=>a.push(r_from_str(s)));
+        assert.deepEqual(Scroll.merkel_ranges(seq), a);
+      };
+      t(0, '0');
+      t(1, '1_1 0_1');
+      t(2, '2');
+      t(3, '3 2_3 0_3');
+      t(4, '4');
+      t(5, '5 4_5');
+      t(6, '6');
+      t(7, '7 6_7 4_7 0_7');
+    });
     it('merkel_array_pos', ()=>{
       const t = (range, exp)=>assert.equal(
         Scroll.merkel_array_pos(range), exp, 'range '+range);

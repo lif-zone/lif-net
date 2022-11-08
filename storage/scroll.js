@@ -130,7 +130,6 @@ function hparent_safe(size, left, right){
 function hleaf(h, sig){ return hconcat([LEAF_TYPE, h, sig]); }
 
 
-// XXX: need test
 function get_d_hash(data, seq){ return data[seq]?.d; }
 function get_D(data, seq){ return data[seq]?.D; }
 function set_d(data, seq, d, D){
@@ -148,14 +147,13 @@ function calc_D_hash(D){
   return Frame_buffer.calc_hash(D);
 }
 
-// XXX: need test
 function get_sig(data, seq){ return data[seq]?.sig; }
 function set_sig(data, seq, val){
   let o = data[seq] = data[seq]||{};
   assert(!o.sig || o.sig.equals(val), 'set sig'+seq+' diffent vals');
   return o.sig = val;
 }
-// XXX: need test
+
 function get_m_hash(data, r, use_d_sig){
   r = r_fix(r);
   let m = data[r[1]]?.m;
@@ -168,7 +166,7 @@ function get_m_hash(data, r, use_d_sig){
     d = calc_D_hash(D);
   return d && sig ? hleaf(d, sig) : null;
 }
-// XXX: need test
+
 function set_m_hash(data, r, val){
   r = r_fix(r);
   let o = data[r[1]] = data[r[1]]||{};
@@ -205,7 +203,6 @@ function seq_merkel_array_size(seq){
   return n;
 }
 
-// XXX: need test
 function merkel_ranges(seq){
   let a = [[seq, seq]];
   for (let i=1, s=seq-i; seq&i; i*=2, s-=i)

@@ -360,8 +360,7 @@ export default class Scroll extends EventEmitter {
           }
         }
       }
-      let b = best.b;
-      let ret = this.put_single(seq, diff, errors2, {b});
+      let b = best.b, ret = this.put_single(seq, diff, errors2, {b});
       if (ret?.branch){
         let max_common = best.max_common ||
           this.find_max_common_M({b, seq, diff});

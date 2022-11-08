@@ -282,54 +282,6 @@ function get_one(){
   return o ? o.value[0] : undefined;
 }
 
-// one sec, I restart my phone. lost connection on phone.
-/* XXX derry:
-XXX: add to test for deciding branch type (fake, real, real_unknown)
-
-NOW:
-Scroll = {pub, key, crypt, prev_scroll, b}
-Scroll.b = [..., {b: 2, top: {seq, M}, parent: {b: 1, seq: 5}, map,
-  branches: Map}, ...]
-Scroll.b[2].map = Map of Decl (only for declartions about branch.b)
-Decl = {scroll, binfo, fbuf, m, M}
-Decl.m = [m3, m2_3, m0_3]
-
-NEW:
-Scroll = {pub, key, crypt, prev_scroll, branch, decl} // Map of Decl
-Scroll.branch = [...,
-  {id: 2, top: {seq, M}, parent: {id: 1, seq: 5}, branches}, ...]
-Decl = {scroll, seq: 3, fbuf, m: [m3, m2_3, m0_3], M}
-m2_3 = {range: [2, 3], branch: [1: 0x234, 2: 0x456]}
-m3 = {range: [3, 3], branch: [2: 0x123]} // map of branch id -> hash
-M = {branch: Map} // map of branch id -> hash
-fbuf = {branch: Map} // map of branch id to _fbuf
-
-m2_3.on('hash', function(o, ...){
-  let {id} = o; // branch id
-});
-
-// branch id is auto_inc integer (garbage collection)
-// map, branches: sparse array (Map of int)
-
-Problem 1:
-b0
-b1: 5b0
-b2: 8b1
-
-after b0/b1 merge:
-b0
-b1: 8b0 // previous b2. all branch position after 1 changed and need to fix
-
-Problem 2:
-let m5_6b0 = scroll.m_get([6, 7], {b: 0});
-let m5_6b1 = scroll.m_get([6, 7], {b: 1});
-m5_6b1.on('hash', ()=>{});
-after merge (b0/b1 merge), m5_6b1 doesn't exist any more.
-
-Problem 3: storage. how will was save branches if it has no id.
-and after merge, we need to fix all entries?
-
-*/
 export default class Scroll extends EventEmitter {
   constructor(opt){
     super();

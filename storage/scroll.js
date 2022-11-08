@@ -379,7 +379,7 @@ export default class Scroll extends EventEmitter {
           copy_errors(errors, errors2);
           // XXX: find better logic
           if (ret?.branch || this.branch.get(b2).top.seq<=max_common){
-            // XXX: test this scenario
+            // XXX: test this scenario and verify we copy data
             this.branch.delete(b2);
             continue;
           }
@@ -387,7 +387,6 @@ export default class Scroll extends EventEmitter {
           this.branch_update(b, {init: true});
         }
       }
-      // XXX: do it only if new data was added to branch (check put_verified)
       this.merge_all(seq, b);
       copy_errors(errors, errors2);
     }
@@ -397,7 +396,6 @@ export default class Scroll extends EventEmitter {
     let ret = this._put_single(seq, diff, errors, opt);
     if (ret?.branch)
       return ret;
-    // XXX: remove copy_extra_m and handle it inside put_single
     if (!diff[seq]?.m)
       return;
     let decl=this.get_decl(seq), a=Object.keys(diff[seq].m);
@@ -466,7 +464,7 @@ export default class Scroll extends EventEmitter {
       this.put_verified(sketch, {b});
       return ret;
     }
-    if (!m) // XXX: support also parent m (eg m4_5)
+    if (!m)
       return;
     if (seq<=top.seq){ // verify m belongs to existing top.M
       let M = this.sketch_calc_top_M({top, force: {range: [seq, seq], m},
@@ -477,7 +475,6 @@ export default class Scroll extends EventEmitter {
         push_error(errors, 'invalid M'+top.seq);
         return {branch: true}; // XXX: need test
       }
-      // XXX: can this be branch if sig has error?
       check_set_sig(sketch, errors, seq, m, d, D, sig);
       this.put_verified(sketch, {b});
       return;
@@ -564,7 +561,6 @@ export default class Scroll extends EventEmitter {
     return m;
   }
   find_max_common_M(opt){
-    // XXX: optimization: take into account all from calc_merge_info?
     let {b, seq, diff, diff_b, common} = opt, roots = calc_roots(seq+1), ret;
     for (let i=0; i<roots.length; i++){
       let r = roots[i], max;

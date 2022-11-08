@@ -158,7 +158,7 @@ const get_val = (exp, def_type='right')=>etask(function*_get_val(){
   if (exp=='null')
     return null;
   if ('prev_scroll1'==exp)
-    return t_prev_scroll.M_hash(1);
+    return t_prev_scroll.M_hash(0, 1);
   if (/^\d+$/.test(exp))
     return enc.encode(enc.uint64, +exp);
   if (m = exp.match(/^0x([0-9a-f]+)$/))
@@ -200,7 +200,7 @@ const get_val = (exp, def_type='right')=>etask(function*_get_val(){
     b = b_pos2id(scroll, b);
   switch (type){
   case 'sig': return scroll.seq_sig(b, seq);
-  case 'M': return scroll.M_hash(seq, {b});
+  case 'M': return scroll.M_hash(b, seq);
   case 'd': return scroll.seq_d(b, seq);
   case 'D': return scroll.seq_D(b, seq);
   // XXX: do we need calc_m?
@@ -227,7 +227,7 @@ const test_start = ()=>etask(function*test_start(){
     pub: t_keypair.pub}, {topic: 'genesis'});
   yield t_genesis_scroll.decl('1');
   t_prev_scroll = yield Scroll.create({key: t_keypair.key,
-    pub: t_keypair.pub, prev_scroll: yield t_genesis_scroll.M_hash(1)},
+    pub: t_keypair.pub, prev_scroll: yield t_genesis_scroll.M_hash(0, 1)},
     {topic: 'prev_scroll'});
   yield t_prev_scroll.decl('1');
 });
@@ -422,7 +422,7 @@ describe('parser', ()=>{
 });
 
 const cmd_scroll = t=>etask(function*cmd_scroll(){
-  let prev_scroll = yield t_prev_scroll.M_hash(1);
+  let prev_scroll = yield t_prev_scroll.M_hash(0, 1);
   let name = t.ctx||get_def('left'), M, a, scroll;
   assert(!t.l, 'invalid arg '+t.meta.s);
   assert(!t_scroll[name], 'scroll already exist '+name);

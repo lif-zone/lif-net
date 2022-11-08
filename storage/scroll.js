@@ -335,7 +335,7 @@ export default class Scroll extends EventEmitter {
     let {b, seq, M} = opt;
     if (!this.branch.get(b).top || this.branch.get(b).top.seq<seq){
       this.branch.get(b).top = {seq, M};
-      assert.equal(b2s(M), b2s(this.M_hash(this.branch.get(b).top.seq, {b})),
+      assert.equal(b2s(M), b2s(this.M_hash(b, this.branch.get(b).top.seq)),
         'invalid M'+seq+'b'+b);
     }
   }
@@ -490,7 +490,7 @@ export default class Scroll extends EventEmitter {
     if (vsig && !vsig.equals(sig))
       return {branch: true};
     this.put_verified(sketch, {b});
-    this.M_hash(seq, {b}); // update new top
+    this.M_hash(b, seq); // update new top
   }
   sketch_calc_top_M(opt){
     let {b, top, force, sketch, diff, errors} = opt, {range} = force;
@@ -834,11 +834,11 @@ export default class Scroll extends EventEmitter {
     let decl = this.get_decl(e);
     return decl.m_get(range);
   }
-  // XXX WIP: change opt to b
-  M_hash(seq, opt={}){
+  M_hash(b, seq){
     let decl = this.get_decl(seq);
-    return decl ? decl.M_hash(opt.b||0) : null;
+    return decl ? decl.M_hash(b||0) : null;
   }
+  // XXX WIP: change opt to b
   get_decl(seq, opt={}){
     assert(typeof seq=='number', 'invalid seq '+seq);
     let decl = this.dmap.get(seq);
@@ -876,7 +876,7 @@ class Decl extends EventEmitter {
     // XXX: support branch for sign
     let scroll = this.scroll, d = this.fbuf_get(0).get_hash({skip: 0});
     assert(scroll.key, 'cannot sign without key');
-    let buf = this.seq ? Buffer.concat([d, scroll.M_hash(this.seq-1)])
+    let buf = this.seq ? Buffer.concat([d, scroll.M_hash(0, this.seq-1)])
       : scroll.prev_scroll ? Buffer.concat([d, scroll.prev_scroll]) : d;
     let sig = crypto.sign(crypto.blake2b(buf), scroll.key);
     this.set_sig(0, sig);

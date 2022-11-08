@@ -561,6 +561,7 @@ export default class Scroll extends EventEmitter {
     return m;
   }
   find_max_common_M(opt){
+    // XXX: optimization: take into account all from calc_merge_info?
     let {b, seq, diff, diff_b, common} = opt, roots = calc_roots(seq+1), ret;
     for (let i=0; i<roots.length; i++){
       let r = roots[i], max;
@@ -584,7 +585,7 @@ export default class Scroll extends EventEmitter {
     let {b, range, diff, diff_b, common} = opt;
     let seq = range[1], decl = this.get_decl(seq);
     let vm = decl.m_hash(b, range);
-    if (vm && seq<=common) // XXX: add test for this secnario
+    if (vm && seq<=common)
       return {range, m};
     let m = this.calc_m({range, diff, diff_b});
     if (vm && m && vm.equals(m))
@@ -622,7 +623,7 @@ export default class Scroll extends EventEmitter {
     assert(!m, 'm does not exists');
     return {range, m: vm};
   }
-  merge_all(seq, b){ // XXX: why do we need seq and b here?
+  merge_all(seq, b){
     if (this.branch.size<=1)
       return;
     while (this.merge_list.size){

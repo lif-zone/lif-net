@@ -394,7 +394,7 @@ export default class Scroll extends EventEmitter {
       this.copy_extra_m(diff[seq].m[a[i]], [+a[i], seq], max_range, diff, opt);
   }
   copy_extra_m(m, range, max_range, diff, opt){
-    let b=opt.b||0, vm = this.m_hash(range, {b});
+    let b=opt.b||0, vm = this.m_hash(b, range);
     if (vm)
       return vm.equals(m);
     if (r_eq(range, max_range))
@@ -743,7 +743,7 @@ export default class Scroll extends EventEmitter {
       if (b_o.minfo.merge_queue.get(bb))
         return;
       let m1, m2;
-      if ((m1=this.m_hash(r, {b: b})) && (m2=this.m_hash(r, {b: bb}))){
+      if ((m1=this.m_hash(b, r)) && (m2=this.m_hash(bb, r))){
         if (!m1.equals(m2))
           return b_o.minfo.real_map.set(bb, true);
         b_o.minfo.merge_queue.set(bb, true);
@@ -771,7 +771,7 @@ export default class Scroll extends EventEmitter {
   calc_m(opt){
     let {range, diff, diff_b} = opt;
     let m = diff ? get_m_hash(diff, range, true) :
-      this.m_hash(range, {b: diff_b});
+      this.m_hash(diff_b, range);
     if (m)
       return m;
     if (range[0]==range[1])
@@ -812,7 +812,7 @@ export default class Scroll extends EventEmitter {
     let roots=calc_roots(seq+1), a=[ROOT_TYPE];
     for (let i=0; i<roots.length; i++){
       let r = roots[i];
-      a.push(this.m_hash(r, opt), enc_u64(r[0]), enc_u64(r[1]-r[0]+1));
+      a.push(this.m_hash(opt.b, r), enc_u64(r[0]), enc_u64(r[1]-r[0]+1));
     }
     return hconcat_safe(a);
   }
@@ -824,17 +824,17 @@ export default class Scroll extends EventEmitter {
   }
   seq_d(b, seq){ return this.get_decl(seq).d_hash(b); }
   seq_D(b, seq){ return this.get_decl(seq).fbuf_get(b).get_frames(); }
-  // XXX WIP: change opt to b
-  m_hash(range, opt={}){
+  m_hash(b, range){
     let [, e] = range = r_fix(range);
     let decl = this.get_decl(e);
-    return decl.m_hash(opt.b||0, range);
+    return decl.m_hash(b||0, range);
   }
   m_get(range){
     let [, e] = range = r_fix(range);
     let decl = this.get_decl(e);
     return decl.m_get(range);
   }
+  // XXX WIP: change opt to b
   M_hash(seq, opt={}){
     let decl = this.get_decl(seq);
     return decl ? decl.M_hash(opt.b||0) : null;

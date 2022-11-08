@@ -130,7 +130,7 @@ const calc_m = (scroll, range)=>etask(function*calc_m(){
   assert(e<scroll.branch.get(0).top.seq+1, 'scroll too small '+
     e+'<'+scroll.branch.get(0).top.seq+1);
   for (let i=s; i<=e; i++)
-    q.push({s: i, e: i, m: yield scroll.m_hash(i)});
+    q.push({s: i, e: i, m: yield scroll.m_hash(0, i)});
   while (q.length!=1){
     let q2 = [];
     for (let i=0; i<q.length/2; i++){
@@ -141,7 +141,7 @@ const calc_m = (scroll, range)=>etask(function*calc_m(){
     }
     q = q2;
   }
-  let scroll_m = yield scroll.m_hash([s, e]);
+  let scroll_m = yield scroll.m_hash(0, [s, e]);
   let test_m = q[0].m;
   if (scroll_m && test_m)
     assert.equal(b2s(scroll_m), b2s(test_m));
@@ -204,9 +204,8 @@ const get_val = (exp, def_type='right')=>etask(function*_get_val(){
   case 'd': return scroll.seq_d(b, seq);
   case 'D': return scroll.seq_D(b, seq);
   // XXX: do we need calc_m?
-  case 'm': return r0==seq ? scroll.m_hash(seq, {b}) :
-    b ? scroll.m_hash(o.range, {b}) : calc_m(scroll, o.range);
-    // b ? scroll.m_hash(seq, {b}) : calc_m(scroll, o.range);
+  case 'm': return r0==seq ? scroll.m_hash(b, seq) :
+    b ? scroll.m_hash(b, o.range) : calc_m(scroll, o.range);
   }
   assert.fail('invalid val exp '+exp);
 });

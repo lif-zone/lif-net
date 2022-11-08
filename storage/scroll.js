@@ -659,11 +659,9 @@ export default class Scroll extends EventEmitter {
         this.branch_update(i2, {type: real_branch ? 'b' : 'v'});
       return;
     }
-    if (b2.parent.b==b1.parent.b){
-      bseq = this.find_max_common_M({b: i1, diff_b: i2, seq,
-        common: b2.parent.seq});
-    } else // XXX: calc common by checking if b2 depends on b1 somehow
-      bseq = this.find_max_common_M({b: i1, diff_b: i2, seq});
+    // XXX: to calc common, check also if branch is not direct child
+    bseq = this.find_max_common_M({b: i1, diff_b: i2, seq,
+      common: b2.parent.b==b1.parent.b ? b2.parent.seq : undefined});
     assert((b1.parent.b||0)<i2, 'lower b'+i1+' cannot point upper b'+i2);
     if (b2.parent.seq >= bseq)
       return xerr('need optimize merge');

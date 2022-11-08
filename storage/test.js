@@ -115,10 +115,10 @@ function assert_no_corruption(scroll){
     let curr = scroll.branch.get(i);
     if (!i)
       continue;
-    assert.equal(scroll.branch.get(curr.parent.b).branches.get(curr.b), curr,
+    assert.equal(scroll.branch.get(curr.parent?.b).branches.get(curr.b), curr,
       'branch corruption b'+i);
     for (const [j] of curr.branches)
-      assert.equal(scroll.branch.get(j).parent.b, i, 'branch corruption b'+i);
+      assert.equal(scroll.branch.get(j).parent?.b, i, 'branch corruption b'+i);
   }
 }
 
@@ -588,9 +588,9 @@ const cmd_b = t=>etask(function*cmd_b(){
   assert.equal(scroll.branch.size, i, 'branch count mismatch '+t.r);
   for (const [i, o] of scroll.branch){
     let ii = b_id2pos(scroll, i);
-    assert.deepEqual(o.parent.b!==undefined ?
+    assert.deepEqual(o.parent?.b!==undefined ?
       {seq: o.parent.seq, b: b_id2pos(scroll, o.parent.b),
-      type: o.parent.type} :
+      type: o.parent?.type} :
       undefined, tested[ii].b, 'branch '+i+' mismatch '+t.r);
     assert.equal(o.top.seq, tested[ii].top.seq, 'top seq mismatch b'+i+
       ' '+t.r);

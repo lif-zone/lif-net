@@ -304,9 +304,7 @@ export default class Scroll extends EventEmitter {
     if (b===undefined || seq===undefined){
       assert(b===undefined && seq===undefined, 'invalid create_new_branch');
       assert.equal(bid, 0);
-      // XXX: change parent to null
-      this.branch.set(bid, {b: bid, top: null, parent: {},
-        branches: new Map()});
+      this.branch.set(bid, {b: bid, top: null, branches: new Map()});
       return bid;
     }
     let M = this.get_decl(seq).M_hash(b);
@@ -319,8 +317,8 @@ export default class Scroll extends EventEmitter {
   to_b(b, seq){
     assert(typeof seq=='number' && seq>=0, 'invalid seq '+seq);
     assert(this.branch.get(b), 'missing branch '+seq+'b'+b);
-    if (this.branch.get(b).parent.b!==undefined &&
-      seq<=this.branch.get(b).parent.seq){
+    if (this.branch.get(b).parent?.b!==undefined &&
+      seq<=this.branch.get(b).parent?.seq){
       // XXX: rm recursion
       return this.to_b(this.branch.get(b).parent.b, seq);
     }
@@ -635,7 +633,7 @@ export default class Scroll extends EventEmitter {
     for (const [i, b_o] of this.branch){
       if (i==0)
         continue;
-      if (b_o.parent.type!='b' && b_o.minfo.real_list.get(b_o.parent.b))
+      if (b_o.parent?.type!='b' && b_o.minfo.real_list.get(b_o.parent?.b))
         this.merge_single(b_o.parent.b, i, seq);
     }
   }
@@ -646,24 +644,24 @@ export default class Scroll extends EventEmitter {
     let b1=this.branch.get(i1), b2=this.branch.get(i2), bseq;
     let mergeable = b2.minfo.merge_list.get(i1);
     let real_branch = b2.minfo.real_list.get(i1);
-    if (b2.parent.seq >= seq){
+    if (b2.parent?.seq >= seq){
       assert(!mergeable && real_branch);
       return;
     }
-    if (b2.parent.seq >= b1.top.seq){
+    if (b2.parent?.seq >= b1.top.seq){
       assert(!mergeable && real_branch);
       return;
     }
     if (!mergeable){
-      if (real_branch && b2.parent.b==i1)
+      if (real_branch && b2.parent?.b==i1)
         this.branch_update(i2, {type: real_branch ? 'b' : 'v'});
       return;
     }
     // XXX: to calc common, check also if branch is not direct child
     bseq = this.find_max_common_M({b: i1, diff_b: i2, seq,
-      common: b2.parent.b==b1.parent.b ? b2.parent.seq : undefined});
-    assert((b1.parent.b||0)<i2, 'lower b'+i1+' cannot point upper b'+i2);
-    if (b2.parent.seq >= bseq)
+      common: b2.parent?.b==b1.parent?.b ? b2.parent?.seq : undefined});
+    assert((b1.parent?.b||0)<i2, 'lower b'+i1+' cannot point upper b'+i2);
+    if (b2.parent?.seq >= bseq)
       return xerr('need optimize merge');
     this.branch_update(i2, {b: i1, seq: bseq, type: real_branch ? 'b' : 'v'});
     if (b2.top.seq!=bseq && b1.top.seq!=bseq)
@@ -699,7 +697,7 @@ export default class Scroll extends EventEmitter {
     assert(o.b!=b, 'branch loop '+b);
     let src = this.branch.get(b);
     assert.equal(src.b, b, 'branch corruption '+b);
-    assert(src.parent.type, 'missing branch type');
+    assert(src.parent?.type, 'missing branch type');
     if (o.init){
       assert(o.b===undefined && o.seq===undefined, 'invalid init');
       assert(!src.info, 'invalid init');
@@ -709,16 +707,16 @@ export default class Scroll extends EventEmitter {
     if (src.b==o.b && src.seq==o.sec)
       return;
     if (o.b!==undefined){
-      assert(src.parent!==o.b || o.type===undefined || src.parent.type!='b' ||
+      assert(src.parent!==o.b || o.type===undefined || src.parent?.type!='b' ||
         o.type=='b', 'real branch type change b'+src.b);
-      this.branch.get(src.parent.b).branches.delete(src.b);
+      this.branch.get(src.parent?.b).branches.delete(src.b);
       src.parent.b = o.b;
     }
     if (o.seq!==undefined)
       src.parent.seq = o.seq;
     if (o.type!==undefined){
       assert(['v', 'b'].includes(o.type), 'invalid branch type '+o.type);
-      assert(o.b || src.parent.type!='b' || o.type=='b',
+      assert(o.b || src.parent?.type!='b' || o.type=='b',
         'real branch type change b'+src.b);
       src.parent.type = o.type;
     }
@@ -727,20 +725,20 @@ export default class Scroll extends EventEmitter {
   }
   update_mergeable(b){
     assert(b>0, 'invalid branch');
-    let b_o = this.branch.get(b), p_o = this.branch.get(b_o.parent.b);
+    let b_o = this.branch.get(b), p_o = this.branch.get(b_o.parent?.b);
     if (!p_o.branches.get(b))
       p_o.branches.set(b, b_o);
     assert.equal(p_o.branches.get(b), b_o, 'branch corruption '+b);
-    if (b_o.minfo && b_o.minfo.parent.b==b_o.parent.b &&
-      b_o.minfo.parent.seq==b_o.parent.seq){
+    if (b_o.minfo && b_o.minfo.parent?.b==b_o.parent?.b &&
+      b_o.minfo.parent?.seq==b_o.parent?.seq){
       return;
     }
     if (b_o.minfo)
       b_o.minfo.cleanup();
-    let any = calc_merge_info(b_o.parent.seq).any;
+    let any = calc_merge_info(b_o.parent?.seq).any;
     // XXX: maybe we can reuse some of merge_list & real_list
     b_o.minfo = {any, merge_list: new Map, real_list: new Map,
-      parent: {b: b_o.parent.b, seq: b_o.parent.seq}};
+      parent: {b: b_o.parent?.b, seq: b_o.parent?.seq}};
     b_o.minfo.merge_list.get_one = get_one;
     // XXX: find way to avoid creating run-time functions (wrap in class)
     b_o.minfo.cleanup = opt=>{
@@ -880,7 +878,7 @@ class Decl extends EventEmitter {
     this.scroll = opt.scroll;
     assert(this.scroll.branch.get(opt.b||0), 'branch '+opt.b+' not found');
     this.fbuf_map = opt.fbuf_map;
-    this.bmap = new Map();
+    this.bmap = new Map(); // XXX: move to Sig class
     this.m = [];
     let ma = merkel_ranges(seq);
     for (let i=0; i<ma.length; i++)

@@ -368,9 +368,8 @@ export default class Scroll extends EventEmitter {
         if (max_common!==undefined){
           errors2 = {};
           let b2 = this.create_new_branch({b, seq: max_common});
-          ret = this.put_single(seq, diff, errors2, {b: b2});
-          copy_errors(errors, errors2);
-          // XXX: find better logic
+          ret = this.put_single(seq, diff, errors, {b: b2});
+          //copy_errors(errors, errors2);
           if (ret?.branch || this.branch.get(b2).top.seq<=max_common){
             // XXX: test this scenario and verify we copy data
             this.branch.delete(b2);

@@ -24,7 +24,7 @@ function to_frame(o){
   assert.fail('invalid frame data '+o);
 }
 
-class Frame_buffer_map extends EventEmitter {
+class Data extends EventEmitter {
   constructor(opt={}){
     super();
     this.bmap = new Map();
@@ -320,11 +320,11 @@ export default class Scroll extends EventEmitter {
     return b;
   }
   decl(frames){ // XXX: support decl on branch
-    let ts = Date.now(), fbuf_map = new Frame_buffer_map({frames});
+    let ts = Date.now(), data = new Data({frames});
     let seq = this.branch.get(0).top ? this.branch.get(0).top.seq+1 : 0;
     assert(!this.dmap.get(seq), 'XXX TODO '+seq); // XXX: branch
-    fbuf_map.get(0).unshift({seq, ts});
-    let decl = new Decl({scroll: this, b: 0, seq, fbuf_map});
+    data.get(0).unshift({seq, ts});
+    let decl = new Decl({scroll: this, b: 0, seq, data});
     decl.sign();
     this.dmap.set(seq, decl);
     decl.init();
@@ -843,7 +843,7 @@ export default class Scroll extends EventEmitter {
     let decl = this.dmap.get(seq);
     if (decl || opt.create===false)
       return decl;
-    decl = new Decl({scroll: this, seq, fbuf_map: new Frame_buffer_map});
+    decl = new Decl({scroll: this, seq, data: new Data});
     this.dmap.set(seq, decl);
     decl.init();
     return decl;
@@ -854,12 +854,11 @@ class Decl extends EventEmitter {
   constructor(opt){
     super();
     assert(opt.seq>=0, 'must provide Decl seq');
-    assert(opt.scroll, 'must provide Scroll');
     let seq = this.seq = opt.seq;
     this.scroll = opt.scroll;
     assert(this.scroll.branch.get(opt.b||0), 'branch '+opt.b+' not found');
-    this.fbuf_map = opt.fbuf_map;
-    this.bmap = new Map(); // XXX: move to Sig class
+    this.data = opt.data;
+    this.bmap = new Map(); // XXX: move to Sig class (can we get it from Data)
     this.m = [];
     let ma = merkel_ranges(seq);
     for (let i=0; i<ma.length; i++)
@@ -894,7 +893,7 @@ class Decl extends EventEmitter {
     return sig;
   }
   sig_get(b){ return this.bmap.get(this.to_b(b)); }
-  fbuf_get(b){ return this.fbuf_map.get(this.to_b(b)); }
+  fbuf_get(b){ return this.data.get(this.to_b(b)); }
   d_hash(b){ return this.fbuf_get(b).get_hash(); }
   m_get(range){
     let i = merkel_array_pos(range);
@@ -915,7 +914,7 @@ class Decl extends EventEmitter {
         this.m[i].set_hash(bdst, m);
     }
     // XXX: test
-    this.fbuf_map.copy(bdst, bsrc);
+    this.data.copy(bdst, bsrc);
   }
 }
 
@@ -932,7 +931,7 @@ class Merkel_node extends EventEmitter {
     // XXX: add event testing + cleanup of event handlers on merge
     if (s==e){
       const on_hash = opt=>this.get_hash(opt.b);
-      decl.fbuf_map.on('hash', on_hash);
+      decl.data.on('hash', on_hash);
       decl.on('sig', on_hash);
     } else {
       let [r1, r2] = r_split(this.range);

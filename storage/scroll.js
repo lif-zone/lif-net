@@ -327,7 +327,7 @@ export default class Scroll extends EventEmitter {
     let decl = new Decl({scroll: this, b: 0, seq, fbuf_map});
     decl.sign();
     this.dmap.set(seq, decl);
-    decl.init(0);
+    decl.init();
     decl.M.get_hash(0);
     return decl;
   }
@@ -838,7 +838,6 @@ export default class Scroll extends EventEmitter {
     let decl = this.get_decl(seq);
     return decl ? decl.M_hash(b||0) : null;
   }
-  // XXX WIP: change opt to b
   get_decl(seq, opt={}){
     assert(typeof seq=='number', 'invalid seq '+seq);
     let decl = this.dmap.get(seq);
@@ -846,7 +845,7 @@ export default class Scroll extends EventEmitter {
       return decl;
     decl = new Decl({scroll: this, seq, fbuf_map: new Frame_buffer_map});
     this.dmap.set(seq, decl);
-    decl.init(opt.b||0);
+    decl.init();
     return decl;
   }
 }

@@ -314,11 +314,9 @@ export default class Scroll extends EventEmitter {
   to_b(b, seq){
     assert(typeof seq=='number' && seq>=0, 'invalid seq '+seq);
     assert(this.branch.get(b), 'missing branch '+seq+'b'+b);
-    if (this.branch.get(b).parent?.b!==undefined &&
-      seq<=this.branch.get(b).parent?.seq){
-      // XXX: rm recursion
-      return this.to_b(this.branch.get(b).parent.b, seq);
-    }
+    for (let parent; (parent = this.branch.get(b).parent) &&
+      parent?.b!==undefined && seq<=parent?.seq;
+      b = parent.b);
     return b;
   }
   decl(frames){ // XXX: support decl on branch

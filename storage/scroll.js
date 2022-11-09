@@ -994,12 +994,10 @@ class Merkel_root extends EventEmitter {
     let h = this.bmap.get(b);
     if (h)
       return h;
-    // XXX: move it to be event-driven (also do the same for Merkel_node)
     return this.set_hash(b, this.scroll.calc_root_hash(this.decl.seq, {b}));
   }
   set_hash(b, h){
     assert(this.inited, 'Merkel_root not inited');
-    if (0) assert(h, 'invalid Merkel_root'); // XXX: enable
     b = this.decl.to_b(b);
     let h_curr = this.bmap.get(b);
     if (h_curr){

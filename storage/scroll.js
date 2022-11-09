@@ -820,9 +820,8 @@ export default class Scroll extends EventEmitter {
   }
   seq_sig(b, seq){
     let decl = this.get_decl(seq);
-    if (!decl)
-      return;
-    return decl.sig_get(b);
+    if (decl)
+      return decl.sig_get(b);
   }
   seq_d(b, seq){ return this.get_decl(seq).d_hash(b); }
   seq_D(b, seq){ return this.get_decl(seq).fbuf_get(b).get_frames(); }

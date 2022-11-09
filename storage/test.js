@@ -1402,7 +1402,7 @@ describe('scroll', ()=>{
           tput(0_1_2_3 4_5 6    ) b(M2 1v0.M4 3v1.M6)
           tput(0_1_2_3 4_5 6_7 8) b(M2 1v0.M4 3v1.M6 5v2.M8)
           tput(0_1 2_3 4_f g    ) b(M2 1v0.M4 3v1.M6 5v2.M8 3b3.M6=s1.M6)
-          // XXX: how to mark not final branch point
+          // XXX: support 3_4b0 for non-final brnaching point
           tput(0_1 2 3 4 5 6 7  ) b(M8 3b0.M6=s1.M6)
           tput(0_1 2_3 4 f      ) b(M8 4b0.M6=s1.M6)
         `);
@@ -1457,7 +1457,6 @@ describe('scroll', ()=>{
           tput(0 1 2_3 4_5_6_7 8) b(M4 3v0.M8)
           tput(0 1 2_3 4 5 6_7 8) b(M8)
         `);
-        // XXX: support 3_4b0 for non-final brnaching point
         t('data_full_merge_d1', `${s}
           tput(0 1 2_3 4        ) b(M4)
           tput(0 1 2_3 4_5 6 7 8) b(M4 3v0.M8)
@@ -1490,6 +1489,16 @@ describe('scroll', ()=>{
           t.D7b1=s.D7 t.sig7b1=s.sig7
           tput(0 1 2_3 4 5 6 7 8) b(M8)
           t.D7=s.D7 t.sig7=s.sig7`);
+        t('data_merge_stages', `${s}
+          tput(0 1 2 3 4          ) b(M4)
+          put(m0_3 D4 sig4)
+          t.D4b0=s.D4
+          tput(0_1_2_3 4_5 6_7 8 9) b(M4 3v0.M9)
+          t.D4b0=s.D4
+          tput(0_1_2_3 4 5 6      ) b(M9 5v0.M6)
+          t.D4b0=s.D4
+          tput(0_1_2_3 4_5 6 7    ) b(M9)
+          t.D4b0=s.D4`);
       });
     });
   });

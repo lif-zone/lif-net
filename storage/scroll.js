@@ -681,7 +681,6 @@ export default class Scroll extends EventEmitter {
     this.emit('branch-removed', {b: i2, b_new: i1});
   }
   branch_update(b, o){
-    // XXX: need to copy data/sig if avail
     // XXX: need to rm uneeded decl now when updating branches and update all
     // relevant places on new branch
     assert(o.b!=b, 'branch loop '+b);
@@ -915,6 +914,7 @@ class Decl extends EventEmitter {
 class Merkel_node extends EventEmitter {
   constructor(opt){
     super();
+    this.inited = false;
     this.range = r_fix(opt.range);
     this.decl = opt.decl;
     this.bmap = new Map();
@@ -922,7 +922,9 @@ class Merkel_node extends EventEmitter {
   init(){
     let decl = this.decl, scroll = decl.scroll;
     let [s, e] = this.range;
-    // XXX: add event testing + cleanup of event handlers on merge
+    assert(!this.inited, 'already inited');
+    this.inited = true;
+    // XXX: add event testing
     if (s==e){
       const on_hash = opt=>this.get_hash(opt.b);
       decl.data.on('hash', on_hash);

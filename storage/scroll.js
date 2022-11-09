@@ -346,7 +346,7 @@ export default class Scroll extends EventEmitter {
     }
   }
   put(diff){
-    let errors = {};
+    let errors = {}, max_common;
     if (diff[0]) // XXX HACK: for case where we have only M0 (no mo)
       this.put_single(0, diff, errors);
     let a = Object.keys(diff);
@@ -358,7 +358,7 @@ export default class Scroll extends EventEmitter {
       if (this.branch.size>1){
         for (const [j, branch] of this.branch){
           // XXX: optimize with {min_common} based on previous best branch
-          let max_common = this.find_max_common_M({b: j, seq, diff});
+          max_common = this.find_max_common_M({b: j, seq, diff});
           let top = branch.top.seq;
           if (best.max_common < max_common ||
             best.max_common==max_common && best.top < top){
@@ -368,8 +368,7 @@ export default class Scroll extends EventEmitter {
       }
       let b = best.b, ret = this.put_single(seq, diff, errors2, {b});
       if (ret?.branch){
-        let max_common = best.max_common ||
-          this.find_max_common_M({b, seq, diff});
+        max_common = best.max_common || this.find_max_common_M({b, seq, diff});
         if (max_common!==undefined){
           errors2 = {};
           let b2 = this.create_new_branch({b, seq: max_common});

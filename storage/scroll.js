@@ -356,7 +356,6 @@ export default class Scroll extends EventEmitter {
     let a = Object.keys(diff);
     for (let i=a.length-1; i>=0 && +a[i]; i--){
       let seq = +a[i], errors2={}, best = {b: 0, max_common: 0};
-      // XXX: optimize. do only once. and assume all diff is on the same branch
       // XXX: optimize, use !mergeable logic from merge_single and also
       // take into account all
       if (this.branch.size>1){
@@ -378,7 +377,6 @@ export default class Scroll extends EventEmitter {
           let b2 = this.create_new_branch({b, seq: max_common});
           ret = this.put_single(seq, diff, errors, {b: b2});
           if (ret?.branch || this.branch.get(b2).top.seq<=max_common){
-            // XXX: test this scenario and verify we copy data
             this.branch.delete(b2);
             continue;
           }
@@ -468,8 +466,8 @@ export default class Scroll extends EventEmitter {
     if (seq<=top.seq){ // verify m belongs to existing top.M
       let M = this.sketch_calc_top_M({top, force: {range: [seq, seq], m},
         sketch, diff, errors, b});
-      if (!M) // XXX push_error(errors, 'missing M'+top.seq)?
-        return {branch: true}; // XXX: need test
+      if (!M)
+        return {branch: true};
       if (!beq(M, top.M)){
         push_error(errors, 'invalid M'+top.seq);
         return {branch: true}; // XXX: need test
@@ -490,7 +488,7 @@ export default class Scroll extends EventEmitter {
       return;
     let prev_M = this.sketch_calc_top_M({top: {seq: seq-1},
       force: prev_force, sketch, diff, errors, b});
-    if (is_null(prev_M, errors, 'missing M'+(seq-1))) // XXX: add test
+    if (is_null(prev_M, errors, 'missing M'+(seq-1)))
       return {branch: true};
     if (!verify_sig(sig, this.pub, d, prev_M))
       return push_error(errors, 'invalid sig'+seq);

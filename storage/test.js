@@ -230,6 +230,8 @@ const test_start = ()=>etask(function*test_start(){
     pub: t_keypair.pub, prev_scroll: yield t_genesis_scroll.M_hash(0, 1)},
     {topic: 'prev_scroll'});
   yield t_prev_scroll.decl('1');
+  assert(t_prev_scroll.M_hash(0, 0), 'missing M0');
+  assert(t_prev_scroll.M_hash(0, 1), 'missing M1');
 });
 
 function test_end(){

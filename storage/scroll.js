@@ -809,8 +809,11 @@ export default class Scroll extends EventEmitter {
   calc_root_hash(seq, opt){
     let roots=calc_roots(seq+1), a=[ROOT_TYPE];
     for (let i=0; i<roots.length; i++){
-      let r = roots[i];
-      a.push(this.m_hash(opt.b, r), enc_u64(r[0]), enc_u64(r[1]-r[0]+1));
+      let r = roots[i], h = this.m_hash(opt.b, r);
+      if (!h) // XXX: rm, call api only if possible to calc
+        return;
+      assert(h, 'cannot calc root');
+      a.push(h, enc_u64(r[0]), enc_u64(r[1]-r[0]+1));
     }
     return hconcat_safe(a);
   }
@@ -933,8 +936,12 @@ class Merkel_node extends EventEmitter {
       let [r1, r2] = r_split(this.range);
       let m1 = scroll.m_get(r1), m2 = scroll.m_get(r2);
       const on_hash_m = opt=>{
-        if (m1.h && m2.h)
-          this.get_hash(opt.b);
+        /* XXX: WIP
+        let b = opt.b, h1 = m1.get_hash(b), h2 = m2.get_hash(b);
+        if (h1 && h2)
+          this.set_hash(b, hparent_safe(e-s+1, h1, h2));
+        */
+        this.get_hash(opt.b);
       };
       m1.on('hash', on_hash_m);
       m2.on('hash', on_hash_m);

@@ -1454,6 +1454,34 @@ describe('scroll', ()=>{
           tput(0 1 2_3 4 5 6_7 8) b(M8)
         `);
         // XXX: support 3_4b0 for non-final brnaching point
+        t('data_full_merge_d1', `${s}
+          tput(0 1 2_3 4        ) b(M4)
+          tput(0 1 2_3 4_5 6 7 8) b(M4 3v0.M8)
+          !t.d1b0 !t.sig1b0
+          put(m0 m1 d1 sig1)
+          t.d1b0=s.d1 t.sig1b0=s.sig1
+          tput(0 1 2_3 4 5 6 7 8) b(M8)
+          t.d1=s.d1 t.sig1=s.sig1
+        `);
+        t('data_full_merge_d7', `${s}
+          tput(0 1 2_3 4        ) b(M4)
+          tput(0 1 2_3 4_5 6 7 8) b(M4 3v0.M8)
+          !t.d7b1 !t.sig7b1
+          put(m0_3 m4_5 m6 d7 sig7)
+          t.d7b1=s.d7 t.sig7b1=s.sig7
+          tput(0 1 2_3 4 5 6 7 8) b(M8)
+          t.d7=s.d7 t.sig7=s.sig7
+        `);
+// XXX
+if (0) t('data_merge_xxx', `${s}
+          tput(0 1 2_3 4        ) b(M4)
+          tput(0 1 2_3 4_5 6 7 8) b(M4 3v0.M8)
+//          t.D8b1=s.D8
+          put(m0_3 m4_5 m6 d7 sig7)
+//          t.D8b1=s.D8
+          tput(0 1 2_3 4 5 6 7 8) b(M8)
+          t.D8=s.D8
+        `);
       });
     });
   });

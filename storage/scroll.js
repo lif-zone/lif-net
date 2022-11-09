@@ -45,14 +45,14 @@ class Data extends EventEmitter {
     this.bmap.set(b, fbuf);
     return fbuf;
   }
-  copy(bsrc, bdst){
+  copy(bdst, bsrc){
     // XXX: do we need to_b()
-    let fbuf = this.get(bsrc);
-    this.bmap.delete(bdst);
-    // XXX: need to merge existing fbuf info + test it
-    assert(!this.bmap.get(bdst), 'XXX TODO');
-    fbuf.map_info = {_: this, b: bsrc};
-    this.bmap.set(bsrc, fbuf);
+    let fsrc = this.get(bsrc);
+    let fdst = this.get(bdst);
+    assert(!fdst.h && !fdst.frames.length, 'XXX TODO');
+    fdst.h = fsrc.h;
+    fdst.frames = fsrc.frames;
+    return;
   }
 }
 
@@ -656,12 +656,11 @@ export default class Scroll extends EventEmitter {
     if (b2.top.seq!=bseq && b1.top.seq!=bseq)
       return;
     // merge
-    // XXX: need more efficient way (just iterate on decl with data
-    for (let i=0; i<=b2.top.seq; i++){
+    // XXX: need more efficient way (just iterate on decl with data)
+    for (let i=b1.top.seq+1; i<=b2.top.seq; i++){
       let src = this.get_decl(i, {create: false});
-      if (!src)
-        continue;
-      src.copy(i1, i2);
+      if (src)
+        src.copy(i1, i2);
     }
     if (b2.top.seq > b1.top.seq)
       this.notify_M({b: i1, seq: b2.top.seq, M: b2.top.M});
@@ -895,7 +894,7 @@ class Decl extends EventEmitter {
   m_hash(b, range){ return this.m_get(range).get_hash(b); }
   M_hash(b){ return this.M.get_hash(b); }
   copy(bdst, bsrc){
-    // XXX: do we need to_b()
+    assert(this.to_b(bdst)!=this.to_b(bsrc), 'copy same b'+bdst+'<- b'+bsrc);
     let M = this.M.get_hash(bsrc);
     if (M)
       this.M.set_hash(bdst, M);

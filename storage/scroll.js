@@ -50,8 +50,7 @@ class Data extends EventEmitter {
     let fdst = this.get(bdst);
     assert.equal(fsrc.map_info.b, bsrc);
     assert.equal(fdst.map_info.b, bdst);
-    // XXX: support merge of data (and add test)
-    assert(!fdst.h && !fdst.frames.length, 'XXX TODO');
+    assert(!fdst.h && !fdst.frames.length, 'already contain data');
     fdst.h = fsrc.h;
     fdst.frames = fsrc.frames;
     this.bmap.delete(bsrc);
@@ -338,7 +337,7 @@ export default class Scroll extends EventEmitter {
     this.dmap.set(seq, decl);
     decl.init();
     decl.sign(b);
-    decl.M.get_hash(b); // XXX: rm
+    decl.M.get_hash(b);
     return decl;
   }
   notify_M(opt){
@@ -633,8 +632,6 @@ export default class Scroll extends EventEmitter {
     }
   }
   merge_single(i1, i2, seq){
-    // XXX: test all merge of data. verify we don't lose anything
-    // (for eg, one branch has d/sig other only hash)
     assert(i1<i2, 'invalid branch merge '+i1+' '+i2);
     let b1=this.branch.get(i1), b2=this.branch.get(i2), bseq;
     let mergeable = b2.minfo.merge_queue.get(i1);
@@ -810,7 +807,7 @@ export default class Scroll extends EventEmitter {
     let roots=calc_roots(seq+1), a=[ROOT_TYPE];
     for (let i=0; i<roots.length; i++){
       let r = roots[i], h = this.m_hash(opt.b, r);
-      if (!h) // XXX: rm, call api only if possible to calc
+      if (!h)
         return;
       assert(h, 'cannot calc root');
       a.push(h, enc_u64(r[0]), enc_u64(r[1]-r[0]+1));
@@ -884,7 +881,7 @@ class Decl extends EventEmitter {
   }
   sig_get(b){
     let frames = this.fbuf_get(b).frames;
-    // XXX: find better way to access buffer as json
+    // XXX NOW: find better way to access buffer as json
     if (!frames.length)
       return;
     try {
@@ -930,7 +927,7 @@ class Merkel_node extends EventEmitter {
     let [s, e] = this.range;
     assert(!this.inited, 'already inited');
     this.inited = true;
-    // XXX: add event testing
+    // XXX NOW: add event testing
     if (s==e){
       const on_hash = opt=>{
         let b = opt.b, d, sig;
@@ -1002,7 +999,7 @@ class Merkel_root extends EventEmitter {
     this.bmap.set(b, h);
     if (h){
       this.emit('hash');
-      // XXX: move notify_M to listen to 'hash' event
+      // XXX NOW: move notify_M to listen to 'hash' event
       this.scroll.notify_M({b, seq: this.decl.seq, M: h});
     }
     return h;

@@ -334,11 +334,11 @@ export default class Scroll extends EventEmitter {
     let ts = Date.now(), data = new Data({frames});
     let top = this.branch.get(b).top, seq = top ? top.seq+1 : 0;
     data.get(b).unshift({seq, ts});
-    let decl = new Decl({scroll: this, b, seq, data});
-    decl.sign();
+    let decl = new Decl({scroll: this, seq, data});
     this.dmap.set(seq, decl);
+    decl.sign();
     decl.init();
-    decl.M.get_hash(b);
+    decl.M.get_hash(b); // XXX: rm
     return decl;
   }
   notify_M(opt){

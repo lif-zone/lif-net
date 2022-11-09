@@ -328,15 +328,17 @@ export default class Scroll extends EventEmitter {
       b = parent.b);
     return b;
   }
-  decl(frames){ // XXX: support decl on branch
+  decl(b, frames){ // XXX: test decl on branch
+    if (frames===undefined)
+      [b, frames] = [0, b];
     let ts = Date.now(), data = new Data({frames});
-    let seq = this.branch.get(0).top ? this.branch.get(0).top.seq+1 : 0;
-    data.get(0).unshift({seq, ts});
-    let decl = new Decl({scroll: this, b: 0, seq, data});
+    let top = this.branch.get(b).top, seq = top ? top.seq+1 : 0;
+    data.get(b).unshift({seq, ts});
+    let decl = new Decl({scroll: this, b, seq, data});
     decl.sign();
     this.dmap.set(seq, decl);
     decl.init();
-    decl.M.get_hash(0);
+    decl.M.get_hash(b);
     return decl;
   }
   notify_M(opt){

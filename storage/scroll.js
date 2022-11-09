@@ -901,7 +901,6 @@ class Decl extends EventEmitter {
   M_hash(b){ return this.M.get_hash(b); }
   copy(bdst, bsrc){
     // XXX: do we need to_b()
-    assert(bdst!==undefined && bsrc!==undefined, 'XXX WIP');
     let M = this.M.get_hash(bsrc);
     if (M)
       this.M.set_hash(bdst, M);

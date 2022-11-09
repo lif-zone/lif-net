@@ -283,8 +283,9 @@ function is_m_valid(m, d, sig, errors, err){
   return false;
 }
 
-function get_one(){
+function Map_get_one(){
   let o = this[Symbol.iterator]().next();
+  // XXX: if o, maybe value always exist
   return o ? o.value[0] : undefined;
 }
 
@@ -301,7 +302,7 @@ export default class Scroll extends EventEmitter {
     this.branch = new Map();
     this.branch.next_id = 0;
     this.merge_queue = new Map;
-    this.merge_queue.get_one = get_one;
+    this.merge_queue.get_one = Map_get_one;
     this.create_new_branch();
   }
   create_new_branch(opt={}){
@@ -727,7 +728,7 @@ export default class Scroll extends EventEmitter {
     // XXX: maybe we can reuse some of merge_queue & real_map
     b_o.minfo = {any, merge_queue: new Map, real_map: new Map,
       parent: {b: b_o.parent?.b, seq: b_o.parent?.seq}};
-    b_o.minfo.merge_queue.get_one = get_one;
+    b_o.minfo.merge_queue.get_one = Map_get_one;
     b_o.minfo.cleanup = opt=>{
       if (opt && opt.b!=b)
         return;
@@ -817,16 +818,11 @@ export default class Scroll extends EventEmitter {
     }
     return hconcat_safe(a);
   }
-  seq_sig(b, seq){
-    let decl = this.get_decl(seq);
-    if (decl)
-      return decl.sig_get(b);
-  }
+  seq_sig(b, seq){ return this.get_decl(seq)?.sig_get(b); }
   seq_d(b, seq){ return this.get_decl(seq).d_hash(b); }
   seq_D(b, seq){ return this.get_decl(seq).fbuf_get(b).get_frames(); }
   m_hash(b, range){
-    let [, e] = range = r_fix(range);
-    let decl = this.get_decl(e);
+    let [, e] = range = r_fix(range), decl = this.get_decl(e);
     return decl.m_hash(b||0, range);
   }
   m_get(range){

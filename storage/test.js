@@ -128,7 +128,7 @@ const calc_m = (scroll, range)=>etask(function*calc_m(){
   r_str(range));
   let q = [];
   assert(e<scroll.branch.get(0).top.seq+1, 'scroll too small '+
-    e+'<'+scroll.branch.get(0).top.seq+1);
+    e+'<'+(scroll.branch.get(0).top.seq+1));
   for (let i=s; i<=e; i++)
     q.push({s: i, e: i, m: yield scroll.m_hash(0, i)});
   while (q.length!=1){

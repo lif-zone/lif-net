@@ -285,8 +285,7 @@ function is_m_valid(m, d, sig, errors, err){
 
 function Map_get_one(){
   let o = this[Symbol.iterator]().next();
-  // XXX: if o, maybe value always exist
-  return o ? o.value[0] : undefined;
+  return o?.value && o?.value[0];
 }
 
 export default class Scroll extends EventEmitter {

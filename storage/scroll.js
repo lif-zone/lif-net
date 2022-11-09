@@ -903,7 +903,6 @@ class Decl extends EventEmitter {
       if (m)
         this.m[i].set_hash(bdst, m);
     }
-    // XXX: test
     this.data.copy(bdst, bsrc);
   }
 }

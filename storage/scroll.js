@@ -621,15 +621,12 @@ export default class Scroll extends EventEmitter {
     if (this.branch.size<=1)
       return;
     while (this.merge_queue.size){
-      let i = this.merge_queue.get_one();
-      let b_o = this.branch.get(i);
-      this.merge_single(b_o.minfo.merge_queue.get_one(), i, seq);
+      let bb = this.merge_queue.get_one(), b_o = this.branch.get(bb);
+      this.merge_single(b_o.minfo.merge_queue.get_one(), bb, seq);
     }
     // XXX: can we improve and avoid traverssing all branches
     for (const [i, b_o] of this.branch){
-      if (i==0)
-        continue;
-      if (b_o.parent?.type!='b' && b_o.minfo.real_map.get(b_o.parent?.b))
+      if (i && b_o.parent?.type!='b' && b_o.minfo.real_map.get(b_o.parent?.b))
         this.merge_single(b_o.parent.b, i, seq);
     }
   }

@@ -637,14 +637,10 @@ export default class Scroll extends EventEmitter {
     let b1=this.branch.get(i1), b2=this.branch.get(i2), bseq;
     let mergeable = b2.minfo.merge_queue.get(i1);
     let real_branch = b2.minfo.real_map.get(i1);
-    if (b2.parent?.seq >= seq){
-      assert(!mergeable && real_branch);
-      return;
-    }
-    if (b2.parent?.seq >= b1.top.seq){
-      assert(!mergeable && real_branch);
-      return;
-    }
+    if (b2.parent?.seq >= seq)
+      return assert(!mergeable && real_branch);
+    if (b2.parent?.seq >= b1.top.seq)
+      return assert(!mergeable && real_branch);
     if (!mergeable){
       if (real_branch && b2.parent?.b==i1)
         this.branch_update(i2, {type: real_branch ? 'b' : 'v'});

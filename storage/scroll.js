@@ -871,6 +871,7 @@ class Decl extends EventEmitter {
     this.inited = true;
     for (let i=0; i<this.m.length; i++)
       this.m[i].init();
+    this.M.init();
   }
   to_b(b){ return this.scroll.to_b(b, this.seq); }
   sign(b){
@@ -956,10 +957,12 @@ class Merkel_node extends EventEmitter {
     }
   }
   get_hash(b){
+    assert(this.inited, 'Merkel_node not inited');
     b = this.decl.to_b(b);
     return this.bmap.get(b);
   }
   set_hash(b, h){
+    assert(this.inited, 'Merkel_node not inited');
     b = this.decl.to_b(b);
     let h_curr = this.bmap.get(b);
     if (h_curr){
@@ -976,11 +979,17 @@ class Merkel_node extends EventEmitter {
 class Merkel_root extends EventEmitter {
   constructor(opt){
     super();
+    this.inited = false;
     this.decl = opt.decl;
     this.scroll = opt.decl.scroll;
     this.bmap = new Map();
   }
+  init(){
+    assert(!this.inited, 'Merkel_root already inited');
+    this.inited = true;
+  }
   get_hash(b){
+    assert(this.inited, 'Merkel_root not inited');
     b = this.decl.to_b(b);
     let h = this.bmap.get(b);
     if (h)
@@ -989,6 +998,7 @@ class Merkel_root extends EventEmitter {
     return this.set_hash(b, this.scroll.calc_root_hash(this.decl.seq, {b}));
   }
   set_hash(b, h){
+    assert(this.inited, 'Merkel_root not inited');
     if (0) assert(h, 'invalid Merkel_root'); // XXX: enable
     b = this.decl.to_b(b);
     let h_curr = this.bmap.get(b);

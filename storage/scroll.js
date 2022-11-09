@@ -973,8 +973,9 @@ class Merkel_node extends EventEmitter {
   }
 }
 
-class Merkel_root {
+class Merkel_root extends EventEmitter {
   constructor(opt){
+    super();
     this.decl = opt.decl;
     this.scroll = opt.decl.scroll;
     this.bmap = new Map();
@@ -984,19 +985,23 @@ class Merkel_root {
     let h = this.bmap.get(b);
     if (h)
       return h;
+    // XXX: move it to be event-driven (also do the same for Merkel_node)
     return this.set_hash(b, this.scroll.calc_root_hash(this.decl.seq, {b}));
   }
   set_hash(b, h){
+    if (0) assert(h, 'invalid Merkel_root'); // XXX: enable
     b = this.decl.to_b(b);
     let h_curr = this.bmap.get(b);
     if (h_curr){
       assert(h_curr.equals(h), 'hash changed');
       return h_curr;
     }
-    // XXX: need emit('hash') event
     this.bmap.set(b, h);
-    if (h)
+    if (h){
+      this.emit('hash');
+      // XXX: move notify_M to listen to 'hash' event
       this.scroll.notify_M({b, seq: this.decl.seq, M: h});
+    }
     return h;
   }
 }

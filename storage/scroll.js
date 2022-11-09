@@ -46,13 +46,15 @@ class Data extends EventEmitter {
     return fbuf;
   }
   copy(bdst, bsrc){
-    // XXX: do we need to_b()
     let fsrc = this.get(bsrc);
     let fdst = this.get(bdst);
+    assert.equal(fsrc.map_info.b, bsrc);
+    assert.equal(fdst.map_info.b, bdst);
+    // XXX: support merge of data (and add test)
     assert(!fdst.h && !fdst.frames.length, 'XXX TODO');
     fdst.h = fsrc.h;
     fdst.frames = fsrc.frames;
-    return;
+    this.bmap.delete(bsrc);
   }
 }
 

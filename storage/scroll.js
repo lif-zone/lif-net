@@ -336,8 +336,8 @@ export default class Scroll extends EventEmitter {
     data.get(b).unshift({seq, ts});
     let decl = new Decl({scroll: this, seq, data});
     this.dmap.set(seq, decl);
-    decl.sign(b);
     decl.init();
+    decl.sign(b);
     decl.M.get_hash(b); // XXX: rm
     return decl;
   }
@@ -883,13 +883,20 @@ class Decl extends EventEmitter {
   }
   sig_set(b, sig){
     this.fbuf_get(b).unshift({sig});
+    this.emit('sig', {b}); // XXX: need to emit also from set_frames
     return sig;
   }
   sig_get(b){
     let frames = this.fbuf_get(b).frames;
     // XXX: find better way to access buffer as json
-    return frames.length ?
-      Buffer.from(JSON.parse(frames[0].buf.toString()).sig) : null;
+    if (!frames.length)
+      return;
+    try {
+      let json = JSON.parse(frames[0].buf.toString());
+      if (!json || !json.sig)
+        return;
+      return Buffer.from(json.sig);
+    } catch(err){ xerr('sig_get error %s', err); }
   }
   fbuf_get(b){ return this.data.get(this.to_b(b)); }
   d_hash(b){ return this.fbuf_get(b).get_hash(); }
@@ -929,19 +936,20 @@ class Merkel_node extends EventEmitter {
     this.inited = true;
     // XXX: add event testing
     if (s==e){
-      const on_hash = opt=>this.get_hash(opt.b);
+      const on_hash = opt=>{
+        let b = opt.b, d, sig;
+        if ((d = decl.d_hash(b)) && (sig = decl.sig_get(b)))
+          return this.set_hash(b, hleaf(d, sig));
+      };
       decl.data.on('hash', on_hash);
       decl.on('sig', on_hash);
     } else {
       let [r1, r2] = r_split(this.range);
       let m1 = scroll.m_get(r1), m2 = scroll.m_get(r2);
       const on_hash_m = opt=>{
-        /* XXX: WIP
-        let b = opt.b, h1 = m1.get_hash(b), h2 = m2.get_hash(b);
-        if (h1 && h2)
+        let b = opt.b, h1, h2;
+        if ((h1 = m1.get_hash(b)) && (h2 = m2.get_hash(b)))
           this.set_hash(b, hparent_safe(e-s+1, h1, h2));
-        */
-        this.get_hash(opt.b);
       };
       m1.on('hash', on_hash_m);
       m2.on('hash', on_hash_m);
@@ -949,22 +957,7 @@ class Merkel_node extends EventEmitter {
   }
   get_hash(b){
     b = this.decl.to_b(b);
-    let h = this.bmap.get(b);
-    // XXX: optimize, don't run calc if there is no change in dependent data
-    if (h)
-      return h;
-    let [s, e] = this.range, decl = this.decl;
-    if (s==e){
-      let d = decl.d_hash(b), sig = decl.sig_get(b);
-      if (!d || !sig)
-        return null;
-      return this.set_hash(b, hleaf(d, sig));
-    }
-    let [r1, r2] = r_split(this.range);
-    let decl1 = decl.scroll.get_decl(r1[1]);
-    let decl2 = decl.scroll.get_decl(r2[1]);
-    return this.set_hash(b, hparent_safe(e-s+1, decl1.m_hash(b, r1),
-      decl2.m_hash(b, r2)));
+    return this.bmap.get(b);
   }
   set_hash(b, h){
     b = this.decl.to_b(b);

@@ -336,7 +336,7 @@ export default class Scroll extends EventEmitter {
     data.get(b).unshift({seq, ts});
     let decl = new Decl({scroll: this, seq, data});
     this.dmap.set(seq, decl);
-    decl.sign();
+    decl.sign(b);
     decl.init();
     decl.M.get_hash(b); // XXX: rm
     return decl;
@@ -873,14 +873,13 @@ class Decl extends EventEmitter {
       this.m[i].init();
   }
   to_b(b){ return this.scroll.to_b(b, this.seq); }
-  sign = ()=>{
-    // XXX: support branch for sign
-    let scroll = this.scroll, d = this.fbuf_get(0).get_hash({skip: 0});
+  sign(b){
+    let scroll = this.scroll, d = this.fbuf_get(b).get_hash({skip: 0});
     assert(scroll.key, 'cannot sign without key');
-    let buf = this.seq ? Buffer.concat([d, scroll.M_hash(0, this.seq-1)])
+    let buf = this.seq ? Buffer.concat([d, scroll.M_hash(b, this.seq-1)])
       : scroll.prev_scroll ? Buffer.concat([d, scroll.prev_scroll]) : d;
     let sig = crypto.sign(crypto.blake2b(buf), scroll.key);
-    this.sig_set(0, sig);
+    this.sig_set(b, sig);
   }
   sig_set(b, sig){
     this.fbuf_get(b).unshift({sig});

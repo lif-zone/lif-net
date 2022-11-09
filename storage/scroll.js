@@ -865,6 +865,10 @@ class Decl extends EventEmitter {
     this.M = new Merkel_root({decl: this});
   }
   init(){
+    // XXX: rm and make sure init is called only once
+    if (this.inited)
+      return;
+    this.inited = true;
     for (let i=0; i<this.m.length; i++)
       this.m[i].init();
   }

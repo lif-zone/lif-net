@@ -578,7 +578,6 @@ function parse_branch(s){
   return b ? {top, b} : {top};
 }
 
-// XXX: rm
 const cmd_b = t=>etask(function*cmd_b(){
   let name = t.ctx||get_def('left'), scroll = get_scroll(name);
   let tested = {}, i=0;
@@ -612,7 +611,12 @@ const cmd_eq = o=>etask(function*cmd_eq(){
     l = yield get_val((o.ctx ? o.ctx+'.' : '')+o.l, 'left');
     r = yield get_val(o.r, 'right');
   }
-  assert_buffer(l, r, o.meta.s);
+  if (Buffer.isBuffer(l) || Buffer.isBuffer(r))
+    assert_buffer(l, r, o.meta.s);
+  else if (Array.isArray(l) || Array.isArray(r))
+    assert.deepEqual(l||[], r||[]);
+  else
+    assert.deepEqual(l, r);
 });
 
 const test_run_single = (curr, o)=>etask(function*_test_run_single(){
@@ -1461,8 +1465,7 @@ describe('scroll', ()=>{
           put(m0 m1 d1 sig1)
           t.d1b0=s.d1 t.sig1b0=s.sig1
           tput(0 1 2_3 4 5 6 7 8) b(M8)
-          t.d1=s.d1 t.sig1=s.sig1
-        `);
+          t.d1=s.d1 t.sig1=s.sig1`);
         t('data_full_merge_d7', `${s}
           tput(0 1 2_3 4        ) b(M4)
           tput(0 1 2_3 4_5 6 7 8) b(M4 3v0.M8)
@@ -1470,18 +1473,23 @@ describe('scroll', ()=>{
           put(m0_3 m4_5 m6 d7 sig7)
           t.d7b1=s.d7 t.sig7b1=s.sig7
           tput(0 1 2_3 4 5 6 7 8) b(M8)
-          t.d7=s.d7 t.sig7=s.sig7
-        `);
-// XXX
-if (0) t('data_merge_xxx', `${s}
+          t.d7=s.d7 t.sig7=s.sig7`);
+        t('data_full_merge_D1', `${s}
           tput(0 1 2_3 4        ) b(M4)
           tput(0 1 2_3 4_5 6 7 8) b(M4 3v0.M8)
-//          t.D8b1=s.D8
-          put(m0_3 m4_5 m6 d7 sig7)
-//          t.D8b1=s.D8
+          !t.D1b0 !t.sig1b0
+          put(m0 m1 D1 sig1)
+          t.D1b0=s.D1 t.sig1b0=s.sig1
           tput(0 1 2_3 4 5 6 7 8) b(M8)
-          t.D8=s.D8
-        `);
+          t.D1=s.D1 t.sig1=s.sig1`);
+         t('data_full_merge_D7', `${s}
+          tput(0 1 2_3 4        ) b(M4)
+          tput(0 1 2_3 4_5 6 7 8) b(M4 3v0.M8)
+          !t.D7b1 !t.sig7b1
+          put(m0_3 m4_5 m6 D7 sig7)
+          t.D7b1=s.D7 t.sig7b1=s.sig7
+          tput(0 1 2_3 4 5 6 7 8) b(M8)
+          t.D7=s.D7 t.sig7=s.sig7`);
       });
     });
   });

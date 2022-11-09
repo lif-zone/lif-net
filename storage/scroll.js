@@ -979,6 +979,7 @@ class Merkel_root extends EventEmitter {
   init(){
     assert(!this.inited, 'Merkel_root already inited');
     this.inited = true;
+    this.on('hash', o=>this.scroll.notify_M({b: o.b, seq: o.seq, M: o.h}));
   }
   get_hash(b){
     assert(this.inited, 'Merkel_root not inited');
@@ -997,11 +998,8 @@ class Merkel_root extends EventEmitter {
       return h_curr;
     }
     this.bmap.set(b, h);
-    if (h){
-      this.emit('hash');
-      // XXX NOW: move notify_M to listen to 'hash' event
-      this.scroll.notify_M({b, seq: this.decl.seq, M: h});
-    }
+    if (h)
+      this.emit('hash', {b, h, seq: this.decl.seq});
     return h;
   }
 }

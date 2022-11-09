@@ -1,0 +1,44 @@
+" cp vimrc ~/.vimrc
+" CTRL-H to flip hebrew<->english
+fun Rightleft_flip()
+  if &rightleft
+    :set norightleft
+  else
+    :set rightleft
+  endif
+endfun
+map <C-h> :call Rightleft_flip()<CR>
+
+set hlsearch
+
+au BufNewFile,BufRead *.json6 setlocal filetype=javascript
+au FileType text,json,javascript setlocal sw=2 et nowrap
+
+" mark errors: long lines>=80 and trailing spaces
+fun Mark_error(enable_80)
+  " mark long lines>=80
+  if a:enable_80 && !exists('w:me')
+    let w:me=matchadd('ErrorMsg','\%80v.',-1)
+  elseif !a:enable_80 && exists('w:me')
+    call matchdelete(w:me)
+    unlet w:me
+  endif
+  " mark trailing spaces
+  if !exists('w:me2')
+    let w:me2=matchadd('ErrorMsg','\s\+$',-1)
+  endif
+  if !exists('w:me3')
+    let w:me3=matchadd('ErrorMsg','\%u00a0',-1)
+  endif
+endfun
+au BufWinEnter *.{txt,js,json,json6} call Mark_error(1)
+au BufWinEnter *.html call Mark_error(0)
+hi javaScriptStringT guifg=DarkBlue
+se sw=2
+
+fun Debug_syntax()
+  for id in synstack(line("."), col("."))
+    echo synIDattr(id, "name")
+  endfor
+endfun
+

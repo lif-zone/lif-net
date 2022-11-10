@@ -15,7 +15,7 @@ import {r_str, r_from_str, r_parent} from './range.js';
 const b2s = buf_util.buf_to_str, s2b = buf_util.buf_from_str;
 function enc_u64(v){ return enc.encode(enc.uint64, v); }
 
-let t_scroll, t_genesis_scroll, t_prev_scroll, t_keypair, t_def;
+let t_soul, t_scroll, t_genesis_scroll, t_prev_scroll, t_keypair, t_def;
 
 // XXX: make it automatic for all node/browser in proc.js
 // XXX: check if to enable xerr.set_exception_catch_all(true);
@@ -215,6 +215,7 @@ const test_decl = (scroll, data)=>etask(function*test_decl(){
 
 const test_start = ()=>etask(function*test_start(){
   t_scroll = {};
+  t_soul = 'differnt';
   t_def = {};
   t_keypair = {pub: s2b('44659cb51dec397ea66085679442505345e159940762c15ef75'+
     'ad279ecf05033'),
@@ -240,6 +241,22 @@ const test_start = ()=>etask(function*test_start(){
 
 function test_end(){ Scroll.soul.clear(); }
 
+function cmd_conf(t){
+  let soul;
+  for (let curr=t.r, i=0; curr = tparser.parse_get_next(curr); i++){
+    let tt = tparser.parse_exp_arg(curr.exp);
+    switch (tt.cmd){
+      case 'soul':
+        soul = tt.r;
+        assert(['differnt', 'manual'].includes(soul), 'invalid soul '+soul);
+        break;
+    default: assert.fail('invalid arg '+tt.cmd+' in '+t.meta.s);
+    }
+  }
+  if (soul!==undefined)
+    t_soul = soul;
+}
+
 const cmd_scroll = t=>etask(function*cmd_scroll(){
   let prev_scroll = yield t_prev_scroll.M_hash(0, 1);
   let name = t.ctx||get_def('left'), M, a, scroll;
@@ -264,7 +281,11 @@ const cmd_scroll = t=>etask(function*cmd_scroll(){
       assert.fail('invalid arg '+tt.cmd+' in '+t.meta.s);
     }
   }
-  let soul = new Scroll.Soul();
+  let soul;
+  if (t_soul=='differnt')
+    soul = new Scroll.Soul();
+  else
+    assert.fail('XXX TODO soul '+soul); // XXX: NOW
   if (M){
    scroll = yield Scroll.open({soul, key: t_keypair.key,
      pub: t_keypair.pub, M});
@@ -446,6 +467,7 @@ const cmd_eq = o=>etask(function*cmd_eq(){
 const test_run_single = (curr, o)=>etask(function*_test_run_single(){
   let o2;
   switch (o.cmd){
+  case 'conf': yield cmd_conf(o); break;
   case 'scroll': yield cmd_scroll(o); break;
   case 'clone': yield cmd_clone(curr, o); break;
   case 'decl': yield cmd_decl(o); break;
@@ -810,6 +832,13 @@ describe('scroll', ()=>{
     });
   });
   describe('decl', ()=>{
+    if (0)
+    describe('soul', ()=>{
+      // XXX NOW: conf(soul: differnt, same, manual)
+      t('manual', `conf(soul:manual) soul1.s0..scroll(!prev_scroll) decl(1)
+        soul1.s1.open(M0:s0..M0) soul2.s2.open(M0)
+        s0.M1=0x123 s1.M1=M1 !s2.M1`);
+    });
     const t = (name, test)=>it(name, ()=>test_run(test));
     let sig0='0x9d73f19857885309cb311a8ec7d635ca2898da1b1fb8e31e9b7e01bbbc6de'+
       '68a5b9d756ff02462a3b2f8900e46a496ace5d3acb4f3e73180be515e936009e70c';
@@ -1468,13 +1497,6 @@ describe('scroll', ()=>{
           tput(0_1_2_3 4_5 6_7 8 9) b(M4 3v0.M9) t.D4b0=s.D4
           tput(0_1_2_3 4 5 6      ) b(M9 5v0.M6) t.D4b0=s.D4
           tput(0_1_2_3 4_5 6 7    ) b(M9) t.D4b0=s.D4`);
-      });
-      if (0) // XXX NOW: TODO
-      describe('soul', ()=>{
-        // XXX NOW: conf(soul: differnt, same, manual)
-        t('manual', `conf(soul:manual) soul1.s0..scroll(!prev_scroll) decl(1)
-          soul1.s1.open(M0:s0..M0) soul2.s2.open(M0)
-          s0.M1=0x123 s1.M1=M1 !s2.M1`);
       });
     });
   });

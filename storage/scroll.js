@@ -3,6 +3,7 @@
 import assert from 'assert';
 import {EventEmitter} from 'events';
 import crypto from '../util/crypto.js';
+import util from '../util/util.js';
 import xerr from '../util/xerr.js';
 import enc from 'compact-encoding';
 import {Buffer} from 'buffer';
@@ -1017,9 +1018,11 @@ Scroll.create = function(opt, d){
 
 Scroll.open = function(opt){
   let scroll = new Scroll(opt);
-  assert(opt.M && /^\d+$/.test(opt.M.seq) && opt.M.h, 'scroll.open missing M');
-  let decl = scroll.get_decl(opt.M.seq);
-  decl.M.set_hash(0, opt.M.h);
+  let {seq, h} = Buffer.isBuffer(opt.M) ? {seq: 0, h: opt.M} : opt.M||{};
+  assert(/^\d+$/.test(seq) && h, 'scroll.open missing M');
+  assert(util.is_mocha() || seq==0, 'producion scroll must have M0');
+  let decl = scroll.get_decl(seq);
+  decl.M.set_hash(0, h);
   return scroll;
 };
 

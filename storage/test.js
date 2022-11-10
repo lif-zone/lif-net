@@ -254,7 +254,8 @@ const cmd_scroll = t=>etask(function*cmd_scroll(){
     default:
       t2 = tparser.parse_exp_arg_pair(curr.exp);
       if (a = t2.l.match(/^M(\d+)$/)){
-        M = {seq: +a[1], h: yield get_val(t2.r)};
+        let h = yield get_val(t2.r);
+        M = +a[1] ? {seq: +a[1], h} : h;
         break;
       }
       assert.fail('invalid arg '+tt.cmd+' in '+t.meta.s);

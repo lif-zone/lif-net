@@ -349,23 +349,22 @@ export default class Scroll extends EventEmitter {
     }
   }
   find_best_branch(seq, diff){
-    let best = {b: 0, max_common: 0};
+    let best = {b: 0, seq: 0};
     if (this.branch.size<=1)
       return best;
     for (const [j, branch] of this.branch){
       // XXX: optimize. use prev max_common to first check if we can
       // improve and stop checking if max_common is lower the prev
-      let max_common = this.find_max_common_M({b: j, seq, diff});
+      let max = this.find_max_common_M({b: j, seq, diff});
       let top = branch.top.seq;
-      if (best.max_common < max_common ||
-        best.max_common==max_common && best.top < top){
-        best = {b: j, max_common, top};
+      if (best.seq < max || best.seq==max && best.top<top){
+        best = {b: j, seq: max, top};
       }
     }
     return best;
   }
   put(diff){
-    let errors = {}, max_common;
+    let errors = {}, max;
     if (diff[0]) // XXX HACK: for case where we have only M0 (no mo)
       this.put_single(0, diff, errors);
     let a = Object.keys(diff);
@@ -373,12 +372,12 @@ export default class Scroll extends EventEmitter {
       let seq = +a[i], errors2={}, best = this.find_best_branch(seq, diff);
       let b = best.b, ret = this.put_single(seq, diff, errors2, {b});
       if (ret?.branch){
-        max_common = best.max_common || this.find_max_common_M({b, seq, diff});
-        if (max_common!==undefined){
+        max = best.seq || this.find_max_common_M({b, seq, diff});
+        if (max!==undefined){
           errors2 = {};
-          let b2 = this.create_new_branch({b, seq: max_common});
+          let b2 = this.create_new_branch({b, seq: max});
           ret = this.put_single(seq, diff, errors, {b: b2});
-          if (ret?.branch || this.branch.get(b2).top.seq<=max_common){
+          if (ret?.branch || this.branch.get(b2).top.seq<=max){
             this.branch.delete(b2);
             continue;
           }

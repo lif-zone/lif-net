@@ -1,5 +1,5 @@
 // author: derry. coder: arik.
-'use strict'; /*jslint node:true, browser:true*/
+'use strict';
 import assert from 'assert';
 import {EventEmitter} from 'events';
 import crypto from '../util/crypto.js';
@@ -292,6 +292,8 @@ export default class Scroll extends EventEmitter {
   constructor(opt){
     super();
     assert(opt.pub, 'missing pub key');
+    assert(util.is_mocha()||!opt.scrolls, 'producion must use global scrolls');
+    this.scrolls = opt.scrolls||Scroll.scrolls;
     this.pub = opt.pub;
     this.key = opt.key;
     this.crypt = opt.crypt||Scroll.supported_crypt[0];
@@ -343,6 +345,9 @@ export default class Scroll extends EventEmitter {
   }
   notify_M(opt){
     let {b, seq, M} = opt;
+    assert(seq!=0 || b==0, 'M0 exists only on b0');
+    if (seq==0)
+      this.scrolls.set(M, this);
     if (!this.branch.get(b).top || this.branch.get(b).top.seq<seq){
       this.branch.get(b).top = {seq, M};
       assert.equal(b2s(M), b2s(this.M_hash(b, this.branch.get(b).top.seq)),
@@ -1009,6 +1014,21 @@ class Merkel_root extends EventEmitter {
   }
 }
 
+class Scrolls {
+  scrolls = new Map();
+  set(M0, scroll){
+    M0 = typeof M0=='string' ? M0 : b2s(M0);
+    assert(!this.scrolls.get(M0), 'scroll already exists '+M0);
+    return this.scrolls.set(M0, scroll);
+  }
+  get(M0){
+    M0 = typeof M0=='string' ? M0 : b2s(M0);
+    return this.scrolls.get(M0);
+  }
+  delete(M0){ return this.scrolls.delete(M0); }
+  clear(){ this.scrolls.clear(); }
+}
+
 Scroll.create = function(opt, d){
   let scroll = new Scroll(opt);
   scroll.decl([{scroll: {crypt: Scroll.supported_crypt,
@@ -1017,15 +1037,18 @@ Scroll.create = function(opt, d){
 };
 
 Scroll.open = function(opt){
+  assert(util.is_mocha() || seq==0, 'producion scroll must have M0');
+  assert(util.is_mocha()||!opt.scrolls, 'producion must use global scrolls');
   let scroll = new Scroll(opt);
   let {seq, h} = Buffer.isBuffer(opt.M) ? {seq: 0, h: opt.M} : opt.M||{};
   assert(/^\d+$/.test(seq) && h, 'scroll.open missing M');
-  assert(util.is_mocha() || seq==0, 'producion scroll must have M0');
   let decl = scroll.get_decl(seq);
   decl.M.set_hash(0, h);
   return scroll;
 };
 
+Scroll.Scrolls = Scrolls;
+Scroll.scrolls = new Scrolls();
 Scroll.supported_crypt = [{sig: 'ed25519', hash: 'blake2b', lif: 'lif1'}];
 Scroll.hconcat = hconcat; // XXX need test
 Scroll.hconcat_safe = hconcat_safe; // XXX need test

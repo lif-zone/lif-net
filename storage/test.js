@@ -223,19 +223,22 @@ const test_start = ()=>etask(function*test_start(){
   xsinon.clock_set({now: 0});
   t_genesis_scroll = yield Scroll.create({key: t_keypair.key,
     pub: t_keypair.pub}, {topic: 'genesis'});
+  t_scroll['genesis'] = t_genesis_scroll;
+  t_genesis_scroll.t = {name: 'genesis'};
   yield t_genesis_scroll.decl('1');
   assert(t_genesis_scroll.M_hash(0, 0), 'missing M0');
   assert(t_genesis_scroll.M_hash(0, 1), 'missing M1');
   t_prev_scroll = yield Scroll.create({key: t_keypair.key,
     pub: t_keypair.pub, prev_scroll: yield t_genesis_scroll.M_hash(0, 1)},
     {topic: 'prev_scroll'});
+  t_scroll['prev'] = t_prev_scroll;
+  t_prev_scroll.t = {name: 'prev'};
   yield t_prev_scroll.decl('1');
   assert(t_prev_scroll.M_hash(0, 0), 'missing M0');
   assert(t_prev_scroll.M_hash(0, 1), 'missing M1');
 });
 
-function test_end(){
-}
+function test_end(){ Scroll.scrolls.clear(); }
 
 const cmd_scroll = t=>etask(function*cmd_scroll(){
   let prev_scroll = yield t_prev_scroll.M_hash(0, 1);
@@ -261,11 +264,14 @@ const cmd_scroll = t=>etask(function*cmd_scroll(){
       assert.fail('invalid arg '+tt.cmd+' in '+t.meta.s);
     }
   }
-  if (M)
-   scroll = yield Scroll.open({key: t_keypair.key, pub: t_keypair.pub, M});
+  let scrolls = new Scroll.Scrolls();
+  if (M){
+   scroll = yield Scroll.open({scrolls, key: t_keypair.key,
+     pub: t_keypair.pub, M});
+  }
   else {
-    scroll = yield Scroll.create({key: t_keypair.key, pub: t_keypair.pub,
-        prev_scroll}, {topic: 'test'});
+    scroll = yield Scroll.create({scrolls, key: t_keypair.key,
+      pub: t_keypair.pub, prev_scroll}, {topic: 'test'});
   }
   t_scroll[name] = scroll;
   scroll.t = {name};

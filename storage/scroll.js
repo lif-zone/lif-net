@@ -1039,8 +1039,12 @@ Scroll.create = function(opt, d){
 Scroll.open = function(opt){
   assert(util.is_mocha() || seq==0, 'producion scroll must have M0');
   assert(util.is_mocha()||!opt.scrolls, 'producion must use global scrolls');
-  let scroll = new Scroll(opt);
   let {seq, h} = Buffer.isBuffer(opt.M) ? {seq: 0, h: opt.M} : opt.M||{};
+  let scrolls = opt.scrolls||Scroll.scrolls;
+  let scroll = seq==0 && scrolls.get(h);
+  if (scroll)
+    return scroll;
+  scroll = new Scroll(opt);
   assert(/^\d+$/.test(seq) && h, 'scroll.open missing M');
   let decl = scroll.get_decl(seq);
   decl.M.set_hash(0, h);

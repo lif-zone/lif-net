@@ -1091,25 +1091,16 @@ describe('scroll', ()=>{
         // XXX NOW: need tests with prev_scroll
         // XXX NOW: need tests with decl on branch
         let s = `s.scroll(!prev_scroll) s.decl(1-32) s2..scroll(s..M3) ==M3`;
-        t('xxx_rename1', `${s} put(m0_1 m2 m3)
+        t('simple_branch_a', `${s} put(m0_1 m2 m3)
           ==(M3 m2 m3 m0_1 m2_3 m0_3) decl(4) // branch
           put(sig4 d4 m4 m0_1 m2 m3) b(M4=s2.M4 3b0.M4)
           ==(sig4:sign(s2.d4+M3) m4:hleaf(s2.d4+s2.sig4) s2.d4 M3 m2 m3 m0_1
           m2_3 m0_3 sig4b1:sig4 d4b1:d4 m3b1:m3 m2_3b1:s.m2_3 m0_3b1:s.m0_3
-          m0_1b1:s.m0_1
-          m2b1:s.m2 m4b1:s.m4)
-          put(sig3 d3)
-          sig3=sig3
-          d3=d3
+          m0_1b1:s.m0_1 m2b1:s.m2 m4b1:s.m4) put(sig3 d3) sig3=sig3 d3=d3
           ==(sig4:sign(s2.d4+M3) m4:hleaf(s2.d4+s2.sig4) s2.d4 M3 m2 m3 m0_1
           m2_3 m0_3 sig4b1:sig4 d4b1:d4 m3b1:m3 m2_3b1:s.m2_3 m0_3b1:s.m0_3
-          sig3 d3
-          sig3b1:s.sig3
-          d3b1:s.d3
-          m0_1b1:s.m0_1
-          m2b1:s.m2 m4b1:s.m4)
-        `);
-        t('xxx_rename2', `s.scroll(!prev_scroll) s.decl(1-10)
+          sig3 d3 sig3b1:s.sig3 d3b1:s.d3 m0_1b1:s.m0_1 m2b1:s.m2 m4b1:s.m4)`);
+        t('simple_branch_b', `s.scroll(!prev_scroll) s.decl(1-10)
           s2..scroll(s..M3) put(M0 m0 m1 m2 m3) decl(4-7)
           s3..scroll(s2..M0)
           // XXX NOW: test s3.put(sig7:s2..sig7 d7 m0 m1 m2_m3 m4_5 m6 sig6 d6)
@@ -1118,12 +1109,7 @@ describe('scroll', ()=>{
           // XXX NOW why
           s3.put(sig7:s..sig7 d7 m0 m1 m2 m3 m4_5 m6 sig6 d6)
           b(M7=s2.M7 3b0.M7)
-          m0b1=s.m0
-          m3b1=s.m3
-          m4_5b1=s.m4_5
-          sig7b0=s2.sig7
-          sig7b1=s.sig7
-        `);
+          m0b1=s.m0 m3b1=s.m3 m4_5b1=s.m4_5 sig7b0=s2.sig7 sig7b1=s.sig7`);
         let p = '';
         t('1b0', `s.scroll(!prev_scroll) s.decl(1-5) s1.clone(s.0_1)
           s1.decl(2-5) t..clone(s.0_5) put(m0:s1..m0 m1 sig2 d2)

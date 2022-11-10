@@ -451,7 +451,7 @@ const test_run_single = (curr, o)=>etask(function*_test_run_single(){
   case 'dbg': debugger; break; // eslint-disable-line no-debugger
   case '.':
   case '..':
-  case '...': // XXX: rm from here
+  case '...': // XXX NOW: rm from here
     assert(o.l, 'invalid "." operator');
     o2 = tparser.parse_exp(o.r);
     o2.ctx = o.l;
@@ -898,7 +898,6 @@ describe('scroll', ()=>{
           err(invalid sig1)) ==(M0 m0)`);
         t('m0m1_sig1d1_missing_m0', `${s} put(m1 sig1 d1
           err(missing m0)) ==M0`);
-        // XXX add errors/missing to below tests
         t('add_d2', `${s} put(sig2 d2 sig1 d1 m1 m0)
           ==(M0 sig2 d2 sig1 d1 m1 m0 m0_1 m2)`);
         t('add_d2D1', `${s} put(sig2 d2 sig1 D1 m1 m0)
@@ -981,11 +980,10 @@ describe('scroll', ()=>{
           err(missing sig1)) ==(M0 m0 M1 m1 m0_1)`);
         t('m0m1_sig1d1_sig0d0', `${s} put(sig0 d0 sig1 d1 m0 m1)
           ==(sig0 d0 sig1 d1 M0 m0 M1 m1 m0_1)`);
-        // XXX: ^m0_1 is redundant
         t('m0m1m0_1', `${s} put(m0 m1 m0_1) ==(M0 m0 M1 m1 m0_1)`);
         t('m0_sig1d1', `${s} put(m0 sig1 d1) ==(sig1 d1 M0 m0 M1 m1 m0_1)`);
         t('m1_sig0d0', `${s} put(sig0 d0 m1) ==(sig0 d0 M0 m0 M1 m1 m0_1)`);
-        // XXX add test for d0sig0_d1_sig1
+        // XXX: add test for d0sig0_d1_sig1
         // XXX: add sig/d tests
       });
       describe('top_M2', ()=>{

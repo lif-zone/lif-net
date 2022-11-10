@@ -15,8 +15,8 @@ import {r_str, r_from_str, r_parent} from './range.js';
 const b2s = buf_util.buf_to_str, s2b = buf_util.buf_from_str;
 function enc_u64(v){ return enc.encode(enc.uint64, v); }
 
-let t_soul, t_soul_mode, t_scroll, t_genesis_scroll, t_prev_scroll, t_def;
-let t_keypair;
+let t_soul, t_soul_id, t_soul_mode;
+let t_scroll, t_genesis_scroll, t_prev_scroll, t_def, t_keypair;
 
 // XXX: make it automatic for all node/browser in proc.js
 // XXX: check if to enable xerr.set_exception_catch_all(true);
@@ -217,6 +217,7 @@ const test_decl = (scroll, data)=>etask(function*test_decl(){
 const test_start = ()=>etask(function*test_start(){
   t_soul_mode = 'differnt';
   t_soul = {};
+  t_soul_id = 0;
   t_scroll = {};
   t_def = {};
   t_keypair = {pub: s2b('44659cb51dec397ea66085679442505345e159940762c15ef75'+
@@ -250,7 +251,8 @@ function cmd_conf(t){
     switch (tt.cmd){
       case 'soul':
         soul = tt.r;
-        assert(['differnt', 'manual'].includes(soul), 'invalid soul '+soul);
+        assert(['differnt', 'same', 'manual'].includes(soul),
+          'invalid soul '+soul);
         break;
     default: assert.fail('invalid arg '+tt.cmd+' in '+t.meta.s);
     }
@@ -284,14 +286,23 @@ const cmd_scroll = t=>etask(function*cmd_scroll(){
     }
   }
   let soul;
-  if (t_soul_mode=='differnt')
-    soul = new Scroll.Soul();
+  if (t_soul_mode=='differnt'){
+    let soul_name = t.prev?.ctx;
+    assert(!soul_name, 'no soul name in differnt mode');
+    soul_name = 'auto_soul'+t_soul_id++;
+    soul = t_soul[soul_name] = t_soul[soul_name] || new Scroll.Soul();
+  }
   else if (t_soul_mode=='manual'){
     let soul_name = t.prev?.ctx;
     assert(soul_name, 'missing sould name in manual mode');
     soul = t_soul[soul_name] = t_soul[soul_name] || new Scroll.Soul();
+  } else if (t_soul_mode=='same'){
+    let soul_name = t.prev?.ctx;
+    assert(!soul_name, 'no soul name in same mode');
+    soul_name = 'same';
+    soul = t_soul[soul_name] = t_soul[soul_name] || new Scroll.Soul();
   } else
-    assert.fail('XXX TODO soul '+t_soul_mode); // XXX: NOW
+    assert.fail('invalid sould mode '+t_soul_mode);
   if (M){
    scroll = yield Scroll.open({soul, key: t_keypair.key,
      pub: t_keypair.pub, M});
@@ -841,11 +852,22 @@ describe('scroll', ()=>{
   describe('api', ()=>{
     const t = (name, test)=>it(name, ()=>test_run(test));
     describe('soul', ()=>{
-      // XXX NOW: conf(soul: differnt, same, manual)
       t('manual', `conf(soul:manual) soul1.s0..scroll(!prev_scroll) decl(1)
         soul1.s1.scroll(M0:s0..M0) soul2.s2.scroll(M0)
         M1=0x9ae687b90fd63ad629061a53e491e4f5fec8a6adebcb9afe374851ae42b62552
         s1.M1=M1 !s2.M1`);
+      t('same', `conf(soul:same) s0..scroll(!prev_scroll) decl(1)
+        s1.scroll(M0:s0..M0) s2.scroll(M0)
+        M1=0x9ae687b90fd63ad629061a53e491e4f5fec8a6adebcb9afe374851ae42b62552
+        s1.M1=M1 s2.M1=M1`);
+      t('differnt', `conf(soul:differnt) s0..scroll(!prev_scroll) decl(1)
+        s1.scroll(M0:s0..M0) s2.scroll(M0)
+        M1=0x9ae687b90fd63ad629061a53e491e4f5fec8a6adebcb9afe374851ae42b62552
+        !s1.M1 !s2.M1`);
+      t('default', `s0..scroll(!prev_scroll) decl(1)
+        s1.scroll(M0:s0..M0) s2.scroll(M0)
+        M1=0x9ae687b90fd63ad629061a53e491e4f5fec8a6adebcb9afe374851ae42b62552
+        !s1.M1 !s2.M1`);
     });
     describe('basic', ()=>{
       let sig0 = '0x9d73f19857885309cb311a8ec7d635ca2898da1b1fb8e31e9b7e01bb'+

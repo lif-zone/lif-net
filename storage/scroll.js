@@ -364,15 +364,17 @@ export default class Scroll extends EventEmitter {
     return best;
   }
   put(diff){
-    let errors = {}, max;
+    let errors = {}, a = Object.keys(diff);
     if (diff[0]) // XXX HACK: for case where we have only M0 (no mo)
       this.put_single(0, diff, errors);
-    let a = Object.keys(diff);
     for (let i=a.length-1; i>=0 && +a[i]; i--){
-      let seq = +a[i], errors2={}, best = this.find_best_branch(seq, diff);
+      let seq = +a[i], errors2={};
+      if (seq==0)
+        continue;
+      let best = this.find_best_branch(seq, diff);
       let b = best.b, ret = this.put_single(seq, diff, errors2, {b});
       if (ret?.branch){
-        max = best.seq || this.find_max_common_M({b, seq, diff});
+        let max = best.seq || this.find_max_common_M({b, seq, diff});
         if (max!==undefined){
           errors2 = {};
           let b2 = this.create_new_branch({b, seq: max});

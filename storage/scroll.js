@@ -365,7 +365,7 @@ export default class Scroll extends EventEmitter {
   }
   put(diff){
     let errors = {}, a = Object.keys(diff);
-    if (diff[0]) // XXX HACK: for case where we have only M0 (no mo)
+    if (diff[0]) // XXX HACK: for case where we have only M0 (missing m0)
       this.put_single(0, diff, errors);
     for (let i=a.length-1; i>=0 && +a[i]; i--){
       let seq = +a[i], errors2={};

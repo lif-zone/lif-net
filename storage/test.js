@@ -1469,45 +1469,13 @@ describe('scroll', ()=>{
           tput(0_1_2_3 4 5 6      ) b(M9 5v0.M6) t.D4b0=s.D4
           tput(0_1_2_3 4_5 6 7    ) b(M9) t.D4b0=s.D4`);
       });
+      if (0) // XXX NOW: TODO
+      describe('soul', ()=>{
+        // XXX NOW: conf(soul: differnt, same, manual)
+        t('manual', `conf(soul:manual) soul1.s0..scroll(!prev_scroll) decl(1)
+          soul1.s1.open(M0:s0..M0) soul2.s2.open(M0)
+          s0.M1=0x123 s1.M1=M1 !s2.M1`);
+      });
     });
   });
 });
-
-/* XXX NOW: pc support
-short:
-pc0.s0 0 1 2 3 4 5 6 7 8 9
-pc1.s1         a b c d e f (3b0)
-pc2.s2                   A (3b0 but real split 8b1)
-full:
-pc0.s0 0 1 2 3 4 5 6 7 8 9
-pc1.s1 0 1 2 3 a b c d e f (3b0)
-pc2.s2 0 1 2 3 a b c d e A (3b0 but real split 8b1)
-
-pct.t.
-    b1 0 1 2 3 a|b c        b1.a_?.dup_cmp = new Map().insert(b2, b3);
-    b2 0 1 2 3 a_B C f      b2.a_B.dup = new Map().insert(b1);
-    b3 0 1 2 3 a_C C f      b3.a_C.dup = new Map().insert(b1);
-    b3 0 1 2 3 a_b_c_d e_f_h_i f
-    b3 0 1 2 3     c_d e_f     g
-    m = b1.m4_7.siblings = new Map();
-    m.insert(b1);
-    m.insert(b2);
-    b2.m4_7.siblings = m;
-    --> at stage we have two branches 3b1 3b2
-    b2 0 1 2 3 a b c d e f
-    --> now we need to unite to one branch 3b1
-
-pct.t2
-    b0 0 1 2 3 4 5 6 7 8 9
-    b1 0 1 2 3 a
-    b2 0 1 2 3           A [s2.m4_7 s2.m8]
-    --> at stage we have two branches b1:3b0 b2:3b0
-    b1 0 1 2 3 a b c d e
-    b2 0 1 2 3 a b c d e A
-    --> now we update branch information b1:3b0 b2:8b1
-
-            0
-          1    2
-        a  b  c d
-        cd - 2 - 1 0
-*/

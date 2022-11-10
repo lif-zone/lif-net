@@ -15,7 +15,8 @@ import {r_str, r_from_str, r_parent} from './range.js';
 const b2s = buf_util.buf_to_str, s2b = buf_util.buf_from_str;
 function enc_u64(v){ return enc.encode(enc.uint64, v); }
 
-let t_soul, t_scroll, t_genesis_scroll, t_prev_scroll, t_keypair, t_def;
+let t_soul, t_soul_mode, t_scroll, t_genesis_scroll, t_prev_scroll, t_def;
+let t_keypair;
 
 // XXX: make it automatic for all node/browser in proc.js
 // XXX: check if to enable xerr.set_exception_catch_all(true);
@@ -214,8 +215,9 @@ const test_decl = (scroll, data)=>etask(function*test_decl(){
 });
 
 const test_start = ()=>etask(function*test_start(){
+  t_soul_mode = 'differnt';
+  t_soul = {};
   t_scroll = {};
-  t_soul = 'differnt';
   t_def = {};
   t_keypair = {pub: s2b('44659cb51dec397ea66085679442505345e159940762c15ef75'+
     'ad279ecf05033'),
@@ -254,7 +256,7 @@ function cmd_conf(t){
     }
   }
   if (soul!==undefined)
-    t_soul = soul;
+    t_soul_mode = soul;
 }
 
 const cmd_scroll = t=>etask(function*cmd_scroll(){
@@ -282,10 +284,14 @@ const cmd_scroll = t=>etask(function*cmd_scroll(){
     }
   }
   let soul;
-  if (t_soul=='differnt')
+  if (t_soul_mode=='differnt')
     soul = new Scroll.Soul();
-  else
-    assert.fail('XXX TODO soul '+soul); // XXX: NOW
+  else if (t_soul_mode=='manual'){
+    let soul_name = t.prev?.ctx;
+    assert(soul_name, 'missing sould name in manual mode');
+    soul = t_soul[soul_name] = t_soul[soul_name] || new Scroll.Soul();
+  } else
+    assert.fail('XXX TODO soul '+t_soul_mode); // XXX: NOW
   if (M){
    scroll = yield Scroll.open({soul, key: t_keypair.key,
      pub: t_keypair.pub, M});
@@ -484,6 +490,7 @@ const test_run_single = (curr, o)=>etask(function*_test_run_single(){
     assert(o.l, 'invalid "." operator');
     o2 = tparser.parse_exp(o.r);
     o2.ctx = o.l;
+    o2.prev = o;
     if (o.cmd=='...'){
       set_def('left', o.l);
       set_def('right', o.l);
@@ -833,12 +840,12 @@ describe('scroll', ()=>{
   });
   describe('api', ()=>{
     const t = (name, test)=>it(name, ()=>test_run(test));
-    if (0)
     describe('soul', ()=>{
       // XXX NOW: conf(soul: differnt, same, manual)
       t('manual', `conf(soul:manual) soul1.s0..scroll(!prev_scroll) decl(1)
-        soul1.s1.open(M0:s0..M0) soul2.s2.open(M0)
-        s0.M1=0x123 s1.M1=M1 !s2.M1`);
+        soul1.s1.scroll(M0:s0..M0) soul2.s2.scroll(M0)
+        M1=0x9ae687b90fd63ad629061a53e491e4f5fec8a6adebcb9afe374851ae42b62552
+        s1.M1=M1 !s2.M1`);
     });
     describe('basic', ()=>{
       let sig0 = '0x9d73f19857885309cb311a8ec7d635ca2898da1b1fb8e31e9b7e01bb'+

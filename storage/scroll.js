@@ -891,7 +891,7 @@ class Decl extends EventEmitter {
   }
   sig_get(b){
     let frames = this.fbuf_get(b).frames;
-    // XXX NOW: find better way to access buffer as json
+    // XXX find better way to access buffer as json
     if (!frames.length)
       return;
     try {
@@ -937,7 +937,7 @@ class Merkel_node extends EventEmitter {
     let [s, e] = this.range;
     assert(!this.inited, 'already inited');
     this.inited = true;
-    // XXX NOW: test events
+    // XXX test events
     if (s==e){
       const on_hash = opt=>{
         let b = opt.b, d, sig;

@@ -497,7 +497,7 @@ const test_run_single = (curr, o)=>etask(function*_test_run_single(){
   case 'dbg': debugger; break; // eslint-disable-line no-debugger
   case '.':
   case '..':
-  case '...': // XXX NOW: rm from here
+  case '...': // XXX: rm from here and move to parser
     assert(o.l, 'invalid "." operator');
     o2 = tparser.parse_exp(o.r);
     o2.ctx = o.l;
@@ -1157,8 +1157,8 @@ describe('scroll', ()=>{
           put(m0_3 m4 m5 m6_7) =m4 =m5 =m4_5`);
       });
       describe('branch', ()=>{
-        // XXX NOW: need tests with prev_scroll
-        // XXX NOW: need tests with decl on branch
+        // XXX need tests with prev_scroll
+        // XXX need tests with decl on branch
         let s = `s.scroll(!prev_scroll) s.decl(1-32) s2..scroll(s..M3) ==M3`;
         t('simple_branch_a', `${s} put(m0_1 m2 m3)
           ==(M3 m2 m3 m0_1 m2_3 m0_3) decl(4) // branch
@@ -1468,7 +1468,7 @@ describe('scroll', ()=>{
           tput(0_1_2_3 4_5 6    ) b(M2 1v0.M4 3v1.M6)
           tput(0_1_2_3 4_f g    ) b(M2 1v0.M4 3v1.M6 3b2.M6=s1.M6)
           tput(0_1_2_3 4_f g_h i) b(M2 1v0.M4 3v1.M6 3b2.M6=s1.M6 5v3.M8=s1.M8)
-          // XXX NOW: support 3_4b0 for non-final brnaching point
+          // XXX: support 3_4b0 for non-final brnaching point
           tput(0_1 2 3 4 5 6    ) b(M6 3b0.M6=s1.M6 5v1.M8=s1.M8)
           tput(0_1_2_3 4 f      ) b(M6 4b0.M6=s1.M6 5v1.M8=s1.M8)
           tput(0_1_2_3 4 f g h  ) b(M6 4b0.M8=s1.M8)

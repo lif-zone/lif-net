@@ -350,7 +350,7 @@ const cmd_test = t=>etask(function*cmd_test(){
   for (const [b] of scroll.branch){
     for (let seq=0; seq<=scroll.branch.get(b).top.seq; seq++){
       seq = +seq;
-      let decl = yield scroll.get_decl(seq); // XXX {create: false}
+      let decl = yield scroll.get_decl(seq, {create: false});
       ['sig', 'd', 'M', 'm'].forEach(type=>{
         if (type=='m'){
           let a = Scroll.merkel_ranges(seq);
@@ -358,7 +358,7 @@ const cmd_test = t=>etask(function*cmd_test(){
             let s = a[i][0];
             if (tested[b] && tested[b][seq]?.m[s])
               continue;
-            assert(!decl.m_get([s, seq]).h, 'm'+r_str([s, seq])+'b'+b+
+            assert(!decl || !decl.m_get([s, seq]).h, 'm'+r_str([s, seq])+'b'+b+
               ' exists '+t.meta.s);
           }
           return;
@@ -367,14 +367,15 @@ const cmd_test = t=>etask(function*cmd_test(){
           return;
         switch (type){
         case 'sig':
-          assert(!decl.sig_get(0), 'sig'+seq+'b'+b+' exists '+t.meta.s);
+          assert(!decl || !decl.sig_get(0), 'sig'+seq+'b'+b+
+            ' exists '+t.meta.s);
           break;
         case 'd':
-          assert(!decl.fbuf_get(b).h, 'd'+seq+'b'+b+' exists '+t.meta.s);
+          assert(!decl || !decl.fbuf_get(b).h, 'd'+seq+'b'+b+' exists '+
+            t.meta.s);
           break;
         case 'M':
-          if (0) // XXX: enable
-          assert(!decl.M.h, 'M'+seq+'b'+b+' exists '+t.meta.s);
+          assert(!decl || !decl.M.h, 'M'+seq+'b'+b+' exists '+t.meta.s);
           break;
         default: assert.fail('invalid type '+type+'b'+b);
         }

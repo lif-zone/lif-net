@@ -1,5 +1,4 @@
-'use strict'; /*jslint node:true*/ /*global describe,it,beforeEach,afterEach*/
-// XXX: need jslint mocha: true
+'use strict'; /*global describe,it,beforeEach,afterEach*/
 import assert from 'assert';
 import xutil from '../util/util.js';
 import xerr from '../util/xerr.js';
@@ -38,7 +37,6 @@ afterEach(function(){
 
 function space(s){ return s ? s+' ' : ''; }
 
-// XXX: need test
 function tjoin(v, cmd, arg){
   let s = v ? v+'.'+cmd : cmd;
   return arg ? s+'('+arg+')' : s;
@@ -238,192 +236,6 @@ const test_start = ()=>etask(function*test_start(){
 
 function test_end(){
 }
-
-describe('range', ()=>{
-  it('r_from_str', ()=>{
-    const t = (val, exp)=>assert.deepEqual(r_from_str(val), exp);
-    t('1', [1, 1]);
-    t('10', [10, 10]);
-    t('10_100', [10, 100]);
-  });
-  it('r_parent', ()=>{
-    const t = (val, exp)=>{
-      let _val = r_from_str(val), e = r_from_str(exp);
-      let res = r_parent(_val);
-      assert.deepEqual(res.parent, e, 'failed parent '+val);
-      let d = (e[1] - e[0]+1)/2;
-      assert.deepEqual(res.left, [e[0], e[0]+d-1]);
-      assert.deepEqual(res.right, [e[0]+d, e[1]]);
-    };
-    t('0', '0_1');
-    t('1', '0_1');
-    t('2', '2_3');
-    t('3', '2_3');
-    t('4', '4_5');
-    t('5', '4_5');
-    t('6', '6_7');
-    t('7', '6_7');
-    t('0_1', '0_3');
-    t('2_3', '0_3');
-    t('4_5', '4_7');
-    t('6_7', '4_7');
-    t('0_3', '0_7');
-    t('4_7', '0_7');
-    t('0_7', '0_15');
-    t('8_15', '0_15');
-    t('16_23', '16_31');
-    t('24_31', '16_31');
-    t('0_15', '0_31');
-    t('16_31', '0_31');
-  });
-});
-
-describe('test_util', ()=>{
-  it('parse_var', ()=>{
-    const t = (v, exp)=>{
-      let a = exp.split(' '), range = r_from_str(a[1]);
-      let b = a[2] ? +a[2] : 0, ctx = a[3]||'', def = a[4]=='def'||false;
-      let exp2 = {type: a[0], seq: range[1], range, b, ctx, def};
-      assert.deepEqual(parse_var(v), exp2);
-    };
-    t('d0', 'd 0');
-    t('d0', 'd 0');
-    t('D0', 'D 0');
-    t('m0', 'm 0');
-    t('M0', 'M 0');
-    t('sig0', 'sig 0');
-    t('sig10', 'sig 10');
-    t('m0_0', 'm 0');
-    t('m0_1', 'm 0_1');
-    t('m2_3', 'm 2_3');
-    t('d0b10', 'd 0 10');
-    t('D0b10', 'D 0 10');
-    t('m0b10', 'm 0 10');
-    t('M0b10', 'M 0 10');
-    t('sig0b10', 'sig 0 10');
-    t('m0_1b10', 'm 0_1 10');
-    t('s2.d0', 'd 0 0 s2');
-    t('s2.m0_1b10', 'm 0_1 10 s2');
-    t('s2..d0', 'd 0 0 s2 def');
-    t('s2..m0_1b10', 'm 0_1 10 s2 def');
-  });
-  it('parse_branch', ()=>{
-    const t = (val, exp)=>assert.deepEqual(parse_branch(val), exp);
-    t('M9=s.M9', {top: {seq: 9, M: 's.M9'}});
-    t('3.M9=s.M9', {top: {seq: 9, M: 's.M9'}, b: {seq: 3, b: 0, type: 'v'}});
-    t('3b1.M9=s.M9', {top: {seq: 9, M: 's.M9'}, b: {seq: 3, b: 1, type: 'b'}});
-    t('3v1.M9=s.M9', {top: {seq: 9, M: 's.M9'}, b: {seq: 3, b: 1, type: 'v'}});
-    t('M9', {top: {seq: 9, M: 'M9'}});
-    t('3.M9', {top: {seq: 9, M: 'M9'}, b: {seq: 3, b: 0, type: 'v'}});
-    t('3b1.M9', {top: {seq: 9, M: 'M9'}, b: {seq: 3, b: 1, type: 'b'}});
-    t('3v1.M9', {top: {seq: 9, M: 'M9'}, b: {seq: 3, b: 1, type: 'v'}});
-  });
-});
-
-describe('parser', ()=>{
-  it('parse_get_next', ()=>{
-    const t = (s, exp)=>{
-      let curr = s;
-      while (curr = tparser.parse_get_next(curr)){
-        assert(exp.length, 'unexpected '+curr.exp);
-        assert.equal(curr.exp, exp[0]);
-        exp.shift();
-      }
-      assert(!exp.length, 'missing '+exp.join(' ')+' for "'+s+'"');
-    };
-    t('', []);
-    t(' ', []);
-    t('a', ['a']);
-    t(' a', ['a']);
-    t('a ', ['a']);
-    t('a\n', ['a']);
-    t(' a ', ['a']);
-    t('ab', ['ab']);
-    t('a:b', ['a:b']);
-    t('a b', ['a', 'b']);
-    t('a  b', ['a', 'b']);
-    t('a\nb', ['a', 'b']);
-    t('a(b)', ['a(b)']);
-    t('a[b]', ['a[b]']);
-    t('a{b}', ['a{b}']);
-    t('a(b c)', ['a(b c)']);
-    t('a(b(c))', ['a(b(c))']);
-    t('a(b(c) d(e))', ['a(b(c) d(e))']);
-    t('a[b(c) d{e}]', ['a[b(c) d{e}]']);
-    t('a==b', ['a==b']);
-    t('a..b', ['a..b']);
-    t('a...b', ['a...b']);
-    t('a.s.b', ['a.s.b']);
-    t('a(1)==b(2)', ['a(1)==b(2)']);
-    t('a==b(c==d)', ['a==b(c==d)']);
-    t('a b(c) d==e', ['a', 'b(c)', 'd==e']);
-    t('b..c(d..e)', ['b..c(d..e)']);
-    t('a //', ['a', '//']);
-    t('a // XXX', ['a', '// XXX']);
-    t('a // XXX b', ['a', '// XXX b']);
-    t(`a // XXX b
-      c`, ['a', '// XXX b', 'c']);
-    t(`a // XXX b
-      `, ['a', '// XXX b']);
-    t(`a
-      // XXX`, ['a', '// XXX']);
-  });
-  it('parse_exp', ()=>{
-    const t = (s, exp)=>assert.deepEqual(tparser.parse_exp(s),
-      {...exp, meta: {s: s.trim()}});
-    t(' a ', {cmd: 'a', l: '', r: ''});
-    t('a(b)', {cmd: 'a', l: '', r: 'b'});
-    t('a(b c)', {cmd: 'a', l: '', r: 'b c'});
-    t('a(b+c)', {cmd: 'a', l: '', r: 'b+c'});
-    t('a(b==c)', {cmd: 'a', l: '', r: 'b==c'});
-    t('a==b', {cmd: '==', l: 'a', r: 'b'});
-    t('a..b', {cmd: '..', l: 'a', r: 'b'});
-    t('a...b', {cmd: '...', l: 'a', r: 'b'});
-    t('test(a)', {cmd: 'test', l: '', r: 'a'});
-    t('==(a)', {cmd: '==', l: '', r: 'a'});
-    t('a.b', {cmd: '.', l: 'a', r: 'b'});
-    t('a:b', {cmd: ':', l: 'a', r: 'b'});
-    t('a=b', {cmd: '=', l: 'a', r: 'b'});
-    t('a+b', {cmd: '+', l: 'a', r: 'b'});
-    t('a=b(2)', {cmd: '=', l: 'a', r: 'b(2)'});
-    t('a(1)==b(2)', {cmd: '==', l: 'a(1)', r: 'b(2)'});
-    t('a1==b(c+d)', {cmd: '==', l: 'a1', r: 'b(c+d)'});
-    t('a.b(c)', {cmd: '.', l: 'a', r: 'b(c)'});
-    t('M7=s.M8', {cmd: '=', l: 'M7', r: 's.M8'});
-    t('s.M7=s2.M8', {cmd: '.', l: 's', r: 'M7=s2.M8'});
-    t('//', {cmd: '//', l: '', r: ''});
-    t('// XXX', {cmd: '//', l: '', r: 'XXX'});
-    t('s1..put(s2.sig)', {cmd: '..', l: 's1', r: 'put(s2.sig)'});
-    t('!a', {cmd: '!', l: '', r: 'a'});
-    t('!a.b', {cmd: '!', l: '', r: 'a.b'});
-    t('!(a.b)', {cmd: '!', l: '', r: '(a.b)'});
-  });
-  it('parse_exp_arg', ()=>{
-    const t = (s, exp)=>assert.deepEqual(tparser.parse_exp_arg(s),
-      {...exp, meta: {s: s.trim()}});
-    t('d0', {cmd: 'd0', l: '', r: ''});
-    t('s.d0', {cmd: '.', l: 's', r: 'd0'});
-    t('d0:d1', {cmd: 'd0', l: '', r: 'd1'});
-    t('d0:s.d1', {cmd: 'd0', l: '', r: 's.d1'});
-    t('s.d0:d1', {cmd: '.', l: 's', r: 'd0:d1'});
-    t('s.d0:s2.d1', {cmd: '.', l: 's', r: 'd0:s2.d1'});
-  });
-  it('parse_exp_arg_pair', ()=>{
-    const t = (s, exp)=>assert.deepEqual(tparser.parse_exp_arg_pair(s), exp);
-    t('d0', {l: 'd0', r: 'd0'});
-    t('s0.d0', {l: 'd0', r: 's0.d0'});
-    t('s0..d0', {l: 'd0', r: 's0..d0'});
-    t('s0...d0', {l: 'd0', r: 's0...d0'});
-    t('d0:d1', {l: 'd0', r: 'd1'});
-    t('d0:s1.d1', {l: 'd0', r: 's1.d1'});
-    t('s0.d0:d1', {l: 's0.d0', r: 'd1'});
-    t('s0.d0:s1.d1', {l: 's0.d0', r: 's1.d1'});
-    t('s0.d0:s1..d1', {l: 's0.d0', r: 's1..d1'});
-    t('s0.d0:s1...d1', {l: 's0.d0', r: 's1...d1'});
-    t('d0(d1)', {l: 'd0', r: 'd1'});
-  });
-  // XXX: test invalid parsing
-});
 
 const cmd_scroll = t=>etask(function*cmd_scroll(){
   let prev_scroll = yield t_prev_scroll.M_hash(0, 1);
@@ -667,6 +479,192 @@ const test_run = test=>etask(function*test_run(){
     yield test_run_single(curr, o);
   }
   yield test_end();
+});
+
+describe('range', ()=>{
+  it('r_from_str', ()=>{
+    const t = (val, exp)=>assert.deepEqual(r_from_str(val), exp);
+    t('1', [1, 1]);
+    t('10', [10, 10]);
+    t('10_100', [10, 100]);
+  });
+  it('r_parent', ()=>{
+    const t = (val, exp)=>{
+      let _val = r_from_str(val), e = r_from_str(exp);
+      let res = r_parent(_val);
+      assert.deepEqual(res.parent, e, 'failed parent '+val);
+      let d = (e[1] - e[0]+1)/2;
+      assert.deepEqual(res.left, [e[0], e[0]+d-1]);
+      assert.deepEqual(res.right, [e[0]+d, e[1]]);
+    };
+    t('0', '0_1');
+    t('1', '0_1');
+    t('2', '2_3');
+    t('3', '2_3');
+    t('4', '4_5');
+    t('5', '4_5');
+    t('6', '6_7');
+    t('7', '6_7');
+    t('0_1', '0_3');
+    t('2_3', '0_3');
+    t('4_5', '4_7');
+    t('6_7', '4_7');
+    t('0_3', '0_7');
+    t('4_7', '0_7');
+    t('0_7', '0_15');
+    t('8_15', '0_15');
+    t('16_23', '16_31');
+    t('24_31', '16_31');
+    t('0_15', '0_31');
+    t('16_31', '0_31');
+  });
+});
+
+describe('test_util', ()=>{
+  it('parse_var', ()=>{
+    const t = (v, exp)=>{
+      let a = exp.split(' '), range = r_from_str(a[1]);
+      let b = a[2] ? +a[2] : 0, ctx = a[3]||'', def = a[4]=='def'||false;
+      let exp2 = {type: a[0], seq: range[1], range, b, ctx, def};
+      assert.deepEqual(parse_var(v), exp2);
+    };
+    t('d0', 'd 0');
+    t('d0', 'd 0');
+    t('D0', 'D 0');
+    t('m0', 'm 0');
+    t('M0', 'M 0');
+    t('sig0', 'sig 0');
+    t('sig10', 'sig 10');
+    t('m0_0', 'm 0');
+    t('m0_1', 'm 0_1');
+    t('m2_3', 'm 2_3');
+    t('d0b10', 'd 0 10');
+    t('D0b10', 'D 0 10');
+    t('m0b10', 'm 0 10');
+    t('M0b10', 'M 0 10');
+    t('sig0b10', 'sig 0 10');
+    t('m0_1b10', 'm 0_1 10');
+    t('s2.d0', 'd 0 0 s2');
+    t('s2.m0_1b10', 'm 0_1 10 s2');
+    t('s2..d0', 'd 0 0 s2 def');
+    t('s2..m0_1b10', 'm 0_1 10 s2 def');
+  });
+  it('parse_branch', ()=>{
+    const t = (val, exp)=>assert.deepEqual(parse_branch(val), exp);
+    t('M9=s.M9', {top: {seq: 9, M: 's.M9'}});
+    t('3.M9=s.M9', {top: {seq: 9, M: 's.M9'}, b: {seq: 3, b: 0, type: 'v'}});
+    t('3b1.M9=s.M9', {top: {seq: 9, M: 's.M9'}, b: {seq: 3, b: 1, type: 'b'}});
+    t('3v1.M9=s.M9', {top: {seq: 9, M: 's.M9'}, b: {seq: 3, b: 1, type: 'v'}});
+    t('M9', {top: {seq: 9, M: 'M9'}});
+    t('3.M9', {top: {seq: 9, M: 'M9'}, b: {seq: 3, b: 0, type: 'v'}});
+    t('3b1.M9', {top: {seq: 9, M: 'M9'}, b: {seq: 3, b: 1, type: 'b'}});
+    t('3v1.M9', {top: {seq: 9, M: 'M9'}, b: {seq: 3, b: 1, type: 'v'}});
+  });
+});
+
+describe('parser', ()=>{
+  it('parse_get_next', ()=>{
+    const t = (s, exp)=>{
+      let curr = s;
+      while (curr = tparser.parse_get_next(curr)){
+        assert(exp.length, 'unexpected '+curr.exp);
+        assert.equal(curr.exp, exp[0]);
+        exp.shift();
+      }
+      assert(!exp.length, 'missing '+exp.join(' ')+' for "'+s+'"');
+    };
+    t('', []);
+    t(' ', []);
+    t('a', ['a']);
+    t(' a', ['a']);
+    t('a ', ['a']);
+    t('a\n', ['a']);
+    t(' a ', ['a']);
+    t('ab', ['ab']);
+    t('a:b', ['a:b']);
+    t('a b', ['a', 'b']);
+    t('a  b', ['a', 'b']);
+    t('a\nb', ['a', 'b']);
+    t('a(b)', ['a(b)']);
+    t('a[b]', ['a[b]']);
+    t('a{b}', ['a{b}']);
+    t('a(b c)', ['a(b c)']);
+    t('a(b(c))', ['a(b(c))']);
+    t('a(b(c) d(e))', ['a(b(c) d(e))']);
+    t('a[b(c) d{e}]', ['a[b(c) d{e}]']);
+    t('a==b', ['a==b']);
+    t('a..b', ['a..b']);
+    t('a...b', ['a...b']);
+    t('a.s.b', ['a.s.b']);
+    t('a(1)==b(2)', ['a(1)==b(2)']);
+    t('a==b(c==d)', ['a==b(c==d)']);
+    t('a b(c) d==e', ['a', 'b(c)', 'd==e']);
+    t('b..c(d..e)', ['b..c(d..e)']);
+    t('a //', ['a', '//']);
+    t('a // XXX', ['a', '// XXX']);
+    t('a // XXX b', ['a', '// XXX b']);
+    t(`a // XXX b
+      c`, ['a', '// XXX b', 'c']);
+    t(`a // XXX b
+      `, ['a', '// XXX b']);
+    t(`a
+      // XXX`, ['a', '// XXX']);
+  });
+  it('parse_exp', ()=>{
+    const t = (s, exp)=>assert.deepEqual(tparser.parse_exp(s),
+      {...exp, meta: {s: s.trim()}});
+    t(' a ', {cmd: 'a', l: '', r: ''});
+    t('a(b)', {cmd: 'a', l: '', r: 'b'});
+    t('a(b c)', {cmd: 'a', l: '', r: 'b c'});
+    t('a(b+c)', {cmd: 'a', l: '', r: 'b+c'});
+    t('a(b==c)', {cmd: 'a', l: '', r: 'b==c'});
+    t('a==b', {cmd: '==', l: 'a', r: 'b'});
+    t('a..b', {cmd: '..', l: 'a', r: 'b'});
+    t('a...b', {cmd: '...', l: 'a', r: 'b'});
+    t('test(a)', {cmd: 'test', l: '', r: 'a'});
+    t('==(a)', {cmd: '==', l: '', r: 'a'});
+    t('a.b', {cmd: '.', l: 'a', r: 'b'});
+    t('a:b', {cmd: ':', l: 'a', r: 'b'});
+    t('a=b', {cmd: '=', l: 'a', r: 'b'});
+    t('a+b', {cmd: '+', l: 'a', r: 'b'});
+    t('a=b(2)', {cmd: '=', l: 'a', r: 'b(2)'});
+    t('a(1)==b(2)', {cmd: '==', l: 'a(1)', r: 'b(2)'});
+    t('a1==b(c+d)', {cmd: '==', l: 'a1', r: 'b(c+d)'});
+    t('a.b(c)', {cmd: '.', l: 'a', r: 'b(c)'});
+    t('M7=s.M8', {cmd: '=', l: 'M7', r: 's.M8'});
+    t('s.M7=s2.M8', {cmd: '.', l: 's', r: 'M7=s2.M8'});
+    t('//', {cmd: '//', l: '', r: ''});
+    t('// XXX', {cmd: '//', l: '', r: 'XXX'});
+    t('s1..put(s2.sig)', {cmd: '..', l: 's1', r: 'put(s2.sig)'});
+    t('!a', {cmd: '!', l: '', r: 'a'});
+    t('!a.b', {cmd: '!', l: '', r: 'a.b'});
+    t('!(a.b)', {cmd: '!', l: '', r: '(a.b)'});
+  });
+  it('parse_exp_arg', ()=>{
+    const t = (s, exp)=>assert.deepEqual(tparser.parse_exp_arg(s),
+      {...exp, meta: {s: s.trim()}});
+    t('d0', {cmd: 'd0', l: '', r: ''});
+    t('s.d0', {cmd: '.', l: 's', r: 'd0'});
+    t('d0:d1', {cmd: 'd0', l: '', r: 'd1'});
+    t('d0:s.d1', {cmd: 'd0', l: '', r: 's.d1'});
+    t('s.d0:d1', {cmd: '.', l: 's', r: 'd0:d1'});
+    t('s.d0:s2.d1', {cmd: '.', l: 's', r: 'd0:s2.d1'});
+  });
+  it('parse_exp_arg_pair', ()=>{
+    const t = (s, exp)=>assert.deepEqual(tparser.parse_exp_arg_pair(s), exp);
+    t('d0', {l: 'd0', r: 'd0'});
+    t('s0.d0', {l: 'd0', r: 's0.d0'});
+    t('s0..d0', {l: 'd0', r: 's0..d0'});
+    t('s0...d0', {l: 'd0', r: 's0...d0'});
+    t('d0:d1', {l: 'd0', r: 'd1'});
+    t('d0:s1.d1', {l: 'd0', r: 's1.d1'});
+    t('s0.d0:d1', {l: 's0.d0', r: 'd1'});
+    t('s0.d0:s1.d1', {l: 's0.d0', r: 's1.d1'});
+    t('s0.d0:s1..d1', {l: 's0.d0', r: 's1..d1'});
+    t('s0.d0:s1...d1', {l: 's0.d0', r: 's1...d1'});
+    t('d0(d1)', {l: 'd0', r: 'd1'});
+  });
+  // XXX: test invalid parsing
 });
 
 describe('scroll', ()=>{
@@ -1508,7 +1506,7 @@ describe('scroll', ()=>{
   });
 });
 
-/* XXX:
+/* XXX NOW: pc support
 short:
 pc0.s0 0 1 2 3 4 5 6 7 8 9
 pc1.s1         a b c d e f (3b0)
@@ -1545,40 +1543,4 @@ pct.t2
           1    2
         a  b  c d
         cd - 2 - 1 0
-*/
-
-/* XXX: derry
-        t('xxx6_branch_vbranch', `${s}
-          tput(0 1 2            ) b(M2)
-          //       0123 01 23? 4
-0123x
-have 0 1 2. add 4: 0 1 x2_3 4
-1 2_3 4
-          tput(0_1 2_3 4        ) b(M2 1v0.M4)
-0 1 2_3x 4
-01234567 0123x 45x6x7x
-          tput(0_1_2_3 4_5 6    ) b(M2 1v0.M4 3v1.M6)
-0 1 2_3x 4_5x 6
-01234567 0123x 45x67x
-6: {m[0]: m6}
-          tput(0_1_2_3 4_f g    ) b(M2 1v0.M4 3v1.M6 3v1.M6=s1.M6)
-0 1 2_3x 4_5x 6
-0 1 2_3x 4x_fx g
-01234567 {0123x {01 {0 1} 23x {2 3x}} 45xg7x {45x g7x {{m=[6,g]} {7x}}}
-6: {m[0]: m6, m[1]: mg}
-
-m2_3
-3: {m: [m3, m2_3, m0_3}}
-
-          tput(0_1_2_3 4_f g_h i) b(M2 1v0.M4 3v1.M6 3v1.M6=s1.M6 5v3.M8=s1.M8)
-          // XXX syntax: how to specify final branch point (3b0/4b0)?
-          tput(0_1_2 3 4 5 6    ) b(M6 3_4b0.M6=s1.M6 5v1.M8=s1.M8) // !final
-          tput(0_1_2_3 4 f      ) b(M6 4b0.M6=s1.M6 5v1.M8=s1.M8) // 4b0 final
-          tput(0_1_2_3 4 f g h  ) b(M6 4b0.M8=s1.M8)
-        `);
-        // XXX: support 3_4b0 for non-final brnaching point
-      });
-    });
-
-
 */

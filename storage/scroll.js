@@ -349,14 +349,13 @@ export default class Scroll extends EventEmitter {
     }
   }
   find_best_branch(seq, diff){
-    let best = {b: 0, max_common: 0}, max_common;
+    let best = {b: 0, max_common: 0};
     if (this.branch.size<=1)
       return best;
-    // XXX: NOW optimize, use !mergeable logic from merge_single and also
-    // take into account all
     for (const [j, branch] of this.branch){
-      // XXX: optimize with {min_common} based on previous best branch
-      max_common = this.find_max_common_M({b: j, seq, diff});
+      // XXX: optimize. use prev max_common to first check if we can
+      // improve and stop checking if max_common is lower the prev
+      let max_common = this.find_max_common_M({b: j, seq, diff});
       let top = branch.top.seq;
       if (best.max_common < max_common ||
         best.max_common==max_common && best.top < top){

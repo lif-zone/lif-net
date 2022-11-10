@@ -931,7 +931,7 @@ class Merkel_node extends EventEmitter {
     let [s, e] = this.range;
     assert(!this.inited, 'already inited');
     this.inited = true;
-    // XXX NOW: add event testing
+    // XXX NOW: test events
     if (s==e){
       const on_hash = opt=>{
         let b = opt.b, d, sig;

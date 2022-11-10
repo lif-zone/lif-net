@@ -348,26 +348,30 @@ export default class Scroll extends EventEmitter {
         'invalid M'+seq+'b'+b);
     }
   }
+  find_best_branch(seq, diff){
+    let best = {b: 0, max_common: 0}, max_common;
+    if (this.branch.size<=1)
+      return best;
+    // XXX: NOW optimize, use !mergeable logic from merge_single and also
+    // take into account all
+    for (const [j, branch] of this.branch){
+      // XXX: optimize with {min_common} based on previous best branch
+      max_common = this.find_max_common_M({b: j, seq, diff});
+      let top = branch.top.seq;
+      if (best.max_common < max_common ||
+        best.max_common==max_common && best.top < top){
+        best = {b: j, max_common, top};
+      }
+    }
+    return best;
+  }
   put(diff){
     let errors = {}, max_common;
     if (diff[0]) // XXX HACK: for case where we have only M0 (no mo)
       this.put_single(0, diff, errors);
     let a = Object.keys(diff);
     for (let i=a.length-1; i>=0 && +a[i]; i--){
-      let seq = +a[i], errors2={}, best = {b: 0, max_common: 0};
-      // XXX: optimize, use !mergeable logic from merge_single and also
-      // take into account all
-      if (this.branch.size>1){
-        for (const [j, branch] of this.branch){
-          // XXX: optimize with {min_common} based on previous best branch
-          max_common = this.find_max_common_M({b: j, seq, diff});
-          let top = branch.top.seq;
-          if (best.max_common < max_common ||
-            best.max_common==max_common && best.top < top){
-            best = {b: j, max_common, top};
-          }
-        }
-      }
+      let seq = +a[i], errors2={}, best = this.find_best_branch(seq, diff);
       let b = best.b, ret = this.put_single(seq, diff, errors2, {b});
       if (ret?.branch){
         max_common = best.max_common || this.find_max_common_M({b, seq, diff});

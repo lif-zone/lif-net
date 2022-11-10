@@ -238,7 +238,7 @@ const test_start = ()=>etask(function*test_start(){
   assert(t_prev_scroll.M_hash(0, 1), 'missing M1');
 });
 
-function test_end(){ Scroll.scrolls.clear(); }
+function test_end(){ Scroll.soul.clear(); }
 
 const cmd_scroll = t=>etask(function*cmd_scroll(){
   let prev_scroll = yield t_prev_scroll.M_hash(0, 1);
@@ -264,13 +264,13 @@ const cmd_scroll = t=>etask(function*cmd_scroll(){
       assert.fail('invalid arg '+tt.cmd+' in '+t.meta.s);
     }
   }
-  let scrolls = new Scroll.Scrolls();
+  let soul = new Scroll.Soul();
   if (M){
-   scroll = yield Scroll.open({scrolls, key: t_keypair.key,
+   scroll = yield Scroll.open({soul, key: t_keypair.key,
      pub: t_keypair.pub, M});
   }
   else {
-    scroll = yield Scroll.create({scrolls, key: t_keypair.key,
+    scroll = yield Scroll.create({soul, key: t_keypair.key,
       pub: t_keypair.pub, prev_scroll}, {topic: 'test'});
   }
   t_scroll[name] = scroll;

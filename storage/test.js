@@ -1200,7 +1200,7 @@ describe('scroll', ()=>{
           t.sig3b1=s1.sig3`);
         // XXX NOW: review all tests and move to tput if possible and
         // rm zzz/xxx and fix names
-        t('3b0_8b0_15b0', `s.scroll(!prev_scroll) pc1.s.decl(1-32)
+        t('3b0_8b0', `s.scroll(!prev_scroll) pc1.s.decl(1-32)
           pc2.s1.clone(s.0_3) s1.decl(4-32) pc3.s2.clone(s.0_8) s2.decl(9-32)
           pc4.s3.clone(s.0_15) s3.decl(16-32) pc5.t..clone(s.0_32)
           put(s1..m0 m1 m2 m3 sig4 d4) b(M32=s.M32 3b0.M4=s1.M4)
@@ -1208,8 +1208,7 @@ describe('scroll', ()=>{
           b(M32=s.M32 3b0.M4=s1.M4 8b0.M9=s2.M9)
           put(s3..m0 m1 m2_3 m4_7 m8_15 sig16 d16)
           b(M32=s.M32 3b0.M4=s1.M4 8b0.M9=s2.M9 15b0.M16=s3.M16)`);
-        // XXX: todo 15b1
-        t('3b0_8b1_15b1_zzz1', `s.scroll(!prev_scroll) s.decl(1-10)
+        t('3b0_8b1_a', `s.scroll(!prev_scroll) s.decl(1-10)
           s1.clone(s.0_3) s1.decl(4-10) s2.clone(s1.0_8) s2.decl(9-10)
           s3.clone(s1.0_15) s3.decl(16-10) t..clone(s.0_10)
           put(s1..m0_3 sig4 d4) b(M10=s.M10 3b0.M4=s1.M4)
@@ -1225,15 +1224,14 @@ describe('scroll', ()=>{
         b2 0_1_2_3 a_b_c_d e F
         b3 0 1 2_3 a b c d e f
         */
-        t('3b0_8b1_15b1_zzz2', `s.scroll(!prev_scroll) s.decl(1-10)
+        t('3b0_8b1_b', `s.scroll(!prev_scroll) s.decl(1-10)
           s1.clone(s.0_3) s1.decl(4-10) s2.clone(s1.0_8) s2.decl(9-10)
           s3.clone(s1.0_15) s3.decl(16-10) t..clone(s.0_10)
           put(s1..m0_3 sig4 d4) b(M10=s.M10 3b0.M4=s1.M4)
           put(s2..m0_3 m4_7 m8 sig9 d9)
           b(M10=s.M10 3b0.M4=s1.M4 3b0.M9=s2.M9)
           put(s1..sig9 d9 m0 m1 m2_3 m4 m5 m6_7 m8)
-          b(M10=s.M10 3b0.M9=s2.M9 8b1.M9=s1.M9)
-        `);
+          b(M10=s.M10 3b0.M9=s2.M9 8b1.M9=s1.M9)`);
         t('3b0_8b1_15b1_zzz3', `s.scroll(!prev_scroll) s.decl(1-10)
           s1.clone(s.0_3) s1.decl(4-10) t..clone(s.0_10)
           put(s1..m0_3 sig4 d4) b(M10=s.M10 3b0.M4=s1.M4)

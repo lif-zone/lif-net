@@ -1088,7 +1088,8 @@ describe('scroll', ()=>{
           put(m0_3 m4 m5 m6_7) =m4 =m5 =m4_5`);
       });
       describe('branch', ()=>{
-        // XXX: need tests with prev_scroll
+        // XXX NOW: need tests with prev_scroll
+        // XXX NOW: need tests with decl on branch
         let s = `s.scroll(!prev_scroll) s.decl(1-32) s2..scroll(s..M3) ==M3`;
         t('xxx_rename1', `${s} put(m0_1 m2 m3)
           ==(M3 m2 m3 m0_1 m2_3 m0_3) decl(4) // branch
@@ -1111,10 +1112,10 @@ describe('scroll', ()=>{
         t('xxx_rename2', `s.scroll(!prev_scroll) s.decl(1-10)
           s2..scroll(s..M3) put(M0 m0 m1 m2 m3) decl(4-7)
           s3..scroll(s2..M0)
-          // XXX: test s3.put(sig7:s2..sig7 d7 m0 m1 m2_m3 m4_5 m6 sig6 d6)
+          // XXX NOW: test s3.put(sig7:s2..sig7 d7 m0 m1 m2_m3 m4_5 m6 sig6 d6)
           s3.put(sig7:s2..sig7 d7 m0 m1 m2 m3 m4_5 m6 sig6 d6)
           =sig7
-          // XXX why
+          // XXX NOW why
           s3.put(sig7:s..sig7 d7 m0 m1 m2 m3 m4_5 m6 sig6 d6)
           b(M7=s2.M7 3b0.M7)
           m0b1=s.m0
@@ -1214,7 +1215,6 @@ describe('scroll', ()=>{
           put(s1..m0_1 m2_3 sig4 d4) b(M5=s0.M5 1b0.M4=s1.M4)
           put(s1..m0_1 m2 m3 sig3 d3) b(M5=s0.M5 1b0.M4=s1.M4)
           t.sig3b1=s1.sig3`);
-        // XXX add pc support pc1.s1.clone(s.0_3)
         t('3b0_8b0_15b0', `s.scroll(!prev_scroll) pc1.s.decl(1-32)
           pc2.s1.clone(s.0_3) s1.decl(4-32) pc3.s2.clone(s.0_8) s2.decl(9-32)
           pc4.s3.clone(s.0_15) s3.decl(16-32) pc5.t..clone(s.0_32)
@@ -1249,7 +1249,6 @@ describe('scroll', ()=>{
           put(s1..sig9 d9 m0 m1 m2_3 m4 m5 m6_7 m8)
           b(M10=s.M10 3b0.M9=s2.M9 8b1.M9=s1.M9)
         `);
-        // XXX: derry two branches that should be the same
         t('3b0_8b1_15b1_zzz3', `s.scroll(!prev_scroll) s.decl(1-10)
           s1.clone(s.0_3) s1.decl(4-10) t..clone(s.0_10)
           put(s1..m0_3 sig4 d4) b(M10=s.M10 3b0.M4=s1.M4)
@@ -1260,8 +1259,6 @@ describe('scroll', ()=>{
         // b1 a b c D E
         s = `s0..scroll(!prev_scroll) decl(1-10) s1..clone(s0.0_2) decl(3-10)
           t..clone(s0.0_1)`;
-        // XXX: fix branch syntax 2b0(b1)=s1.M4
-        // XXX: fix branch syntax t.2b0(b1).M4=s1.M4
         t('fix_2b0_a', `${s} put(s0..m0_1 m2 m3 sig4 d4) b(M4=s0.M4)
           put(s1..m0_1 m2 m3 sig4 d4) b(M4=s0.M4 2b0.M4=s1.M4)`);
         // b0 a b c_d e
@@ -1298,7 +1295,7 @@ describe('scroll', ()=>{
         t('fix_2b1_c', `s..scroll(!prev_scroll) decl(1-10) s1..clone(s.0_1)
           decl(2-10) s2..clone(s1.0_2) decl(3-10) t..scroll(s..M0)
           tput(0 1 2 3 4) b(M4)
-          tput(0_1 c d e) b(M4 1b0.M4=s1.M4) // XXX: 1b0=s1.M4
+          tput(0_1 c d e) b(M4 1b0.M4=s1.M4)
           tput(0_1 c_D E) b(M4 1b0.M4=s1.M4 1b0.M4=s2.M4)
           tput(0_1 c D E) b(M4 1b0.M4=s1.M4 2b1.M4=s2.M4)`);
         // b1 0 1 a_b c
@@ -1336,12 +1333,13 @@ describe('scroll', ()=>{
           put(s1..m0_3 m4_7 sig8 d8) b(M8=s0.M8 3b0.M8=s1.M8)
           put(s0..m0_3 m4_5 m6 m7 sig8 d8) b(M8=s0.M8 3b0.M8=s1.M8)
           put(s1..m0_3 m4_5 m6 m7 m8 sig9 d9) b(M8=s0.M8 6b0.M9=s1.M9)`);
-        // XXX merge tests
         s = `s..scroll(!prev_scroll) decl(1-10) t..clone(s..0_3)`;
         // XXX: review and decide if we must require m0_3 or it should work
-        if (0) t('xxx_check', `${s}
-          put(sig4 d4 branch(b0:0:M4))
-          put(sig7 d7 m4_5 m6 branch(b0:0:M4)) // XXX m0_3
+        t('partial_info', `${s}
+          put(sig4 d4) b(M4)
+          put(sig7 d7 m4_5 m6 err(missing m5, missing m4_5, missing M6,
+            missing sig6)) b(M4)
+          put(sig7 d7 m4_5 m0_3 m6) b(M4 3v0.M7)
         `);
         // b0 a b c d e
         // b1 a b c d e_f g h

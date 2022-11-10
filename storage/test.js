@@ -1103,10 +1103,7 @@ describe('scroll', ()=>{
         t('simple_branch_b', `s.scroll(!prev_scroll) s.decl(1-10)
           s2..scroll(s..M3) put(M0 m0 m1 m2 m3) decl(4-7)
           s3..scroll(s2..M0)
-          // XXX NOW: test s3.put(sig7:s2..sig7 d7 m0 m1 m2_m3 m4_5 m6 sig6 d6)
-          s3.put(sig7:s2..sig7 d7 m0 m1 m2 m3 m4_5 m6 sig6 d6)
-          =sig7
-          // XXX NOW why
+          s3.put(sig7:s2..sig7 d7 m0 m1 m2_3 m4_5 m6 sig6 d6) =sig7
           s3.put(sig7:s..sig7 d7 m0 m1 m2 m3 m4_5 m6 sig6 d6)
           b(M7=s2.M7 3b0.M7)
           m0b1=s.m0 m3b1=s.m3 m4_5b1=s.m4_5 sig7b0=s2.sig7 sig7b1=s.sig7`);

@@ -1215,6 +1215,8 @@ describe('scroll', ()=>{
           put(s1..m0_1 m2_3 sig4 d4) b(M5=s0.M5 1b0.M4=s1.M4)
           put(s1..m0_1 m2 m3 sig3 d3) b(M5=s0.M5 1b0.M4=s1.M4)
           t.sig3b1=s1.sig3`);
+        // XXX NOW: review all tests and move to tput if possible and
+        // rm zzz/xxx and fix names
         t('3b0_8b0_15b0', `s.scroll(!prev_scroll) pc1.s.decl(1-32)
           pc2.s1.clone(s.0_3) s1.decl(4-32) pc3.s2.clone(s.0_8) s2.decl(9-32)
           pc4.s3.clone(s.0_15) s3.decl(16-32) pc5.t..clone(s.0_32)

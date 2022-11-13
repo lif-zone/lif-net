@@ -1530,10 +1530,20 @@ describe('scroll', ()=>{
           tput(0_1_2_3 4_5 6 7    ) b(M9) t.D4b0=s.D4`);
       });
     });
+if (0) // XXX WIP
     describe('storage', ()=>{
-      t('basic', `s.scroll() s.decl(1-2)
-        t..clone(s..0_2)
-//        t.db_set_decl(seq:0)
+      // soul:differnt (default)
+      t('basic', `s.scroll()
+        t..clone(s..0) !db0 mem0=(sig0 D0 m0)
+        t.db.put_decl(seq:0) db0=(sig0 D0 m0) mem0=(sig0 D0 m0)
+        t.mem.unload db0=(sig0 D0 m0) !mem0
+        t.db.get_decl(seq:0) db0=(sig0 D0 m0) mem0=(sig0 D0 m0)
+
+        // XXX
+        implement with indexDB shim for node?
+        support running tests in browser? not yet
+
+
 //        t.db_set_decl(seq:1)
 //        t.db_set_decl(seq:2)
 //        t.unload

@@ -1532,3 +1532,42 @@ describe('scroll', ()=>{
     });
   });
 });
+
+/* XXX: storage
+each scroll two tables
+data frames: [{sig: }, {seq}, {buf: ...}]
+
+decl:
+{seq: 3, D: {0: 0x..., 1: 0x,...} // frames to D d: {0: 0x..., 1: 0x...},
+  sig: {0: 0x,... 1: 0x...},  // inside D
+  m: {3: {0: 0x..., 2: 0x...}, 2: {}, 0: {}}}
+  //  m3                       m2_3   m0_3
+
+decl:
+{seq: 3, b: {0: [], 1: [],...}}
+
+{3: D: [1MB], sig:{0...} m: {...}}
+
+decl: merkel + data<64K (index seq)
+data: data>64 (blobs via checksm)
+
+scroll table (table of all scrolls):
+{M0, id}
+
+db_get_decl(seq:3)
+seq, D, sig, m3 m2_3 m0_3
+
+Scroll s0
+Scroll s1
+
+mem.s0
+mem.s1
+db.s0 (table scroll_s0) s0 hash of seq0 'scroll_456BC...')
+db.s1 (table scroll_s1) ...
+
+scrolls
+{M0, ...}
+
+data
+{}
+*/

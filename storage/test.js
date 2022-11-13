@@ -1530,6 +1530,18 @@ describe('scroll', ()=>{
           tput(0_1_2_3 4_5 6 7    ) b(M9) t.D4b0=s.D4`);
       });
     });
+    describe('storage', ()=>{
+      t('basic', `s.scroll() s.decl(1-2)
+        t..clone(s..0_2)
+//        t.db_set_decl(seq:0)
+//        t.db_set_decl(seq:1)
+//        t.db_set_decl(seq:2)
+//        t.unload
+//        t.db_get_decl(seq:0)
+        =sig0 =D0 =m0
+//        !sig1
+      `);
+    });
   });
 });
 

@@ -69,12 +69,67 @@ function macro_to_m(val, dst){
   return s;
 }
 
+const struct_from_str = exp=>etask(function*struct_from_str(){
+  let a = exp.split(' '), seq, o = {};
+  for (let i=0; i<a.length; i++){
+    let t = tparser.parse_exp_arg_pair(a[i]);
+    let ol = parse_var(t.l), type = ol.type, b = ol.b||0, r = ol.range;
+    let val = yield get_val(t.r);
+    assert(seq===undefined || seq==ol.seq, 'multiple seq in struct');
+    assert(!ol.ctx, 'cannot have ctx for left strcut');
+    assert(!ol.def, 'XXX support set def');
+    assert(['sig', 'd', 'm', 'M', 'D'].includes(type), 'invalid type '+type);
+    seq = ol.seq;
+    if (type=='m'){
+      o.m = o.m||{};
+      o.m[r[0]] = o.m[r[0]]||{};
+      o.m[r[0]][b] = val;
+    } else {
+      o[type] = o[type]||{};
+      o[type][b] = val;
+    }
+  }
+  return o;
+});
+
+const struct_from_decl = decl=>etask(function struct_from_decl(){
+  if (!decl)
+    return null;
+  let o = {};
+  for (const [b] of decl.scroll.branch){
+    if (decl.sig_get(b)){
+      o.sig = o.sig||{};
+      o.sig[b] = o.sig[b]||decl.sig_get(b);
+    }
+    if (decl.M_hash(b)){
+      o.M = o.M||{};
+      o.M[b] = o.M[b]||decl.M_hash(b);
+    }
+    let frames = decl.fbuf_get(b).get_frames();
+    if (frames.length){
+      o.D = o.D||{};
+      o.D[b] = o.D[b]||frames;
+    }
+    for (let i=0; i<decl.m.length; i++){
+      if (!decl.m[i].get_hash(b))
+        continue;
+      let r = decl.m[i].range;
+      o.m = o.m||{};
+      o.m[r[0]] = o.m[r[0]]||{};
+      o.m[r[0]][b] = decl.m[i].get_hash(b);
+    }
+  }
+  return o;
+});
+
 function parse_var(v){
-  let m = v.match(/^([a-zA-Z]\d*)(\.|\.\.)([^.]*)$/);
+  let m = v.match(/^\((.*)\)$/);
+  if (m && m[1])
+    return {seq: 999, range: [999, 999], type: 'struct', val: m[1]};
+  m = v.match(/^([a-zA-Z]\d*)(\.|\.\.)([^.]*)$/);
   let ctx = m ? m[1] : '', def = m ? m[2]=='..' : false;
   v = m ? m[3] : v;
-  m = v.match(/^(sig|m|M|d|D)((\d+)|((\d+)_(\d+)))$/);
-  m = v.match(/^(sig|m|M|d|D)((\d+)|((\d+)_(\d+)))(b(\d+))?$/);
+  m = v.match(/^(sig|m|M|d|D|mem|db)((\d+)|((\d+)_(\d+)))(b(\d+))?$/);
   assert.equal(m?.length, 9, 'invalid var '+v);
   let type = m[1], range = r_from_str(m[2]), seq = range[1];
   let b = m[8] ? +m[8] : 0;
@@ -205,6 +260,10 @@ const get_val = (exp, def_type='right')=>etask(function*_get_val(){
   // XXX: do we need calc_m?
   case 'm': return r0==seq ? scroll.m_hash(b, seq) :
     b ? scroll.m_hash(b, o.range) : calc_m(scroll, o.range);
+  case 'db': return null;
+  case 'mem':
+    return yield struct_from_decl(scroll.get_decl(seq, {create: false}));
+  case 'struct': return yield struct_from_str(o.val);
   }
   assert.fail('invalid val exp '+exp);
 });
@@ -1530,27 +1589,15 @@ describe('scroll', ()=>{
           tput(0_1_2_3 4_5 6 7    ) b(M9) t.D4b0=s.D4`);
       });
     });
-if (0) // XXX WIP
     describe('storage', ()=>{
-      // soul:differnt (default)
       t('basic', `s.scroll()
-        t..clone(s..0) !db0 mem0=(sig0 D0 m0)
-        t.db.put_decl(seq:0) db0=(sig0 D0 m0) mem0=(sig0 D0 m0)
-        t.mem.unload db0=(sig0 D0 m0) !mem0
-        t.db.get_decl(seq:0) db0=(sig0 D0 m0) mem0=(sig0 D0 m0)
-
-        // XXX
-        implement with indexDB shim for node?
-        support running tests in browser? not yet
-
-
-//        t.db_set_decl(seq:1)
-//        t.db_set_decl(seq:2)
-//        t.unload
-//        t.db_get_decl(seq:0)
-        =sig0 =D0 =m0
-//        !sig1
+        t..clone(s..0_0) mem0=(M0 sig0 D0 m0) !db0
+        // XXX: WIP
+        // t.db.put_decl(seq:0) mem0=(sig0 D0 m0) db0=(sig0 D0 m0)
+        // t.mem.unload !mem0 db0=(sig0 D0 m0)
+        // t.db.get_decl(seq:0)mem0=(sig0 D0 m0) db0=(sig0 D0 m0)
       `);
+      // XXX: test with branch
     });
   });
 });

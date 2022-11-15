@@ -1673,15 +1673,17 @@ mem0=(M0 sig0 D0 m0) mem1=(M1 sig1 D1 m1 m0_1) !db0 !db1
         S.db.get_decl(seq1) #mem1=(M1 sig1 D1 m1 m0_1)
       `);
       // XXX: test with branch
+      // XXX: limit for getting data get_decl (per frame limit, total limit)
     });
   });
 });
 
 /* XXX: storage
-current tables:;
-scrolls
-scroll_A012... (table for each scroll)
+current tables;
+scroll
+decl
 data
+
 
 issues:
 - add new table requires to close and reopen db in indexdb

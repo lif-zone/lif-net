@@ -51,8 +51,6 @@ function ecursor_open(store){
   req.onerror = e=>wait.throw(e);
   req.onsuccess = e=>{
     let cursor = e.target.result;
-    if (cursor)
-      cursor.xxx_req = req;
     wait.continue(cursor);
   };
   return wait;
@@ -60,8 +58,8 @@ function ecursor_open(store){
 
 function ecursor_continue(cursor){
   let wait = etask.wait();
-  cursor.xxx_req.onsuccess = e=>wait.continue(e.target.result);
-  cursor.xxx_req.onerror = e=>wait.throw(e);
+  cursor.request.onsuccess = e=>wait.continue(e.target.result);
+  cursor.request.onerror = e=>wait.throw(e);
   cursor.continue();
   return wait;
 }

@@ -1668,6 +1668,11 @@ data
 
 issues:
 - add new table requires to close and reopen db in indexdb
+  // db.close
+  https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API/Using_IndexedDB
+  - NOW: currently for each scroll a differnt decl table.
+    SUGGESTION: change to one decl table for all scroll
+  - note, I cannot use memory db for tests if I need to close/open it
 - where do we save branch information
   keep it in scrolls table
   {M, branch: {1: {top, parent: {b: 0, seq: 3, type: 'v/b'}}}}

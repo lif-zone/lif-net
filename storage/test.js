@@ -1661,6 +1661,23 @@ describe('scroll', ()=>{
 });
 
 /* XXX: storage
+current tables:;
+scrolls
+scroll_A012... (table for each scroll)
+data
+
+issues:
+- add new table requires to close and reopen db in indexdb
+- where do we save branch information
+  keep it in scrolls table
+  {M, branch: {1: {top, parent: {b: 0, seq: 3, type: 'v/b'}}}}
+- on browser, we cannot assume data is "safe" (ie, not modified by user
+  and/or partial because Chrome auto-deleted some).
+  --> when loading data from DB, need to provide full proof
+
+*/
+
+/* XXX: storage
 each scroll two tables
 data frames: [{sig: }, {seq}, {buf: ...}]
 

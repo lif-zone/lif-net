@@ -71,7 +71,7 @@ function macro_to_m(val, dst){
 }
 
 const struct_from_str = exp=>etask(function*struct_from_str(){
-  let a = exp.split(' '), seq, o = {};
+  let a = exp.split(' '), seq, o;
   for (let i=0; i<a.length; i++){
     let t = tparser.parse_exp_arg_pair(a[i]);
     let ol = parse_var(t.l), type = ol.type, b = ol.b||0, r = ol.range;
@@ -81,6 +81,7 @@ const struct_from_str = exp=>etask(function*struct_from_str(){
     assert(!ol.def, 'XXX support set def');
     assert(['sig', 'd', 'm', 'M', 'D'].includes(type), 'invalid type '+type);
     seq = ol.seq;
+    o = o||{seq};
     if (type=='m'){
       o.m = o.m||{};
       o.m[r[0]] = o.m[r[0]]||{};
@@ -93,35 +94,7 @@ const struct_from_str = exp=>etask(function*struct_from_str(){
   return o;
 });
 
-const struct_from_decl = decl=>etask(function struct_from_decl(){
-  if (!decl)
-    return null;
-  let o = {};
-  for (const [b] of decl.scroll.branch){
-    if (decl.sig_get(b)){
-      o.sig = o.sig||{};
-      o.sig[b] = o.sig[b]||decl.sig_get(b);
-    }
-    if (decl.M_hash(b)){
-      o.M = o.M||{};
-      o.M[b] = o.M[b]||decl.M_hash(b);
-    }
-    let frames = decl.fbuf_get(b).get_frames();
-    if (frames.length){
-      o.D = o.D||{};
-      o.D[b] = o.D[b]||frames;
-    }
-    for (let i=0; i<decl.m.length; i++){
-      if (!decl.m[i].get_hash(b))
-        continue;
-      let r = decl.m[i].range;
-      o.m = o.m||{};
-      o.m[r[0]] = o.m[r[0]]||{};
-      o.m[r[0]][b] = decl.m[i].get_hash(b);
-    }
-  }
-  return o;
-});
+function struct_from_decl(decl){ return decl ? decl.to_static() : null; }
 
 function parse_var(v){
   let m = v.match(/^\((.*)\)$/);
@@ -261,7 +234,7 @@ const get_val = (exp, def_type='right')=>etask(function*_get_val(){
   // XXX: do we need calc_m?
   case 'm': return r0==seq ? scroll.m_hash(b, seq) :
     b ? scroll.m_hash(b, o.range) : calc_m(scroll, o.range);
-  case 'db': return null;
+  case 'db': return yield DB.get_decl_static(scroll, seq);
   case 'mem':
     return yield struct_from_decl(scroll.get_decl(seq, {create: false}));
   case 'struct': return yield struct_from_str(o.val);
@@ -1625,7 +1598,7 @@ describe('scroll', ()=>{
     describe('storage', ()=>{
       t('basic', `db_init s.scroll()
         t..clone(s..0_0) mem0=(M0 sig0 D0 m0) !db0
-        t.db.put_decl(seq0) mem0=(M0 sig0 D0 m0) // XXX db0=(M0 sig0 D0 m0)
+        t.db.put_decl(seq0) mem0=(M0 sig0 D0 m0) db0=(M0 sig0 D0 m0)
         // XXX: WIP
         // t.mem.unload !mem0 db0=(M0 sig0 D0 m0)
         // t.db.get_decl(seq0) mem0=(M0 sig0 D0 m0) db0=(M0 sig0 D0 m0)

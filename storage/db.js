@@ -23,6 +23,21 @@ function estore_put(store, val){
   return wait;
 }
 
+function estore_get(store, val){
+  store = idb.unwrap(store);
+  let wait = etask.wait();
+  let req = store.get(val);
+  req.onsuccess = e=>wait.continue(req.result);
+  req.onerror = e=>wait.throw(e);
+  return wait;
+}
+
+function edb_get(store, key){
+  let tx = E.db.transaction(store, 'readonly');
+  store = tx.objectStore(store);
+  return estore_get(store, key);
+}
+
 function edb_put(store, val){
   let tx = E.db.transaction(store, 'readwrite');
   store = tx.objectStore(store);
@@ -91,7 +106,9 @@ E.init_scroll = scroll=>etask(function*init_scroll(){
       db.createObjectStore(name, {keyPath: 'seq'});
     }});
   // XXX: make it same transcation as upgrade where table created
-  yield edb_put('scrolls', {M, create_ts: Date.now(), db_ver});
+  let o = {M, create_ts: Date.now(), db_ver};
+  yield edb_put('scrolls', o);
+  E.scrolls.set(M, o);
 });
 
 E.put_decl = (scroll, seq)=>etask(function*put_decl(){
@@ -103,6 +120,28 @@ E.put_decl = (scroll, seq)=>etask(function*put_decl(){
     return;
   // XXX: need to save big data in data store
   yield edb_put(name, decl.to_static());
+});
+
+// XXX: decide on better way to handle buffers
+E.fix_struct = function fix_struct(o){
+  for (let name in o){
+    let v = o[name];
+    if (v instanceof Uint8Array)
+      o[name] = Buffer.from(v);
+    else if (v instanceof Object)
+      E.fix_struct(v);
+  }
+};
+
+E.get_decl_static = (scroll, seq)=>etask(function*get_decl_static(){
+  assert(E.inited, 'db not inited');
+  let M = b2s(scroll.M_hash(0, 0)), name = 'scroll_'+M;
+  if (!E.scrolls.get(M))
+    return null;
+  // XXX: decide on better way to handle buffers
+  let o = yield edb_get(name, seq);
+  E.fix_struct(o);
+  return o;
 });
 
 E.delete_db = ()=>etask(function*delete_db(){

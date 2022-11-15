@@ -34,7 +34,6 @@
     "hypercore": "9.12.0",
     "hypercore-crypto": "3.3.0",
     "hyperswarm": "hyperswarm/hyperswarm",
-    "indexeddbshim": "9.0.0",
     "inherits": "2.0.3",
     "iniparser": "1.0.5",
     "js-fibonacci-heap": "gwtw/js-fibonacci-heap#ec31d0966f9e54b0a52f3a074fe1d2442ab69979",
@@ -60,7 +59,7 @@
     "sodium-universal": "3.1.0",
     "secp256k1": "4.0.3",
     "crypto-browserify": "3.12.0",
-    "idb": "7.0.2",
+    "idb": "7.1.1",
     "flat-tree": "1.9.0",
     "compact-encoding": "2.11.0",
     "xache": "1.1.0"

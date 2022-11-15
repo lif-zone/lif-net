@@ -1629,31 +1629,48 @@ describe('scroll', ()=>{
       // XXX: how/where to save branch info
       // XXX: indexdb - adding new table requires to open/close db
       // (and we keep each scroll in different table
-      t('b0_seq0', `db_init s.scroll()
+      t('b0_seq0', `db_init s.scroll
         t..clone(s..0_0) mem0=(M0 sig0 D0 m0) !db0
         t.db.put_decl(seq0) mem0=(M0 sig0 D0 m0) db0=(M0 sig0 D0 m0)
         t.mem.unload mem0=(M0) db0=(M0 sig0 D0 m0)
         t.db.get_decl(seq0) mem0=(M0 sig0 D0 m0) db0=(M0 sig0 D0 m0)
       `);
-      t('b0_seq1', `db_init s.scroll() s.decl(1)
-        t..clone(s..0_1)
+      // XXX: change t - > S (all over)
+      t('b0_seq1', `db_init s.scroll s.decl(1) // XXX: support scroll(decl:1)
+        S..clone(s..0_1)
           mem0=(M0 sig0 D0 m0) mem1=(M1 sig1 D1 m1 m0_1)
           !db0 !db1
-        t.db.put_decl(seq0)
+        S.db.put_decl(seq0)
+          db0=(M0 sig0 D0 m0)
           mem0=(M0 sig0 D0 m0) mem1=(M1 sig1 D1 m1 m0_1)
           db0=(M0 sig0 D0 m0) !db1
-        t.db.put_decl(seq1)
+        S.db.put_decl(seq1)
           mem0=(M0 sig0 D0 m0) mem1=(M1 sig1 D1 m1 m0_1)
           db0=(M0 sig0 D0 m0) db1=(M1 sig1 D1 m1 m0_1)
-        t.mem.unload
+        S.mem.unload
           mem0=(M0) !mem1
           db0=(M0 sig0 D0 m0) db1=(M1 sig1 D1 m1 m0_1)
-        t.db.get_decl(seq0)
+        S.db.get_decl(seq0)
           mem0=(M0 sig0 D0 m0) !mem1
           db0=(M0 sig0 D0 m0) db1=(M1 sig1 D1 m1 m0_1)
-        t.db.get_decl(seq1)
+        S.db.get_decl(seq1)
           mem0=(M0 sig0 D0 m0) mem1=(M1 sig1 D1 m1 m0_1)
           db0=(M0 sig0 D0 m0) db1=(M1 sig1 D1 m1 m0_1)
+      `);
+      if (0) // XXX derry: idea for improvement
+      t('b0_seq1', `db_init
+S:=s.scroll(d:1)
+s.scroll(d:1) S..clone(s..)
+mem0=(M0 sig0 D0 m0) mem1=(M1 sig1 D1 m1 m0_1) !db0 !db1
+
+ // d:1/decl:1 -> s.decl(1)
+        S..clone(s..) # // XXX: s.. to copy everything S.clone(s)
+        S..:=s..scroll(d:1) #
+        S.db.put_decl(seq0) #db0=(M0 sig0 D0 m0)
+        S.db.put_decl(seq1) #db1=(M1 sig1 D1 m1 m0_1)
+        S.mem.unload mem0=(M0) #!mem1
+        S.db.get_decl(seq0) #mem0=(M0 sig0 D0 m0)
+        S.db.get_decl(seq1) #mem1=(M1 sig1 D1 m1 m0_1)
       `);
       // XXX: test with branch
     });

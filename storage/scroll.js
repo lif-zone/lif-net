@@ -306,6 +306,18 @@ export default class Scroll extends EventEmitter {
     this.merge_queue.get_one = Map_get_one;
     this.create_new_branch();
   }
+  unload(){ // XXX HACK: quick implementation
+    let M0 = this.M_hash(0, 0);
+    this.soul.delete(M0);
+    this.dmap = new Map();
+    this.branch = new Map();
+    this.branch.next_id = 0;
+    this.merge_queue = new Map;
+    this.merge_queue.get_one = Map_get_one;
+    this.create_new_branch();
+    let decl = this.get_decl(0);
+    decl.M.set_hash(0, M0);
+  }
   create_new_branch(opt={}){
     let {b, seq} = opt;
     let bid = this.branch.next_id++;
@@ -924,6 +936,8 @@ class Decl extends EventEmitter {
   }
   to_static(){
     let o = {seq: this.seq};
+    // XXX: inefficient, don't go over all branches, but instead just those
+    // with data
     for (const [b] of this.scroll.branch){
       if (this.sig_get(b)){
         o.sig = o.sig||{};
@@ -948,6 +962,17 @@ class Decl extends EventEmitter {
       }
     }
     return o;
+  }
+  from_static(o){
+    for (const b in o.M)
+      this.M.set_hash(+b, o.M[b]);
+    for (const i in o.m){
+      let m = o.m[i];
+      for (const b in m) // XXX: need to verify +b is valid
+        this.m_get([+i, this.seq]).set_hash(+b, m[b]);
+    }
+    for (const b in o.D)
+      this.fbuf_get(+b).set_frames(o.D[b]);
   }
 }
 
@@ -1052,7 +1077,10 @@ class Soul {
     M0 = typeof M0=='string' ? M0 : b2s(M0);
     return this.soul.get(M0);
   }
-  delete(M0){ return this.soul.delete(M0); }
+  delete(M0){
+    M0 = typeof M0=='string' ? M0 : b2s(M0);
+    return this.soul.delete(M0);
+  }
   clear(){ this.soul.clear(); }
 }
 

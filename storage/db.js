@@ -111,6 +111,19 @@ E.init_scroll = scroll=>etask(function*init_scroll(){
   E.scrolls.set(M, o);
 });
 
+E.get_decl = (scroll, seq)=>etask(function*get_decl(){
+  assert(E.inited, 'db not inited');
+  let M = b2s(scroll.M_hash(0, 0)), name = 'scroll_'+M;
+  yield E.init_scroll(scroll);
+  // XXX: need to get big data from data store
+  let o = yield edb_get(name, seq);
+  if (!o)
+    return;
+  E.fix_struct(o);
+  let decl = scroll.get_decl(seq);
+  decl.from_static(o);
+});
+
 E.put_decl = (scroll, seq)=>etask(function*put_decl(){
   assert(E.inited, 'db not inited');
   let M = b2s(scroll.M_hash(0, 0)), name = 'scroll_'+M;

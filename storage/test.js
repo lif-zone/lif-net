@@ -438,6 +438,33 @@ const cmd_put_decl = (curr, t)=>etask(function*cmd_put_decl(){
   yield DB.put_decl(scroll, seq);
 });
 
+const cmd_get_decl = (curr, t)=>etask(function*cmd_get_decl(){
+  assert(t.ctx=='db', 'missing db prefix');
+  let name = t.prev?.ctx||get_def('left'), scroll = get_scroll(name), seq;
+  for (let curr=t.r; curr = tparser.parse_get_next(curr);){
+    let tt = tparser.parse_exp_arg(curr.exp), m;
+    switch (tt.cmd){
+    default:
+      if (m = tt.cmd.match(/^seq(\d+)$/)){
+        assert.equal(seq, undefined, 'XXX TODO');
+        seq = +m[1];
+        break;
+      }
+      assert.fail('invalid arg '+tt.cmd+' in '+t.meta.s);
+    }
+  }
+  assert(seq>=0, 'invalid seq '+seq);
+  yield DB.get_decl(scroll, seq);
+});
+
+const cmd_unload = (curr, t)=>etask(function cmd_unload(){
+  assert(t.ctx=='mem', 'missing mem prefix');
+  let name = t.prev?.ctx||get_def('left'), scroll = get_scroll(name);
+  for (let curr=t.r; curr = tparser.parse_get_next(curr);)
+    assert(!curr.exp, 'invalid arg '+curr.exp);
+  scroll.unload();
+});
+
 const cmd_test = t=>etask(function*cmd_test(){
   let name = t.ctx||get_def('left'), scroll = get_scroll(name);
   let tested = {};
@@ -554,6 +581,8 @@ const test_run_single = (curr, o)=>etask(function*_test_run_single(){
   case 'decl': yield cmd_decl(o); break;
   case 'put': yield cmd_put(curr, o); break;
   case 'put_decl': yield cmd_put_decl(curr, o); break;
+  case 'get_decl': yield cmd_get_decl(curr, o); break;
+  case 'unload': yield cmd_unload(curr, o); break;
   case 'tput': yield cmd_tput(curr, o); break;
   case '=': yield cmd_eq(o); break;
   case '==': yield cmd_test(o); break;
@@ -1596,12 +1625,35 @@ describe('scroll', ()=>{
       });
     });
     describe('storage', ()=>{
-      t('basic', `db_init s.scroll()
+      // XXX derry:
+      // XXX: how/where to save branch info
+      // XXX: indexdb - adding new table requires to open/close db
+      // (and we keep each scroll in different table
+      t('b0_seq0', `db_init s.scroll()
         t..clone(s..0_0) mem0=(M0 sig0 D0 m0) !db0
         t.db.put_decl(seq0) mem0=(M0 sig0 D0 m0) db0=(M0 sig0 D0 m0)
-        // XXX: WIP
-        // t.mem.unload !mem0 db0=(M0 sig0 D0 m0)
-        // t.db.get_decl(seq0) mem0=(M0 sig0 D0 m0) db0=(M0 sig0 D0 m0)
+        t.mem.unload mem0=(M0) db0=(M0 sig0 D0 m0)
+        t.db.get_decl(seq0) mem0=(M0 sig0 D0 m0) db0=(M0 sig0 D0 m0)
+      `);
+      t('b0_seq1', `db_init s.scroll() s.decl(1)
+        t..clone(s..0_1)
+          mem0=(M0 sig0 D0 m0) mem1=(M1 sig1 D1 m1 m0_1)
+          !db0 !db1
+        t.db.put_decl(seq0)
+          mem0=(M0 sig0 D0 m0) mem1=(M1 sig1 D1 m1 m0_1)
+          db0=(M0 sig0 D0 m0) !db1
+        t.db.put_decl(seq1)
+          mem0=(M0 sig0 D0 m0) mem1=(M1 sig1 D1 m1 m0_1)
+          db0=(M0 sig0 D0 m0) db1=(M1 sig1 D1 m1 m0_1)
+        t.mem.unload
+          mem0=(M0) !mem1
+          db0=(M0 sig0 D0 m0) db1=(M1 sig1 D1 m1 m0_1)
+        t.db.get_decl(seq0)
+          mem0=(M0 sig0 D0 m0) !mem1
+          db0=(M0 sig0 D0 m0) db1=(M1 sig1 D1 m1 m0_1)
+        t.db.get_decl(seq1)
+          mem0=(M0 sig0 D0 m0) mem1=(M1 sig1 D1 m1 m0_1)
+          db0=(M0 sig0 D0 m0) db1=(M1 sig1 D1 m1 m0_1)
       `);
       // XXX: test with branch
     });

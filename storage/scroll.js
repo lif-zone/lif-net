@@ -922,6 +922,33 @@ class Decl extends EventEmitter {
     }
     this.data.copy(bdst, bsrc);
   }
+  to_static(){
+    let o = {seq: this.seq};
+    for (const [b] of this.scroll.branch){
+      if (this.sig_get(b)){
+        o.sig = o.sig||{};
+        o.sig[b] = o.sig[b]||this.sig_get(b);
+      }
+      if (this.M_hash(b)){
+        o.M = o.M||{};
+        o.M[b] = o.M[b]||this.M_hash(b);
+      }
+      let frames = this.fbuf_get(b).get_frames();
+      if (frames.length){
+        o.D = o.D||{};
+        o.D[b] = o.D[b]||frames;
+      }
+      for (let i=0; i<this.m.length; i++){
+        if (!this.m[i].get_hash(b))
+          continue;
+        let r = this.m[i].range;
+        o.m = o.m||{};
+        o.m[r[0]] = o.m[r[0]]||{};
+        o.m[r[0]][b] = this.m[i].get_hash(b);
+      }
+    }
+    return o;
+  }
 }
 
 class Merkel_node extends EventEmitter {

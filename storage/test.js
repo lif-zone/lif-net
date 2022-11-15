@@ -10,6 +10,7 @@ import crypto from '../util/crypto.js';
 import string from '../util/string.js';
 import xsinon from '../util/sinon.js';
 import Scroll from './scroll.js';
+import DB from './db.js';
 import buf_util from '../peer-relay/buf_util.js';
 import {r_str, r_from_str, r_parent} from './range.js';
 const b2s = buf_util.buf_to_str, s2b = buf_util.buf_from_str;
@@ -19,7 +20,7 @@ let t_soul, t_soul_id, t_soul_mode;
 let t_scroll, t_genesis_scroll, t_prev_scroll, t_def, t_keypair;
 
 // XXX: make it automatic for all node/browser in proc.js
-// XXX: check if to enable xerr.set_exception_catch_all(true);
+xerr.set_exception_catch_all(true);
 process.on('uncaughtException', err=>xerr.xexit(err));
 process.on('unhandledRejection', err=>xerr.xexit(err));
 xerr.set_exception_handler('test', (prefix, o, err)=>xerr.xexit(err));
@@ -270,7 +271,7 @@ const get_val = (exp, def_type='right')=>etask(function*_get_val(){
 
 const test_decl = (scroll, data)=>etask(function*test_decl(){
   yield scroll.decl(data);
-  yield xsinon.tick(1);
+  yield xsinon.tick(1, {force: true});
 });
 
 const test_start = ()=>etask(function*test_start(){
@@ -283,7 +284,7 @@ const test_start = ()=>etask(function*test_start(){
     'ad279ecf05033'),
     key: s2b('46f45a62f4c5971228747aa2d8ee66bd669ebd805c725286ee385b1d4a06dd'+
       'bc44659cb51dec397ea66085679442505345e159940762c15ef75ad279ecf05033')};
-  xsinon.clock_set({now: 0});
+  xsinon.clock_set({now: 0, auto_inc: true});
   t_genesis_scroll = yield Scroll.create({key: t_keypair.key,
     pub: t_keypair.pub}, {topic: 'genesis'});
   t_scroll['genesis'] = t_genesis_scroll;
@@ -301,7 +302,13 @@ const test_start = ()=>etask(function*test_start(){
   assert(t_prev_scroll.M_hash(0, 1), 'missing M1');
 });
 
-function test_end(){ Scroll.soul.clear(); }
+const test_end = ()=>etask(function*test_end(){
+  Scroll.soul.clear();
+  if (DB.inited){
+    yield DB.uninit();
+    yield DB.delete_db();
+  }
+});
 
 function cmd_conf(t){
   let soul;
@@ -319,6 +326,11 @@ function cmd_conf(t){
   if (soul!==undefined)
     t_soul_mode = soul;
 }
+
+const cmd_db_init = t=>etask(function*cmd_db_init(){
+  yield DB.delete_db();
+  yield DB.init();
+});
 
 const cmd_scroll = t=>etask(function*cmd_scroll(){
   let prev_scroll = yield t_prev_scroll.M_hash(0, 1);
@@ -434,6 +446,25 @@ const cmd_put = (curr, t)=>etask(function*cmd_put(){
   assert_no_corruption(scroll);
 });
 
+const cmd_put_decl = (curr, t)=>etask(function*cmd_put_decl(){
+  assert(t.ctx=='db', 'missing db prefix');
+  let name = t.prev?.ctx||get_def('left'), scroll = get_scroll(name), seq;
+  for (let curr=t.r; curr = tparser.parse_get_next(curr);){
+    let tt = tparser.parse_exp_arg(curr.exp), m;
+    switch (tt.cmd){
+    default:
+      if (m = tt.cmd.match(/^seq(\d+)$/)){
+        assert.equal(seq, undefined, 'XXX TODO');
+        seq = +m[1];
+        break;
+      }
+      assert.fail('invalid arg '+tt.cmd+' in '+t.meta.s);
+    }
+  }
+  assert(seq>=0, 'invalid seq '+seq);
+  yield DB.put_decl(scroll, seq);
+});
+
 const cmd_test = t=>etask(function*cmd_test(){
   let name = t.ctx||get_def('left'), scroll = get_scroll(name);
   let tested = {};
@@ -544,10 +575,12 @@ const test_run_single = (curr, o)=>etask(function*_test_run_single(){
   let o2;
   switch (o.cmd){
   case 'conf': yield cmd_conf(o); break;
+  case 'db_init': yield cmd_db_init(o); break;
   case 'scroll': yield cmd_scroll(o); break;
   case 'clone': yield cmd_clone(curr, o); break;
   case 'decl': yield cmd_decl(o); break;
   case 'put': yield cmd_put(curr, o); break;
+  case 'put_decl': yield cmd_put_decl(curr, o); break;
   case 'tput': yield cmd_tput(curr, o); break;
   case '=': yield cmd_eq(o); break;
   case '==': yield cmd_test(o); break;
@@ -1590,12 +1623,12 @@ describe('scroll', ()=>{
       });
     });
     describe('storage', ()=>{
-      t('basic', `s.scroll()
+      t('basic', `db_init s.scroll()
         t..clone(s..0_0) mem0=(M0 sig0 D0 m0) !db0
+        t.db.put_decl(seq0) mem0=(M0 sig0 D0 m0) // XXX db0=(M0 sig0 D0 m0)
         // XXX: WIP
-        // t.db.put_decl(seq:0) mem0=(sig0 D0 m0) db0=(sig0 D0 m0)
-        // t.mem.unload !mem0 db0=(sig0 D0 m0)
-        // t.db.get_decl(seq:0)mem0=(sig0 D0 m0) db0=(sig0 D0 m0)
+        // t.mem.unload !mem0 db0=(M0 sig0 D0 m0)
+        // t.db.get_decl(seq0) mem0=(M0 sig0 D0 m0) db0=(M0 sig0 D0 m0)
       `);
       // XXX: test with branch
     });

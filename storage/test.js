@@ -1650,7 +1650,6 @@ describe('scroll', ()=>{
         S.mem.unload mem0=(M0) db0=(M0 sig0 D0 m0)
         S.db.get_decl(seq0) mem0=(M0 sig0 D0 m0) db0=(M0 sig0 D0 m0)
       `);
-      // XXX: change t - > S (all over)
       t('b0_seq1', `db_init s.scroll s.decl(1) // XXX: support scroll(decl:1)
         S..clone(s..0_1)
           mem0=(M0 sig0 D0 m0) mem1=(M1 sig1 D1 m1 m0_1)

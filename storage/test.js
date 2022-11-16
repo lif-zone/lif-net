@@ -1640,61 +1640,63 @@ describe('scroll', ()=>{
       });
     });
     describe('storage', ()=>{
-      describe('clone', ()=>{
+      describe('mem', ()=>{
         t('seq0', `db_init s.scroll S..clone(s..0_0)
-          mem0=(M0 sig0 D0 m0) !db0`);
-        t('seq1', `db_init s.scroll s.decl(1)
-          S..clone(s..0_1) mem0=(M0 sig0 D0 m0) mem1=(M1 sig1 D1 m1 m0_1)
-          !db0 !db1`);
+          mem0=(M0 sig0 D0 m0) !db0 S.mem.unload mem0=(M0) !db0`);
+        t('seq1', `db_init s.scroll s.decl(1) S..clone(s..0_1)
+          mem0=(M0 sig0 D0 m0) mem1=(M1 sig1 D1 m1 m0_1) !db0 !db1
+          S.mem.unload mem0=(M0) !mem1 !db0 !db1`);
       });
-      // XXX derry:
-      // XXX: how/where to save branch info
-      // XXX: indexdb - adding new table requires to open/close db
-      // (and we keep each scroll in different table
-      t('b0_seq0', `db_init s.scroll
-        S..clone(s..0_0) mem0=(M0 sig0 D0 m0) !db0
-        S.db.put_decl(seq0) mem0=(M0 sig0 D0 m0) db0=(M0 sig0 D0 m0)
-        S.mem.unload mem0=(M0) db0=(M0 sig0 D0 m0)
-        S.db.get_decl(seq0) mem0=(M0 sig0 D0 m0) db0=(M0 sig0 D0 m0)
-      `);
-      t('b0_seq1', `db_init s.scroll s.decl(1) // XXX: support scroll(decl:1)
-        S..clone(s..0_1)
-          mem0=(M0 sig0 D0 m0) mem1=(M1 sig1 D1 m1 m0_1)
-          !db0 !db1
-        S.db.put_decl(seq0)
-          db0=(M0 sig0 D0 m0)
-          mem0=(M0 sig0 D0 m0) mem1=(M1 sig1 D1 m1 m0_1)
-          db0=(M0 sig0 D0 m0) !db1
-        S.db.put_decl(seq1)
-          mem0=(M0 sig0 D0 m0) mem1=(M1 sig1 D1 m1 m0_1)
-          db0=(M0 sig0 D0 m0) db1=(M1 sig1 D1 m1 m0_1)
-        S.mem.unload
-          mem0=(M0) !mem1
-          db0=(M0 sig0 D0 m0) db1=(M1 sig1 D1 m1 m0_1)
-        S.db.get_decl(seq0)
-          mem0=(M0 sig0 D0 m0) !mem1
-          db0=(M0 sig0 D0 m0) db1=(M1 sig1 D1 m1 m0_1)
-        S.db.get_decl(seq1)
-          mem0=(M0 sig0 D0 m0) mem1=(M1 sig1 D1 m1 m0_1)
-          db0=(M0 sig0 D0 m0) db1=(M1 sig1 D1 m1 m0_1)
-      `);
-      if (0) // XXX derry: idea for improvement
-      t('b0_seq1', `db_init
-S:=s.scroll(d:1)
-s.scroll(d:1) S..clone(s..)
-mem0=(M0 sig0 D0 m0) mem1=(M1 sig1 D1 m1 m0_1) !db0 !db1
+      describe('db', ()=>{
+        // XXX derry:
+        // XXX: how/where to save branch info
+        // XXX: indexdb - adding new table requires to open/close db
+        // (and we keep each scroll in different table
+        t('b0_seq0', `db_init s.scroll
+          S..clone(s..0_0) mem0=(M0 sig0 D0 m0) !db0
+          S.db.put_decl(seq0) mem0=(M0 sig0 D0 m0) db0=(M0 sig0 D0 m0)
+          S.mem.unload mem0=(M0) db0=(M0 sig0 D0 m0)
+          S.db.get_decl(seq0) mem0=(M0 sig0 D0 m0) db0=(M0 sig0 D0 m0)
+        `);
+        t('b0_seq1', `db_init s.scroll s.decl(1) // XXX: support scroll(decl:1)
+          S..clone(s..0_1)
+            mem0=(M0 sig0 D0 m0) mem1=(M1 sig1 D1 m1 m0_1)
+            !db0 !db1
+          S.db.put_decl(seq0)
+            db0=(M0 sig0 D0 m0)
+            mem0=(M0 sig0 D0 m0) mem1=(M1 sig1 D1 m1 m0_1)
+            db0=(M0 sig0 D0 m0) !db1
+          S.db.put_decl(seq1)
+            mem0=(M0 sig0 D0 m0) mem1=(M1 sig1 D1 m1 m0_1)
+            db0=(M0 sig0 D0 m0) db1=(M1 sig1 D1 m1 m0_1)
+          S.mem.unload
+            mem0=(M0) !mem1
+            db0=(M0 sig0 D0 m0) db1=(M1 sig1 D1 m1 m0_1)
+          S.db.get_decl(seq0)
+            mem0=(M0 sig0 D0 m0) !mem1
+            db0=(M0 sig0 D0 m0) db1=(M1 sig1 D1 m1 m0_1)
+          S.db.get_decl(seq1)
+            mem0=(M0 sig0 D0 m0) mem1=(M1 sig1 D1 m1 m0_1)
+            db0=(M0 sig0 D0 m0) db1=(M1 sig1 D1 m1 m0_1)
+        `);
+        if (0) // XXX derry: idea for improvement
+        t('b0_seq1', `db_init
+  S:=s.scroll(d:1)
+  s.scroll(d:1) S..clone(s..)
+  mem0=(M0 sig0 D0 m0) mem1=(M1 sig1 D1 m1 m0_1) !db0 !db1
 
- // d:1/decl:1 -> s.decl(1)
-        S..clone(s..) # // XXX: s.. to copy everything S.clone(s)
-        S..:=s..scroll(d:1) #
-        S.db.put_decl(seq0) #db0=(M0 sig0 D0 m0)
-        S.db.put_decl(seq1) #db1=(M1 sig1 D1 m1 m0_1)
-        S.mem.unload mem0=(M0) #!mem1
-        S.db.get_decl(seq0) #mem0=(M0 sig0 D0 m0)
-        S.db.get_decl(seq1) #mem1=(M1 sig1 D1 m1 m0_1)
-      `);
-      // XXX: test with branch
-      // XXX: limit for getting data get_decl (per frame limit, total limit)
+   // d:1/decl:1 -> s.decl(1)
+          S..clone(s..) # // XXX: s.. to copy everything S.clone(s)
+          S..:=s..scroll(d:1) #
+          S.db.put_decl(seq0) #db0=(M0 sig0 D0 m0)
+          S.db.put_decl(seq1) #db1=(M1 sig1 D1 m1 m0_1)
+          S.mem.unload mem0=(M0) #!mem1
+          S.db.get_decl(seq0) #mem0=(M0 sig0 D0 m0)
+          S.db.get_decl(seq1) #mem1=(M1 sig1 D1 m1 m0_1)
+        `);
+        // XXX: test with branch
+        // XXX: limit for getting data get_decl (per frame limit, total limit)
+      });
     });
   });
 });

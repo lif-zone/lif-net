@@ -1738,6 +1738,9 @@ describe('scroll', ()=>{
           #(mem0=(M0 sig0 D0 m0) mem1=(M1 sig1 D1 m1 m0_1))
           S.mem.unload #(mem0=(M0) !mem1)`);
       });
+      // XXX: support #db0=(M0 sig0 D0 m0)
+      // XXX: S..:=s.scroll(d:1)
+      // XXX: s.scroll(d:1) S..clone(s..)
       describe('db', ()=>{
         t('b0_seq0', `db_init s.scroll
           S..clone(s..0_0) #

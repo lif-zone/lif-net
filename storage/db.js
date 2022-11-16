@@ -8,6 +8,8 @@ import buf_util from '../peer-relay/buf_util.js';
 import setGlobalVars from 'indexeddbshim';
 const b2s = buf_util.buf_to_str;
 global.window = global;
+// XXX: move to db.init
+// XXX: change to memoryDatabase: ':memory:'
 setGlobalVars(null, {checkOrigin: false, databaseBasePath: '/tmp/',
   deleteDatabaseFiles: true, useSQLiteIndexes: true});
 
@@ -72,18 +74,22 @@ E.uninit = opt=>etask(function*init(){
   E.inited = false;
 });
 
-E.init = opt=>etask(function*init(){
+E.init = opt=>etask(function*db_init(){
   if (E.inited)
     return xerr('db already inited');
   E.inited = true;
   E.db = yield idb.openDB('lif', undefined, {
     upgrade(db, oldVersion, newVersion, transaction, event){
-      db.createObjectStore('scrolls', {keyPath: 'M'});
+      // XXX how to wait for creation of table and verify both are created
+      db.createObjectStore('scroll', {keyPath: 'M'});
+      // XXX: find better way to have key for decl
+      let decl = db.createObjectStore('decl', {keyPath: 'M_seq'});
+      decl.createIndex('M-seq', ['M', 'seq'], {unique: true});
   }});
   E.scrolls = new Map();
   let tx, store;
-  tx = E.db.transaction('scrolls', 'readonly');
-  store = tx.objectStore('scrolls');
+  tx = E.db.transaction('scroll', 'readonly');
+  store = tx.objectStore('scroll');
   for (let cursor = yield ecursor_open(store); cursor;
     cursor = yield ecursor_continue(cursor)){
     E.scrolls.set(cursor.key, cursor.value);
@@ -92,29 +98,22 @@ E.init = opt=>etask(function*init(){
 
 E.init_scroll = scroll=>etask(function*init_scroll(){
   assert(E.inited, 'db not inited');
-  let M = b2s(scroll.M_hash(0, 0)), name = 'scroll_'+M;
+  let M = b2s(scroll.M_hash(0, 0));
   if (E.scrolls.get(M))
     return;
-// XXX: if multiple, wait for it and verify we always wait for E.db
-  let db_ver = E.db.version+1;
-  E.db.close();
   // XXX: handle errors and make sure db is always consistent
-  E.db = yield idb.openDB('lif', db_ver, {
-    upgrade(db, oldVersion, newVersion, transaction, event){
-      db.createObjectStore(name, {keyPath: 'seq'});
-    }});
-  // XXX: make it same transcation as upgrade where table created
+  let db_ver = E.db.version+1;
   let o = {M, create_ts: Date.now(), db_ver};
-  yield edb_put('scrolls', o);
+  yield edb_put('scroll', o);
   E.scrolls.set(M, o);
 });
 
 E.get_decl = (scroll, seq)=>etask(function*get_decl(){
   assert(E.inited, 'db not inited');
-  let M = b2s(scroll.M_hash(0, 0)), name = 'scroll_'+M;
+  let M = b2s(scroll.M_hash(0, 0));
   yield E.init_scroll(scroll);
   // XXX: need to get big data from data store
-  let o = yield edb_get(name, seq);
+  let o = yield edb_get('decl', M+'_'+seq);
   if (!o)
     return;
   E.fix_struct(o);
@@ -124,17 +123,21 @@ E.get_decl = (scroll, seq)=>etask(function*get_decl(){
 
 E.put_decl = (scroll, seq)=>etask(function*put_decl(){
   assert(E.inited, 'db not inited');
-  let M = b2s(scroll.M_hash(0, 0)), name = 'scroll_'+M;
+  let M = b2s(scroll.M_hash(0, 0));
   yield E.init_scroll(scroll);
   let decl = scroll.get_decl(seq, {create: false});
   if (!decl)
     return;
+  // XXX: do all in transcation
   // XXX: need to save big data in data store
-  yield edb_put(name, decl.to_static());
+  yield edb_put('decl', Object.assign({M_seq: M+'_'+seq}, decl.to_static()));
 });
 
 // XXX: decide on better way to handle buffers
 E.fix_struct = function fix_struct(o){
+  if (!o)
+    return;
+  delete o.M_seq;
   for (let name in o){
     let v = o[name];
     if (v instanceof Uint8Array)
@@ -146,11 +149,11 @@ E.fix_struct = function fix_struct(o){
 
 E.get_decl_static = (scroll, seq)=>etask(function*get_decl_static(){
   assert(E.inited, 'db not inited');
-  let M = b2s(scroll.M_hash(0, 0)), name = 'scroll_'+M;
+  let M = b2s(scroll.M_hash(0, 0));
   if (!E.scrolls.get(M))
     return null;
   // XXX: decide on better way to handle buffers
-  let o = yield edb_get(name, seq);
+  let o = yield edb_get('decl', M+'_'+seq);
   E.fix_struct(o);
   return o;
 });

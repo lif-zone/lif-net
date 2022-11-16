@@ -1640,6 +1640,13 @@ describe('scroll', ()=>{
       });
     });
     describe('storage', ()=>{
+      describe('clone', ()=>{
+        t('seq0', `db_init s.scroll S..clone(s..0_0)
+          mem0=(M0 sig0 D0 m0) !db0`);
+        t('seq1', `db_init s.scroll s.decl(1)
+          S..clone(s..0_1) mem0=(M0 sig0 D0 m0) mem1=(M1 sig1 D1 m1 m0_1)
+          !db0 !db1`);
+      });
       // XXX derry:
       // XXX: how/where to save branch info
       // XXX: indexdb - adding new table requires to open/close db

@@ -128,9 +128,10 @@ function parse_var(v){
   return {seq, type, range, b, ctx, def};
 }
 
-function get_scroll(name){
+function get_scroll(name, may_not_exist){
   let scroll = t_scroll[name];
-  assert(scroll, 'scroll not found '+name);
+  if (!may_not_exist)
+    assert(scroll, 'scroll not found '+name);
   return scroll;
 }
 
@@ -393,7 +394,7 @@ const cmd_scroll = t=>etask(function*cmd_scroll(){
 });
 
 const cmd_clone = (curr, t)=>etask(function cmd_clone(){
-  let dst = t.ctx;
+  let dst = t.ctx||get_def('left');
   assert(!t_scroll[dst], 'scroll already exist '+dst);
   assert(!t.l, 'invalid arg '+t.meta.s);
   let m = t.r.match(/^([a-z0-9_]+)((\.)|(\.\.))0_(\d+)$/);
@@ -453,12 +454,28 @@ function state_apply(state, o){
 }
 
 const cmd_state = (curr, t)=>etask(function*cmd_state(){
-  let state = {mem: {}};
-  for (let name in t_scroll){
-    let scroll = t_scroll[name];
-    state.mem[name] = {};
+  let state = {mem: {}, db: {}};
+  let name = t.ctx||get_def('left');
+  let scroll = get_scroll(t.ctx||get_def('left'), true);
+  let soul = scroll?.soul;
+  state.mem[name] = {};
+  if (scroll){
     for (const [seq, decl] of scroll.dmap)
       state.mem[name][seq] = struct_from_decl(decl);
+  }
+  if (DB.inited && soul){
+    let tx = DB.db.transaction('decl', 'readonly');
+    let store = tx.objectStore('decl');
+    for (let cursor = yield DB.cursor_open(store); cursor;
+      cursor = yield DB.cursor_continue(cursor)){
+      let o = DB.fix_struct(cursor.value);
+      if (soul.get(o.scroll).t.name!=name)
+        continue;
+      delete o.scroll;
+      state.db[name] = state.db[name]||{};
+      state.db[name][o.seq] = o;
+      xerr.notice('XXX db %s seq %O', name, cursor.value);
+    }
   }
   state = fix_buf(state);
   if (!t_state){
@@ -468,10 +485,11 @@ const cmd_state = (curr, t)=>etask(function*cmd_state(){
   }
   for (let curr=t.r; curr = tparser.parse_get_next(curr);){
     let o = yield state_split(curr.exp);
-    assert.equal(o.type, 'mem', 'XXX TODO db');
     state_apply(t_state, o);
   }
-  assert.deepEqual(state, t_state, 'state mismach '+t.meta.s);
+  // XXX: need assert_state
+  assert.deepEqual(state.mem, t_state.mem, 'mem state mismach '+t.meta.s);
+  assert.deepEqual(state.db, t_state.db, 'db state mismach '+t.meta.s);
   t_state = state;
 });
 
@@ -1714,47 +1732,30 @@ describe('scroll', ()=>{
     });
     describe('storage', ()=>{
       describe('mem', ()=>{
-        t('seq0', `s.scroll # S..clone(s..0_0)
+        t('seq0', `s.scroll S..# clone(s..0_0)
           #(mem0=(M0 sig0 D0 m0) !mem1) S.mem.unload #(mem0=(M0) !mem1)`);
-        t('seq1', `db_init s.scroll s.decl(1) # S..clone(s..0_1)
+        t('seq1', `db_init s.scroll s.decl(1) S..# clone(s..0_1)
           #(mem0=(M0 sig0 D0 m0) mem1=(M1 sig1 D1 m1 m0_1))
           S.mem.unload #(mem0=(M0) !mem1)`);
       });
       describe('db', ()=>{
         t('b0_seq0', `db_init s.scroll
-          S..clone(s..0_0)
-          mem0=(M0 sig0 D0 m0) !db0
-          S.db.put_decl(seq0)
-          mem0=(M0 sig0 D0 m0) db0=(M0 sig0 D0 m0)
-          S.mem.unload mem0=(M0) db0=(M0 sig0 D0 m0)
-          S.db.get_decl(seq0) mem0=(M0 sig0 D0 m0) db0=(M0 sig0 D0 m0)
-        `);
+          S..clone(s..0_0) #
+          S.db.put_decl(seq0) #(db0=(M0 sig0 D0 m0))
+          S.mem.unload #(mem0=(M0))
+          S.db.get_decl(seq0) #(mem0=(M0 sig0 D0 m0))`);
         t('b0_seq1', `db_init s.scroll s.decl(1) // XXX: support scroll(decl:1)
-          S..clone(s..0_1)
-            mem0=(M0 sig0 D0 m0) mem1=(M1 sig1 D1 m1 m0_1)
-            !db0 !db1
-          S.db.put_decl(seq0)
-            db0=(M0 sig0 D0 m0)
-            mem0=(M0 sig0 D0 m0) mem1=(M1 sig1 D1 m1 m0_1)
-            db0=(M0 sig0 D0 m0) !db1
-          S.db.put_decl(seq1)
-            mem0=(M0 sig0 D0 m0) mem1=(M1 sig1 D1 m1 m0_1)
-            db0=(M0 sig0 D0 m0) db1=(M1 sig1 D1 m1 m0_1)
-          S.mem.unload
-            mem0=(M0) !mem1
-            db0=(M0 sig0 D0 m0) db1=(M1 sig1 D1 m1 m0_1)
-          S.db.get_decl(seq0)
-            mem0=(M0 sig0 D0 m0) !mem1
-            db0=(M0 sig0 D0 m0) db1=(M1 sig1 D1 m1 m0_1)
-          S.db.get_decl(seq1)
-            mem0=(M0 sig0 D0 m0) mem1=(M1 sig1 D1 m1 m0_1)
-            db0=(M0 sig0 D0 m0) db1=(M1 sig1 D1 m1 m0_1)
-        `);
+          S..clone(s..0_1) #
+          S.db.put_decl(seq0) #(db0=(M0 sig0 D0 m0))
+          S.db.put_decl(seq1) #(db1=(M1 sig1 D1 m1 m0_1))
+          S.mem.unload #(mem0=(M0) !mem1)
+          S.db.get_decl(seq0) #(mem0=(M0 sig0 D0 m0))
+          S.db.get_decl(seq1) #(mem1=(M1 sig1 D1 m1 m0_1))`);
         if (0) // XXX derry: idea for improvement
         t('b0_seq1', `db_init
   S:=s.scroll(d:1)
   s.scroll(d:1) S..clone(s..)
-  mem0=(M0 sig0 D0 m0) mem1=(M1 sig1 D1 m1 m0_1) !db0 !db1
+  mem0=(M0 sig0 D0 m0) mem1=(M1 sig1 D1 m1 m0_1) !db0(M0) !db1
 
    // d:1/decl:1 -> s.decl(1)
           S..clone(s..) # // XXX: s.. to copy everything S.clone(s)
@@ -1765,7 +1766,7 @@ describe('scroll', ()=>{
           S.db.get_decl(seq0) #mem0=(M0 sig0 D0 m0)
           S.db.get_decl(seq1) #mem1=(M1 sig1 D1 m1 m0_1)
         `);
-        // XXX: test with branch
+        // XXX: test with branch + soul (every soul has it own db)
         // XXX: limit for getting data get_decl (per frame limit, total limit)
       });
     });

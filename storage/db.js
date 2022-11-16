@@ -42,7 +42,7 @@ function edb_put(store, val){
   return estore_put(store, val);
 }
 
-function ecursor_open(store){
+E.cursor_open = function cursor_continue(store){
   let wait = etask.wait();
   store = idb.unwrap(store);
   let req = store.openCursor();
@@ -52,15 +52,15 @@ function ecursor_open(store){
     wait.continue(cursor);
   };
   return wait;
-}
+};
 
-function ecursor_continue(cursor){
+E.cursor_continue = function(cursor){
   let wait = etask.wait();
   cursor.request.onsuccess = e=>wait.continue(e.target.result);
   cursor.request.onerror = e=>wait.throw(e);
   cursor.continue();
   return wait;
-}
+};
 
 E.uninit = opt=>etask(function*init(){
   if (!E.inited)
@@ -90,8 +90,8 @@ E.init = opt=>etask(function*db_init(){
   let tx, store;
   tx = E.db.transaction('scroll', 'readonly');
   store = tx.objectStore('scroll');
-  for (let cursor = yield ecursor_open(store); cursor;
-    cursor = yield ecursor_continue(cursor)){
+  for (let cursor = yield E.cursor_open(store); cursor;
+    cursor = yield E.cursor_continue(cursor)){
     E.scrolls.set(cursor.key, cursor.value);
   }
 });
@@ -143,6 +143,7 @@ E.fix_struct = function fix_struct(o){
     else if (v instanceof Object)
       E.fix_struct(v);
   }
+  return o;
 };
 
 E.get_decl_static = (scroll, seq)=>etask(function*get_decl_static(){

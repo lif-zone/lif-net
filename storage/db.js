@@ -82,9 +82,8 @@ E.init = opt=>etask(function*db_init(){
     upgrade(db, oldVersion, newVersion, transaction, event){
       // XXX how to wait for creation of table and verify both are created
       db.createObjectStore('scroll', {keyPath: 'M'});
-      // XXX: find better way to have key for decl
-      let decl = db.createObjectStore('decl', {keyPath: 'M_seq'});
-      decl.createIndex('M-seq', ['M', 'seq'], {unique: true});
+      // XXX: use scroll id from scroll table instead of M for keyPath
+      db.createObjectStore('decl', {keyPath: ['scroll', 'seq']});
   }});
   E.scrolls = new Map();
   let tx, store;
@@ -113,7 +112,7 @@ E.get_decl = (scroll, seq)=>etask(function*get_decl(){
   let M = b2s(scroll.M_hash(0, 0));
   yield E.init_scroll(scroll);
   // XXX: need to get big data from data store
-  let o = yield edb_get('decl', M+'_'+seq);
+  let o = yield edb_get('decl', [M, seq]);
   if (!o)
     return;
   E.fix_struct(o);
@@ -123,21 +122,19 @@ E.get_decl = (scroll, seq)=>etask(function*get_decl(){
 
 E.put_decl = (scroll, seq)=>etask(function*put_decl(){
   assert(E.inited, 'db not inited');
-  let M = b2s(scroll.M_hash(0, 0));
   yield E.init_scroll(scroll);
   let decl = scroll.get_decl(seq, {create: false});
   if (!decl)
     return;
   // XXX: do all in transcation
   // XXX: need to save big data in data store
-  yield edb_put('decl', Object.assign({M_seq: M+'_'+seq}, decl.to_static()));
+  yield edb_put('decl', decl.to_static());
 });
 
 // XXX: decide on better way to handle buffers
 E.fix_struct = function fix_struct(o){
   if (!o)
     return;
-  delete o.M_seq;
   for (let name in o){
     let v = o[name];
     if (v instanceof Uint8Array)
@@ -153,7 +150,7 @@ E.get_decl_static = (scroll, seq)=>etask(function*get_decl_static(){
   if (!E.scrolls.get(M))
     return null;
   // XXX: decide on better way to handle buffers
-  let o = yield edb_get('decl', M+'_'+seq);
+  let o = yield edb_get('decl', [M, seq]);
   E.fix_struct(o);
   return o;
 });

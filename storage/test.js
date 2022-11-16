@@ -94,7 +94,23 @@ const struct_from_str = exp=>etask(function*struct_from_str(){
   return o;
 });
 
-function struct_from_decl(decl){ return decl ? decl.to_static() : null; }
+const struct_from_db = (scroll, seq)=>etask(function*struct_from_db(){
+  let o = yield DB.get_decl_static(scroll, seq);
+  if (!o)
+    return null;
+  assert.equal(o.scroll, scroll.name, 'scroll name mismatch');
+  delete o.scroll; // XXX HACK: test it as well
+  return o;
+});
+
+function struct_from_decl(decl){
+  if (!decl)
+    return null;
+  let o = decl.to_static();
+  assert.equal(o.scroll, decl.scroll.name, 'scroll name mismatch');
+  delete o.scroll; // XXX HACK: test it as well
+  return o;
+}
 
 function parse_var(v){
   let m = v.match(/^\((.*)\)$/);
@@ -234,7 +250,7 @@ const get_val = (exp, def_type='right')=>etask(function*_get_val(){
   // XXX: do we need calc_m?
   case 'm': return r0==seq ? scroll.m_hash(b, seq) :
     b ? scroll.m_hash(b, o.range) : calc_m(scroll, o.range);
-  case 'db': return yield DB.get_decl_static(scroll, seq);
+  case 'db': return yield struct_from_db(scroll, seq);
   case 'mem':
     return yield struct_from_decl(scroll.get_decl(seq, {create: false}));
   case 'struct': return yield struct_from_str(o.val);

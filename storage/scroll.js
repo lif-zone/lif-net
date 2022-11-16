@@ -358,8 +358,10 @@ export default class Scroll extends EventEmitter {
   notify_M(opt){
     let {b, seq, M} = opt;
     assert(seq!=0 || b==0, 'M0 exists only on b0');
-    if (seq==0)
+    if (seq==0){
+      this.name = b2s(M);
       this.soul.set(M, this);
+    }
     if (!this.branch.get(b).top || this.branch.get(b).top.seq<seq){
       this.branch.get(b).top = {seq, M};
       assert.equal(b2s(M), b2s(this.M_hash(b, this.branch.get(b).top.seq)),
@@ -935,7 +937,7 @@ class Decl extends EventEmitter {
     this.data.copy(bdst, bsrc);
   }
   to_static(){
-    let o = {seq: this.seq};
+    let o = {scroll: this.scroll.name, seq: this.seq};
     // XXX: inefficient, don't go over all branches, but instead just those
     // with data
     for (const [b] of this.scroll.branch){

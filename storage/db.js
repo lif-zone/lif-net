@@ -7,11 +7,7 @@ import xerr from '../util/xerr.js';
 import buf_util from '../peer-relay/buf_util.js';
 import setGlobalVars from 'indexeddbshim';
 const b2s = buf_util.buf_to_str;
-global.window = global;
-// XXX: move to db.init
-// XXX: change to memoryDatabase: ':memory:'
-setGlobalVars(null, {checkOrigin: false, databaseBasePath: '/tmp/',
-  deleteDatabaseFiles: true, useSQLiteIndexes: true});
+setGlobalVars();
 
 const E = {scrolls: {}};
 export default E;
@@ -71,6 +67,8 @@ E.uninit = opt=>etask(function*init(){
     return xerr('db not inited');
   yield E.db.close();
   E.db = E.scrolls = undefined;
+  if (opt.delete)
+    yield E.delete_db();
   E.inited = false;
 });
 
@@ -78,6 +76,9 @@ E.init = opt=>etask(function*db_init(){
   if (E.inited)
     return xerr('db already inited');
   E.inited = true;
+  global.shimIndexedDB.__setConfig(opt.shim_conf);
+  if (opt.delete)
+    E.delete_db();
   E.db = yield idb.openDB('lif', undefined, {
     upgrade(db, oldVersion, newVersion, transaction, event){
       // XXX how to wait for creation of table and verify both are created
@@ -156,6 +157,6 @@ E.get_decl_static = (scroll, seq)=>etask(function*get_decl_static(){
 });
 
 E.delete_db = ()=>etask(function*delete_db(){
-  assert(!E.inited, 'db not inited');
+  assert(!E.db, 'db is opened');
   yield idb.deleteDB('lif');
 });

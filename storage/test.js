@@ -293,10 +293,8 @@ const test_start = ()=>etask(function*test_start(){
 
 const test_end = ()=>etask(function*test_end(){
   Scroll.soul.clear();
-  if (DB.inited){
-    yield DB.uninit();
-    yield DB.delete_db();
-  }
+  if (DB.inited)
+    yield DB.uninit({delete: true});
 });
 
 function cmd_conf(t){
@@ -317,8 +315,9 @@ function cmd_conf(t){
 }
 
 const cmd_db_init = t=>etask(function*cmd_db_init(){
-  yield DB.delete_db();
-  yield DB.init();
+  yield DB.init({delete: true, shim_conf: {checkOrigin: false,
+    databaseBasePath: '/tmp/', deleteDatabaseFiles: true,
+    useSQLiteIndexes: true}});
 });
 
 const cmd_scroll = t=>etask(function*cmd_scroll(){

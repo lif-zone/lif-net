@@ -443,14 +443,11 @@ const state_split = exp=>etask(function*state_split(){
 });
 
 function state_apply(state, o){
-  let {type, name, seq, val} = o;
+  let {type, seq, val} = o;
   if (val){
-    state[type][name] = state[type][name]||{};
-    state[type][name][seq] = val;
-  } else {
-    if (state[type][name])
-      delete state[type][name][seq];
-  }
+    state[type][seq] = val;
+  } else
+    delete state[type][seq];
 }
 
 const cmd_state = (curr, t)=>etask(function*cmd_state(){
@@ -458,10 +455,10 @@ const cmd_state = (curr, t)=>etask(function*cmd_state(){
   let name = t.ctx||get_def('left');
   let scroll = get_scroll(t.ctx||get_def('left'), true);
   let soul = scroll?.soul;
-  state.mem[name] = {};
+  state.mem = {};
   if (scroll){
     for (const [seq, decl] of scroll.dmap)
-      state.mem[name][seq] = struct_from_decl(decl);
+      state.mem[seq] = struct_from_decl(decl);
   }
   if (DB.inited && soul){
     let tx = DB.db.transaction('decl', 'readonly');
@@ -472,9 +469,8 @@ const cmd_state = (curr, t)=>etask(function*cmd_state(){
       if (soul.get(o.scroll).t.name!=name)
         continue;
       delete o.scroll;
-      state.db[name] = state.db[name]||{};
-      state.db[name][o.seq] = o;
-      xerr.notice('XXX db %s seq %O', name, cursor.value);
+      state.db = state.db||{};
+      state.db[o.seq] = o;
     }
   }
   state = fix_buf(state);
@@ -1741,6 +1737,13 @@ describe('scroll', ()=>{
       // XXX: support #db0=(M0 sig0 D0 m0)
       // XXX: S..:=s.scroll(d:1)
       // XXX: s.scroll(d:1) S..clone(s..)
+      // XXX TODO:
+      // + change db stucture to be one table for all decleration
+      // + implement state diff api: #
+      // * finish parsing shortcuts
+      // - db per soul
+      // - db branch support testing
+      // - handle big data
       describe('db', ()=>{
         t('b0_seq0', `db_init s.scroll
           S..clone(s..0_0) #

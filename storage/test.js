@@ -14,9 +14,10 @@ import DB from './db.js';
 import buf_util from '../peer-relay/buf_util.js';
 import {r_str, r_from_str, r_parent} from './range.js';
 const b2s = buf_util.buf_to_str, s2b = buf_util.buf_from_str;
+const assign = Object.assign; // XXX: rm, use ...
 function enc_u64(v){ return enc.encode(enc.uint64, v); }
 
-let t_soul, t_soul_id, t_soul_mode;
+let t_soul, t_soul_id, t_soul_mode, t_state;
 let t_scroll, t_genesis_scroll, t_prev_scroll, t_def, t_keypair;
 
 // XXX: make it automatic for all node/browser in proc.js
@@ -145,6 +146,22 @@ function get_def(type){
   return t_def[type];
 }
 
+function fix_buf(o){
+  if (!o)
+    return;
+  let ret = {};
+  for (let name in o){
+    let v = o[name];
+    if (Buffer.isBuffer(v))
+      ret[name] = b2s(v);
+    else if (v instanceof Object)
+      ret[name] = fix_buf(v);
+    else
+      ret[name] = v;
+  }
+  return ret;
+}
+
 function assert_buffer(a, b, desc){
   if (Buffer.isBuffer(a) && Buffer.isBuffer(b))
     assert.equal(b2s(a), b2s(b), 'buffer not equal '+desc);
@@ -269,6 +286,7 @@ const test_start = ()=>etask(function*test_start(){
   t_soul_id = 0;
   t_scroll = {};
   t_def = {};
+  t_state = null;
   t_keypair = {pub: s2b('44659cb51dec397ea66085679442505345e159940762c15ef75'+
     'ad279ecf05033'),
     key: s2b('46f45a62f4c5971228747aa2d8ee66bd669ebd805c725286ee385b1d4a06dd'+
@@ -401,6 +419,60 @@ const cmd_decl = t=>etask(function*cmd_decl(){
     } else
       yield test_decl(scroll, curr.exp);
   }
+});
+
+function state_split_var(v){
+  let o = parse_var(v), {type, seq, b} = o;
+  if (o.def)
+    set_def('left', o.ctx);
+  let name = o.ctx||get_def('left');
+  assert(['mem', 'db'].includes(type), 'invalid type '+type);
+  assert.equal(b, '0', 'invalid branch usage');
+  return {name, type, seq};
+}
+
+const state_split = exp=>etask(function*state_split(){
+  let o = tparser.parse_exp(exp);
+  switch (o.cmd){
+  case '!': return assign(state_split_var(o.r), {val: null});
+  case '=': return assign(state_split_var(o.l),
+    {val: fix_buf(yield get_val(o.r, 'right'))});
+  default: assert.fail('invalid state_split '+exp);
+  }
+});
+
+function state_apply(state, o){
+  let {type, name, seq, val} = o;
+  if (val){
+    state[type][name] = state[type][name]||{};
+    state[type][name][seq] = val;
+  } else {
+    if (state[type][name])
+      delete state[type][name][seq];
+  }
+}
+
+const cmd_state = (curr, t)=>etask(function*cmd_state(){
+  let state = {mem: {}};
+  for (let name in t_scroll){
+    let scroll = t_scroll[name];
+    state.mem[name] = {};
+    for (const [seq, decl] of scroll.dmap)
+      state.mem[name][seq] = struct_from_decl(decl);
+  }
+  state = fix_buf(state);
+  if (!t_state){
+    assert(!t.r, 'first # must be empty to set reference state');
+    t_state = state;
+    return;
+  }
+  for (let curr=t.r; curr = tparser.parse_get_next(curr);){
+    let o = yield state_split(curr.exp);
+    assert.equal(o.type, 'mem', 'XXX TODO db');
+    state_apply(t_state, o);
+  }
+  assert.deepEqual(state, t_state, 'state mismach '+t.meta.s);
+  t_state = state;
 });
 
 function cmd_tput(curr, t){
@@ -599,6 +671,7 @@ const test_run_single = (curr, o)=>etask(function*_test_run_single(){
   case 'get_decl': yield cmd_get_decl(curr, o); break;
   case 'unload': yield cmd_unload(curr, o); break;
   case 'tput': yield cmd_tput(curr, o); break;
+  case '#': yield cmd_state(curr, o); break;
   case '=': yield cmd_eq(o); break;
   case '==': yield cmd_test(o); break;
   case 'b': yield cmd_b(o); break;
@@ -1641,20 +1714,18 @@ describe('scroll', ()=>{
     });
     describe('storage', ()=>{
       describe('mem', ()=>{
-        t('seq0', `db_init s.scroll S..clone(s..0_0)
-          mem0=(M0 sig0 D0 m0) !db0 S.mem.unload mem0=(M0) !db0`);
-        t('seq1', `db_init s.scroll s.decl(1) S..clone(s..0_1)
-          mem0=(M0 sig0 D0 m0) mem1=(M1 sig1 D1 m1 m0_1) !db0 !db1
-          S.mem.unload mem0=(M0) !mem1 !db0 !db1`);
+        t('seq0', `s.scroll # S..clone(s..0_0)
+          #(mem0=(M0 sig0 D0 m0) !mem1) S.mem.unload #(mem0=(M0) !mem1)`);
+        t('seq1', `db_init s.scroll s.decl(1) # S..clone(s..0_1)
+          #(mem0=(M0 sig0 D0 m0) mem1=(M1 sig1 D1 m1 m0_1))
+          S.mem.unload #(mem0=(M0) !mem1)`);
       });
       describe('db', ()=>{
-        // XXX derry:
-        // XXX: how/where to save branch info
-        // XXX: indexdb - adding new table requires to open/close db
-        // (and we keep each scroll in different table
         t('b0_seq0', `db_init s.scroll
-          S..clone(s..0_0) mem0=(M0 sig0 D0 m0) !db0
-          S.db.put_decl(seq0) mem0=(M0 sig0 D0 m0) db0=(M0 sig0 D0 m0)
+          S..clone(s..0_0)
+          mem0=(M0 sig0 D0 m0) !db0
+          S.db.put_decl(seq0)
+          mem0=(M0 sig0 D0 m0) db0=(M0 sig0 D0 m0)
           S.mem.unload mem0=(M0) db0=(M0 sig0 D0 m0)
           S.db.get_decl(seq0) mem0=(M0 sig0 D0 m0) db0=(M0 sig0 D0 m0)
         `);

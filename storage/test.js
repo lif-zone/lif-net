@@ -463,6 +463,7 @@ const cmd_state = (curr, t)=>etask(function*cmd_state(){
   if (DB.inited && soul){
     let tx = DB.db.transaction('decl', 'readonly');
     let store = tx.objectStore('decl');
+    // XXX: optimize, just get data of scroll from DB
     for (let cursor = yield DB.cursor_open(store); cursor;
       cursor = yield DB.cursor_continue(cursor)){
       let o = DB.fix_struct(cursor.value);

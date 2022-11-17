@@ -58,7 +58,7 @@ function macro_to_m(val, dst){
     if (/^[\da-zA-Z]$/.test(a[i])){
       let ch = a[i];
       let {n, d} = to_nd(ch);
-      s = space(s)+(i==a.length-1 ? d+'.sig'+n+' '+d+'.d'+n : d+'.m'+n);
+      s = space(s)+(i==a.length-1 ? d+'.sig'+n+' '+d+'.D'+n : d+'.m'+n);
       continue;
     }
     let m = a[i].split('_');
@@ -213,7 +213,11 @@ const calc_m = (scroll, range)=>etask(function*calc_m(){
   return scroll_m||test_m;
 });
 
-function b_pos2id(scroll, pos){ return Array.from(scroll.branch.keys())[pos]; }
+function b_pos2id(scroll, pos){
+  let id = Array.from(scroll.branch.keys())[pos];
+  assert(id>=0, 'branch not found at pos '+pos);
+  return id;
+}
 function b_id2pos(scroll, bid){
   return Array.from(scroll.branch.keys()).indexOf(bid); }
 
@@ -342,6 +346,36 @@ const cmd_db_init = t=>etask(function*cmd_db_init(){
     useSQLiteIndexes: true}});
 });
 
+const new_scroll = (name, M, prev_scroll, soul_name)=>etask(
+  function*new_scroll(){
+  let soul, scroll;
+  if (t_soul_mode=='differnt'){
+    assert(!soul_name, 'no soul name in differnt mode');
+    soul_name = 'auto_soul'+t_soul_id++;
+    soul = t_soul[soul_name] = t_soul[soul_name] || new Scroll.Soul();
+  }
+  else if (t_soul_mode=='manual'){
+    assert(soul_name, 'missing sould name in manual mode');
+    soul = t_soul[soul_name] = t_soul[soul_name] || new Scroll.Soul();
+  } else if (t_soul_mode=='same'){
+    assert(!soul_name, 'no soul name in same mode');
+    soul_name = 'same';
+    soul = t_soul[soul_name] = t_soul[soul_name] || new Scroll.Soul();
+  } else
+    assert.fail('invalid sould mode '+t_soul_mode);
+  if (M){
+   scroll = yield Scroll.open({soul, key: t_keypair.key,
+     pub: t_keypair.pub, M});
+  }
+  else {
+    scroll = yield Scroll.create({soul, key: t_keypair.key,
+      pub: t_keypair.pub, prev_scroll}, {topic: 'test'});
+  }
+  t_scroll[name] = scroll;
+  scroll.t = {name};
+  return scroll;
+});
+
 const cmd_scroll = t=>etask(function*cmd_scroll(){
   let prev_scroll = yield t_prev_scroll.M_hash(0, 1);
   let name = t.ctx||get_def('left'), M, a, scroll, d;
@@ -372,41 +406,14 @@ const cmd_scroll = t=>etask(function*cmd_scroll(){
       assert.fail('invalid arg '+tt.cmd+' in '+t.meta.s);
     }
   }
-  let soul;
-  if (t_soul_mode=='differnt'){
-    let soul_name = t.prev?.ctx;
-    assert(!soul_name, 'no soul name in differnt mode');
-    soul_name = 'auto_soul'+t_soul_id++;
-    soul = t_soul[soul_name] = t_soul[soul_name] || new Scroll.Soul();
-  }
-  else if (t_soul_mode=='manual'){
-    let soul_name = t.prev?.ctx;
-    assert(soul_name, 'missing sould name in manual mode');
-    soul = t_soul[soul_name] = t_soul[soul_name] || new Scroll.Soul();
-  } else if (t_soul_mode=='same'){
-    let soul_name = t.prev?.ctx;
-    assert(!soul_name, 'no soul name in same mode');
-    soul_name = 'same';
-    soul = t_soul[soul_name] = t_soul[soul_name] || new Scroll.Soul();
-  } else
-    assert.fail('invalid sould mode '+t_soul_mode);
-  if (M){
-   scroll = yield Scroll.open({soul, key: t_keypair.key,
-     pub: t_keypair.pub, M});
-  }
-  else {
-    scroll = yield Scroll.create({soul, key: t_keypair.key,
-      pub: t_keypair.pub, prev_scroll}, {topic: 'test'});
-  }
-  t_scroll[name] = scroll;
-  scroll.t = {name};
+  scroll = yield new_scroll(name, M, prev_scroll, t.prev?.ctx);
   if (d!==undefined){
     for (let j=d[0]; j<=d[1]; j++)
       yield test_decl(scroll, ''+j);
   }
 });
 
-const cmd_clone = (curr, t)=>etask(function cmd_clone(){
+const cmd_clone = (curr, t)=>etask(function*cmd_clone(){
   let dst = t.ctx||get_def('left');
   assert(!t_scroll[dst], 'scroll already exist '+dst);
   assert(!t.l, 'invalid arg '+t.meta.s);
@@ -415,10 +422,12 @@ const cmd_clone = (curr, t)=>etask(function cmd_clone(){
   let src = m[1], seq = +m[5];
   if (m[2]=='..')
     set_def('right', src);
-  let s = dst+'.scroll(M0:'+src+'.M0)';
-  for (let i=0; i<=seq; i++)
-    s += ' '+dst+'.put(sig'+i+':'+src+'.sig'+i+' D'+i+':'+src+'.D'+i+')';
-  tparser.parse_push(curr, s);
+  let s_src = get_scroll(src);
+  let d_src = yield new_scroll(dst, s_src.M_hash(0, 0));
+  for (let [seq2, decl] of s_src.dmap){
+    if (seq2<=seq)
+      d_src.get_decl(seq2).from_static(decl.to_static());
+  }
 });
 
 const cmd_decl = t=>etask(function*cmd_decl(){
@@ -1042,25 +1051,25 @@ describe('scroll', ()=>{
   describe('macro', ()=>{
     it('to_m', ()=>{
       const t = (val, exp)=>assert.equal(macro_to_m(val, 's'), exp);
-      t('0', 's.sig0 s.d0');
-      t('0 1', 's.m0 s.sig1 s.d1');
+      t('0', 's.sig0 s.D0');
+      t('0 1', 's.m0 s.sig1 s.D1');
       t('0_1', 's.m0_1');
-      t('0_1 2', 's.m0_1 s.sig2 s.d2');
-      t('0_1_2_3 4_5 6', 's.m0_3 s.m4_5 s.sig6 s.d6');
-      t('0_1 2        ', 's.m0_1 s.sig2 s.d2');
-      t('a', 's1.sig0 s1.d0');
-      t('a b', 's1.m0 s1.sig1 s1.d1');
+      t('0_1 2', 's.m0_1 s.sig2 s.D2');
+      t('0_1_2_3 4_5 6', 's.m0_3 s.m4_5 s.sig6 s.D6');
+      t('0_1 2        ', 's.m0_1 s.sig2 s.D2');
+      t('a', 's1.sig0 s1.D0');
+      t('a b', 's1.m0 s1.sig1 s1.D1');
       t('a_b', 's1.m0_1');
-      t('a_b c', 's1.m0_1 s1.sig2 s1.d2');
-      t('a_b_c_d e_f g', 's1.m0_3 s1.m4_5 s1.sig6 s1.d6');
-      t('A', 's2.sig0 s2.d0');
-      t('A B', 's2.m0 s2.sig1 s2.d1');
+      t('a_b c', 's1.m0_1 s1.sig2 s1.D2');
+      t('a_b_c_d e_f g', 's1.m0_3 s1.m4_5 s1.sig6 s1.D6');
+      t('A', 's2.sig0 s2.D0');
+      t('A B', 's2.m0 s2.sig1 s2.D1');
       t('A_B', 's2.m0_1');
-      t('A_B C', 's2.m0_1 s2.sig2 s2.d2');
-      t('A_B_C_D E_F G', 's2.m0_3 s2.m4_5 s2.sig6 s2.d6');
-      t('0 b', 's.m0 s1.sig1 s1.d1');
-      t('0 B', 's.m0 s2.sig1 s2.d1');
-      t('a B', 's1.m0 s2.sig1 s2.d1');
+      t('A_B C', 's2.m0_1 s2.sig2 s2.D2');
+      t('A_B_C_D E_F G', 's2.m0_3 s2.m4_5 s2.sig6 s2.D6');
+      t('0 b', 's.m0 s1.sig1 s1.D1');
+      t('0 B', 's.m0 s2.sig1 s2.D1');
+      t('a B', 's1.m0 s2.sig1 s2.D1');
     });
   });
   describe('api', ()=>{
@@ -1761,6 +1770,7 @@ describe('scroll', ()=>{
       // * finish parsing shortcuts
       // - db per soul
       // - db branch support testing
+      //   - how to handle branch merge (b in db is wrong now)
       // - handle big data
       describe('db_decl', ()=>{
         t('b0_seq0', `db_init s.scroll S..clone(s..0_0) #
@@ -1804,6 +1814,21 @@ describe('scroll', ()=>{
           db.get_decl(seq2) #(mem2=(M2 sig2 D2 m2)) b(M4)
           db.get_decl(seq1) #(mem1=(M1 sig1 D1 m1 m0_1)) b(M4)
           db.get_decl(seq0) #(mem0=(M0 sig0 D0 m0)) b(M4)`);
+        t('b1_xxx', `db_init s0.scroll(d:1-6) s1..scroll(s0..M0)
+          tput(0 1 2 3 4    )
+          tput(0_1_2_3 4_5 6) b(M4 3v0.M6)
+//          S.clone(s1..0_6)
+
+
+// S..scroll(s..M0) #
+//            #(mem0=(M0 m0) mem1=(M1 m1 m0_1) mem2=(M2 m2)
+//            mem3=(M3 m3 m2_3 m0_3) mem4=(M4 m4 sig4 D4))
+//          mem5=(M5b1 m4_5b1)
+//          mem6=(M6b1 m6b1 sig6b1 D6b1)
+`);
+// XXX: need transaction support for put_decl (otherwise we may leave the db
+// corrupted if there was a merge)
+
         if (0) // XXX derry: idea for improvement
         t('b0_seq1', `db_init
   S:=s.scroll(d:1)

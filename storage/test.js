@@ -880,6 +880,7 @@ describe('parser', ()=>{
     t('==(a)', {cmd: '==', l: '', r: 'a'});
     t('a.b', {cmd: '.', l: 'a', r: 'b'});
     t('a:b', {cmd: ':', l: 'a', r: 'b'});
+    t('a:=b', {cmd: ':=', l: 'a', r: 'b'});
     t('a=b', {cmd: '=', l: 'a', r: 'b'});
     t('a+b', {cmd: '+', l: 'a', r: 'b'});
     t('a=b(2)', {cmd: '=', l: 'a', r: 'b(2)'});
@@ -1758,16 +1759,16 @@ describe('scroll', ()=>{
       describe('db', ()=>{
         t('b0_seq0', `db_init s.scroll
           S..clone(s..0_0) #
-          S.db.put_decl(seq0) #(db0=(M0 sig0 D0 m0))
-          S.mem.unload #(mem0=(M0))
-          S.db.get_decl(seq0) #(mem0=(M0 sig0 D0 m0))`);
-        t('b0_seq1', `db_init s.scroll(d:1)
-          S..clone(s..0_1) #
-          S.db.put_decl(seq0) #(db0=(M0 sig0 D0 m0))
-          S.db.put_decl(seq1) #(db1=(M1 sig1 D1 m1 m0_1))
-          S.mem.unload #(mem0=(M0) !mem1)
-          S.db.get_decl(seq0) #(mem0=(M0 sig0 D0 m0))
-          S.db.get_decl(seq1) #(mem1=(M1 sig1 D1 m1 m0_1))`);
+          db.put_decl(seq0) #(db0=(M0 sig0 D0 m0))
+          mem.unload #(mem0=(M0))
+          db.get_decl(seq0) #(mem0=(M0 sig0 D0 m0))`);
+        t('b0_seq1', `db_init
+          s.scroll(d:1) S..clone(s..0_1) #
+          db.put_decl(seq0) #(db0=(M0 sig0 D0 m0))
+          db.put_decl(seq1) #(db1=(M1 sig1 D1 m1 m0_1))
+          mem.unload #(mem0=(M0) !mem1)
+          db.get_decl(seq0) #(mem0=(M0 sig0 D0 m0))
+          db.get_decl(seq1) #(mem1=(M1 sig1 D1 m1 m0_1))`);
         if (0) // XXX derry: idea for improvement
         t('b0_seq1', `db_init
   S:=s.scroll(d:1)

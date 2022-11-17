@@ -423,10 +423,20 @@ const cmd_clone = (curr, t)=>etask(function*cmd_clone(){
   if (m[2]=='..')
     set_def('right', src);
   let s_src = get_scroll(src);
-  let d_src = yield new_scroll(dst, s_src.M_hash(0, 0));
+  let s_dst = yield new_scroll(dst, s_src.M_hash(0, 0));
+  if (Array.from(s_src.branch.keys()).length>1){
+    for (let [bid, bo] of s_src.branch){
+      assert(bo.top.seq<=seq, 'cannot clone less than branch top '+bo.top.seq);
+      let o = {b: bid, top: {seq: bo.top.seq, M: Buffer.from(bo.top.M)},
+        parent: bo.parent && assign({}, bo.parent), branches: new Map()};
+      s_dst.branch.set(bid, o);
+      if (o.parent)
+        s_dst.branch.get(o.parent.b).branches.set(o);
+    }
+  }
   for (let [seq2, decl] of s_src.dmap){
     if (seq2<=seq)
-      d_src.get_decl(seq2).from_static(decl.to_static());
+      s_dst.get_decl(seq2).from_static(decl.to_static());
   }
 });
 
@@ -1781,7 +1791,7 @@ describe('scroll', ()=>{
           db.put_decl(seq0) #(db0=(M0 sig0 D0 m0))
           db.put_decl(seq1) #(db1=(M1 sig1 D1 m1 m0_1))
           mem.unload #(mem0=(M0) !mem1)
-          db.get_decl(seq0) #(mem0=(M0 sig0 D0 m0)) b(M0)
+          db.get_decl(seq0) #(mem0=(M0 sig0 D0 m0)) b(M1)
           db.get_decl(seq1) #(mem1=(M1 sig1 D1 m1 m0_1)) b(M1)`);
         // XXX: mv branch info to be part of # state
         t('b0_seq1_reverse', `db_init s.scroll(d:1) S..clone(s..0_1) #
@@ -1796,11 +1806,11 @@ describe('scroll', ()=>{
           db.put_decl(seq2) #(db2=(M2 sig2 D2 m2))
           db.put_decl(seq3) #(db3=(M3 sig3 D3 m3 m2_3 m0_3))
           db.put_decl(seq4) #(db4=(M4 sig4 D4 m4))
-          mem.unload #(mem0=(M0) !mem1 !mem2 !mem3 !mem4) b(M0)
-          db.get_decl(seq0) #(mem0=(M0 sig0 D0 m0)) b(M0)
-          db.get_decl(seq1) #(mem1=(M1 sig1 D1 m1 m0_1)) b(M1)
-          db.get_decl(seq2) #(mem2=(M2 sig2 D2 m2)) b(M2)
-          db.get_decl(seq3) #(mem3=(M3 sig3 D3 m3 m2_3 m0_3)) b(M3)
+          mem.unload #(mem0=(M0) !mem1 !mem2 !mem3 !mem4) b(M4)
+          db.get_decl(seq0) #(mem0=(M0 sig0 D0 m0)) b(M4)
+          db.get_decl(seq1) #(mem1=(M1 sig1 D1 m1 m0_1)) b(M4)
+          db.get_decl(seq2) #(mem2=(M2 sig2 D2 m2)) b(M4)
+          db.get_decl(seq3) #(mem3=(M3 sig3 D3 m3 m2_3 m0_3)) b(M4)
           db.get_decl(seq4) #(mem4=(M4 sig4 D4 m4)) b(M4)`);
         t('b0_seq4_rev', `db_init s.scroll(d:1-4) S..clone(s..0_4) #
           db.put_decl(seq0) #(db0=(M0 sig0 D0 m0))
@@ -1808,24 +1818,42 @@ describe('scroll', ()=>{
           db.put_decl(seq2) #(db2=(M2 sig2 D2 m2))
           db.put_decl(seq3) #(db3=(M3 sig3 D3 m3 m2_3 m0_3))
           db.put_decl(seq4) #(db4=(M4 sig4 D4 m4))
-          mem.unload #(mem0=(M0) !mem1 !mem2 !mem3 !mem4) b(M0)
+          mem.unload #(mem0=(M0) !mem1 !mem2 !mem3 !mem4) b(M4)
           db.get_decl(seq4) #(mem4=(M4 sig4 D4 m4)) b(M4)
           db.get_decl(seq3) #(mem3=(M3 sig3 D3 m3 m2_3 m0_3)) b(M4)
           db.get_decl(seq2) #(mem2=(M2 sig2 D2 m2)) b(M4)
           db.get_decl(seq1) #(mem1=(M1 sig1 D1 m1 m0_1)) b(M4)
           db.get_decl(seq0) #(mem0=(M0 sig0 D0 m0)) b(M4)`);
+        // XXX: need tests for clone with branch to verify clone is correct
         t('b1_xxx', `db_init s0.scroll(d:1-6) s1..scroll(s0..M0)
           tput(0 1 2 3 4    )
           tput(0_1_2_3 4_5 6) b(M4 3v0.M6)
-//          S.clone(s1..0_6)
-
-
-// S..scroll(s..M0) #
-//            #(mem0=(M0 m0) mem1=(M1 m1 m0_1) mem2=(M2 m2)
-//            mem3=(M3 m3 m2_3 m0_3) mem4=(M4 m4 sig4 D4))
-//          mem5=(M5b1 m4_5b1)
-//          mem6=(M6b1 m6b1 sig6b1 D6b1)
-`);
+          S..clone(s1..0_6)
+          mem0=(M0 m0)
+          mem1=(M1 m1 m0_1)
+          mem2=(M2 m2)
+          mem3=(M3 m3 m2_3 m0_3)
+          mem4=(M4 m4 sig4 D4)
+          mem5=(M5b1 m4_5b1)
+          mem6=(M6b1 m6b1 sig6b1 D6b1) #
+          db.put_decl(seq0) #(db0=(M0 m0))
+          db.put_decl(seq1) #(db1=(M1 m1 m0_1))
+          db.put_decl(seq2) #(db2=(M2 m2))
+          db.put_decl(seq3) #(db3=(M3 m3 m2_3 m0_3))
+          db.put_decl(seq4) #(db4=(M4 m4 sig4 D4))
+          db.put_decl(seq5) #(db5=(M5b1 m4_5b1))
+          db.put_decl(seq6) #(db6=(M6b1 m6b1 sig6b1 D6b1))
+          mem.unload #(mem0=(M0) !mem1 !mem2 !mem3 !mem4 !mem5 !mem6)
+// XXX          b(M4 3v0.M6)
+          db.get_decl(seq0) #(mem0=(M0 m0))
+          db.get_decl(seq1) #(mem1=(M1 m1 m0_1))
+          db.get_decl(seq2) #(mem2=(M2 m2))
+          db.get_decl(seq3) #(mem3=(M3 m3 m2_3 m0_3))
+          db.get_decl(seq4) #(mem4=(M4 m4 sig4 D4))
+          db.get_decl(seq5) #(mem5=(M5b1 m4_5b1))
+          db.get_decl(seq6) #(mem6=(M6b1 m6b1 sig6b1 D6b1))
+// XXX         b(M4 3v0.M6)
+        `);
 // XXX: need transaction support for put_decl (otherwise we may leave the db
 // corrupted if there was a merge)
 

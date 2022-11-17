@@ -310,11 +310,9 @@ export default class Scroll extends EventEmitter {
     let M0 = this.M_hash(0, 0);
     this.soul.delete(M0);
     this.dmap = new Map();
-    this.branch = new Map();
-    this.branch.next_id = 0;
     this.merge_queue = new Map;
     this.merge_queue.get_one = Map_get_one;
-    this.create_new_branch();
+    // XXX HACK: why is needed (for soul?)
     let decl = this.get_decl(0);
     decl.M.set_hash(0, M0);
   }
@@ -941,6 +939,8 @@ class Decl extends EventEmitter {
     // XXX: inefficient, don't go over all branches, but instead just those
     // with data
     for (const [b] of this.scroll.branch){
+      if (b != this.to_b(b))
+        continue;
       if (this.sig_get(b)){
         o.sig = o.sig||{};
         o.sig[b] = o.sig[b]||this.sig_get(b);

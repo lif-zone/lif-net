@@ -1767,6 +1767,18 @@ describe('scroll', ()=>{
           mem.unload #(mem0=(M0) !mem1)
           db.get_decl(seq0) #(mem0=(M0 sig0 D0 m0))
           db.get_decl(seq1) #(mem1=(M1 sig1 D1 m1 m0_1))`);
+        t('b0_seq4', `db_init s.scroll(d:1-4) S..clone(s..0_4) #
+          db.put_decl(seq0) #(db0=(M0 sig0 D0 m0))
+          db.put_decl(seq1) #(db1=(M1 sig1 D1 m1 m0_1))
+          db.put_decl(seq2) #(db2=(M2 sig2 D2 m2))
+          db.put_decl(seq3) #(db3=(M3 sig3 D3 m3 m2_3 m0_3))
+          db.put_decl(seq4) #(db4=(M4 sig4 D4 m4))
+          mem.unload #(mem0=(M0) !mem1 !mem2 !mem3 !mem4)
+          db.get_decl(seq0) #(mem0=(M0 sig0 D0 m0))
+          db.get_decl(seq1) #(mem1=(M1 sig1 D1 m1 m0_1))
+          db.get_decl(seq2) #(mem2=(M2 sig2 D2 m2))
+          db.get_decl(seq3) #(mem3=(M3 sig3 D3 m3 m2_3 m0_3))
+          db.get_decl(seq4) #(mem4=(M4 sig4 D4 m4))`);
         if (0) // XXX derry: idea for improvement
         t('b0_seq1', `db_init
   S:=s.scroll(d:1)

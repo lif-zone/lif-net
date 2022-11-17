@@ -341,7 +341,7 @@ const cmd_db_init = t=>etask(function*cmd_db_init(){
 
 const cmd_scroll = t=>etask(function*cmd_scroll(){
   let prev_scroll = yield t_prev_scroll.M_hash(0, 1);
-  let name = t.ctx||get_def('left'), M, a, scroll;
+  let name = t.ctx||get_def('left'), M, a, scroll, d;
   assert(!t.l, 'invalid arg '+t.meta.s);
   assert(!t_scroll[name], 'scroll already exist '+name);
   for (let curr=t.r, i=0; curr = tparser.parse_get_next(curr); i++){
@@ -352,6 +352,12 @@ const cmd_scroll = t=>etask(function*cmd_scroll(){
         prev_scroll = null;
       else
         assert.fail('invalid arg '+t.meta.s);
+      break;
+    case 'd':
+      if (a=tt.r.match(/^(\d+)-(\d+)$/))
+        d = [+a[1], +a[2]];
+      else if (a=tt.r.match(/^(\d+)$/))
+        d = [+a[1], +a[1]];
       break;
     default:
       t2 = tparser.parse_exp_arg_pair(curr.exp);
@@ -391,6 +397,10 @@ const cmd_scroll = t=>etask(function*cmd_scroll(){
   }
   t_scroll[name] = scroll;
   scroll.t = {name};
+  if (d!==undefined){
+    for (let j=d[0]; j<=d[1]; j++)
+      yield test_decl(scroll, ''+j);
+  }
 });
 
 const cmd_clone = (curr, t)=>etask(function cmd_clone(){
@@ -1049,19 +1059,19 @@ describe('scroll', ()=>{
   describe('api', ()=>{
     const t = (name, test)=>it(name, ()=>test_run(test));
     describe('soul', ()=>{
-      t('manual', `conf(soul:manual) soul1.s0..scroll(!prev_scroll) decl(1)
+      t('manual', `conf(soul:manual) soul1.s0..scroll(!prev_scroll d:1)
         soul1.s1.scroll(M0:s0..M0) soul2.s2.scroll(M0)
         M1=0x9ae687b90fd63ad629061a53e491e4f5fec8a6adebcb9afe374851ae42b62552
         s1.M1=M1 !s2.M1`);
-      t('same', `conf(soul:same) s0..scroll(!prev_scroll) decl(1)
+      t('same', `conf(soul:same) s0..scroll(!prev_scroll d:1)
         s1.scroll(M0:s0..M0) s2.scroll(M0)
         M1=0x9ae687b90fd63ad629061a53e491e4f5fec8a6adebcb9afe374851ae42b62552
         s1.M1=M1 s2.M1=M1`);
-      t('differnt', `conf(soul:differnt) s0..scroll(!prev_scroll) decl(1)
+      t('differnt', `conf(soul:differnt) s0..scroll(!prev_scroll d:1)
         s1.scroll(M0:s0..M0) s2.scroll(M0)
         M1=0x9ae687b90fd63ad629061a53e491e4f5fec8a6adebcb9afe374851ae42b62552
         !s1.M1 !s2.M1`);
-      t('default', `s0..scroll(!prev_scroll) decl(1)
+      t('default', `s0..scroll(!prev_scroll d:1)
         s1.scroll(M0:s0..M0) s2.scroll(M0)
         M1=0x9ae687b90fd63ad629061a53e491e4f5fec8a6adebcb9afe374851ae42b62552
         !s1.M1 !s2.M1`);
@@ -1070,19 +1080,19 @@ describe('scroll', ()=>{
       let sig0 = '0x9d73f19857885309cb311a8ec7d635ca2898da1b1fb8e31e9b7e01bb'+
         'bc6de68a5b9d756ff02462a3b2f8900e46a496ace5d3acb4f3e73180be515e93600'+
          '9e70c';
-      t('no_prev_scroll', `s...scroll(!prev_scroll) decl(1) sig0=${sig0}
+      t('no_prev_scroll', `s...scroll(!prev_scroll d:1) sig0=${sig0}
         d0=0x750e42c4c40d2914db1fd0cdfa2ea853d00b468d78f23df882fe9cc1839b71b8
         m0=0xa0d3dfd96822872daa1351808936ebce919fd82f3af2a14abbac987446d48017
         m0=hleaf(d0+sig0) sig0=sign(d0) M0=hroot(m0)
         m1=hleaf(d1+sig1) sig1=sign(d1+M0) M1=hroot(m0_1)`);
       sig0 = '0xb34dd640e4fb8f08593c91840b1175d1014a96a9e211b5f790a363980913'+
         '5a3c26a4f98b3c7798566d7241e4f7a9e97d99b2d7e075ec1e1f4e71a28e3c0dba0c';
-      t('with_prev_scroll', `s...scroll decl(1) sig0=${sig0}
+      t('with_prev_scroll', `s...scroll(d:1) sig0=${sig0}
         d0=0x750e42c4c40d2914db1fd0cdfa2ea853d00b468d78f23df882fe9cc1839b71b8
         m0=0x0d7b0519668a3c03ba5b206d8dd92846fdb00b282d35d4b5c0a29bd230489eee
         m0=hleaf(d0+sig0) sig0=sign(d0+prev_scroll1) M0=hroot(m0)
         m1=hleaf(d1+sig1) sig1=sign(d1+M0) M1=hroot(m0_1)`);
-      t('merkel', `s...scroll decl(1-32)
+      t('merkel', `s...scroll(d:1-32)
         m0=hleaf(d0+sig0) sig0=sign(d0+prev_scroll1) M0=hroot(m0)
           M0=h(2+m0+0+1)
         m1=hleaf(d1+sig1) sig1=sign(d1+M0) M1=hroot(m0_1) M1=h(2+m0_1+0+2)
@@ -1107,7 +1117,7 @@ describe('scroll', ()=>{
     });
     describe('put', ()=>{
       describe('errors_invalid', ()=>{
-        let s = `s.scroll(!prev_scroll) s.decl(1-32) s2..scroll(s..M0) ==M0`;
+        let s = `s.scroll(!prev_scroll d:1-32) s2..scroll(s..M0) ==M0`;
         t('sig0', `${s} s.put(sig0:sig1 err(invalid sig0)) ==M0`);
         t('d0', `${s} s.put(d0:d1 err(invalid d0)) ==M0`);
         t('m0', `${s} s.put(m0:m1 err(invalid m0)) ==M0`);
@@ -1116,12 +1126,12 @@ describe('scroll', ()=>{
         t('sig1', `${s} s.put(sig1:sig0 err(invalid sig1)) ==M0`);
       });
       describe('errors_missing', ()=>{
-        let s = `s.scroll(!prev_scroll) s.decl(1-32) s2..scroll(s..M0) ==M0`;
+        let s = `s.scroll(!prev_scroll d:1-32) s2..scroll(s..M0) ==M0`;
         t('sig0', `${s} put(sig0 err(missing d0)) ==M0`);
         t('d0', `${s} put(d0 err(missing sig0)) ==M0`);
       });
       describe('top_M0', ()=>{
-        let s = `s.scroll(!prev_scroll) s.decl(1-32) s2..scroll(s..M0) ==M0`;
+        let s = `s.scroll(!prev_scroll d:1-32) s2..scroll(s..M0) ==M0`;
         t('sig0d0', `${s} put(sig0 d0) ==(sig0 d0 M0 m0)`);
         t('sig0d0_m0', `${s} put(sig0 d0 m0) ==(sig0 d0 M0 m0)`);
         t('sig0d0_m0_invalid_m0', `${s} put(sig0 d0 m0:m1 err(invalid M0))
@@ -1221,7 +1231,7 @@ describe('scroll', ()=>{
           M9=hroot(s2.m0_7+s2.m8_9) =M4 =M5 =M6 s2.M7=M7 !M10`);
       });
       describe('top_M1', ()=>{
-        let s = `s.scroll(!prev_scroll) s.decl(1-32) s2..scroll(s..M1) ==M1`;
+        let s = `s.scroll(!prev_scroll d:1-32) s2..scroll(s..M1) ==M1`;
         t('m0', `${s} put(m0 err(missing m1,missing m0_1)) ==M1`);
         t('m0m0_1', `${s} put(m0 err(missing m1,missing m0_1)) ==M1`);
         t('m1', `${s} put(m1 err(missing m0,missing m0_1)) ==M1`);
@@ -1253,7 +1263,7 @@ describe('scroll', ()=>{
         // XXX: add sig/d tests
       });
       describe('top_M2', ()=>{
-        let s = `s.scroll(!prev_scroll) s.decl(1-32) s2..scroll(s..M2) ==M2`;
+        let s = `s.scroll(!prev_scroll d:1-32) s2..scroll(s..M2) ==M2`;
         t('m0', `${s} put(m0 err(missing m1,missing m0_1)) ==M2`);
         t('m0m1', `${s} put(m0 m1 err(missing m2)) ==M2`);
         t('m0m1m2', `${s} put(m0 m1 m2) ==(M2 m0 m1 m2 m0_1)`);
@@ -1274,7 +1284,7 @@ describe('scroll', ()=>{
         // XXX: add test for sig/d insert + invalid
       });
       describe('top_M3', ()=>{
-        let s = `s.scroll(!prev_scroll) s.decl(1-32) s2..scroll(s..M3) ==M3`;
+        let s = `s.scroll(!prev_scroll d:1-32) s2..scroll(s..M3) ==M3`;
         t('m0', `${s} put(m0 err(missing m1,missing m0_1,missing m0_3)) ==M3`);
         t('m0m1', `${s} put(m0 m1
           err(missing m2,missing m2_3,missing m0_3)) ==M3`);
@@ -1341,13 +1351,13 @@ describe('scroll', ()=>{
           m30_31 m24_31 m16_31 m0_31)`);
       });
       describe('extra_m', ()=>{
-        t('M4_a', `s..scroll(!prev_scroll) decl(1-32) S..clone(s..0_1)
+        t('M4_a', `s..scroll(!prev_scroll d:1-32) S..clone(s..0_1)
           put(m2_3 sig4 d4) =m2_3 =M4 put(m2 m3 sig4 d4) =m2 =m3`);
-        t('M4_b', `s..scroll(!prev_scroll) decl(1-32) S..clone(s..0_1)
+        t('M4_b', `s..scroll(!prev_scroll d:1-32) S..clone(s..0_1)
           put(m2_3 sig4 d4) =m2_3 =M4 put(m2 m3) =m2 =m3`);
-        t('M8_a', `s..scroll(!prev_scroll) decl(1-32) S..clone(s..0_3)
+        t('M8_a', `s..scroll(!prev_scroll d:1-32) S..clone(s..0_3)
           put(m0_3 m4_7 sig8 d8) put(m0_3 m4 m5 m6_7 sig8 d8) =m4 =m5`);
-        t('M8_b', `s..scroll(!prev_scroll) decl(1-32) S..clone(s..0_3)
+        t('M8_b', `s..scroll(!prev_scroll d:1-32) S..clone(s..0_3)
           put(m0_3 m4_7 sig8 d8)
           put(m0_3 m4_5:m6_7 m6_7 sig8 d8) !m4_5 !m6_7
           put(m0_3 m4_5 m6_7 sig8 d8) =m4_5 =m6_7
@@ -1356,7 +1366,7 @@ describe('scroll', ()=>{
       describe('branch', ()=>{
         // XXX need tests with prev_scroll
         // XXX need tests with decl on branch
-        let s = `s.scroll(!prev_scroll) s.decl(1-32) s2..scroll(s..M3) ==M3`;
+        let s = `s.scroll(!prev_scroll d:1-32) s2..scroll(s..M3) ==M3`;
         t('simple_branch_a', `${s} put(m0_1 m2 m3)
           ==(M3 m2 m3 m0_1 m2_3 m0_3) decl(4) // branch
           put(sig4 d4 m4 m0_1 m2 m3) b(M4=s2.M4 3b0.M4)
@@ -1366,7 +1376,7 @@ describe('scroll', ()=>{
           ==(sig4:sign(s2.d4+M3) m4:hleaf(s2.d4+s2.sig4) s2.d4 M3 m2 m3 m0_1
           m2_3 m0_3 sig4b1:sig4 d4b1:d4 m3b1:m3 m2_3b1:s.m2_3 m0_3b1:s.m0_3
           sig3 d3 sig3b1:s.sig3 d3b1:s.d3 m0_1b1:s.m0_1 m2b1:s.m2 m4b1:s.m4)`);
-        t('simple_branch_b', `s.scroll(!prev_scroll) s.decl(1-10)
+        t('simple_branch_b', `s.scroll(!prev_scroll d:1-10)
           s2..scroll(s..M3) put(M0 m0 m1 m2 m3) decl(4-7)
           s3..scroll(s2..M0)
           s3.put(sig7:s2..sig7 d7 m0 m1 m2_3 m4_5 m6 sig6 d6) =sig7
@@ -1374,21 +1384,21 @@ describe('scroll', ()=>{
           b(M7=s2.M7 3b0.M7)
           m0b1=s.m0 m3b1=s.m3 m4_5b1=s.m4_5 sig7b0=s2.sig7 sig7b1=s.sig7`);
         let p = '';
-        t('1b0', `s.scroll(!prev_scroll) s.decl(1-5) s1.clone(s.0_1)
+        t('1b0', `s.scroll(!prev_scroll d:1-5) s1.clone(s.0_1)
           s1.decl(2-5) S..clone(s.0_5) put(m0:s1..m0 m1 sig2 d2)
           sig1b0=s.sig1 sig2b0=s.sig2 sig2b1=s1.sig2
           b(M5=s.M5 1b0.M2=s1.M2)`);
-         t('1b0_missing_m', `s.scroll(!prev_scroll) s.decl(1-5)
+         t('1b0_missing_m', `s.scroll(!prev_scroll d:1-5)
           s1.clone(s.0_1) s1.decl(2-5) S..clone(s.0_5)
           put(sig0:s1..sig0 d0 sig1 d1 sig2 d2)
           sig1b0=s.sig1 sig2b0=s.sig2 sig2b1=s1.sig2
           b(M5=s.M5 1b0.M2=s1.M2)`);
-         t('1b0_missing_d', `s.scroll(!prev_scroll) s.decl(1-5)
+         t('1b0_missing_d', `s.scroll(!prev_scroll d:1-5)
           s1.clone(s.0_1) s1.decl(2-5) S..clone(s.0_5)
           put(sig0:s1..sig0 D0 sig1 D1 sig2 D2)
           sig1b0=s.sig1 sig2b0=s.sig2 sig2b1=s1.sig2
           b(M5=s.M5 1b0.M2=s1.M2)`);
-        t('1b0_1b0_1b0', `s.scroll(!prev_scroll) s.decl(1-5)
+        t('1b0_1b0_1b0', `s.scroll(!prev_scroll d:1-5)
           s1.clone(s.0_1) s1.decl(2-5)
           s2.clone(s.0_1) s2.decl(3-5)
           s3.clone(s.0_1) s3.decl(4-5)
@@ -1407,7 +1417,7 @@ describe('scroll', ()=>{
           put(m0:s3..m0 m1 m2 sig3 d3) ${p+= ` sig3b3=s3.sig3`}
           b(M5=s.M5 1b0.M3=s1.M3 1b0.M3=s2.M3 1b0.M3=s3.M3)
         `);
-        t('1b0_2b0', `s.scroll(!prev_scroll) s.decl(1-5)
+        t('1b0_2b0', `s.scroll(!prev_scroll d:1-5)
           s1.clone(s.0_1) s1.decl(2-5)
           s2.clone(s.0_2) s2.decl(3-5)
           S..clone(s.0_5) ${p=`sig1b0=s.sig1 sig2b0=s.sig2`}
@@ -1423,7 +1433,7 @@ describe('scroll', ()=>{
           sig1b0=s.sig1 sig2b0=s.sig2 sig2b1=s1.sig2 sig3b1=s1.sig3
           sig3b2=s2.sig3 b(M5=s.M5 1b0.M3=s1.M3 2b0.M3=s2.M3)
         `);
-        t('1b0_2b1', `s.scroll(!prev_scroll) s.decl(1-5)
+        t('1b0_2b1', `s.scroll(!prev_scroll d:1-5)
           s1.clone(s.0_1) s1.decl(2-5)
           s2.clone(s1.0_2) s2.decl(3-5)
           S..clone(s.0_5) ${p=`sig1b0=s.sig1 sig2b0=s.sig2`}
@@ -1437,42 +1447,42 @@ describe('scroll', ()=>{
           b(M5=s.M5 1b0.M4=s1.M4 2b1.M3=s2.M3)
           put(m0:s2..m0 m1 m2 m3 sig4 d4) ${p+=` sig4b2=s2.sig4`}
           b(M5=s.M5 1b0.M4=s1.M4 2b1.M4=s2.M4)`);
-        t('1b0_2b1_rev', `s.scroll(!prev_scroll) s.decl(1-5)
+        t('1b0_2b1_rev', `s.scroll(!prev_scroll d:1-5)
           s1.clone(s.0_1) s1.decl(2-5) s2.clone(s1.0_2) s2.decl(3-5)
           S..clone(s.0_5) ${p=`sig1b0=s.sig1 sig2b0=s.sig2`}
           put(m0:s2..m0 m1 m2 sig3 d3) ${p+=` sig3b1=s2.sig3`}
           b(M5=s.M5 1b0.M3=s2.M3)
           put(m0:s1..m0 m1 m2 sig3 d3) ${p+=` sig3b2=s1.sig3`}
           b(M5=s.M5 1b0.M3=s2.M3 2b1.M3=s1.M3)`);
-        t('combined_m', `s0..scroll(!prev_scroll) decl(1-5)
+        t('combined_m', `s0..scroll(!prev_scroll d:1-5)
           s1..clone(s0.0_1) decl(2-5) S..clone(s0.0_5)
           put(s1..m0_1 m2_3 sig4 d4) b(M5=s0.M5 1b0.M4=s1.M4)
           put(s1..m0_1 m2_3 m2 m3 sig3 d3) b(M5=s0.M5 1b0.M4=s1.M4)`);
-        t('combined_m_missing', `s0..scroll(!prev_scroll) decl(1-5)
+        t('combined_m_missing', `s0..scroll(!prev_scroll d:1-5)
           s1..clone(s0.0_1) decl(2-5) S..clone(s0.0_5)
           put(s1..m0_1 m2_3 sig4 d4) b(M5=s0.M5 1b0.M4=s1.M4)
           put(s1..m0_1 m2_3 m3 sig3 d3
             err(missing m2,missing m2_3, missing m0_3))
           b(M5=s0.M5 1b0.M4=s1.M4)`);
-        t('combined_m_invalid', `s0..scroll(!prev_scroll) decl(1-5)
+        t('combined_m_invalid', `s0..scroll(!prev_scroll d:1-5)
           s1..clone(s0.0_1) decl(2-5) S..clone(s0.0_5)
           put(s1..m0_1 m2_3 sig4 d4) b(M5=s0.M5 1b0.M4=s1.M4)
           put(s1..m0_1 s0.m2 m3 sig3 d3 err(invalid sig3))
           b(M5=s0.M5 1b0.M4=s1.M4)`);
-         t('split_m', `s0..scroll(!prev_scroll) decl(1-5)
+         t('split_m', `s0..scroll(!prev_scroll d:1-5)
           s1..clone(s0.0_1) decl(2-5) S..clone(s0.0_5)
           put(s1..m0_1 m2_3 sig4 d4) b(M5=s0.M5 1b0.M4=s1.M4)
           put(s1..m0_1 m2 m3 sig3 d3) b(M5=s0.M5 1b0.M4=s1.M4)
           S.sig3b1=s1.sig3`);
-        t('3b0_8b0', `s.scroll(!prev_scroll) pc1.s.decl(1-32)
-          pc2.s1.clone(s.0_3) s1.decl(4-32) pc3.s2.clone(s.0_8) s2.decl(9-32)
-          pc4.s3.clone(s.0_15) s3.decl(16-32) pc5.S..clone(s.0_32)
+        t('3b0_8b0', `s.scroll(!prev_scroll d:1-32)
+          s1.clone(s.0_3) s1.decl(4-32) s2.clone(s.0_8) s2.decl(9-32)
+          s3.clone(s.0_15) s3.decl(16-32) S..clone(s.0_32)
           put(s1..m0 m1 m2 m3 sig4 d4) b(M32=s.M32 3b0.M4=s1.M4)
           put(s2..m0 m1 m2_3 m4_7 m8 sig9 d9)
           b(M32=s.M32 3b0.M4=s1.M4 8b0.M9=s2.M9)
           put(s3..m0 m1 m2_3 m4_7 m8_15 sig16 d16)
           b(M32=s.M32 3b0.M4=s1.M4 8b0.M9=s2.M9 15b0.M16=s3.M16)`);
-        t('3b0_8b1_a', `s.scroll(!prev_scroll) s.decl(1-10)
+        t('3b0_8b1_a', `s.scroll(!prev_scroll d:1-10)
           s1.clone(s.0_3) s1.decl(4-10) s2.clone(s1.0_8) s2.decl(9-10)
           s3.clone(s1.0_15) s3.decl(16-10) S..clone(s.0_10)
           put(s1..m0_3 sig4 d4) b(M10=s.M10 3b0.M4=s1.M4)
@@ -1488,7 +1498,7 @@ describe('scroll', ()=>{
         b2 0_1_2_3 a_b_c_d e F
         b3 0 1 2_3 a b c d e f
         */
-        t('3b0_8b1_b', `s.scroll(!prev_scroll) s.decl(1-10)
+        t('3b0_8b1_b', `s.scroll(!prev_scroll d:1-10)
           s1.clone(s.0_3) s1.decl(4-10) s2.clone(s1.0_8) s2.decl(9-10)
           s3.clone(s1.0_15) s3.decl(16-10) S..clone(s.0_10)
           put(s1..m0_3 sig4 d4) b(M10=s.M10 3b0.M4=s1.M4)
@@ -1496,7 +1506,7 @@ describe('scroll', ()=>{
           b(M10=s.M10 3b0.M4=s1.M4 3b0.M9=s2.M9)
           put(s1..sig9 d9 m0 m1 m2_3 m4 m5 m6_7 m8)
           b(M10=s.M10 3b0.M9=s2.M9 8b1.M9=s1.M9)`);
-        t('3b0_8b1_15b1_zzz3', `s.scroll(!prev_scroll) s.decl(1-10)
+        t('3b0_8b1_15b1_zzz3', `s.scroll(!prev_scroll d:1-10)
           s1.clone(s.0_3) s1.decl(4-10) S..clone(s.0_10)
           put(s1..m0_3 sig4 d4) b(M10=s.M10 3b0.M4=s1.M4)
           put(s1..m0_3 m4_7 m8 sig9 d9) b(M10=s.M10 3b0.M4=s1.M4 3b0.M9=s1.M9)
@@ -1504,7 +1514,7 @@ describe('scroll', ()=>{
           b(M10=s.M10 3b0.M9=s1.M9)`);
         // b0 a b c d e
         // b1 a b c D E
-        s = `s0..scroll(!prev_scroll) decl(1-10) s1..clone(s0.0_2) decl(3-10)
+        s = `s0..scroll(!prev_scroll d:1-10) s1..clone(s0.0_2) decl(3-10)
           S..clone(s0.0_1)`;
         t('2b0_a', `${s} put(s0..m0_1 m2 m3 sig4 d4) b(M4=s0.M4)
           put(s1..m0_1 m2 m3 sig4 d4) b(M4=s0.M4 2b0.M4=s1.M4)`);
@@ -1527,14 +1537,14 @@ describe('scroll', ()=>{
         // b0 0 1 2 3 4
         // b1 0 1 a b c
         // b2 0 1 a B C
-        t('2b1_a', `s0..scroll(!prev_scroll) decl(1-10) s1..clone(s0.0_1)
+        t('2b1_a', `s0..scroll(!prev_scroll d:1-10) s1..clone(s0.0_1)
           decl(2-10) s2..clone(s1.0_2) decl(3-10) S..clone(s0.0_10)
           put(s1..m0_1 m2 m3 sig4 d4) b(M10=s0.M10 1b0.M4=s1.M4)
           put(s2..m0_1 m2 m3 sig4 d4)
           b(M10=s0.M10 1b0.M4=s1.M4 2b1.M4=s2.M4)`);
         // b1 0 1 a_b c
         // b2 0 1 a B C
-        t('2b1_b', `s..scroll(!prev_scroll) decl(1-10) s1..clone(s.0_1)
+        t('2b1_b', `s..scroll(!prev_scroll d:1-10) s1..clone(s.0_1)
           decl(2-10) s2..clone(s1.0_2) decl(3-10) S..clone(s.0_10)
           put(s1..m0_1 m2_3 sig4 d4) b(M10=s.M10 1b0.M4=s1.M4)
           put(s2..m0_1 m2 m3 sig4 d4) b(M10=s.M10 1b0.M4=s1.M4 1b0.M4=s2.M4)
@@ -1547,7 +1557,7 @@ describe('scroll', ()=>{
           tput(0_1 c D E) b(M4 1b0.M4=s1.M4 2b1.M4=s2.M4)`);
         // b1 0 1 a_b c
         // b2 0 1 a_B C
-        t('2b1_d', `s..scroll(!prev_scroll) decl(1-10) s1..clone(s.0_1)
+        t('2b1_d', `s..scroll(!prev_scroll d:1-10) s1..clone(s.0_1)
           decl(2-10) s2..clone(s1.0_2) decl(3-10) S..clone(s.0_10)
           put(s1..m0_1 m2_3 sig4 d4) b(M10=s.M10 1b0.M4=s1.M4)
           put(s2..m0_1 m2_3 sig4 d4) b(M10=s.M10 1b0.M4=s1.M4 1b0.M4=s2.M4)
@@ -1556,7 +1566,7 @@ describe('scroll', ()=>{
         //    0 1 2 3 4 5 6 7 8
         // b0 a b c d e_f_g_h i
         // b1 a b c d e_F_G_H I
-        s = `s0..scroll(!prev_scroll) decl(1-10) s1..clone(s0.0_4) decl(5-10)
+        s = `s0..scroll(!prev_scroll d:1-10) s1..clone(s0.0_4) decl(5-10)
           S..clone(s0.0_3)`;
         t('M9_a', `${s} put(s0..m0_3 m4_7 sig8 d8)
           put(s1..m0_3 m4_7 sig8 d8) b(M8=s0.M8 3b0.M8=s1.M8)
@@ -1565,7 +1575,7 @@ describe('scroll', ()=>{
         //    0 1 2 3 4 5 6 7 8
         // b0 a b c d e_f_g_h i
         // b1 a b c d e_f_G_H I
-        s = `s0..scroll(!prev_scroll) decl(1-10) s1..clone(s0.0_5) decl(6-10)
+        s = `s0..scroll(!prev_scroll d:1-10) s1..clone(s0.0_5) decl(6-10)
           S..clone(s0.0_3)`;
         t('M9_b', `${s} put(s0..m0_3 m4_7 sig8 d8)
           put(s1..m0_3 m4_7 sig8 d8) b(M8=s0.M8 3b0.M8=s1.M8)
@@ -1574,13 +1584,13 @@ describe('scroll', ()=>{
         //    0 1 2 3 4 5 6 7 8
         // b0 a b c d e_f_g_h i
         // b1 a b c d e_f_g_H I
-        s = `s0..scroll(!prev_scroll) decl(1-10) s1..clone(s0.0_6) decl(7-10)
+        s = `s0..scroll(!prev_scroll d:1-10) s1..clone(s0.0_6) decl(7-10)
           S..clone(s0.0_3)`;
         t('M9_c', `${s} put(s0..m0_3 m4_7 sig8 d8)
           put(s1..m0_3 m4_7 sig8 d8) b(M8=s0.M8 3b0.M8=s1.M8)
           put(s0..m0_3 m4_5 m6 m7 sig8 d8) b(M8=s0.M8 3b0.M8=s1.M8)
           put(s1..m0_3 m4_5 m6 m7 m8 sig9 d9) b(M8=s0.M8 6b0.M9=s1.M9)`);
-        s = `s..scroll(!prev_scroll) decl(1-10) S..clone(s..0_3)`;
+        s = `s..scroll(!prev_scroll d:1-10) S..clone(s..0_3)`;
         // XXX: review and decide if we must require m0_3 or it should work
         t('partial_info', `${s}
           put(sig4 d4) b(M4)
@@ -1596,7 +1606,7 @@ describe('scroll', ()=>{
           put(m0_3 m4 sig5 d5) b(M7)
           put(m0_3 m4_5 sig6 d6) b(M7)
           put(m0_3 m4_5 m6 sig7 d7) b(M7)`);
-        s = `s..scroll(!prev_scroll) decl(1-10) S..clone(s..0_4)`;
+        s = `s..scroll(!prev_scroll d:1-10) S..clone(s..0_4)`;
         // b0 0 1 2 3 4
         // b1 0 1 2 3 4_5 6_7 8 9
         // b2 0 1 2 3 4 5 6
@@ -1613,7 +1623,7 @@ describe('scroll', ()=>{
           put(sig9 d9 m8 m6_7 m4_5 m0_3) b(M4 3v0.M9)
           put(sig6 d6 m4_5 m0_3) b(M4 3v0.M9 5v1.M6)
           put(sig7 d7 m6 m4 m5 m0_3) b(M9)`);
-        s = 's..scroll(!prev_scroll) decl(1-10)';
+        s = 's..scroll(!prev_scroll d:1-10)';
         t('v4_a', `${s} S..scroll(s..M0)
           tput(0 1 2 3 4          ) b(M4)
           tput(0_1_2_3 4_5 6_7 8 9) b(M4 3v0.M9)
@@ -1636,7 +1646,7 @@ describe('scroll', ()=>{
           tput(0_1_2_3 4_5 6    ) b(M2 1v0.M4 3v1.M6)
           tput(0_1_2_3 4_5 6_7 8) b(M2 1v0.M4 3v1.M6 5v2.M8)
           tput(0_1 2 3 4 5 6 7) b(M8)`);
-        s = `s..scroll(!prev_scroll) decl(1-10)
+        s = `s..scroll(!prev_scroll d:1-10)
           s1..clone(s.0_4) decl(5-10) S..scroll(s..M0)`;
         t('b_not_final', `${s}
           tput(0 1 2            ) b(M2)
@@ -1731,7 +1741,7 @@ describe('scroll', ()=>{
       describe('mem', ()=>{
         t('seq0', `s.scroll S..# clone(s..0_0)
           #(mem0=(M0 sig0 D0 m0) !mem1) S.mem.unload #(mem0=(M0) !mem1)`);
-        t('seq1', `db_init s.scroll s.decl(1) S..# clone(s..0_1)
+        t('seq1', `db_init s.scroll(d:1) S..# clone(s..0_1)
           #(mem0=(M0 sig0 D0 m0) mem1=(M1 sig1 D1 m1 m0_1))
           S.mem.unload #(mem0=(M0) !mem1)`);
       });
@@ -1751,7 +1761,7 @@ describe('scroll', ()=>{
           S.db.put_decl(seq0) #(db0=(M0 sig0 D0 m0))
           S.mem.unload #(mem0=(M0))
           S.db.get_decl(seq0) #(mem0=(M0 sig0 D0 m0))`);
-        t('b0_seq1', `db_init s.scroll s.decl(1) // XXX: support scroll(decl:1)
+        t('b0_seq1', `db_init s.scroll(d:1)
           S..clone(s..0_1) #
           S.db.put_decl(seq0) #(db0=(M0 sig0 D0 m0))
           S.db.put_decl(seq1) #(db1=(M1 sig1 D1 m1 m0_1))

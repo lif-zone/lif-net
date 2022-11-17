@@ -110,6 +110,9 @@ function struct_from_decl(decl){
   let o = decl.to_static();
   assert.equal(o.scroll, decl.scroll.name, 'scroll name mismatch');
   delete o.scroll; // XXX HACK: test it as well
+  let keys = Object.keys(o);
+  if (keys.length==1 && keys[0]=='seq')
+    return null;
   return o;
 }
 
@@ -467,8 +470,11 @@ const cmd_state = (curr, t)=>etask(function*cmd_state(){
   let soul = scroll?.soul;
   state.mem = {};
   if (scroll){
-    for (const [seq, decl] of scroll.dmap)
-      state.mem[seq] = struct_from_decl(decl);
+    for (const [seq, decl] of scroll.dmap){
+      let o = struct_from_decl(decl);
+      if (o)
+        state.mem[seq] = o;
+    }
   }
   if (DB.inited && soul){
     let tx = DB.db.transaction('decl', 'readonly');
@@ -1761,24 +1767,45 @@ describe('scroll', ()=>{
           db.put_decl(seq0) #(db0=(M0 sig0 D0 m0))
           mem.unload #(mem0=(M0))
           db.get_decl(seq0) #(mem0=(M0 sig0 D0 m0))`);
-        t('b0_seq1', `db_init s.scroll(d:1) S..clone(s..0_1) #
+        t('b0_seq1_normal', `db_init s.scroll(d:1) S..clone(s..0_1) #
           db.put_decl(seq0) #(db0=(M0 sig0 D0 m0))
           db.put_decl(seq1) #(db1=(M1 sig1 D1 m1 m0_1))
           mem.unload #(mem0=(M0) !mem1)
-          db.get_decl(seq0) #(mem0=(M0 sig0 D0 m0))
-          db.get_decl(seq1) #(mem1=(M1 sig1 D1 m1 m0_1))`);
+          db.get_decl(seq0) #(mem0=(M0 sig0 D0 m0)) b(M0)
+          db.get_decl(seq1) #(mem1=(M1 sig1 D1 m1 m0_1)) b(M1)`);
+        // XXX: mv branch info to be part of # state
+        t('b0_seq1_reverse', `db_init s.scroll(d:1) S..clone(s..0_1) #
+          db.put_decl(seq0) #(db0=(M0 sig0 D0 m0))
+          db.put_decl(seq1) #(db1=(M1 sig1 D1 m1 m0_1))
+          mem.unload #(mem0=(M0) !mem1)
+          db.get_decl(seq1) #(mem1=(M1 sig1 D1 m1 m0_1)) b(M1)
+          db.get_decl(seq0) #(mem0=(M0 sig0 D0 m0)) b(M1)`);
         t('b0_seq4', `db_init s.scroll(d:1-4) S..clone(s..0_4) #
           db.put_decl(seq0) #(db0=(M0 sig0 D0 m0))
           db.put_decl(seq1) #(db1=(M1 sig1 D1 m1 m0_1))
           db.put_decl(seq2) #(db2=(M2 sig2 D2 m2))
           db.put_decl(seq3) #(db3=(M3 sig3 D3 m3 m2_3 m0_3))
           db.put_decl(seq4) #(db4=(M4 sig4 D4 m4))
-          mem.unload #(mem0=(M0) !mem1 !mem2 !mem3 !mem4)
-          db.get_decl(seq0) #(mem0=(M0 sig0 D0 m0))
-          db.get_decl(seq1) #(mem1=(M1 sig1 D1 m1 m0_1))
-          db.get_decl(seq2) #(mem2=(M2 sig2 D2 m2))
-          db.get_decl(seq3) #(mem3=(M3 sig3 D3 m3 m2_3 m0_3))
-          db.get_decl(seq4) #(mem4=(M4 sig4 D4 m4))`);
+          mem.unload #(mem0=(M0) !mem1 !mem2 !mem3 !mem4) b(M0)
+          db.get_decl(seq0) #(mem0=(M0 sig0 D0 m0)) b(M0)
+          db.get_decl(seq1) #(mem1=(M1 sig1 D1 m1 m0_1)) b(M1)
+          db.get_decl(seq2) #(mem2=(M2 sig2 D2 m2)) b(M2)
+          db.get_decl(seq3) #(mem3=(M3 sig3 D3 m3 m2_3 m0_3)) b(M3)
+          db.get_decl(seq4) #(mem4=(M4 sig4 D4 m4)) b(M4)`);
+        t('b0_seq4_rev', `db_init s.scroll(d:1-4) S..clone(s..0_4) #
+          db.put_decl(seq0) #(db0=(M0 sig0 D0 m0))
+          db.put_decl(seq1) #(db1=(M1 sig1 D1 m1 m0_1))
+          db.put_decl(seq2) #(db2=(M2 sig2 D2 m2))
+          db.put_decl(seq3) #(db3=(M3 sig3 D3 m3 m2_3 m0_3))
+          db.put_decl(seq4) #(db4=(M4 sig4 D4 m4))
+          mem.unload #(mem0=(M0) !mem1 !mem2 !mem3 !mem4) b(M0)
+          db.get_decl(seq4) #(mem4=(M4 sig4 D4 m4)) b(M4)
+          db.get_decl(seq3) #(mem3=(M3 sig3 D3 m3 m2_3 m0_3)) b(M4)
+          db.get_decl(seq2) #(mem2=(M2 sig2 D2 m2)) b(M4)
+          db.get_decl(seq1) #(mem1=(M1 sig1 D1 m1 m0_1)) b(M4)
+          db.get_decl(seq0) #(mem0=(M0 sig0 D0 m0)) b(M4)`);
+
+
         if (0) // XXX derry: idea for improvement
         t('b0_seq1', `db_init
   S:=s.scroll(d:1)

@@ -159,5 +159,7 @@ E.get_decl_static = (scroll, seq)=>etask(function*get_decl_static(){
 
 E.delete_db = ()=>etask(function*delete_db(){
   assert(!E.db, 'db is opened');
+  if (global.shimIndexedDB.__getConfig('memoryDatabase'))
+    return;
   yield idb.deleteDB('lif');
 });

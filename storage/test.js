@@ -338,7 +338,7 @@ function cmd_conf(t){
 
 const cmd_db_init = t=>etask(function*cmd_db_init(){
   yield DB.init({delete: true, shim_conf: {checkOrigin: false,
-    databaseBasePath: '/tmp/', deleteDatabaseFiles: true,
+    memoryDatabase: ':memory:', deleteDatabaseFiles: true,
     useSQLiteIndexes: true}});
 });
 
@@ -1762,7 +1762,7 @@ describe('scroll', ()=>{
       // - db per soul
       // - db branch support testing
       // - handle big data
-      describe('db', ()=>{
+      describe('db_decl', ()=>{
         t('b0_seq0', `db_init s.scroll S..clone(s..0_0) #
           db.put_decl(seq0) #(db0=(M0 sig0 D0 m0))
           mem.unload #(mem0=(M0))
@@ -1804,8 +1804,6 @@ describe('scroll', ()=>{
           db.get_decl(seq2) #(mem2=(M2 sig2 D2 m2)) b(M4)
           db.get_decl(seq1) #(mem1=(M1 sig1 D1 m1 m0_1)) b(M4)
           db.get_decl(seq0) #(mem0=(M0 sig0 D0 m0)) b(M4)`);
-
-
         if (0) // XXX derry: idea for improvement
         t('b0_seq1', `db_init
   S:=s.scroll(d:1)
@@ -1823,6 +1821,14 @@ describe('scroll', ()=>{
         `);
         // XXX: test with branch + soul (every soul has it own db)
         // XXX: limit for getting data get_decl (per frame limit, total limit)
+      });
+if (0) // XXX: WIP
+      describe('db_branch', ()=>{
+        t('b0_seq0', `db_init s.scroll S..clone(s..0_0) #
+          db.put_branch
+//          mem.unload #(mem0=(M0))
+//          db.get_decl(seq0) #(mem0=(M0 sig0 D0 m0))`);
+
       });
     });
   });

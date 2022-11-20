@@ -12,6 +12,7 @@ setGlobalVars();
 const E = {scrolls: {}};
 export default E;
 
+// XXX: change estore_put -> store_put
 function estore_put(store, val){
   store = idb.unwrap(store);
   let wait = etask.wait();
@@ -21,6 +22,7 @@ function estore_put(store, val){
   return wait;
 }
 
+// XXX: change estore_get -> store_get
 function estore_get(store, val){
   store = idb.unwrap(store);
   let wait = etask.wait();
@@ -35,6 +37,8 @@ function edb_get(store, key){
   store = tx.objectStore(store);
   return estore_get(store, key);
 }
+
+E.edb_get = edb_get;
 
 function edb_put(store, val){
   let tx = E.db.transaction(store, 'readwrite');
@@ -91,7 +95,8 @@ E.init = opt=>etask(function*db_init(){
   tx = E.db.transaction('scroll', 'readonly');
   store = tx.objectStore('scroll');
   for (let cursor = yield E.cursor_open(store); cursor;
-    cursor = yield E.cursor_continue(cursor)){
+    cursor = yield E.cursor_continue(cursor))
+  {
     E.scrolls.set(cursor.key, cursor.value);
   }
 });

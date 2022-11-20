@@ -1782,6 +1782,7 @@ describe('scroll', ()=>{
       // - db branch support testing
       //   - how to handle branch merge (b in db is wrong now)
       // - handle big data
+      // do we need dirty flag to know what needs to be saved to db
       describe('db_decl', ()=>{
         t('b0_seq0', `db_init s.scroll S..clone(s..0_0) #
           db.put_decl(seq0) #(db0=(M0 sig0 D0 m0))

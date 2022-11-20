@@ -47,7 +47,7 @@ syn region  javaScriptRegexpString     start=+[,(=+]\s*/[^/*]+ms=e-1,me=e-1 skip
 syn keyword javaScriptConditional	if else switch
 syn keyword javaScriptRepeat		while for do in
 syn keyword javaScriptBranch		break continue
-syn keyword javaScriptOperator		new delete instanceof typeof
+syn keyword javaScriptOperator		new delete instanceof typeof of
 syn keyword javaScriptType		Array Boolean Date Function Number Object String RegExp
 syn keyword javaScriptStatement		return with await yield
 syn keyword javaScriptBoolean		true false

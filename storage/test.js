@@ -123,8 +123,8 @@ function parse_var(v){
   m = v.match(/^([a-zA-Z]\d*)(\.|\.\.)([^.]*)$/);
   let ctx = m ? m[1] : '', def = m ? m[2]=='..' : false;
   v = m ? m[3] : v;
-  if (v=='db_b')
-    return {type: 'db_b', ctx, def};
+  if (['db_b', 'mem_b'].includes(v))
+    return {type: v, ctx, def};
   m = v.match(/^(sig|m|M|d|D|mem|db)((\d+)|((\d+)_(\d+)))(b(\d+))?$/);
   assert.equal(m?.length, 9, 'invalid var '+v);
   let type = m[1], range = r_from_str(m[2]), seq = range[1];
@@ -464,7 +464,7 @@ function state_split_var(v){
   if (o.def)
     set_def('left', o.ctx);
   let name = o.ctx||get_def('left');
-  if (type=='db_b')
+  if (['db_b', 'mem_b'].includes(type))
     return {name, type};
   assert(['mem', 'db'].includes(type), 'invalid type '+type);
   assert.equal(b, '0', 'invalid branch usage');
@@ -476,7 +476,7 @@ const state_split = exp=>etask(function*state_split(){
   switch (o.cmd){
   case '!': return assign(state_split_var(o.r), {val: null});
   case '=':
-    if (o.l=='db_b')
+    if (['db_b', 'mem_b'].includes(o.l))
       return assign(state_split_var(o.l), {val: yield get_static_b(o.r)});
     return assign(state_split_var(o.l),
       {val: fix_buf(yield get_val(o.r, 'right'))});
@@ -486,7 +486,7 @@ const state_split = exp=>etask(function*state_split(){
 
 function state_apply(state, o){
   let {type, seq, val} = o;
-  if (type=='db_b'){
+  if (['db_b', 'mem_b'].includes(type)){
     if (val){
       state[type] = val;
     } else
@@ -511,6 +511,7 @@ const cmd_state = (curr, t)=>etask(function*cmd_state(){
       if (o)
         state.mem[seq] = o;
     }
+    state.mem_b = yield mem_get_b(scroll);
   }
   if (DB.inited && soul){
     let tx = DB.db.transaction('decl', 'readonly');
@@ -538,6 +539,8 @@ const cmd_state = (curr, t)=>etask(function*cmd_state(){
     state_apply(t_state, o);
   }
   // XXX: need assert_state
+  assert.deepEqual(state.mem_b, t_state.mem_b, 'mem branch state mismach '+
+    t.meta.s);
   assert.deepEqual(state.mem, t_state.mem, 'mem state mismach '+t.meta.s);
   assert.deepEqual(state.db_b, t_state.db_b, 'db branch state mismach '+
     t.meta.s);
@@ -746,6 +749,18 @@ const db_get_b = M=>etask(function*db_get_b(){
     if (o.parent?.b!==undefined)
       ret[b].parent = {seq: o.parent.seq, b: o.parent.b, type: o.parent.type};
   }
+  return ret;
+});
+
+const mem_get_b = scroll=>etask(function mem_get_b(){
+  let ret;
+  for (const [b, o] of scroll.branch){
+    ret = ret||{};
+    ret[b] = {top: {seq: o.top.seq, M: o.top.M}};
+    if (o.parent)
+      ret[b].parent = {seq: o.parent.seq, b: o.parent.b, type: o.parent.type};
+  }
+  assert_no_corruption(scroll);
   return ret;
 });
 
@@ -1854,10 +1869,11 @@ describe('scroll', ()=>{
     describe('storage', ()=>{
       describe('mem', ()=>{
         t('seq0', `s.scroll S..# clone(s..0_0)
-          #(mem0=(M0 sig0 D0 m0) !mem1) S2..scroll(M0) #(mem0=(M0) !mem1)`);
-        t('seq1', `db_init s.scroll(d:1) S..# clone(s..0_1)
-          #(mem0=(M0 sig0 D0 m0) mem1=(M1 sig1 D1 m1 m0_1))
+          #(mem_b=(0:M0) mem0=(M0 sig0 D0 m0) !mem1)
           S2..scroll(M0) #(mem0=(M0) !mem1)`);
+        t('seq1', `db_init s.scroll(d:1) S..# clone(s..0_1)
+          #(mem0=(M0 sig0 D0 m0) mem1=(M1 sig1 D1 m1 m0_1) mem_b=(0:M1))
+          S2..scroll(M0) #(mem0=(M0) !mem1 mem_b=(0:M0))`);
       });
       // XXX: support #db0=(M0 sig0 D0 m0)
       // XXX: S..:=s.scroll(d:1)
@@ -1881,17 +1897,17 @@ describe('scroll', ()=>{
           db.put_decl(seq0) #(db0=(M0 sig0 D0 m0))
           db.put_decl(seq1) #(db1=(M1 sig1 D1 m1 m0_1))
           db.put_branch #(db_b=(0:M1))
-          S2..scroll(M0) #(mem0=(M0) !mem1)
-          db.get_branch
+          S2..scroll(M0) #(mem0=(M0) !mem1 mem_b=(0:M0))
+          db.get_branch #(mem_b=(0:M1))
           db.get_decl(seq0) #(mem0=(M0 sig0 D0 m0))
           db.get_decl(seq1) #(mem1=(M1 sig1 D1 m1 m0_1))`);
         // XXX: mv branch info to be part of # state
-        t('b0_seq1_reverse', `db_init s.scroll(d:1) S..clone(s..0_1) #
+        t('b0_seq1_rev', `db_init s.scroll(d:1) S..clone(s..0_1) #
           db.put_decl(seq0) #(db0=(M0 sig0 D0 m0))
           db.put_decl(seq1) #(db1=(M1 sig1 D1 m1 m0_1))
           db.put_branch #(db_b=(0:M1))
-          S2..scroll(M0)
-          db.get_branch #(mem0=(M0) !mem1)
+          S2..scroll(M0) #(mem0=(M0) !mem1 mem_b=(0:M0))
+          db.get_branch #(mem_b=(0:M1))
           db.get_decl(seq1) #(mem1=(M1 sig1 D1 m1 m0_1))
           db.get_decl(seq0) #(mem0=(M0 sig0 D0 m0))`);
         t('b0_seq4', `db_init s.scroll(d:1-4) S..clone(s..0_4) #
@@ -1901,8 +1917,8 @@ describe('scroll', ()=>{
           db.put_decl(seq3) #(db3=(M3 sig3 D3 m3 m2_3 m0_3))
           db.put_decl(seq4) #(db4=(M4 sig4 D4 m4))
           db.put_branch #(db_b=(0:M4))
-          S2..scroll(M0) #(mem0=(M0) !mem1 !mem2 !mem3 !mem4)
-          db.get_branch // XXX #(mem_b=(0:M4))
+          S2..scroll(M0) #(mem0=(M0) !mem1 !mem2 !mem3 !mem4 mem_b=(0:M0))
+          db.get_branch #(mem_b=(0:M4))
           db.get_decl(seq0) #(mem0=(M0 sig0 D0 m0))
           db.get_decl(seq1) #(mem1=(M1 sig1 D1 m1 m0_1))
           db.get_decl(seq2) #(mem2=(M2 sig2 D2 m2))
@@ -1915,8 +1931,8 @@ describe('scroll', ()=>{
           db.put_decl(seq3) #(db3=(M3 sig3 D3 m3 m2_3 m0_3))
           db.put_decl(seq4) #(db4=(M4 sig4 D4 m4))
           db.put_branch #(db_b=(0:M4))
-          S2..scroll(M0)
-          db.get_branch #(mem0=(M0) !mem1 !mem2 !mem3 !mem4)
+          S2..scroll(M0) #(mem0=(M0) !mem1 !mem2 !mem3 !mem4 mem_b=(0:M0))
+          db.get_branch #(mem_b=(0:M4))
           db.get_decl(seq4) #(mem4=(M4 sig4 D4 m4))
           db.get_decl(seq3) #(mem3=(M3 sig3 D3 m3 m2_3 m0_3))
           db.get_decl(seq2) #(mem2=(M2 sig2 D2 m2))
@@ -1947,8 +1963,9 @@ describe('scroll', ()=>{
           db.put_decl(seq4) #(db4=(M4 m4 sig4 D4))
           db.put_decl(seq5) #(db5=(M5b1 m4_5b1))
           db.put_decl(seq6) #(db6=(M6b1 m6b1 sig6b1 D6b1))
-          S2..scroll(M0) #(mem0=(M0) !mem1 !mem2 !mem3 !mem4 !mem5 !mem6)
-          db.get_branch
+          S2..scroll(M0) #(mem0=(M0) !mem1 !mem2 !mem3 !mem4 !mem5 !mem6
+            mem_b=(0:M0))
+          db.get_branch #(mem_b=(0:M4 1:3v0.M6=s0.M6))
           db.get_decl(seq0) #(mem0=(M0 m0))
           db.get_decl(seq1) #(mem1=(M1 m1 m0_1))
           db.get_decl(seq2) #(mem2=(M2 m2))

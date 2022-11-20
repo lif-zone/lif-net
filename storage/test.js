@@ -123,6 +123,8 @@ function parse_var(v){
   m = v.match(/^([a-zA-Z]\d*)(\.|\.\.)([^.]*)$/);
   let ctx = m ? m[1] : '', def = m ? m[2]=='..' : false;
   v = m ? m[3] : v;
+  if (v=='db_b')
+    return {type: 'db_b', ctx, def};
   m = v.match(/^(sig|m|M|d|D|mem|db)((\d+)|((\d+)_(\d+)))(b(\d+))?$/);
   assert.equal(m?.length, 9, 'invalid var '+v);
   let type = m[1], range = r_from_str(m[2]), seq = range[1];
@@ -342,7 +344,9 @@ function cmd_conf(t){
 
 const cmd_db_init = t=>etask(function*cmd_db_init(){
   yield DB.init({delete: true, shim_conf: {checkOrigin: false,
-    memoryDatabase: ':memory:', deleteDatabaseFiles: true,
+    // XXX: use memoryDatabase: ':memory:'
+    databaseBasePath: '/tmp',
+    deleteDatabaseFiles: true,
     useSQLiteIndexes: true}});
 });
 
@@ -460,6 +464,8 @@ function state_split_var(v){
   if (o.def)
     set_def('left', o.ctx);
   let name = o.ctx||get_def('left');
+  if (type=='db_b')
+    return {name, type};
   assert(['mem', 'db'].includes(type), 'invalid type '+type);
   assert.equal(b, '0', 'invalid branch usage');
   return {name, type, seq};
@@ -469,14 +475,24 @@ const state_split = exp=>etask(function*state_split(){
   let o = tparser.parse_exp(exp);
   switch (o.cmd){
   case '!': return assign(state_split_var(o.r), {val: null});
-  case '=': return assign(state_split_var(o.l),
-    {val: fix_buf(yield get_val(o.r, 'right'))});
+  case '=':
+    if (o.l=='db_b')
+      return assign(state_split_var(o.l), {val: yield get_static_b(o.r)});
+    return assign(state_split_var(o.l),
+      {val: fix_buf(yield get_val(o.r, 'right'))});
   default: assert.fail('invalid state_split '+exp);
   }
 });
 
 function state_apply(state, o){
   let {type, seq, val} = o;
+  if (type=='db_b'){
+    if (val){
+      state[type] = val;
+    } else
+      delete state[type];
+    return;
+  }
   if (val){
     state[type][seq] = val;
   } else
@@ -509,6 +525,7 @@ const cmd_state = (curr, t)=>etask(function*cmd_state(){
       state.db = state.db||{};
       state.db[o.seq] = o;
     }
+    state.db_b = yield db_get_b(scroll.M_hash(0, 0));
   }
   state = fix_buf(state);
   if (!t_state){
@@ -522,6 +539,8 @@ const cmd_state = (curr, t)=>etask(function*cmd_state(){
   }
   // XXX: need assert_state
   assert.deepEqual(state.mem, t_state.mem, 'mem state mismach '+t.meta.s);
+  assert.deepEqual(state.db_b, t_state.db_b, 'db branch state mismach '+
+    t.meta.s);
   assert.deepEqual(state.db, t_state.db, 'db state mismach '+t.meta.s);
   t_state = state;
 });
@@ -679,8 +698,8 @@ function parse_branch(s){
   assert(m, 'invalid branch '+s);
   r = r||'M'+m[6];
   let top = {seq: +m[6], M: r};
-  let b = m[2] ? {seq: +m[2], b: +m[5]||0, type: m[4]||'v'} : undefined;
-  return b ? {top, b} : {top};
+  let parent = m[2] ? {seq: +m[2], b: +m[5]||0, type: m[4]||'v'} : undefined;
+  return parent ? {top, parent} : {top};
 }
 
 const cmd_b = t=>etask(function*cmd_b(){
@@ -694,13 +713,59 @@ const cmd_b = t=>etask(function*cmd_b(){
     assert.deepEqual(o.parent?.b!==undefined ?
       {seq: o.parent.seq, b: b_id2pos(scroll, o.parent.b),
       type: o.parent?.type} :
-      undefined, tested[ii].b, 'branch '+i+' mismatch '+t.r);
+      undefined, tested[ii].parent, 'branch '+i+' mismatch '+t.r);
     assert.equal(o.top.seq, tested[ii].top.seq, 'top seq mismatch b'+i+
       ' '+t.r);
     assert_buffer(o.top.M, yield get_val(tested[ii].top.M),
       'top M mismatch b'+i+' '+t.r);
   }
   assert_no_corruption(scroll);
+});
+
+const get_static_b = exp=>etask(function*get_static_b(){
+  let m;
+  if (m = exp.match(/^\((.*)\)$/))
+    exp = m[1];
+  let o = {};
+  for (let curr=exp; curr = tparser.parse_get_next(curr);){
+    let m = curr.exp.match(/^(\d+):(.*)$/);
+    assert(m.length==3, 'invalid db_b '+curr.exp);
+    o[m[1]] = parse_branch(m[2]);
+    o[m[1]].top.M = b2s(yield get_val(o[m[1]].top.M));
+  }
+  return o;
+});
+
+const db_get_b = M=>etask(function*db_get_b(){
+  let db_o = yield DB.edb_get('scroll', b2s(M));
+  let db_b = db_o?.branch, ret;
+  for (let b in db_b){
+    ret = ret||{};
+    let o = db_b[b];
+    ret[b] = {top: {seq: o.top.seq, M: Buffer.from(o.top.M)}};
+    if (o.parent?.b!==undefined)
+      ret[b].parent = {seq: o.parent.seq, b: o.parent.b, type: o.parent.type};
+  }
+  return ret;
+});
+
+const cmd_db_b = t=>etask(function*cmd_db_b(){
+  let name = t.ctx||get_def('left'), scroll = get_scroll(name);
+  let tested = yield get_static_b(t.r);
+  let db_o = DB.fix_struct(yield DB.edb_get('scroll',
+    b2s(scroll.M_hash(0, 0))));
+  let db_b = db_o?.branch;
+  assert.equal(Object.keys(db_b||{}).length, Object.keys(tested).length,
+    'branch count mismatch '+t.r);
+  for (let b in db_b){
+    let o = db_b[b];
+    assert.deepEqual(o.parent?.b!==undefined ?
+      {seq: o.parent.seq, b: o.parent.b, type: o.parent.type} :
+      undefined, tested[b]?.parent, 'branch '+b+' mismatch '+t.r);
+    assert.equal(o.top.seq, tested[b]?.top.seq, 'top seq mismatch b'+b+
+      ' '+t.r);
+    assert.equal(b2s(o.top.M), tested[b]?.top.M, 'top M mismatch b'+b+' '+t.r);
+  }
 });
 
 const cmd_eq = o=>etask(function*cmd_eq(){
@@ -743,6 +808,7 @@ const test_run_single = (curr, o)=>etask(function*_test_run_single(){
   case '=': yield cmd_eq(o); break;
   case '==': yield cmd_test(o); break;
   case 'b': yield cmd_b(o); break;
+  case 'db_b': yield cmd_db_b(o); break;
   case '//': break;
   case 'dbg': debugger; break; // eslint-disable-line no-debugger
   case '.':
@@ -846,17 +912,21 @@ describe('test_util', ()=>{
     t('s2.m0_1b10', 'm 0_1 10 s2');
     t('s2..d0', 'd 0 0 s2 def');
     t('s2..m0_1b10', 'm 0_1 10 s2 def');
+    // XXX: test db_b
   });
   it('parse_branch', ()=>{
     const t = (val, exp)=>assert.deepEqual(parse_branch(val), exp);
     t('M9=s.M9', {top: {seq: 9, M: 's.M9'}});
-    t('3.M9=s.M9', {top: {seq: 9, M: 's.M9'}, b: {seq: 3, b: 0, type: 'v'}});
-    t('3b1.M9=s.M9', {top: {seq: 9, M: 's.M9'}, b: {seq: 3, b: 1, type: 'b'}});
-    t('3v1.M9=s.M9', {top: {seq: 9, M: 's.M9'}, b: {seq: 3, b: 1, type: 'v'}});
+    t('3.M9=s.M9', {top: {seq: 9, M: 's.M9'},
+      parent: {seq: 3, b: 0, type: 'v'}});
+    t('3b1.M9=s.M9', {top: {seq: 9, M: 's.M9'},
+      parent: {seq: 3, b: 1, type: 'b'}});
+    t('3v1.M9=s.M9', {top: {seq: 9, M: 's.M9'},
+      parent: {seq: 3, b: 1, type: 'v'}});
     t('M9', {top: {seq: 9, M: 'M9'}});
-    t('3.M9', {top: {seq: 9, M: 'M9'}, b: {seq: 3, b: 0, type: 'v'}});
-    t('3b1.M9', {top: {seq: 9, M: 'M9'}, b: {seq: 3, b: 1, type: 'b'}});
-    t('3v1.M9', {top: {seq: 9, M: 'M9'}, b: {seq: 3, b: 1, type: 'v'}});
+    t('3.M9', {top: {seq: 9, M: 'M9'}, parent: {seq: 3, b: 0, type: 'v'}});
+    t('3b1.M9', {top: {seq: 9, M: 'M9'}, parent: {seq: 3, b: 1, type: 'b'}});
+    t('3v1.M9', {top: {seq: 9, M: 'M9'}, parent: {seq: 3, b: 1, type: 'v'}});
   });
 });
 
@@ -1804,53 +1874,54 @@ describe('scroll', ()=>{
       describe('db_decl', ()=>{
         t('b0_seq0', `db_init s.scroll S..clone(s..0_0) #
           db.put_decl(seq0) #(db0=(M0 sig0 D0 m0))
+          db.put_branch #(db_b=(0:M0))
           S2..scroll(M0) #(mem0=(M0))
           db.get_decl(seq0) #(mem0=(M0 sig0 D0 m0))`);
         t('b0_seq1_normal', `db_init s.scroll(d:1) S..clone(s..0_1) #
           db.put_decl(seq0) #(db0=(M0 sig0 D0 m0))
           db.put_decl(seq1) #(db1=(M1 sig1 D1 m1 m0_1))
-          db.put_branch
+          db.put_branch #(db_b=(0:M1))
           S2..scroll(M0) #(mem0=(M0) !mem1)
           db.get_branch
-          db.get_decl(seq0) #(mem0=(M0 sig0 D0 m0)) b(M1)
-          db.get_decl(seq1) #(mem1=(M1 sig1 D1 m1 m0_1)) b(M1)`);
+          db.get_decl(seq0) #(mem0=(M0 sig0 D0 m0))
+          db.get_decl(seq1) #(mem1=(M1 sig1 D1 m1 m0_1))`);
         // XXX: mv branch info to be part of # state
         t('b0_seq1_reverse', `db_init s.scroll(d:1) S..clone(s..0_1) #
           db.put_decl(seq0) #(db0=(M0 sig0 D0 m0))
           db.put_decl(seq1) #(db1=(M1 sig1 D1 m1 m0_1))
-          db.put_branch
+          db.put_branch #(db_b=(0:M1))
           S2..scroll(M0)
           db.get_branch #(mem0=(M0) !mem1)
-          db.get_decl(seq1) #(mem1=(M1 sig1 D1 m1 m0_1)) b(M1)
-          db.get_decl(seq0) #(mem0=(M0 sig0 D0 m0)) b(M1)`);
+          db.get_decl(seq1) #(mem1=(M1 sig1 D1 m1 m0_1))
+          db.get_decl(seq0) #(mem0=(M0 sig0 D0 m0))`);
         t('b0_seq4', `db_init s.scroll(d:1-4) S..clone(s..0_4) #
           db.put_decl(seq0) #(db0=(M0 sig0 D0 m0))
           db.put_decl(seq1) #(db1=(M1 sig1 D1 m1 m0_1))
           db.put_decl(seq2) #(db2=(M2 sig2 D2 m2))
           db.put_decl(seq3) #(db3=(M3 sig3 D3 m3 m2_3 m0_3))
           db.put_decl(seq4) #(db4=(M4 sig4 D4 m4))
-          db.put_branch
-          S2..scroll(M0)
-          db.get_branch #(mem0=(M0) !mem1 !mem2 !mem3 !mem4) b(M4)
-          db.get_decl(seq0) #(mem0=(M0 sig0 D0 m0)) b(M4)
-          db.get_decl(seq1) #(mem1=(M1 sig1 D1 m1 m0_1)) b(M4)
-          db.get_decl(seq2) #(mem2=(M2 sig2 D2 m2)) b(M4)
-          db.get_decl(seq3) #(mem3=(M3 sig3 D3 m3 m2_3 m0_3)) b(M4)
-          db.get_decl(seq4) #(mem4=(M4 sig4 D4 m4)) b(M4)`);
+          db.put_branch #(db_b=(0:M4))
+          S2..scroll(M0) #(mem0=(M0) !mem1 !mem2 !mem3 !mem4)
+          db.get_branch // XXX #(mem_b=(0:M4))
+          db.get_decl(seq0) #(mem0=(M0 sig0 D0 m0))
+          db.get_decl(seq1) #(mem1=(M1 sig1 D1 m1 m0_1))
+          db.get_decl(seq2) #(mem2=(M2 sig2 D2 m2))
+          db.get_decl(seq3) #(mem3=(M3 sig3 D3 m3 m2_3 m0_3))
+          db.get_decl(seq4) #(mem4=(M4 sig4 D4 m4))`);
         t('b0_seq4_rev', `db_init s.scroll(d:1-4) S..clone(s..0_4) #
           db.put_decl(seq0) #(db0=(M0 sig0 D0 m0))
           db.put_decl(seq1) #(db1=(M1 sig1 D1 m1 m0_1))
           db.put_decl(seq2) #(db2=(M2 sig2 D2 m2))
           db.put_decl(seq3) #(db3=(M3 sig3 D3 m3 m2_3 m0_3))
           db.put_decl(seq4) #(db4=(M4 sig4 D4 m4))
-          db.put_branch
+          db.put_branch #(db_b=(0:M4))
           S2..scroll(M0)
-          db.get_branch #(mem0=(M0) !mem1 !mem2 !mem3 !mem4) b(M4)
-          db.get_decl(seq4) #(mem4=(M4 sig4 D4 m4)) b(M4)
-          db.get_decl(seq3) #(mem3=(M3 sig3 D3 m3 m2_3 m0_3)) b(M4)
-          db.get_decl(seq2) #(mem2=(M2 sig2 D2 m2)) b(M4)
-          db.get_decl(seq1) #(mem1=(M1 sig1 D1 m1 m0_1)) b(M4)
-          db.get_decl(seq0) #(mem0=(M0 sig0 D0 m0)) b(M4)`);
+          db.get_branch #(mem0=(M0) !mem1 !mem2 !mem3 !mem4)
+          db.get_decl(seq4) #(mem4=(M4 sig4 D4 m4))
+          db.get_decl(seq3) #(mem3=(M3 sig3 D3 m3 m2_3 m0_3))
+          db.get_decl(seq2) #(mem2=(M2 sig2 D2 m2))
+          db.get_decl(seq1) #(mem1=(M1 sig1 D1 m1 m0_1))
+          db.get_decl(seq0) #(mem0=(M0 sig0 D0 m0))`);
         // XXX: need tests for clone with branch to verify clone is correct
         t('b1_xxx', `db_init s0.scroll(d:1-6) s1..scroll(s0..M0)
           tput(0 1 2 3 4    )
@@ -1866,7 +1937,9 @@ describe('scroll', ()=>{
           mem4=(M4 m4 sig4 D4)
           mem5=(M5b1 m4_5b1)
           mem6=(M6b1 m6b1 sig6b1 D6b1) #
-          db.put_branch
+          db_b
+          db.put_branch #(db_b=(0:M4=s1.M4 1:3v0.M6=s0.M6))
+          db_b(0:M4=s1.M4 1:3v0.M6=s0.M6)
           db.put_decl(seq0) #(db0=(M0 m0))
           db.put_decl(seq1) #(db1=(M1 m1 m0_1))
           db.put_decl(seq2) #(db2=(M2 m2))
@@ -1876,7 +1949,6 @@ describe('scroll', ()=>{
           db.put_decl(seq6) #(db6=(M6b1 m6b1 sig6b1 D6b1))
           S2..scroll(M0) #(mem0=(M0) !mem1 !mem2 !mem3 !mem4 !mem5 !mem6)
           db.get_branch
-          b(M4=s1.M4 3v0.M6=s0.M6)
           db.get_decl(seq0) #(mem0=(M0 m0))
           db.get_decl(seq1) #(mem1=(M1 m1 m0_1))
           db.get_decl(seq2) #(mem2=(M2 m2))
@@ -1888,32 +1960,8 @@ describe('scroll', ()=>{
         `);
 // XXX: need transaction support for put_decl (otherwise we may leave the db
 // corrupted if there was a merge)
-
-        if (0) // XXX derry: idea for improvement
-        t('b0_seq1', `db_init
-  S:=s.scroll(d:1)
-  s.scroll(d:1) S..clone(s..)
-  mem0=(M0 sig0 D0 m0) mem1=(M1 sig1 D1 m1 m0_1) !db0(M0) !db1
-
-   // d:1/decl:1 -> s.decl(1)
-          S..clone(s..) # // XXX: s.. to copy everything S.clone(s)
-          S..:=s..scroll(d:1) #
-          S.db.put_decl(seq0) #db0=(M0 sig0 D0 m0)
-          S.db.put_decl(seq1) #db1=(M1 sig1 D1 m1 m0_1)
-          S.mem.unload mem0=(M0) #!mem1
-          S.db.get_decl(seq0) #mem0=(M0 sig0 D0 m0)
-          S.db.get_decl(seq1) #mem1=(M1 sig1 D1 m1 m0_1)
-        `);
         // XXX: test with branch + soul (every soul has it own db)
         // XXX: limit for getting data get_decl (per frame limit, total limit)
-      });
-if (0) // XXX: WIP
-      describe('db_branch', ()=>{
-        t('b0_seq0', `db_init s.scroll S..clone(s..0_0) #
-          db.put_branch
-//          mem.unload #(mem0=(M0))
-//          db.get_decl(seq0) #(mem0=(M0 sig0 D0 m0))`);
-
       });
     });
   });

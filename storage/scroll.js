@@ -862,6 +862,31 @@ export default class Scroll extends EventEmitter {
     decl.init();
     return decl;
   }
+  branch_to_static(){
+    let o = {};
+    for (const [b, bo] of this.branch){
+      o[b] = {top: {seq: bo.top.seq, M: bo.top.M}};
+      if (bo.parent){
+        o[b].parent = {b: bo.parent.b, seq: bo.parent.seq,
+          type: bo.parent.type};
+      }
+    }
+    return o;
+  }
+  branch_from_static(bs){
+    assert(this.branch.size==1 && this.branch.get(0).top.seq==0,
+      'cannot update branch info after it was populated');
+    for (let b in bs){
+      let o = bs[b];
+      b = +b;
+      let bo = {b, top: {seq: o.top.seq, M: Buffer.from(o.top.M)},
+        parent: o.parent ? {b: o.parent.b, seq: o.parent.seq,
+          type: o.parent.type} : null, branches: new Map()};
+      this.branch.set(b, bo);
+      if (bo.parent)
+        this.branch.get(bo.parent.b).branches.set(b, bo);
+    }
+  }
 }
 
 class Decl extends EventEmitter {

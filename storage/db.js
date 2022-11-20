@@ -99,13 +99,15 @@ E.init = opt=>etask(function*db_init(){
 E.init_scroll = scroll=>etask(function*init_scroll(){
   assert(E.inited, 'db not inited');
   let M = b2s(scroll.M_hash(0, 0));
-  if (E.scrolls.get(M))
-    return;
+  let o = E.scrolls.get(M);
+  if (o)
+    return o;
   // XXX: handle errors and make sure db is always consistent
-  let db_ver = E.db.version+1;
-  let o = {M, create_ts: Date.now(), db_ver};
+  let db_ver = E.db.version+1, ts = Date.now();
+  o = {M, create_ts: ts, update_ts: ts, db_ver};
   yield edb_put('scroll', o);
   E.scrolls.set(M, o);
+  return o;
 });
 
 E.get_decl = (scroll, seq)=>etask(function*get_decl(){
@@ -119,6 +121,24 @@ E.get_decl = (scroll, seq)=>etask(function*get_decl(){
   E.fix_struct(o);
   let decl = scroll.get_decl(seq);
   decl.from_static(o);
+});
+
+E.get_branch = scroll=>etask(function*get_branch(){
+  assert(E.inited, 'db not inited');
+  let M = b2s(scroll.M_hash(0, 0));
+  yield E.init_scroll(scroll);
+  // XXX: need to get big data from data store
+  let o = yield edb_get('scroll', M);
+  E.fix_struct(o);
+  yield scroll.branch_from_static(o.branch);
+});
+
+E.put_branch = scroll=>etask(function*put_branch(){
+  assert(E.inited, 'db not inited');
+  let s = yield E.init_scroll(scroll);
+  s.update_ts = Date.now();
+  s.branch = scroll.branch_to_static();
+  yield edb_put('scroll', s);
 });
 
 E.put_decl = (scroll, seq)=>etask(function*put_decl(){

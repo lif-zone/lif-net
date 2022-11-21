@@ -1938,14 +1938,15 @@ describe('scroll', ()=>{
           db.get_decl(seq2) #(mem2=(M2 sig2 D2 m2))
           db.get_decl(seq1) #(mem1=(M1 sig1 D1 m1 m0_1))
           db.get_decl(seq0) #(mem0=(M0 sig0 D0 m0))`);
-        // XXX: need tests for clone with branch to verify clone is correct
-        t('b1_xxx', `db_init s0.scroll(d:1-6) s1..scroll(s0..M0)
+        t('b1', `db_init s0.scroll(d:1-6) s1..scroll(s0..M0)
           tput(0 1 2 3 4    )
           tput(0_1_2_3 4_5 6)
           s1.b(M4=s0.M4 3v0.M6=s0.M6)
           S..clone(s1..0_6)
           s1.b(M4=s1.M4 3v0.M6=s0.M6)
           S.b(M4=s1.M4 3v0.M6=s0.M6)
+          // XXX: mv to clone test. need tests for clone with branch and
+          // verify clone is correct
           mem0=(M0 m0)
           mem1=(M1 m1 m0_1)
           mem2=(M2 m2)
@@ -1953,7 +1954,6 @@ describe('scroll', ()=>{
           mem4=(M4 m4 sig4 D4)
           mem5=(M5b1 m4_5b1)
           mem6=(M6b1 m6b1 sig6b1 D6b1) #
-          db_b
           db.put_branch #(db_b=(0:M4=s1.M4 1:3v0.M6=s0.M6))
           db_b(0:M4=s1.M4 1:3v0.M6=s0.M6)
           db.put_decl(seq0) #(db0=(M0 m0))
@@ -1973,8 +1973,7 @@ describe('scroll', ()=>{
           db.get_decl(seq4) #(mem4=(M4 m4 sig4 D4))
           db.get_decl(seq5) #(mem5=(M5b1 m4_5b1))
           db.get_decl(seq6) #(mem6=(M6b1 m6b1 sig6b1 D6b1))
-          b(M4=s1.M4 3v0.M6=s0.M6)
-        `);
+          b(M4=s1.M4 3v0.M6=s0.M6)`);
 // XXX: need transaction support for put_decl (otherwise we may leave the db
 // corrupted if there was a merge)
         // XXX: test with branch + soul (every soul has it own db)

@@ -2012,8 +2012,8 @@ describe('scroll', ()=>{
       describe('db_data', ()=>{
         t('xxx', `db_init(max_decl:64KB max_frame:32KB) s.scroll
           s.decl(data:65KB) S..clone(s..M1) #
-//          s.decl(data(32KB 33KB))
-//          db.put_decl(seq1) #(db1=(M1 sig1 d1 m0) db_data=D1)
+// XXX          s.decl(data(32KB 33KB))
+            db.put_decl(seq1) // XXX #(db1=(M1 sig1 d1 m0) db_data=D1)
 //          S2..scroll(M0) #(mem0=(M0))
 //          db.get_decl(seq1) #(mem1=(M0 sig0 d1 m0))
 //          db.get_decl(seq1 data) #(mem1=(M0 sig0 D1 m0))

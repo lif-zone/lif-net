@@ -9,6 +9,7 @@ import enc from 'compact-encoding';
 import {Buffer} from 'buffer';
 import buf_util from '../peer-relay/buf_util.js';
 import {r_fix, r_parent, r_eq, r_includes, r_str, r_split} from './range.js';
+const assign = Object.assign; // XXX: rm, use ...
 const b2s = buf_util.buf_to_str, beq = buf_util.buf_eq;
 const stringify = JSON.stringify.bind(JSON);
 // https://en.wikipedia.org/wiki/Merkle_tree#Second_preimage_attack
@@ -969,7 +970,8 @@ class Decl extends EventEmitter {
     }
     this.data.copy(bdst, bsrc);
   }
-  to_static(){
+  to_static(opt={}){
+    let {max_decl, max_frame, blob} = opt;
     let o = {scroll: this.scroll.name, seq: this.seq};
     // XXX: inefficient, don't go over all branches, but instead just those
     // with data
@@ -978,17 +980,38 @@ class Decl extends EventEmitter {
         continue;
       if (this.sig_get(b)){
         o.sig = o.sig||{};
-        o.sig[b] = o.sig[b]||this.sig_get(b);
+        assert(!o.sig[b], 'sig already set');
+        o.sig[b] = this.sig_get(b);
       }
       if (this.M_hash(b)){
         o.M = o.M||{};
-        o.M[b] = o.M[b]||this.M_hash(b);
+        assert(!o.M[b], 'M already set');
+        o.M[b] = this.M_hash(b);
       }
       let frames = this.fbuf_get(b).get_frames();
       // XXX: move this logic to Frame_buffer
       if (frames.length>1 || frames[0].sig || frames[0].h_rest){
+        let f = [], total=0;
+        // XXX NOW: ugly code
+        for (let i=0; i<frames.length; i++){
+          let len = frames[i].buf?.length||0;
+          if (len && (len>max_frame || total+len>max_decl)){
+            assert(frames[i].h, 'missing hash');
+            if (blob)
+              blob[b2s(frames[i].h)] = frames.buf;
+            let ff = {h: frames[i].h};
+            if (frames[i].sz)
+              ff.sz = frames[i].sz;
+            f.push(ff);
+          }
+          else {
+            f.push(assign({}, frames[i]));
+            total += len;
+          }
+        }
         o.D = o.D||{};
-        o.D[b] = o.D[b]||frames;
+        assert(!o.D[b], 'D already set');
+        o.D[b] = f;
       }
       for (let i=0; i<this.m.length; i++){
         if (!this.m[i].get_hash(b))
@@ -996,6 +1019,7 @@ class Decl extends EventEmitter {
         let r = this.m[i].range;
         o.m = o.m||{};
         o.m[r[0]] = o.m[r[0]]||{};
+        assert(!o.m[r[0]][b], 'm already set');
         o.m[r[0]][b] = this.m[i].get_hash(b);
       }
     }

@@ -73,8 +73,6 @@ E.uninit = opt=>etask(function*init(){
     return xerr('db not inited');
   yield E.db.close();
   E.db = E.scrolls = undefined;
-  E.max_frame = opt.max_frame||E.MAX_FRAME;
-  E.max_decl = opt.max_decl||E.MAX_DECL;
   if (opt.delete)
     yield E.delete_db();
   E.inited = false;
@@ -84,6 +82,8 @@ E.init = opt=>etask(function*db_init(){
   if (E.inited)
     return xerr('db already inited');
   E.inited = true;
+  E.max_frame = opt.max_frame||E.MAX_FRAME;
+  E.max_decl = opt.max_decl||E.MAX_DECL;
   global.shimIndexedDB.__setConfig(opt.shim_conf);
   if (opt.delete)
     E.delete_db();
@@ -158,7 +158,10 @@ E.put_decl = (scroll, seq)=>etask(function*put_decl(){
     return;
   // XXX: do all in transcation
   // XXX: need to save big data in data store
-  yield edb_put('decl', decl.to_static());
+  let blob = {};
+  yield edb_put('decl', decl.to_static({max_decl: E.max_decl,
+    max_frame: E.max_frame, blob}));
+  // XXX NOW: push to blob db
 });
 
 // XXX: decide on better way to handle buffers

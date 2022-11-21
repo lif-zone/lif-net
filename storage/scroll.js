@@ -51,7 +51,7 @@ class Data extends EventEmitter {
     let fdst = this.get(bdst);
     assert.equal(fsrc.map_info.b, bsrc);
     assert.equal(fdst.map_info.b, bdst);
-    // XXX NOW: wrap with api in Frame_buffer
+    // XXX: wrap with api in Frame_buffer
     assert(!fdst.h && fdst.frames.length==1, 'already contain data');
     fdst.h = fsrc.h;
     fdst.frames = fsrc.frames;
@@ -67,44 +67,55 @@ class Frame_buffer extends EventEmitter {
     for (let i=0; i<frames?.length; i++)
       this.frames.push(to_frame(frames[i]));
   }
-  get_hash(opt={}){
-    if (this.h)
-      return this.h;
-    return this.set_hash(Frame_buffer.calc_hash(this.frames, {safe: true}));
-  }
   get_frames(){ return Array.from(this.frames); }
   set_frames(frames){
     assert(this.frames.length==1 || this.frames.length==frames.length,
       'frames length mismatch');
+    let {h_rest} = this.frames[0];
     for (let i=0; i<frames.length; i++){
       let f = frames[i];
       if (!this.frames[i]){
         this.frames.push(f);
         continue;
       }
+      // XXX NOW: support partial update of sz (also for frames[0])
       // XXX NOW: support partial update (eg. we have h and now we add buf)
       if (this.frames[i]?.buf && frames[i]?.buf &&
         this.frames[i].buf.equals(frames[i].buf)){
         continue;
       }
-      // XXX NOW: support also update of h_rest
       if (i==0){
         if (this.frames[i]?.sig && frames[i]?.sig)
           assert(this.frames[i].sig.equals(frames[i].sig), 'sig changed');
         if (!this.frames[i]?.sig && frames[i]?.sig)
-          this.frames[i].sig = frames[i]?.sig;
+          this.frames[i].sig = frames[i].sig;
+        if (this.frames[i]?.h_rest && frames[i]?.h_rest)
+          assert(this.frames[i].h_rest.equals(frames[i].h_rest), 'h changed');
+        if (!this.frames[i]?.h_rest && frames[i]?.h_rest)
+          this.frames[i].h_rest = frames[i].h_rest;
         continue;
       }
       assert.fail('XXX TODO - support partial update of frames');
     }
+    if (!h_rest && this.frames[0].h_rest)
+      this.emit('hash');
     this.get_hash();
   }
+  get_hash(opt={}){
+    let h_rest = this.frames[0].h_rest;
+    if (h_rest)
+      return h_rest;
+    return this.set_hash(Frame_buffer.calc_hash(this.frames, {safe: true}));
+  }
   set_hash(h){
-    assert(!this.h || this.h.equals(h), 'hash changed');
-    if (this.h)
-      return this.h;
-    if (this.h = h)
+    let h_rest = this.frames[0].h_rest;
+    assert(!h_rest || h_rest.equals(h), 'hash changed');
+    if (h_rest)
+      return h_rest;
+    if (h){
+      this.frames[0].h_rest = h;
       this.emit('hash');
+    }
     return h;
   }
   sig_get(){ return this.frames[0].sig; }
@@ -974,7 +985,7 @@ class Decl extends EventEmitter {
         o.M[b] = o.M[b]||this.M_hash(b);
       }
       let frames = this.fbuf_get(b).get_frames();
-      // XXX NOW: move this logic to Frame_buffer
+      // XXX: move this logic to Frame_buffer
       if (frames.length>1 || frames[0].sig || frames[0].h_rest){
         o.D = o.D||{};
         o.D[b] = o.D[b]||frames;

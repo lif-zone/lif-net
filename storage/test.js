@@ -1974,6 +1974,8 @@ describe('scroll', ()=>{
           db.get_decl(seq5) #(mem5=(M5b1 m4_5b1))
           db.get_decl(seq6) #(mem6=(M6b1 m6b1 sig6b1 D6b1))
           b(M4=s1.M4 3v0.M6=s0.M6)`);
+        // XXX: add tests for partial (eg. saving only data hash instead of
+        // full data
 // XXX: need transaction support for put_decl (otherwise we may leave the db
 // corrupted if there was a merge)
         // XXX: test with branch + soul (every soul has it own db)
@@ -1981,15 +1983,47 @@ describe('scroll', ()=>{
       });
       if (0) // XXX WIP
       describe('db_data', ()=>{
-        t('xxx', `db_init s.scroll s.decl(data(128KB)) S..clone(s..M1) #
-          db.put_decl(seq0) #(db0=(M0 sig0 D0 m0))
-          db.put_branch #(db_b=(0:M0))
+        t('xxx', `db_init(max_decl:64KB max_frame:32KB) s.scroll
+          s.decl(data:65KB) S..clone(s..M1) #
+//          s.decl(data(32KB 33KB))
+          db.put_decl(seq1) #(db1=(M1 sig1 d1 m0) db_data=D1)
           S2..scroll(M0) #(mem0=(M0))
-          db.get_decl(seq0) #(mem0=(M0 sig0 D0 m0))`);
+          db.get_decl(seq1) #(mem1=(M0 sig0 d1 m0))
+          db.get_decl(seq1 data) #(mem1=(M0 sig0 D1 m0))
+          // D1=(f0, f1, f2)
+          // D1f0=sig0 D1f1={seq, ts} D1f2={buf size 65KB}
+          db.put_decl(seq1)
+          #(db1=(M1 m0 sig1 d1 D1:(D1F0 D1F1 D1f2)) db_data=D1F2)
+        `);
       });
     });
   });
 });
+
+/* XXX framing (mem/indexdb):
+frames = [{buf, h, sz}, {buf, h}, {buf, h}, ...] // buf = to_frame(o)
+// XXX: add json? json?
+frames = [{sig, sz, h_rest}, {json: {seq, ts}, buf, h},
+json: {seq, ts}
+buf: Buffer.from(stringify({seq, ts}))
+h: hash(buf)
+//
+[{sig}, {seq, ts}, ...}
+  {buf, h}, ...]
+hash(h1, h2, h3) // no sig
+// XXX: where to save hash of all the data (together with sig)
+
+function to_frame(o){
+  if (Buffer.isBuffer(o))
+    return o;
+  if (typeof o=='object')
+    return Buffer.from(stringify(o));
+  if (typeof o=='string')
+    return Buffer.from(o);
+  assert.fail('invalid frame data '+o);
+}
+
+*/
 
 /* XXX: storage
 current tables;

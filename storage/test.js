@@ -168,6 +168,12 @@ function fix_buf(o){
   return ret;
 }
 
+function assert_kb(s){
+  let m = s.match(/^(\d+)KB$/);
+  assert(m[1], 'invalid KB: '+s);
+  return +m[1]*1024;
+}
+
 function assert_buffer(a, b, desc){
   if (Buffer.isBuffer(a) && Buffer.isBuffer(b))
     assert.equal(b2s(a), b2s(b), 'buffer not equal '+desc);
@@ -343,11 +349,20 @@ function cmd_conf(t){
 }
 
 const cmd_db_init = t=>etask(function*cmd_db_init(){
-  yield DB.init({delete: true, shim_conf: {checkOrigin: false,
+  assert(!DB.inited, 'DB already inited');
+  let max_decl, max_frame;
+  for (let curr=t.r, i=0; curr = tparser.parse_get_next(curr); i++){
+    let tt = tparser.parse_exp_arg(curr.exp);
+    switch (tt.cmd){
+    case 'max_decl': max_decl = assert_kb(tt.r); break;
+    case 'max_frame': max_frame = assert_kb(tt.r); break;
+    default: assert.fail('invalid arg '+tt.cmd+' in '+t.meta.s);
+    }
+  }
+  yield DB.init({max_decl, max_frame, delete: true,
     // XXX: use memoryDatabase: ':memory:'
-    databaseBasePath: '/tmp',
-    deleteDatabaseFiles: true,
-    useSQLiteIndexes: true}});
+    shim_conf: {checkOrigin: false, databaseBasePath: '/tmp',
+    deleteDatabaseFiles: true, useSQLiteIndexes: true}});
 });
 
 const new_scroll = (name, M, prev_scroll, soul_name)=>etask(
@@ -1981,19 +1996,19 @@ describe('scroll', ()=>{
         // XXX: test with branch + soul (every soul has it own db)
         // XXX: limit for getting data get_decl (per frame limit, total limit)
       });
-      if (0) // XXX WIP
+      if (1) // XXX WIP
       describe('db_data', ()=>{
         t('xxx', `db_init(max_decl:64KB max_frame:32KB) s.scroll
           s.decl(data:65KB) S..clone(s..M1) #
 //          s.decl(data(32KB 33KB))
-          db.put_decl(seq1) #(db1=(M1 sig1 d1 m0) db_data=D1)
-          S2..scroll(M0) #(mem0=(M0))
-          db.get_decl(seq1) #(mem1=(M0 sig0 d1 m0))
-          db.get_decl(seq1 data) #(mem1=(M0 sig0 D1 m0))
+//          db.put_decl(seq1) #(db1=(M1 sig1 d1 m0) db_data=D1)
+//          S2..scroll(M0) #(mem0=(M0))
+//          db.get_decl(seq1) #(mem1=(M0 sig0 d1 m0))
+//          db.get_decl(seq1 data) #(mem1=(M0 sig0 D1 m0))
           // D1=(f0, f1, f2)
           // D1f0=sig0 D1f1={seq, ts} D1f2={buf size 65KB}
-          db.put_decl(seq1)
-          #(db1=(M1 m0 sig1 d1 D1:(D1F0 D1F1 D1f2)) db_data=D1F2)
+//          db.put_decl(seq1)
+//          #(db1=(M1 m0 sig1 d1 D1:(D1F0 D1F1 D1f2)) db_data=D1F2)
         `);
       });
     });

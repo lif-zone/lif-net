@@ -10,6 +10,8 @@ const b2s = buf_util.buf_to_str;
 setGlobalVars();
 
 const E = {scrolls: {}};
+E.MAX_DECL = 32*1024;
+E.MAX_FRAME = 32*1024;
 export default E;
 
 // XXX: change estore_put -> store_put
@@ -71,6 +73,8 @@ E.uninit = opt=>etask(function*init(){
     return xerr('db not inited');
   yield E.db.close();
   E.db = E.scrolls = undefined;
+  E.max_frame = opt.max_frame||E.MAX_FRAME;
+  E.max_decl = opt.max_decl||E.MAX_DECL;
   if (opt.delete)
     yield E.delete_db();
   E.inited = false;

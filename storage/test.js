@@ -799,7 +799,7 @@ const cmd_eq = o=>etask(function*cmd_eq(){
   if (Buffer.isBuffer(l) || Buffer.isBuffer(r))
     assert_buffer(l, r, o.meta.s);
   else if (Array.isArray(l) || Array.isArray(r))
-    assert.deepEqual(l||[], r||[]);
+    assert.deepEqual(l||[{}], r||[{}]);
   else
     assert.deepEqual(l, r);
 });

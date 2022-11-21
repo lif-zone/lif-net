@@ -51,7 +51,8 @@ class Data extends EventEmitter {
     let fdst = this.get(bdst);
     assert.equal(fsrc.map_info.b, bsrc);
     assert.equal(fdst.map_info.b, bdst);
-    assert(!fdst.h && !fdst.frames.length, 'already contain data');
+    // XXX NOW: wrap with api in Frame_buffer
+    assert(!fdst.h && fdst.frames.length==1, 'already contain data');
     fdst.h = fsrc.h;
     fdst.frames = fsrc.frames;
     this.bmap.delete(bsrc);
@@ -62,31 +63,36 @@ class Frame_buffer extends EventEmitter {
   constructor(opt={}){
     super();
     let {frames} = opt;
-    this.frames = [];
+    this.frames = [{}]; // first frame reserved for {sig, h_rest}
     for (let i=0; i<frames?.length; i++)
       this.frames.push(to_frame(frames[i]));
   }
-  unshift(o){ this.frames.unshift(to_frame(o)); }
   get_hash(opt={}){
     if (this.h)
       return this.h;
-    return this.set_hash(Frame_buffer.calc_hash(this.frames,
-      {safe: true, skip: opt.skip}));
+    return this.set_hash(Frame_buffer.calc_hash(this.frames, {safe: true}));
   }
   get_frames(){ return Array.from(this.frames); }
   set_frames(frames){
-    let offset=0;
-    if (this.frames[0]?.sig)
-      offset = 1;
+    assert(this.frames.length==1 || this.frames.length==frames.length,
+      'frames length mismatch');
     for (let i=0; i<frames.length; i++){
       let f = frames[i];
-      let ii = i+offset;
-      if (!this.frames[ii]){
+      if (!this.frames[i]){
         this.frames.push(f);
         continue;
       }
-      if (this.frames[ii]?.buf && frames[i]?.buf &&
-        this.frames[ii].buf.equals(frames[i].buf)){
+      // XXX NOW: support partial update (eg. we have h and now we add buf)
+      if (this.frames[i]?.buf && frames[i]?.buf &&
+        this.frames[i].buf.equals(frames[i].buf)){
+        continue;
+      }
+      // XXX NOW: support also update of h_rest
+      if (i==0){
+        if (this.frames[i]?.sig && frames[i]?.sig)
+          assert(this.frames[i].sig.equals(frames[i].sig), 'sig changed');
+        if (!this.frames[i]?.sig && frames[i]?.sig)
+          this.frames[i].sig = frames[i]?.sig;
         continue;
       }
       assert.fail('XXX TODO - support partial update of frames');
@@ -101,15 +107,20 @@ class Frame_buffer extends EventEmitter {
       this.emit('hash');
     return h;
   }
+  sig_get(){ return this.frames[0].sig; }
+  sig_set(sig){
+    assert(!this.frames[0].sig || this.frames[0].sig.equals(sig),
+      'sig changed');
+    this.frames[0].sig = sig;
+  }
 }
 
 Frame_buffer.calc_hash = function(frames, opt={}){
   let buf;
-  if (!frames.length)
+  if (frames.length<=1)
     return null;
-  let {safe, skip} = opt;
-  // XXX: we assume first frame is sig (need way to verify it)
-  for (let i=skip===undefined ? 1 : skip; i<frames.length; i++){
+  let {safe} = opt;
+  for (let i=1; i<frames.length; i++){
     let f = frames[i];
     if (safe){
       if (!f.h && !f.buf)
@@ -343,9 +354,8 @@ export default class Scroll extends EventEmitter {
   decl(b, frames){ // XXX: test decl on branch
     if (frames===undefined)
       [b, frames] = [0, b];
-    let ts = Date.now(), data = new Data({frames});
     let top = this.branch.get(b).top, seq = top ? top.seq+1 : 0;
-    data.get(b).unshift({seq, ts});
+    let ts = Date.now(), data = new Data({frames: [{seq, ts}].concat(frames)});
     let decl = new Decl({scroll: this, seq, data});
     this.dmap.set(seq, decl);
     decl.init();
@@ -914,7 +924,7 @@ class Decl extends EventEmitter {
   }
   to_b(b){ return this.scroll.to_b(b, this.seq); }
   sign(b){
-    let scroll = this.scroll, d = this.fbuf_get(b).get_hash({skip: 0});
+    let scroll = this.scroll, d = this.fbuf_get(b).get_hash();
     assert(scroll.key, 'cannot sign without key');
     let buf = this.seq ? Buffer.concat([d, scroll.M_hash(b, this.seq-1)])
       : scroll.prev_scroll ? Buffer.concat([d, scroll.prev_scroll]) : d;
@@ -922,22 +932,11 @@ class Decl extends EventEmitter {
     this.sig_set(b, sig);
   }
   sig_set(b, sig){
-    this.fbuf_get(b).unshift({sig});
-    this.emit('sig', {b}); // XXX: need to emit also from set_frames
+    this.fbuf_get(b).sig_set(sig);
+    this.emit('sig', {b}); // XXX NOW: need to emit also from set_frames
     return sig;
   }
-  sig_get(b){
-    let frames = this.fbuf_get(b).frames;
-    // XXX find better way to access buffer as json
-    if (!frames.length)
-      return;
-    try {
-      let json = JSON.parse(frames[0].buf.toString());
-      if (!json || !json.sig)
-        return;
-      return Buffer.from(json.sig);
-    } catch(err){ xerr('sig_get error %s', err); }
-  }
+  sig_get(b){ return this.fbuf_get(b).sig_get(); }
   fbuf_get(b){ return this.data.get(this.to_b(b)); }
   d_hash(b){ return this.fbuf_get(b).get_hash(); }
   m_get(range){
@@ -975,7 +974,8 @@ class Decl extends EventEmitter {
         o.M[b] = o.M[b]||this.M_hash(b);
       }
       let frames = this.fbuf_get(b).get_frames();
-      if (frames.length){
+      // XXX NOW: move this logic to Frame_buffer
+      if (frames.length>1 || frames[0].sig || frames[0].h_rest){
         o.D = o.D||{};
         o.D[b] = o.D[b]||frames;
       }

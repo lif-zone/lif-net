@@ -464,13 +464,25 @@ const cmd_decl = t=>etask(function*cmd_decl(){
   let name = t.ctx||get_def('left'), scroll = get_scroll(name);
   assert(!t.l, 'invalid left arg '+t.meta.s);
   assert(t.r, 'missing arg '+t.meta.s);
+  let sz;
   for (let curr=t.r, i=0; curr = tparser.parse_get_next(curr); i++){
-    let m=curr.exp.match(/^(\d+)-(\d+)$/);
-    if (m){
-      for (let j=+m[1]; j<=+m[2]; j++)
-        yield test_decl(scroll, ''+j);
-    } else
-      yield test_decl(scroll, curr.exp);
+    let tt = tparser.parse_exp_arg(curr.exp);
+    switch (tt.cmd){
+    case 'data':
+      sz = assert_kb(tt.r);
+      yield test_decl(scroll, Buffer.alloc(sz, scroll.branch.get(0).top.seq));
+      break;
+    case '-':
+      assert(/^\d+$/.test(tt.l) && /^\d+$/.test(tt.r), 'invalid -: '+t.meta.s);
+      for (let i=+tt.l; i<=+tt.r; i++)
+        yield test_decl(scroll, ''+i);
+      break;
+    default:
+      if (/^\d+$/.test(tt.cmd))
+        yield test_decl(scroll, tt.cmd);
+      else
+        assert.fail('invalid arg '+tt.cmd+' in '+t.meta.s);
+    }
   }
 });
 

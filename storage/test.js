@@ -373,6 +373,7 @@ function cmd_conf(t){
 }
 
 const cmd_db_init = t=>etask(function*cmd_db_init(){
+  let name = t.ctx||get_def('left');
   assert(!DB.inited, 'DB already inited');
   let max_decl, max_frame;
   for (let curr=t.r, i=0; curr = tparser.parse_get_next(curr); i++){
@@ -1962,7 +1963,7 @@ describe('scroll', ()=>{
         t('seq0', `s.scroll S..# clone(s..M0)
           #(mem_b=(0:M0) mem0=(M0 sig0 D0 m0) !mem1)
           mem.unload #(mem0=(M0) !mem1)`);
-        t('seq1', `db_init s.scroll(d:1) S..# clone(s..M1)
+        t('seq1', `s.scroll(d:1) S..# clone(s..M1)
           #(mem0=(M0 sig0 D0 m0) mem1=(M1 sig1 D1 m1 m0_1) mem_b=(0:M1))
           mem.unload #(mem0=(M0) !mem1 mem_b=(0:M0))`);
       });
@@ -1974,12 +1975,12 @@ describe('scroll', ()=>{
           S.db.put_branch S.#(db_b=(0:M0)) s.#
           S.mem.unload S.#(mem0=(M0)) s.#
           S.db.get_decl(seq0) S.#(mem0=(M0 sig0 D0 m0)) s.#`);
-        t('b0_seq0', `db_init s.scroll S..clone(s..M0) #
+        t('b0_seq0', `s.scroll S..clone(s..M0) db_init #
           db.put_decl(seq0) #(db0=(M0 sig0 D0 m0))
           db.put_branch #(db_b=(0:M0))
           mem.unload #(mem0=(M0))
           db.get_decl(seq0) #(mem0=(M0 sig0 D0 m0))`);
-        t('b0_seq1_normal', `db_init s.scroll(d:1) S..clone(s..M1) #
+        t('b0_seq1_normal', `s.scroll(d:1) S..clone(s..M1) db_init #
           db.put_decl(seq0) #(db0=(M0 sig0 D0 m0))
           db.put_decl(seq1) #(db1=(M1 sig1 D1 m1 m0_1))
           db.put_branch #(db_b=(0:M1))
@@ -1987,7 +1988,7 @@ describe('scroll', ()=>{
           db.get_branch #(mem_b=(0:M1))
           db.get_decl(seq0) #(mem0=(M0 sig0 D0 m0))
           db.get_decl(seq1) #(mem1=(M1 sig1 D1 m1 m0_1))`);
-        t('b0_seq1_rev', `db_init s.scroll(d:1) S..clone(s..M1) #
+        t('b0_seq1_rev', `s.scroll(d:1) S..clone(s..M1) db_init #
           db.put_decl(seq0) #(db0=(M0 sig0 D0 m0))
           db.put_decl(seq1) #(db1=(M1 sig1 D1 m1 m0_1))
           db.put_branch #(db_b=(0:M1))
@@ -1995,7 +1996,7 @@ describe('scroll', ()=>{
           db.get_branch #(mem_b=(0:M1))
           db.get_decl(seq1) #(mem1=(M1 sig1 D1 m1 m0_1))
           db.get_decl(seq0) #(mem0=(M0 sig0 D0 m0))`);
-        t('b0_seq4', `db_init s.scroll(d:1-4) S..clone(s..M4) #
+        t('b0_seq4', `s.scroll(d:1-4) S..clone(s..M4) db_init #
           db.put_decl(seq0) #(db0=(M0 sig0 D0 m0))
           db.put_decl(seq1) #(db1=(M1 sig1 D1 m1 m0_1))
           db.put_decl(seq2) #(db2=(M2 sig2 D2 m2))
@@ -2009,7 +2010,7 @@ describe('scroll', ()=>{
           db.get_decl(seq2) #(mem2=(M2 sig2 D2 m2))
           db.get_decl(seq3) #(mem3=(M3 sig3 D3 m3 m2_3 m0_3))
           db.get_decl(seq4) #(mem4=(M4 sig4 D4 m4))`);
-        t('b0_seq4_rev', `db_init s.scroll(d:1-4) S..clone(s..M4) #
+        t('b0_seq4_rev', `s.scroll(d:1-4) S..clone(s..M4) db_init #
           db.put_decl(seq0) #(db0=(M0 sig0 D0 m0))
           db.put_decl(seq1) #(db1=(M1 sig1 D1 m1 m0_1))
           db.put_decl(seq2) #(db2=(M2 sig2 D2 m2))
@@ -2023,7 +2024,7 @@ describe('scroll', ()=>{
           db.get_decl(seq2) #(mem2=(M2 sig2 D2 m2))
           db.get_decl(seq1) #(mem1=(M1 sig1 D1 m1 m0_1))
           db.get_decl(seq0) #(mem0=(M0 sig0 D0 m0))`);
-        t('b1', `db_init s0.scroll(d:1-6) s1..scroll(s0..M0)
+        t('b1', `s0.scroll(d:1-6) s1..scroll(s0..M0)
           tput(0 1 2 3 4    )
           tput(0_1_2_3 4_5 6)
           s1.b(M4=s0.M4 3v0.M6=s0.M6)
@@ -2038,7 +2039,7 @@ describe('scroll', ()=>{
           mem3=(M3 m3 m2_3 m0_3)
           mem4=(M4 m4 sig4 D4)
           mem5=(M5b1 m4_5b1)
-          mem6=(M6b1 m6b1 sig6b1 D6b1) #
+          mem6=(M6b1 m6b1 sig6b1 D6b1) db_init #
           db.put_branch #(db_b=(0:M4=s1.M4 1:3v0.M6=s0.M6))
           db_b(0:M4=s1.M4 1:3v0.M6=s0.M6)
           db.put_decl(seq0) #(db0=(M0 m0))
@@ -2071,15 +2072,16 @@ describe('scroll', ()=>{
       });
       describe('db_data', ()=>{
         // XXX NOW: test db_data with branch
-        t('no_split', `db_init(max_decl:60KB max_frame:32KB) s.scroll
-          s.decl(data:32KB) S..clone(s..M1) #
+        t('no_split', `s.scroll s.decl(data:32KB) S..clone(s..M1)
+          db_init(max_decl:60KB max_frame:32KB) #
           db.put_decl(seq1) #(db1=(M1 sig1 D1 m1 m0_1))
           mem.unload #(mem0=(M0) !mem1 mem_b=(0:M0))
           db.get_decl(seq1) #(mem1=(M1 sig1 D1 m1 m0_1) mem_b=0:M1)
           db.get_decl(seq1 data) #(mem1=(M1 sig1 D1 m1 m0_1))
         `);
-        t('split', `db_init(max_decl:60KB max_frame:32KB) s.scroll
-          s.decl(data:33KB) S..clone(s..M1) #
+        // XXX: derry NOW: use {} for struct (and [] for array)
+        t('split', `s.scroll s.decl(data:33KB) S..clone(s..M1)
+          db_init(max_decl:60KB max_frame:32KB) #
           db.put_decl(seq1) #(db1=(M1 sig1 D1:[D1F0 D1F1 D1f2] m1 m0_1)
             db_data=(D1F2))
           mem.unload #(mem0=(M0) !mem1 mem_b=(0:M0))
@@ -2087,32 +2089,32 @@ describe('scroll', ()=>{
             mem_b=0:M1)
           db.get_decl(seq1 data) #(mem1=(M1 sig1 D1 m1 m0_1))
         `);
-        t('split_max_decl_1', `db_init(max_decl:60KB max_frame:32KB) s.scroll
-          s.decl(data(33KB 28KB)) S..clone(s..M1) #
+        t('split_max_decl_1', `s.scroll s.decl(data(33KB 28KB))
+          S..clone(s..M1) db_init(max_decl:60KB max_frame:32KB) #
           db.put_decl(seq1) #(db1=(M1 sig1 D1:[D1F0 D1F1 D1f2 D1F3] m1 m0_1)
             db_data=(D1F2))
           mem.unload #(mem0=(M0) !mem1 mem_b=(0:M0))
           db.get_decl(seq1) #(mem1=(M1 sig1 D1:[D1F0 D1F1 D1f2 D1F3] m1 m0_1)
             mem_b=0:M1)
           db.get_decl(seq1 data) #(mem1=(M1 sig1 D1 m1 m0_1))`);
-        t('split_max_decl_2', `db_init(max_decl:60KB max_frame:32KB) s.scroll
-          s.decl(data(32KB 29KB)) S..clone(s..M1) #
+        t('split_max_decl_2', `s.scroll s.decl(data(32KB 29KB))
+          S..clone(s..M1) db_init(max_decl:60KB max_frame:32KB) #
           db.put_decl(seq1) #(db1=(M1 sig1 D1:[D1F0 D1F1 D1F2 D1f3] m1 m0_1)
             db_data=(D1F3))
           mem.unload #(mem0=(M0) !mem1 mem_b=(0:M0))
           db.get_decl(seq1) #(mem1=(M1 sig1 D1:[D1F0 D1F1 D1F2 D1f3] m1 m0_1)
             mem_b=0:M1)
           db.get_decl(seq1 data) #(mem1=(M1 sig1 D1 m1 m0_1))`);
-        t('split_max_decl_3', `db_init(max_decl:60KB max_frame:32KB) s.scroll
-          s.decl(data(33KB 33KB)) S..clone(s..M1) #
+        t('split_max_decl_3', `s.scroll s.decl(data(33KB 33KB))
+          S..clone(s..M1) db_init(max_decl:60KB max_frame:32KB) #
           db.put_decl(seq1) #(db1=(M1 sig1 D1:[D1F0 D1F1 D1f2 D1f3] m1 m0_1)
             db_data=(D1F2 D1F3))
           mem.unload #(mem0=(M0) !mem1 mem_b=(0:M0))
           db.get_decl(seq1) #(mem1=(M1 sig1 D1:[D1F0 D1F1 D1f2 D1f3] m1 m0_1)
             mem_b=0:M1)
           db.get_decl(seq1 data) #(mem1=(M1 sig1 D1 m1 m0_1))`);
-        t('split_multi', `db_init(max_decl:60KB max_frame:32KB) s.scroll
-          s.decl(data:33KB) s.decl(data:33KB) S..clone(s..M2) #
+        t('split_multi', `s.scroll s.decl(data:33KB) s.decl(data:33KB)
+          S..clone(s..M2) db_init(max_decl:60KB max_frame:32KB) #
           db.put_decl(seq1) #(db1=(M1 sig1 D1:[D1F0 D1F1 D1f2] m1 m0_1)
             db_data=(D1F2))
           db.put_decl(seq2) #(db2=(M2 sig2 D2:[D2F0 D2F1 D2f2] m2)

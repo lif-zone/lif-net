@@ -79,11 +79,6 @@ class Frame_buffer extends EventEmitter {
         this.frames.push(f);
         continue;
       }
-      // XXX NOW: support partial update of sz (also for frames[0])
-      // XXX NOW: support partial update (eg. we have h and now we add buf)
-      if (ff?.buf && f?.buf && ff.buf.equals(f.buf)){
-        continue;
-      }
       if (ff?.sig && f?.sig)
         assert(ff.sig.equals(f.sig), 'sig changed');
       else if (f?.sig)
@@ -1008,27 +1003,26 @@ class Decl extends EventEmitter {
       let frames = this.fbuf_get(b).get_frames();
       // XXX: move this logic to Frame_buffer
       if (frames.length>1 || frames[0].sig || frames[0].h_rest){
-        let f = [], total=0;
-        // XXX NOW: ugly code
+        let frames2 = [], total=0;
         for (let i=0; i<frames.length; i++){
-          let len = frames[i].buf?.length||0;
+          let f = frames[i], len = f.buf?.length||0;
           if (len && (len>max_frame || total+len>max_decl)){
-            assert(frames[i].h, 'missing hash');
+            assert(f.h, 'missing hash');
             if (blob)
-              blob[b2s(frames[i].h)] = frames[i].buf;
-            let ff = {h: frames[i].h};
-            if (frames[i].sz)
-              ff.sz = frames[i].sz;
-            f.push(ff);
+              blob[b2s(f.h)] = f.buf;
+            let ff = {h: f.h};
+            if (f.sz)
+              ff.sz = f.sz;
+            frames2.push(ff);
           }
           else {
-            f.push(assign({}, frames[i]));
+            frames2.push(assign({}, f));
             total += len;
           }
         }
         o.D = o.D||{};
         assert(!o.D[b], 'D already set');
-        o.D[b] = f;
+        o.D[b] = frames2;
       }
       for (let i=0; i<this.m.length; i++){
         if (!this.m[i].get_hash(b))

@@ -178,7 +178,7 @@ E.put_decl = (scroll, seq)=>etask(function*put_decl(){
   let blob = {};
   yield db_put('decl', decl.to_static({max_decl: E.max_decl,
     max_frame: E.max_frame, blob}));
-  // XXX: need blob cache (and to do it only if blob was not before in db)
+  // XXX NOW: need blob cache (and to do it only if blob was not before in db)
   for (let h in blob)
     yield db_put('data', {h, buf: blob[h]});
 });

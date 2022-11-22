@@ -326,7 +326,7 @@ const test_start = ()=>etask(function*test_start(){
   t_soul_id = 0;
   t_scroll = {};
   t_def = {};
-  t_state = null;
+  t_state = {};
   t_keypair = {pub: s2b('44659cb51dec397ea66085679442505345e159940762c15ef75'+
     'ad279ecf05033'),
     key: s2b('46f45a62f4c5971228747aa2d8ee66bd669ebd805c725286ee385b1d4a06dd'+
@@ -398,7 +398,7 @@ const new_scroll = (name, M, prev_scroll, soul_name)=>etask(
     soul = t_soul[soul_name] = t_soul[soul_name] || new Scroll.Soul();
   }
   else if (t_soul_mode=='manual'){
-    assert(soul_name, 'missing sould name in manual mode');
+    assert(soul_name, 'missing soul name in manual mode');
     soul = t_soul[soul_name] = t_soul[soul_name] || new Scroll.Soul();
   } else if (t_soul_mode=='same'){
     assert(!soul_name, 'no soul name in same mode');
@@ -466,7 +466,7 @@ const cmd_clone = (curr, t)=>etask(function*cmd_clone(){
   if (m[2]=='..')
     set_def('right', src);
   let s_src = get_scroll(src);
-  let s_dst = yield new_scroll(dst, s_src.M_hash(0, 0));
+  let s_dst = yield new_scroll(dst, s_src.M_hash(0, 0), null, t.prev?.ctx);
   // XXX: use branch_to_static/branch_from_static
   if (Array.from(s_src.branch.keys()).length>1){ // XXX: rm this if
     for (let [bid, bo] of s_src.branch){
@@ -513,11 +513,11 @@ const cmd_decl = t=>etask(function*cmd_decl(){
   }
 });
 
-function state_split_var(v){
+function state_split_var(v, def){
   let o = parse_var(v), {type, seq, b} = o;
   if (o.def)
     set_def('left', o.ctx);
-  let name = o.ctx||get_def('left');
+  let name = o.ctx||def||get_def('left');
   if (['db_b', 'db_data', 'mem_b'].includes(type))
     return {name, type};
   assert(['mem', 'db'].includes(type), 'invalid type '+type);
@@ -525,18 +525,18 @@ function state_split_var(v){
   return {name, type, seq};
 }
 
-const state_split = exp=>etask(function*state_split(){
+const state_split = (exp, def)=>etask(function*state_split(){
   let o = tparser.parse_exp(exp);
   switch (o.cmd){
-  case '!': return assign(state_split_var(o.r), {val: null});
+  case '!': return assign(state_split_var(o.r, def), {val: null});
   case '=':
     if (['db_data'].includes(o.l)){
-      return assign(state_split_var(o.l),
+      return assign(state_split_var(o.l, def),
         {val: yield get_static_db_data(o.r)});
     }
     if (['db_b', 'mem_b'].includes(o.l))
-      return assign(state_split_var(o.l), {val: yield get_static_b(o.r)});
-    return assign(state_split_var(o.l),
+      return assign(state_split_var(o.l,def ), {val: yield get_static_b(o.r)});
+    return assign(state_split_var(o.l, def),
       {val: fix_buf(yield get_val(o.r, 'right'))});
   default: assert.fail('invalid state_split '+exp);
   }
@@ -589,23 +589,23 @@ const cmd_state = (curr, t)=>etask(function*cmd_state(){
     state.db_data = yield db_get_db_data();
   }
   state = fix_buf(state);
-  if (!t_state){
+  if (!t_state[name]){
     assert(!t.r, 'first # must be empty to set reference state');
-    t_state = state;
+    t_state[name] = state;
     return;
   }
   for (let curr=t.r; curr = tparser.parse_get_next(curr);)
-    state_apply(t_state, yield state_split(curr.exp));
+    state_apply(t_state[name], yield state_split(curr.exp, name));
   // XXX: need assert_state
-  assert.deepEqual(state.mem_b, t_state.mem_b, 'mem branch state mismach '+
+  assert.deepEqual(state.mem_b, t_state[name].mem_b, 'mem branch state mismach '+
     t.meta.s);
-  assert.deepEqual(state.mem, t_state.mem, 'mem state mismach '+t.meta.s);
-  assert.deepEqual(state.db_b, t_state.db_b, 'db branch state mismach '+
+  assert.deepEqual(state.mem, t_state[name].mem, 'mem state mismach '+t.meta.s);
+  assert.deepEqual(state.db_b, t_state[name].db_b, 'db branch state mismach '+
     t.meta.s);
-  assert.deepEqual(state.db, t_state.db, 'db state mismach '+t.meta.s);
-  assert.deepEqual(state.db_data, t_state.db_data,
+  assert.deepEqual(state.db, t_state[name].db, 'db state mismach '+t.meta.s);
+  assert.deepEqual(state.db_data, t_state[name].db_data,
     'db_data state mismach '+t.meta.s);
-  t_state = state;
+  t_state[name] = state;
 });
 
 function cmd_tput(curr, t){
@@ -1967,6 +1967,13 @@ describe('scroll', ()=>{
           mem.unload #(mem0=(M0) !mem1 mem_b=(0:M0))`);
       });
       describe('db_put', ()=>{
+        if (0) // XXX NOW derry
+        t('soul', `conf(soul:manual) db_init soul_s.s.scroll
+          soul_S.S.clone(s..M0) S.# s.#
+          S.db.put_decl(seq0) S.#(db0=(M0 sig0 D0 m0)) s.#
+          S.db.put_branch S.#(db_b=(0:M0)) s.#
+          S.mem.unload S.#(mem0=(M0)) s.#
+          S.db.get_decl(seq0) S.#(mem0=(M0 sig0 D0 m0)) s.#`);
         t('b0_seq0', `db_init s.scroll S..clone(s..M0) #
           db.put_decl(seq0) #(db0=(M0 sig0 D0 m0))
           db.put_branch #(db_b=(0:M0))

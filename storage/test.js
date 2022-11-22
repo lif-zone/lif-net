@@ -1966,18 +1966,6 @@ describe('scroll', ()=>{
           #(mem0=(M0 sig0 D0 m0) mem1=(M1 sig1 D1 m1 m0_1) mem_b=(0:M1))
           S2..scroll(M0) #(mem0=(M0) !mem1 mem_b=(0:M0))`);
       });
-      // XXX: support #db0=(M0 sig0 D0 m0)
-      // XXX: S..:=s.scroll(d:1)
-      // XXX: s.scroll(d:1) S..clone(s..)
-      // XXX TODO:
-      // + change db stucture to be one table for all decleration
-      // + implement state diff api: #
-      // * finish parsing shortcuts
-      // - db per soul
-      // - db branch support testing
-      //   - how to handle branch merge (b in db is wrong now)
-      // - handle big data
-      // do we need dirty flag to know what needs to be saved to db
       describe('db_put', ()=>{
         t('b0_seq0', `db_init s.scroll S..clone(s..M0) #
           db.put_decl(seq0) #(db0=(M0 sig0 D0 m0))
@@ -1992,7 +1980,6 @@ describe('scroll', ()=>{
           db.get_branch #(mem_b=(0:M1))
           db.get_decl(seq0) #(mem0=(M0 sig0 D0 m0))
           db.get_decl(seq1) #(mem1=(M1 sig1 D1 m1 m0_1))`);
-        // XXX: mv branch info to be part of # state
         t('b0_seq1_rev', `db_init s.scroll(d:1) S..clone(s..M1) #
           db.put_decl(seq0) #(db0=(M0 sig0 D0 m0))
           db.put_decl(seq1) #(db1=(M1 sig1 D1 m1 m0_1))
@@ -2065,10 +2052,15 @@ describe('scroll', ()=>{
           db.get_decl(seq5) #(mem5=(M5b1 m4_5b1))
           db.get_decl(seq6) #(mem6=(M6b1 m6b1 sig6b1 D6b1))
           b(M4=s1.M4 3v0.M6=s0.M6)`);
+// XXX NOW : support #db0=(M0 sig0 D0 m0)
+// XXX: S..:=s.scroll(d:1)
+// XXX: s.scroll(d:1) S..clone(s..)
+// XXX: derry NOW: use {} for struct (and [] for array)
+// NOW how to handle branch merge (b in db is wrong now)
+// NOW need dirty flag to know what needs to be saved to db; also for blob
 // XXX: test with branch + soul (every soul has it own db)
 // XXX NOW: need transaction support for put_decl (otherwise we may leave
 // the db corrupted if there was a merge)
-// XXX: derry NOW: use {} for struct (and [] for array)
       });
       describe('db_data', ()=>{
         t('no_split', `db_init(max_decl:60KB max_frame:32KB) s.scroll

@@ -909,9 +909,11 @@ export default class Scroll extends EventEmitter {
   branch_from_static(bs){
     assert(this.branch.size==1 && this.branch.get(0).top.seq==0,
       'cannot update branch info after it was populated');
+    let max = this.branch.next_id||0;
     for (let b in bs){
       let o = bs[b];
       b = +b;
+      max = Math.max(b, max);
       let bo = {b, top: {seq: o.top.seq, M: Buffer.from(o.top.M)},
         parent: o.parent ? {b: o.parent.b, seq: o.parent.seq,
           type: o.parent.type} : null, branches: new Map()};
@@ -919,6 +921,8 @@ export default class Scroll extends EventEmitter {
       if (bo.parent)
         this.branch.get(bo.parent.b).branches.set(b, bo);
     }
+    // NOW: add test to verify branch.next_id is updated
+    this.branch.next_id = max+1;
   }
 }
 

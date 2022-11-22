@@ -71,8 +71,19 @@ function macro_to_m(val, dst){
   return s;
 }
 
+const array_from_str = exp=>etask(function*array_from_str(){
+  let ret=[], a=[];
+  for (let curr=exp, i=0; curr = tparser.parse_get_next(curr); i++)
+    a.push(curr.exp);
+  for (let i=0; i<a.length; i++)
+    ret.push(yield get_val(a[i]));
+  return ret;
+});
+
 const struct_from_str = exp=>etask(function*struct_from_str(){
-  let a = exp.split(' '), seq, o;
+  let a=[], seq, o;
+  for (let curr=exp, i=0; curr = tparser.parse_get_next(curr); i++)
+    a.push(curr.exp);
   for (let i=0; i<a.length; i++){
     let t = tparser.parse_exp_arg_pair(a[i]);
     let ol = parse_var(t.l), type = ol.type, b = ol.b||0, r = ol.range;
@@ -117,20 +128,29 @@ function struct_from_decl(decl){
 }
 
 function parse_var(v){
-  let m = v.match(/^\((.*)\)$/);
-  if (m && m[1])
+  let m;
+  // XXX NOW: why 999
+  if (m = v.match(/^\((.*)\)$/))
     return {seq: 999, range: [999, 999], type: 'struct', val: m[1]};
+  if (m = v.match(/^\[(.*)\]$/))
+    return {seq: 999, range: [999, 999], type: 'array', val: m[1]};
   m = v.match(/^([a-zA-Z]\d*)(\.|\.\.)([^.]*)$/);
   let ctx = m ? m[1] : '', def = m ? m[2]=='..' : false;
   v = m ? m[3] : v;
-  if (['db_b', 'mem_b'].includes(v))
+  if (['db_b', 'db_data', 'mem_b'].includes(v))
     return {type: v, ctx, def};
-  m = v.match(/^(sig|m|M|d|D|mem|db)((\d+)|((\d+)_(\d+)))(b(\d+))?$/);
-  assert.equal(m?.length, 9, 'invalid var '+v);
-  let type = m[1], range = r_from_str(m[2]), seq = range[1];
-  let b = m[8] ? +m[8] : 0;
-  assert(type=='m' || range[0]==range[1], 'invalid range '+v);
-  return {seq, type, range, b, ctx, def};
+  if (m = v.match(/^(sig|m|M|d|D|mem|db)((\d+)|((\d+)_(\d+)))(b(\d+))?$/)){
+    let type = m[1], range = r_from_str(m[2]), seq = range[1];
+    let b = m[8] ? +m[8] : 0;
+    assert(type=='m' || range[0]==range[1], 'invalid range '+v);
+    return {seq, type, range, b, ctx, def};
+  }
+  if (m = v.match(/^D(\d+)(f|F)(\d+)(b(\d+))?$/)){
+    let b = m[5] ? +m[5] : 0;
+    let seq = +m[1], range = [seq, seq], type = 'D'+m[2], i = +m[3];
+    return {seq, type, range, i, b, ctx, def};
+  }
+  assert.fail('invalid var '+v);
 }
 
 function get_scroll(name, may_not_exist){
@@ -280,6 +300,10 @@ const get_val = (exp, def_type='right')=>etask(function*_get_val(){
   case 'M': return scroll.M_hash(b, seq);
   case 'd': return scroll.seq_d(b, seq);
   case 'D': return scroll.seq_D(b, seq);
+  case 'Df': return scroll.seq_D(b, seq)[o.i]?.h ?
+    {h: scroll.seq_D(b, seq)[o.i]?.h} : null;
+  case 'DF': return scroll.seq_D(b, seq)[o.i]?.sig ||
+    scroll.seq_D(b, seq)[o.i]?.buf ? scroll.seq_D(b, seq)[o.i] : null;
   // XXX: do we need calc_m?
   case 'm': return r0==seq ? scroll.m_hash(b, seq) :
     b ? scroll.m_hash(b, o.range) : calc_m(scroll, o.range);
@@ -287,6 +311,7 @@ const get_val = (exp, def_type='right')=>etask(function*_get_val(){
   case 'mem':
     return yield struct_from_decl(scroll.get_decl(seq, {create: false}));
   case 'struct': return yield struct_from_str(o.val);
+  case 'array': return yield array_from_str(o.val);
   }
   assert.fail('invalid val exp '+exp);
 });
@@ -491,7 +516,7 @@ function state_split_var(v){
   if (o.def)
     set_def('left', o.ctx);
   let name = o.ctx||get_def('left');
-  if (['db_b', 'mem_b'].includes(type))
+  if (['db_b', 'db_data', 'mem_b'].includes(type))
     return {name, type};
   assert(['mem', 'db'].includes(type), 'invalid type '+type);
   assert.equal(b, '0', 'invalid branch usage');
@@ -503,6 +528,10 @@ const state_split = exp=>etask(function*state_split(){
   switch (o.cmd){
   case '!': return assign(state_split_var(o.r), {val: null});
   case '=':
+    if (['db_data'].includes(o.l)){
+      return assign(state_split_var(o.l),
+        {val: yield get_static_db_data(o.r)});
+    }
     if (['db_b', 'mem_b'].includes(o.l))
       return assign(state_split_var(o.l), {val: yield get_static_b(o.r)});
     return assign(state_split_var(o.l),
@@ -513,7 +542,7 @@ const state_split = exp=>etask(function*state_split(){
 
 function state_apply(state, o){
   let {type, seq, val} = o;
-  if (['db_b', 'mem_b'].includes(type)){
+  if (['db_b', 'db_data', 'mem_b'].includes(type)){
     if (val){
       state[type] = val;
     } else
@@ -545,7 +574,8 @@ const cmd_state = (curr, t)=>etask(function*cmd_state(){
     let store = tx.objectStore('decl');
     // XXX: optimize, just get data of scroll from DB
     for (let cursor = yield DB.cursor_open(store); cursor;
-      cursor = yield DB.cursor_continue(cursor)){
+      cursor = yield DB.cursor_continue(cursor))
+    {
       let o = DB.fix_struct(cursor.value);
       if (soul.get(o.scroll).t.name!=name)
         continue;
@@ -554,6 +584,7 @@ const cmd_state = (curr, t)=>etask(function*cmd_state(){
       state.db[o.seq] = o;
     }
     state.db_b = yield db_get_b(scroll.M_hash(0, 0));
+    state.db_data = yield db_get_db_data();
   }
   state = fix_buf(state);
   if (!t_state){
@@ -561,10 +592,8 @@ const cmd_state = (curr, t)=>etask(function*cmd_state(){
     t_state = state;
     return;
   }
-  for (let curr=t.r; curr = tparser.parse_get_next(curr);){
-    let o = yield state_split(curr.exp);
-    state_apply(t_state, o);
-  }
+  for (let curr=t.r; curr = tparser.parse_get_next(curr);)
+    state_apply(t_state, yield state_split(curr.exp));
   // XXX: need assert_state
   assert.deepEqual(state.mem_b, t_state.mem_b, 'mem branch state mismach '+
     t.meta.s);
@@ -572,6 +601,8 @@ const cmd_state = (curr, t)=>etask(function*cmd_state(){
   assert.deepEqual(state.db_b, t_state.db_b, 'db branch state mismach '+
     t.meta.s);
   assert.deepEqual(state.db, t_state.db, 'db state mismach '+t.meta.s);
+  assert.deepEqual(state.db_data, t_state.db_data,
+    'db_data state mismach '+t.meta.s);
   t_state = state;
 });
 
@@ -642,9 +673,11 @@ const cmd_put_decl = (curr, t)=>etask(function*cmd_put_decl(){
 const cmd_get_decl = (curr, t)=>etask(function*cmd_get_decl(){
   assert(t.ctx=='db', 'missing db prefix');
   let name = t.prev?.ctx||get_def('left'), scroll = get_scroll(name), seq;
+  let data;
   for (let curr=t.r; curr = tparser.parse_get_next(curr);){
     let tt = tparser.parse_exp_arg(curr.exp), m;
     switch (tt.cmd){
+    case 'data': data = true; break;
     default:
       if (m = tt.cmd.match(/^seq(\d+)$/)){
         assert.equal(seq, undefined, 'XXX TODO');
@@ -655,7 +688,7 @@ const cmd_get_decl = (curr, t)=>etask(function*cmd_get_decl(){
     }
   }
   assert(seq>=0, 'invalid seq '+seq);
-  yield DB.get_decl(scroll, seq);
+  yield DB.get_decl(scroll, {seq, data});
 });
 
 // XXX: rm api
@@ -752,13 +785,41 @@ const cmd_b = t=>etask(function*cmd_b(){
   assert_no_corruption(scroll);
 });
 
+const get_static_db_data = exp=>etask(function*get_static_db_data(){
+  let m;
+  if (m = exp.match(/^\((.*)\)$/))
+    exp = m[1];
+  let o = {};
+  for (let curr=exp; curr = tparser.parse_get_next(curr);){
+    let val = yield get_val(curr.exp);
+    assert(val?.buf && val?.h, 'invalid static db data');
+    o[b2s(val.h)] = b2s(val.buf);
+  }
+  return o;
+});
+
+const db_get_db_data = M=>etask(function*db_get_db_data(){
+  let ret;
+  let tx = DB.db.transaction('data', 'readonly');
+  let store = tx.objectStore('data');
+  // XXX: optimize, just get data of scroll from DB
+  for (let cursor = yield DB.cursor_open(store); cursor;
+    cursor = yield DB.cursor_continue(cursor))
+  {
+    ret = ret ||{};
+    assert.equal(cursor.key, b2s(cursor.value.h));
+    ret[cursor.key] = b2s(Buffer.from(cursor.value.buf));
+  }
+  return ret;
+});
+
 const get_static_b = exp=>etask(function*get_static_b(){
   let m;
   if (m = exp.match(/^\((.*)\)$/))
     exp = m[1];
   let o = {};
   for (let curr=exp; curr = tparser.parse_get_next(curr);){
-    let m = curr.exp.match(/^(\d+):(.*)$/);
+    m = curr.exp.match(/^(\d+):(.*)$/);
     assert(m.length==3, 'invalid db_b '+curr.exp);
     o[m[1]] = parse_branch(m[2]);
     o[m[1]].top.M = b2s(yield get_val(o[m[1]].top.M));
@@ -851,6 +912,7 @@ const test_run_single = (curr, o)=>etask(function*_test_run_single(){
   case '==': yield cmd_test(o); break;
   case 'b': yield cmd_b(o); break;
   case 'db_b': yield cmd_db_b(o); break;
+// XXX NOW: need db_data
   case '//': break;
   case 'dbg': debugger; break; // eslint-disable-line no-debugger
   case '.':
@@ -954,7 +1016,7 @@ describe('test_util', ()=>{
     t('s2.m0_1b10', 'm 0_1 10 s2');
     t('s2..d0', 'd 0 0 s2 def');
     t('s2..m0_1b10', 'm 0_1 10 s2 def');
-    // XXX: test db_b
+    // XXX: test db_b, db_data
   });
   it('parse_branch', ()=>{
     const t = (val, exp)=>assert.deepEqual(parse_branch(val), exp);
@@ -2008,19 +2070,24 @@ describe('scroll', ()=>{
         // XXX: test with branch + soul (every soul has it own db)
         // XXX: limit for getting data get_decl (per frame limit, total limit)
       });
-      if (1) // XXX WIP
+      // XXX NOW          s.decl(data(32KB 33KB))
+      // XXX: derry NOW: use {} for struct (and [] for array)
       describe('db_data', ()=>{
-        t('xxx', `db_init(max_decl:64KB max_frame:32KB) s.scroll
-          s.decl(data:65KB) S..clone(s..M1) #
-// XXX          s.decl(data(32KB 33KB))
-            db.put_decl(seq1) // XXX #(db1=(M1 sig1 d1 m0) db_data=D1)
-//          S2..scroll(M0) #(mem0=(M0))
-//          db.get_decl(seq1) #(mem1=(M0 sig0 d1 m0))
-//          db.get_decl(seq1 data) #(mem1=(M0 sig0 D1 m0))
-          // D1=(f0, f1, f2)
-          // D1f0=sig0 D1f1={seq, ts} D1f2={buf size 65KB}
-//          db.put_decl(seq1)
-//          #(db1=(M1 m0 sig1 d1 D1:(D1F0 D1F1 D1f2)) db_data=D1F2)
+        t('no_split', `db_init(max_decl:64KB max_frame:32KB) s.scroll
+          s.decl(data:32KB) S..clone(s..M1) #
+          db.put_decl(seq1) #(db1=(M1 sig1 D1 m1 m0_1))
+          S2..scroll(M0) #(mem0=(M0) !mem1 mem_b=(0:M0))
+          db.get_decl(seq1) #(mem1=(M1 sig1 D1 m1 m0_1) mem_b=0:M1)
+          db.get_decl(seq1 data) #(mem1=(M1 sig1 D1 m1 m0_1))
+        `);
+        t('split', `db_init(max_decl:64KB max_frame:32KB) s.scroll
+          s.decl(data:33KB) S..clone(s..M1) #
+          db.put_decl(seq1) #(db1=(M1 sig1 D1:[D1F0 D1F1 D1f2] m1 m0_1)
+            db_data=(D1F2))
+          S2..scroll(M0) #(mem0=(M0) !mem1 mem_b=(0:M0))
+          db.get_decl(seq1) #(mem1=(M1 sig1 D1:[D1F0 D1F1 D1f2] m1 m0_1)
+            mem_b=0:M1)
+          db.get_decl(seq1 data) #(mem1=(M1 sig1 D1 m1 m0_1))
         `);
       });
     });

@@ -74,33 +74,49 @@ class Frame_buffer extends EventEmitter {
       'frames length mismatch');
     let {h_rest} = this.frames[0];
     for (let i=0; i<frames.length; i++){
-      let f = frames[i];
-      if (!this.frames[i]){
+      let f = frames[i], ff = this.frames[i];
+      if (!ff){
         this.frames.push(f);
         continue;
       }
       // XXX NOW: support partial update of sz (also for frames[0])
       // XXX NOW: support partial update (eg. we have h and now we add buf)
-      if (this.frames[i]?.buf && frames[i]?.buf &&
-        this.frames[i].buf.equals(frames[i].buf)){
+      if (ff?.buf && f?.buf && ff.buf.equals(f.buf)){
         continue;
       }
-      if (i==0){
-        if (this.frames[i]?.sig && frames[i]?.sig)
-          assert(this.frames[i].sig.equals(frames[i].sig), 'sig changed');
-        if (!this.frames[i]?.sig && frames[i]?.sig)
-          this.frames[i].sig = frames[i].sig;
-        if (this.frames[i]?.h_rest && frames[i]?.h_rest)
-          assert(this.frames[i].h_rest.equals(frames[i].h_rest), 'h changed');
-        if (!this.frames[i]?.h_rest && frames[i]?.h_rest)
-          this.frames[i].h_rest = frames[i].h_rest;
-        continue;
-      }
-      assert.fail('XXX TODO - support partial update of frames');
+      if (ff?.sig && f?.sig)
+        assert(ff.sig.equals(f.sig), 'sig changed');
+      else if (f?.sig)
+        ff.sig = f.sig;
+      if (ff?.h_rest && f?.h_rest)
+        assert(ff.h_rest.equals(f.h_rest), 'h changed');
+      else if (f?.h_rest)
+        ff.h_rest = f.h_rest;
+      if (ff?.buf && f?.buf)
+        assert(ff.buf.equals(f.buf), 'buf changed');
+      else if (f?.buf)
+        ff.buf = f.buf;
+      if (ff?.h && f?.h)
+        assert(ff.h.equals(f.h), 'h changed');
+      else if (f?.h)
+        ff.h = f.h;
+      if (f?.sz)
+        ff.sz = f.sz;
     }
     if (!h_rest && this.frames[0].h_rest)
       this.emit('hash');
     this.get_hash();
+  }
+  set_frame_buf(i, buf){
+    let f = this.frames[i];
+    assert(f, 'no frame '+i);
+    assert(!f.buf, 'buf aleady exist');
+    let h = crypto.blake2b(buf);
+    if (f.h)
+      assert(h.equals(f.h), 'invalid hash');
+    else
+      f.h = h;
+    f.buf = buf;
   }
   get_hash(opt={}){
     let h_rest = this.frames[0].h_rest;
@@ -950,6 +966,7 @@ class Decl extends EventEmitter {
   }
   sig_get(b){ return this.fbuf_get(b).sig_get(); }
   fbuf_get(b){ return this.data.get(this.to_b(b)); }
+  data_get(){ return this.data; }
   d_hash(b){ return this.fbuf_get(b).get_hash(); }
   m_get(range){
     let i = merkel_array_pos(range);
@@ -998,7 +1015,7 @@ class Decl extends EventEmitter {
           if (len && (len>max_frame || total+len>max_decl)){
             assert(frames[i].h, 'missing hash');
             if (blob)
-              blob[b2s(frames[i].h)] = frames.buf;
+              blob[b2s(frames[i].h)] = frames[i].buf;
             let ff = {h: frames[i].h};
             if (frames[i].sz)
               ff.sz = frames[i].sz;

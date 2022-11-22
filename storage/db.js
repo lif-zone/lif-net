@@ -14,7 +14,7 @@ E.MAX_DECL = 32*1024;
 E.MAX_FRAME = 32*1024;
 export default E;
 
-// XXX: change estore_put -> store_put
+// XXX NOW: change estore_put -> store_put
 function estore_put(store, val){
   store = idb.unwrap(store);
   let wait = etask.wait();
@@ -24,7 +24,7 @@ function estore_put(store, val){
   return wait;
 }
 
-// XXX: change estore_get -> store_get
+// XXX NOW: change estore_get -> store_get
 function estore_get(store, val){
   store = idb.unwrap(store);
   let wait = etask.wait();
@@ -93,6 +93,7 @@ E.init = opt=>etask(function*db_init(){
       db.createObjectStore('scroll', {keyPath: 'M'});
       // XXX: use scroll id from scroll table instead of M for keyPath
       db.createObjectStore('decl', {keyPath: ['scroll', 'seq']});
+      db.createObjectStore('data', {keyPath: 'h'});
   }});
   E.scrolls = new Map();
   let tx, store;
@@ -119,7 +120,8 @@ E.init_scroll = scroll=>etask(function*init_scroll(){
   return o;
 });
 
-E.get_decl = (scroll, seq)=>etask(function*get_decl(){
+E.get_decl = (scroll, opt)=>etask(function*get_decl(){
+  let {seq, data} = opt;
   assert(E.inited, 'db not inited');
   let M = b2s(scroll.M_hash(0, 0));
   yield E.init_scroll(scroll);
@@ -130,6 +132,23 @@ E.get_decl = (scroll, seq)=>etask(function*get_decl(){
   E.fix_struct(o);
   let decl = scroll.get_decl(seq);
   decl.from_static(o);
+  if (data)
+    yield E.get_decl_data(decl, seq);
+});
+
+E.get_decl_data = (decl, seq)=>etask(function*get_decl_data(){
+  let data = decl.data_get();
+  for (const [, fbuf] of data.bmap){
+    let frames = fbuf.get_frames();
+    for (let i=0; i<frames.length; i++){
+      let f = frames[i];
+      if (f.h && !f.buf){
+        let o = yield edb_get('data', b2s(f.h));
+        if (o.buf)
+          fbuf.set_frame_buf(i, Buffer.from(o.buf));
+      }
+    }
+  }
 });
 
 E.get_branch = scroll=>etask(function*get_branch(){
@@ -161,7 +180,9 @@ E.put_decl = (scroll, seq)=>etask(function*put_decl(){
   let blob = {};
   yield edb_put('decl', decl.to_static({max_decl: E.max_decl,
     max_frame: E.max_frame, blob}));
-  // XXX NOW: push to blob db
+  // XXX: need blob cache (and to do it only if blob was not before in db)
+  for (let h in blob)
+    yield edb_put('data', {h, buf: blob[h]});
 });
 
 // XXX: decide on better way to handle buffers

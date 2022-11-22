@@ -190,7 +190,7 @@ function fix_buf(o){
 
 function assert_kb(s){
   let m = s.match(/^(\d+)KB$/);
-  assert(m[1], 'invalid KB: '+s);
+  assert(m&&m[1], 'invalid KB: '+s);
   return +m[1]*1024;
 }
 
@@ -489,18 +489,21 @@ const cmd_decl = t=>etask(function*cmd_decl(){
   let name = t.ctx||get_def('left'), scroll = get_scroll(name);
   assert(!t.l, 'invalid left arg '+t.meta.s);
   assert(t.r, 'missing arg '+t.meta.s);
-  let sz;
   for (let curr=t.r, i=0; curr = tparser.parse_get_next(curr); i++){
-    let tt = tparser.parse_exp_arg(curr.exp);
+    let tt = tparser.parse_exp_arg(curr.exp), a, data=[];
     switch (tt.cmd){
     case 'data':
-      sz = assert_kb(tt.r);
-      yield test_decl(scroll, Buffer.alloc(sz, scroll.branch.get(0).top.seq));
+      a = tt.r.split(' ');
+      for (let j=0; j<a.length; j++){
+        let sz = assert_kb(a[j]);
+        data.push(Buffer.alloc(sz, scroll.branch.get(0).top.seq+j));
+      }
+      yield test_decl(scroll, data);
       break;
     case '-':
       assert(/^\d+$/.test(tt.l) && /^\d+$/.test(tt.r), 'invalid -: '+t.meta.s);
-      for (let i=+tt.l; i<=+tt.r; i++)
-        yield test_decl(scroll, ''+i);
+      for (let j=+tt.l; j<=+tt.r; j++)
+        yield test_decl(scroll, ''+j);
       break;
     default:
       if (/^\d+$/.test(tt.cmd))
@@ -2073,14 +2076,14 @@ describe('scroll', ()=>{
       // XXX NOW          s.decl(data(32KB 33KB))
       // XXX: derry NOW: use {} for struct (and [] for array)
       describe('db_data', ()=>{
-        t('no_split', `db_init(max_decl:64KB max_frame:32KB) s.scroll
+        t('no_split', `db_init(max_decl:60KB max_frame:32KB) s.scroll
           s.decl(data:32KB) S..clone(s..M1) #
           db.put_decl(seq1) #(db1=(M1 sig1 D1 m1 m0_1))
           S2..scroll(M0) #(mem0=(M0) !mem1 mem_b=(0:M0))
           db.get_decl(seq1) #(mem1=(M1 sig1 D1 m1 m0_1) mem_b=0:M1)
           db.get_decl(seq1 data) #(mem1=(M1 sig1 D1 m1 m0_1))
         `);
-        t('split', `db_init(max_decl:64KB max_frame:32KB) s.scroll
+        t('split', `db_init(max_decl:60KB max_frame:32KB) s.scroll
           s.decl(data:33KB) S..clone(s..M1) #
           db.put_decl(seq1) #(db1=(M1 sig1 D1:[D1F0 D1F1 D1f2] m1 m0_1)
             db_data=(D1F2))
@@ -2089,6 +2092,30 @@ describe('scroll', ()=>{
             mem_b=0:M1)
           db.get_decl(seq1 data) #(mem1=(M1 sig1 D1 m1 m0_1))
         `);
+        t('split_max_decl_1', `db_init(max_decl:60KB max_frame:32KB) s.scroll
+          s.decl(data(33KB 28KB)) S..clone(s..M1) #
+          db.put_decl(seq1) #(db1=(M1 sig1 D1:[D1F0 D1F1 D1f2 D1F3] m1 m0_1)
+            db_data=(D1F2))
+          S2..scroll(M0) #(mem0=(M0) !mem1 mem_b=(0:M0))
+          db.get_decl(seq1) #(mem1=(M1 sig1 D1:[D1F0 D1F1 D1f2 D1F3] m1 m0_1)
+            mem_b=0:M1)
+          db.get_decl(seq1 data) #(mem1=(M1 sig1 D1 m1 m0_1))`);
+        t('split_max_decl_2', `db_init(max_decl:60KB max_frame:32KB) s.scroll
+          s.decl(data(32KB 29KB)) S..clone(s..M1) #
+          db.put_decl(seq1) #(db1=(M1 sig1 D1:[D1F0 D1F1 D1F2 D1f3] m1 m0_1)
+            db_data=(D1F3))
+          S2..scroll(M0) #(mem0=(M0) !mem1 mem_b=(0:M0))
+          db.get_decl(seq1) #(mem1=(M1 sig1 D1:[D1F0 D1F1 D1F2 D1f3] m1 m0_1)
+            mem_b=0:M1)
+          db.get_decl(seq1 data) #(mem1=(M1 sig1 D1 m1 m0_1))`);
+        t('split_max_decl_3', `db_init(max_decl:60KB max_frame:32KB) s.scroll
+          s.decl(data(33KB 33KB)) S..clone(s..M1) #
+          db.put_decl(seq1) #(db1=(M1 sig1 D1:[D1F0 D1F1 D1f2 D1f3] m1 m0_1)
+            db_data=(D1F2 D1F3))
+          S2..scroll(M0) #(mem0=(M0) !mem1 mem_b=(0:M0))
+          db.get_decl(seq1) #(mem1=(M1 sig1 D1:[D1F0 D1F1 D1f2 D1f3] m1 m0_1)
+            mem_b=0:M1)
+          db.get_decl(seq1 data) #(mem1=(M1 sig1 D1 m1 m0_1))`);
       });
     });
   });

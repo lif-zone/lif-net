@@ -1146,24 +1146,6 @@ class Merkel_root extends EventEmitter {
   }
 }
 
-class Soul {
-  soul = new Map();
-  set(M0, scroll){
-    M0 = typeof M0=='string' ? M0 : b2s(M0);
-    assert(!this.soul.get(M0), 'scroll already exists '+M0);
-    return this.soul.set(M0, scroll);
-  }
-  get(M0){
-    M0 = typeof M0=='string' ? M0 : b2s(M0);
-    return this.soul.get(M0);
-  }
-  delete(M0){
-    M0 = typeof M0=='string' ? M0 : b2s(M0);
-    return this.soul.delete(M0);
-  }
-  clear(){ this.soul.clear(); }
-}
-
 Scroll.create = function(opt, d){
   let scroll = new Scroll(opt);
   scroll.decl([{scroll: {crypt: Scroll.supported_crypt,
@@ -1186,8 +1168,6 @@ Scroll.open = function(opt){
   return scroll;
 };
 
-Scroll.Soul = Soul;
-Scroll.soul = new Soul();
 Scroll.supported_crypt = [{sig: 'ed25519', hash: 'blake2b', lif: 'lif1'}];
 Scroll.hconcat = hconcat; // XXX need test
 Scroll.hconcat_safe = hconcat_safe; // XXX need test

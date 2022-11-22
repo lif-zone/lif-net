@@ -10,6 +10,7 @@ import crypto from '../util/crypto.js';
 import string from '../util/string.js';
 import xsinon from '../util/sinon.js';
 import Scroll from './scroll.js';
+import Soul from './soul.js';
 import xxx_DB from './db.js';
 import buf_util from '../peer-relay/buf_util.js';
 import {r_str, r_from_str, r_parent} from './range.js';
@@ -397,15 +398,15 @@ const new_scroll = (name, M, prev_scroll, soul_name)=>etask(
   if (t_soul_mode=='differnt'){
     assert(!soul_name, 'no soul name in differnt mode');
     soul_name = 'auto_soul'+t_soul_id++;
-    soul = t_soul[soul_name] = t_soul[soul_name] || new Scroll.Soul();
+    soul = t_soul[soul_name] = t_soul[soul_name] || new Soul();
   }
   else if (t_soul_mode=='manual'){
     assert(soul_name, 'missing soul name in manual mode');
-    soul = t_soul[soul_name] = t_soul[soul_name] || new Scroll.Soul();
+    soul = t_soul[soul_name] = t_soul[soul_name] || new Soul();
   } else if (t_soul_mode=='same'){
     assert(!soul_name, 'no soul name in same mode');
     soul_name = 'same';
-    soul = t_soul[soul_name] = t_soul[soul_name] || new Scroll.Soul();
+    soul = t_soul[soul_name] = t_soul[soul_name] || new Soul();
   } else
     assert.fail('invalid sould mode '+t_soul_mode);
   if (M){

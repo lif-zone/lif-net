@@ -10,7 +10,7 @@ import crypto from '../util/crypto.js';
 import string from '../util/string.js';
 import xsinon from '../util/sinon.js';
 import Scroll from './scroll.js';
-import DB from './db.js';
+import xxx_DB from './db.js';
 import buf_util from '../peer-relay/buf_util.js';
 import {r_str, r_from_str, r_parent} from './range.js';
 const b2s = buf_util.buf_to_str, s2b = buf_util.buf_from_str;
@@ -19,6 +19,7 @@ function enc_u64(v){ return enc.encode(enc.uint64, v); }
 
 let t_soul, t_soul_id, t_soul_mode, t_state;
 let t_scroll, t_genesis_scroll, t_prev_scroll, t_def, t_keypair;
+let DB = new xxx_DB();
 
 // XXX: make it automatic for all node/browser in proc.js
 xerr.set_exception_catch_all(true);
@@ -535,8 +536,10 @@ const state_split = (exp, def)=>etask(function*state_split(){
       return assign(state_split_var(o.l, def),
         {val: yield get_static_db_data(o.r)});
     }
-    if (['db_b', 'mem_b'].includes(o.l))
-      return assign(state_split_var(o.l,def ), {val: yield get_static_b(o.r)});
+    if (['db_b', 'mem_b'].includes(o.l)){
+      return assign(state_split_var(o.l, def),
+        {val: yield get_static_b(o.r)});
+    }
     return assign(state_split_var(o.l, def),
       {val: fix_buf(yield get_val(o.r, 'right'))});
   default: assert.fail('invalid state_split '+exp);
@@ -598,11 +601,12 @@ const cmd_state = (curr, t)=>etask(function*cmd_state(){
   for (let curr=t.r; curr = tparser.parse_get_next(curr);)
     state_apply(t_state[name], yield state_split(curr.exp, name));
   // XXX: need assert_state
-  assert.deepEqual(state.mem_b, t_state[name].mem_b, 'mem branch state mismach '+
-    t.meta.s);
-  assert.deepEqual(state.mem, t_state[name].mem, 'mem state mismach '+t.meta.s);
-  assert.deepEqual(state.db_b, t_state[name].db_b, 'db branch state mismach '+
-    t.meta.s);
+  assert.deepEqual(state.mem_b, t_state[name].mem_b,
+    'mem branch state mismach '+t.meta.s);
+  assert.deepEqual(state.mem, t_state[name].mem,
+    'mem state mismach '+t.meta.s);
+  assert.deepEqual(state.db_b, t_state[name].db_b,
+    'db branch state mismach '+t.meta.s);
   assert.deepEqual(state.db, t_state[name].db, 'db state mismach '+t.meta.s);
   assert.deepEqual(state.db_data, t_state[name].db_data,
     'db_data state mismach '+t.meta.s);

@@ -15,11 +15,12 @@ export default class DB {
     if (_this.inited)
       return xerr('db already inited');
     _this.inited = true;
+    _this.postfix = opt.postfix ? '_'+opt.postfix : '';
     _this.max_frame = opt.max_frame||DB.MAX_FRAME;
     _this.max_decl = opt.max_decl||DB.MAX_DECL;
     if (opt.delete)
       _this.delete_db();
-    _this.db = yield idb.openDB('lif', undefined, {
+    _this.db = yield idb.openDB('lif'+_this.postfix, undefined, {
       upgrade(db, oldVersion, newVersion, transaction, event){
         // XXX how to wait for creation of table and verify both are created
         db.createObjectStore('scroll', {keyPath: 'M'});
@@ -184,7 +185,7 @@ export default class DB {
     assert(!_this.db, 'db is opened');
     if (global.shimIndexedDB.__getConfig('memoryDatabase'))
       return;
-    yield idb.deleteDB('lif');
+    yield idb.deleteDB('lif'+_this.postfix);
   });
 }
 

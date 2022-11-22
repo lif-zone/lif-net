@@ -9,6 +9,7 @@ const b2s = buf_util.buf_to_str;
 export default class Soul {
   soul = new Map();
   db = new DB();
+  constructor(opt={}){ this.name = opt.name; }
   set(M0, scroll){
     M0 = typeof M0=='string' ? M0 : b2s(M0);
     assert(!this.soul.get(M0), 'scroll already exists '+M0);

@@ -391,24 +391,25 @@ const cmd_db_init = t=>etask(function*cmd_db_init(){
     default: assert.fail('invalid arg '+tt.cmd+' in '+t.meta.s);
     }
   }
-  yield scroll.soul.db.init({max_decl, max_frame, delete: true});
+  yield scroll.soul.db.init({max_decl, max_frame, delete: true,
+    postfix: scroll.soul.name});
 });
 
-const new_scroll = (name, M, prev_scroll, soul_name)=>etask(
+const new_scroll = (name, M, prev_scroll, sname)=>etask(
   function*new_scroll(){
   let soul, scroll;
   if (t_soul_mode=='differnt'){
-    assert(!soul_name, 'no soul name in differnt mode');
-    soul_name = 'auto_soul'+t_soul_id++;
-    soul = t_soul[soul_name] = t_soul[soul_name] || new Soul();
+    assert(!sname, 'no soul name in differnt mode');
+    sname = 'auto_soul'+t_soul_id++;
+    soul = t_soul[sname] = t_soul[sname] || new Soul({name: sname});
   }
   else if (t_soul_mode=='manual'){
-    assert(soul_name, 'missing soul name in manual mode');
-    soul = t_soul[soul_name] = t_soul[soul_name] || new Soul();
+    assert(sname, 'missing soul name in manual mode');
+    soul = t_soul[sname] = t_soul[sname] || new Soul({name: sname});
   } else if (t_soul_mode=='same'){
-    assert(!soul_name, 'no soul name in same mode');
-    soul_name = 'same';
-    soul = t_soul[soul_name] = t_soul[soul_name] || new Soul();
+    assert(!sname, 'no soul name in same mode');
+    sname = 'same';
+    soul = t_soul[sname] = t_soul[sname] || new Soul({name: sname});
   } else
     assert.fail('invalid sould mode '+t_soul_mode);
   if (M){
@@ -1976,18 +1977,18 @@ describe('scroll', ()=>{
           mem.unload #(mem0=(M0) !mem1 mem_b=(0:M0))`);
       });
       describe('db_put', ()=>{
-        if (0) // XXX NOW derry
-        t('soul', `conf(soul:manual) db_init soul_s.s.scroll
-          soul_S.S.clone(s..M0) S.# s.#
-          S.db.put_decl(seq0) S.#(db0=(M0 sig0 D0 m0)) s.#
-          S.db.put_branch S.#(db_b=(0:M0)) s.#
-          S.mem.unload S.#(mem0=(M0)) s.#
-          S.db.get_decl(seq0) S.#(mem0=(M0 sig0 D0 m0)) s.#`);
-        t('b0_seq0', `s.scroll S..clone(s..M0) db_init #
+        t('one_soul', `s.scroll S..clone(s..M0) db_init #
           db.put_decl(seq0) #(db0=(M0 sig0 D0 m0))
           db.put_branch #(db_b=(0:M0))
           mem.unload #(mem0=(M0))
           db.get_decl(seq0) #(mem0=(M0 sig0 D0 m0))`);
+        t('two_soul', `conf(soul:manual) soul_s.s.scroll
+          soul_S.S.clone(s..M0) S.db_init s.db_init S.# s.#
+          S.db.put_decl(seq0) S.#(db0=(M0 sig0 D0 m0)) s.#
+          S.db.put_branch S.#(db_b=(0:M0)) s.#
+          s.db.put_branch S.# s.#(db_b=(0:M0))
+          S.mem.unload S.#(mem0=(M0)) s.#
+          S.db.get_decl(seq0) S.#(mem0=(M0 sig0 D0 m0)) s.#`);
         t('b0_seq1_normal', `s.scroll(d:1) S..clone(s..M1) db_init #
           db.put_decl(seq0) #(db0=(M0 sig0 D0 m0))
           db.put_decl(seq1) #(db1=(M1 sig1 D1 m1 m0_1))
@@ -2074,7 +2075,6 @@ describe('scroll', ()=>{
 // XXX: derry NOW: use {} for struct (and [] for array)
 // NOW how to handle branch merge (b in db is wrong now)
 // NOW need dirty flag to know what needs to be saved to db; also for blob
-// XXX: test with branch + soul (every soul has it own db)
 // XXX NOW: need transaction support for put_decl (otherwise we may leave
 // the db corrupted if there was a merge)
       });

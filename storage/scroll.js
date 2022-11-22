@@ -346,6 +346,9 @@ export default class Scroll extends EventEmitter {
     this.dmap = new Map();
     this.merge_queue = new Map;
     this.merge_queue.get_one = Map_get_one;
+    this.branch = new Map();
+    this.branch.next_id = 0;
+    this.create_new_branch();
     // XXX HACK: why is needed (for soul?)
     let decl = this.get_decl(0);
     decl.M.set_hash(0, M0);

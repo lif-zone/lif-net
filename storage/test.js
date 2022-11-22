@@ -129,11 +129,10 @@ function struct_from_decl(decl){
 
 function parse_var(v){
   let m;
-  // XXX NOW: why 999
   if (m = v.match(/^\((.*)\)$/))
-    return {seq: 999, range: [999, 999], type: 'struct', val: m[1]};
+    return {type: 'struct', val: m[1]};
   if (m = v.match(/^\[(.*)\]$/))
-    return {seq: 999, range: [999, 999], type: 'array', val: m[1]};
+    return {type: 'array', val: m[1]};
   m = v.match(/^([a-zA-Z]\d*)(\.|\.\.)([^.]*)$/);
   let ctx = m ? m[1] : '', def = m ? m[2]=='..' : false;
   v = m ? m[3] : v;
@@ -289,7 +288,7 @@ const get_val = (exp, def_type='right')=>etask(function*_get_val(){
   }
   if (m = exp.match(/^sign\((.*)\)$/)) // sign(d10)
     return crypto.sign(crypto.blake2b(yield get_val(m[1])), t_keypair.key);
-  let o = parse_var(exp), {type, seq, b} = o, r0 = o.range[0];
+  let o = parse_var(exp), {type, seq, b} = o, r0 = o.range&&o.range[0];
   if (o.def)
     set_def(def_type, o.ctx);
   let name = o.ctx||get_def(def_type||'right'), scroll = get_scroll(name);

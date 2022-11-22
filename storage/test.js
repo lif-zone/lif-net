@@ -11,16 +11,18 @@ import string from '../util/string.js';
 import xsinon from '../util/sinon.js';
 import Scroll from './scroll.js';
 import Soul from './soul.js';
-import xxx_DB from './db.js';
+import DB from './db.js';
 import buf_util from '../peer-relay/buf_util.js';
 import {r_str, r_from_str, r_parent} from './range.js';
 const b2s = buf_util.buf_to_str, s2b = buf_util.buf_from_str;
 const assign = Object.assign; // XXX: rm, use ...
 function enc_u64(v){ return enc.encode(enc.uint64, v); }
-
 let t_soul, t_soul_id, t_soul_mode, t_state;
 let t_scroll, t_genesis_scroll, t_prev_scroll, t_def, t_keypair;
-let DB = new xxx_DB();
+
+// XXX: use memoryDatabase: ':memory:'
+DB.init({shim_conf: {checkOrigin: false, databaseBasePath: '/tmp',
+  deleteDatabaseFiles: true, useSQLiteIndexes: true}});
 
 // XXX: make it automatic for all node/browser in proc.js
 xerr.set_exception_catch_all(true);
@@ -109,7 +111,7 @@ const struct_from_str = exp=>etask(function*struct_from_str(){
 });
 
 const struct_from_db = (scroll, seq)=>etask(function*struct_from_db(){
-  let o = yield DB.get_decl_static(scroll, seq);
+  let o = yield scroll.soul.db.get_decl_static(scroll, seq);
   if (!o)
     return null;
   assert.equal(o.scroll, scroll.name, 'scroll name mismatch');
@@ -352,9 +354,12 @@ const test_start = ()=>etask(function*test_start(){
 });
 
 const test_end = ()=>etask(function*test_end(){
+  for (let name in t_scroll){
+    let scroll = t_scroll[name];
+    if (scroll.soul?.db.inited)
+      yield scroll.soul.db.uninit({delete: true});
+  }
   Scroll.soul.clear();
-  if (DB.inited)
-    yield DB.uninit({delete: true});
 });
 
 function cmd_conf(t){
@@ -375,8 +380,8 @@ function cmd_conf(t){
 }
 
 const cmd_db_init = t=>etask(function*cmd_db_init(){
-  let name = t.ctx||get_def('left');
-  assert(!DB.inited, 'DB already inited');
+  let name = t.ctx||get_def('left'), scroll = get_scroll(name);
+  assert(!scroll.soul.db.inited, 'DB already inited');
   let max_decl, max_frame;
   for (let curr=t.r, i=0; curr = tparser.parse_get_next(curr); i++){
     let tt = tparser.parse_exp_arg(curr.exp);
@@ -386,10 +391,7 @@ const cmd_db_init = t=>etask(function*cmd_db_init(){
     default: assert.fail('invalid arg '+tt.cmd+' in '+t.meta.s);
     }
   }
-  yield DB.init({max_decl, max_frame, delete: true,
-    // XXX: use memoryDatabase: ':memory:'
-    shim_conf: {checkOrigin: false, databaseBasePath: '/tmp',
-    deleteDatabaseFiles: true, useSQLiteIndexes: true}});
+  yield scroll.soul.db.init({max_decl, max_frame, delete: true});
 });
 
 const new_scroll = (name, M, prev_scroll, soul_name)=>etask(
@@ -576,22 +578,23 @@ const cmd_state = (curr, t)=>etask(function*cmd_state(){
     }
     state.mem_b = yield mem_get_b(scroll);
   }
-  if (DB.inited && soul){
-    let tx = DB.db.transaction('decl', 'readonly');
+  let db = soul?.db;
+  if (db?.inited){
+    let tx = db.db.transaction('decl', 'readonly');
     let store = tx.objectStore('decl');
     // XXX: optimize, just get data of scroll from DB
-    for (let cursor = yield DB.cursor_open(store); cursor;
-      cursor = yield DB.cursor_continue(cursor))
+    for (let cursor = yield db.cursor_open(store); cursor;
+      cursor = yield db.cursor_continue(cursor))
     {
-      let o = DB.fix_struct(cursor.value);
+      let o = db.fix_struct(cursor.value);
       if (soul.get(o.scroll).t.name!=name)
         continue;
       delete o.scroll;
       state.db = state.db||{};
       state.db[o.seq] = o;
     }
-    state.db_b = yield db_get_b(scroll.M_hash(0, 0));
-    state.db_data = yield db_get_db_data();
+    state.db_b = yield db_get_b(scroll.soul.db, scroll.M_hash(0, 0));
+    state.db_data = yield db_get_db_data(scroll.soul.db);
   }
   state = fix_buf(state);
   if (!t_state[name]){
@@ -649,14 +652,14 @@ const cmd_get_branch = (curr, t)=>etask(function*cmd_get_branch(){
   assert(t.ctx=='db', 'missing db prefix');
   let name = t.prev?.ctx||get_def('left'), scroll = get_scroll(name);
   assert(!t.r, 'invalid args');
-  yield DB.get_branch(scroll);
+  yield scroll.soul.db.get_branch(scroll);
 });
 
 const cmd_put_branch = (curr, t)=>etask(function*cmd_put_branch(){
   assert(t.ctx=='db', 'missing db prefix');
   let name = t.prev?.ctx||get_def('left'), scroll = get_scroll(name);
   assert(!t.r, 'invalid args');
-  yield DB.put_branch(scroll);
+  yield scroll.soul.db.put_branch(scroll);
 });
 
 const cmd_put_decl = (curr, t)=>etask(function*cmd_put_decl(){
@@ -675,7 +678,7 @@ const cmd_put_decl = (curr, t)=>etask(function*cmd_put_decl(){
     }
   }
   assert(seq>=0, 'invalid seq '+seq);
-  yield DB.put_decl(scroll, seq);
+  yield scroll.soul.db.put_decl(scroll, seq);
 });
 
 const cmd_get_decl = (curr, t)=>etask(function*cmd_get_decl(){
@@ -696,7 +699,7 @@ const cmd_get_decl = (curr, t)=>etask(function*cmd_get_decl(){
     }
   }
   assert(seq>=0, 'invalid seq '+seq);
-  yield DB.get_decl(scroll, {seq, data});
+  yield scroll.soul.db.get_decl(scroll, {seq, data});
 });
 
 // XXX: rm api
@@ -806,13 +809,13 @@ const get_static_db_data = exp=>etask(function*get_static_db_data(){
   return o;
 });
 
-const db_get_db_data = M=>etask(function*db_get_db_data(){
+const db_get_db_data = db=>etask(function*db_get_db_data(){
   let ret;
-  let tx = DB.db.transaction('data', 'readonly');
+  let tx = db.db.transaction('data', 'readonly');
   let store = tx.objectStore('data');
   // XXX: optimize, just get data of scroll from DB
-  for (let cursor = yield DB.cursor_open(store); cursor;
-    cursor = yield DB.cursor_continue(cursor))
+  for (let cursor = yield db.cursor_open(store); cursor;
+    cursor = yield db.cursor_continue(cursor))
   {
     ret = ret ||{};
     assert.equal(cursor.key, b2s(cursor.value.h));
@@ -835,8 +838,8 @@ const get_static_b = exp=>etask(function*get_static_b(){
   return o;
 });
 
-const db_get_b = M=>etask(function*db_get_b(){
-  let db_o = yield DB.db_get('scroll', b2s(M));
+const db_get_b = (db, M)=>etask(function*db_get_b(){
+  let db_o = yield db.db_get('scroll', b2s(M));
   let db_b = db_o?.branch, ret;
   for (let b in db_b){
     ret = ret||{};
@@ -863,7 +866,7 @@ const mem_get_b = scroll=>etask(function mem_get_b(){
 const cmd_db_b = t=>etask(function*cmd_db_b(){
   let name = t.ctx||get_def('left'), scroll = get_scroll(name);
   let tested = yield get_static_b(t.r);
-  let db_o = DB.fix_struct(yield DB.db_get('scroll',
+  let db_o = scroll.soul.db.fix_struct(yield scroll.soul.db.db_get('scroll',
     b2s(scroll.M_hash(0, 0))));
   let db_b = db_o?.branch;
   assert.equal(Object.keys(db_b||{}).length, Object.keys(tested).length,

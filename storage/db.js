@@ -17,7 +17,6 @@ export default class DB {
     _this.inited = true;
     _this.max_frame = opt.max_frame||DB.MAX_FRAME;
     _this.max_decl = opt.max_decl||DB.MAX_DECL;
-    global.shimIndexedDB.__setConfig(opt.shim_conf);
     if (opt.delete)
       _this.delete_db();
     _this.db = yield idb.openDB('lif', undefined, {
@@ -209,3 +208,4 @@ function store_get(store, val){
 
 DB.MAX_DECL = 64*1024;
 DB.MAX_FRAME = 64*1024;
+DB.init = function(opt){ global.shimIndexedDB.__setConfig(opt.shim_conf); };

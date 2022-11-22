@@ -914,7 +914,7 @@ const test_run_single = (curr, o)=>etask(function*_test_run_single(){
   case '==': yield cmd_test(o); break;
   case 'b': yield cmd_b(o); break;
   case 'db_b': yield cmd_db_b(o); break;
-// XXX NOW: need db_data
+  // XXX NOW: need db_data
   case '//': break;
   case 'dbg': debugger; break; // eslint-disable-line no-debugger
   case '.':
@@ -2065,15 +2065,11 @@ describe('scroll', ()=>{
           db.get_decl(seq5) #(mem5=(M5b1 m4_5b1))
           db.get_decl(seq6) #(mem6=(M6b1 m6b1 sig6b1 D6b1))
           b(M4=s1.M4 3v0.M6=s0.M6)`);
-        // XXX: add tests for partial (eg. saving only data hash instead of
-        // full data
-// XXX: need transaction support for put_decl (otherwise we may leave the db
-// corrupted if there was a merge)
-        // XXX: test with branch + soul (every soul has it own db)
-        // XXX: limit for getting data get_decl (per frame limit, total limit)
+// XXX: test with branch + soul (every soul has it own db)
+// XXX NOW: need transaction support for put_decl (otherwise we may leave
+// the db corrupted if there was a merge)
+// XXX: derry NOW: use {} for struct (and [] for array)
       });
-      // XXX NOW          s.decl(data(32KB 33KB))
-      // XXX: derry NOW: use {} for struct (and [] for array)
       describe('db_data', ()=>{
         t('no_split', `db_init(max_decl:60KB max_frame:32KB) s.scroll
           s.decl(data:32KB) S..clone(s..M1) #
@@ -2132,90 +2128,3 @@ describe('scroll', ()=>{
     });
   });
 });
-
-/* XXX framing (mem/indexdb):
-frames = [{buf, h, sz}, {buf, h}, {buf, h}, ...] // buf = to_frame(o)
-// XXX: add json? json?
-frames = [{sig, sz, h_rest}, {json: {seq, ts}, buf, h},
-json: {seq, ts}
-buf: Buffer.from(stringify({seq, ts}))
-h: hash(buf)
-//
-[{sig}, {seq, ts}, ...}
-  {buf, h}, ...]
-hash(h1, h2, h3) // no sig
-// XXX: where to save hash of all the data (together with sig)
-
-function to_frame(o){
-  if (Buffer.isBuffer(o))
-    return o;
-  if (typeof o=='object')
-    return Buffer.from(stringify(o));
-  if (typeof o=='string')
-    return Buffer.from(o);
-  assert.fail('invalid frame data '+o);
-}
-
-*/
-
-/* XXX: storage
-current tables;
-scroll
-decl
-data
-
-
-issues:
-- add new table requires to close and reopen db in indexdb
-  // db.close
-  https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API/Using_IndexedDB
-  - NOW: currently for each scroll a differnt decl table.
-    SUGGESTION: change to one decl table for all scroll
-  - note, I cannot use memory db for tests if I need to close/open it
-- where do we save branch information
-  keep it in scrolls table
-  {M, branch: {1: {top, parent: {b: 0, seq: 3, type: 'v/b'}}}}
-- on browser, we cannot assume data is "safe" (ie, not modified by user
-  and/or partial because Chrome auto-deleted some).
-  --> when loading data from DB, need to provide full proof
-
-*/
-
-/* XXX: storage
-each scroll two tables
-data frames: [{sig: }, {seq}, {buf: ...}]
-
-decl:
-{seq: 3, D: {0: 0x..., 1: 0x,...} // frames to D d: {0: 0x..., 1: 0x...},
-  sig: {0: 0x,... 1: 0x...},  // inside D
-  m: {3: {0: 0x..., 2: 0x...}, 2: {}, 0: {}}}
-  //  m3                       m2_3   m0_3
-
-decl:
-{seq: 3, b: {0: [], 1: [],...}}
-
-{3: D: [1MB], sig:{0...} m: {...}}
-
-decl: merkel + data<64K (index seq)
-data: data>64 (blobs via checksm)
-
-scroll table (table of all scrolls):
-{M0, id}
-
-db_get_decl(seq:3)
-seq, D, sig, m3 m2_3 m0_3
-
-Scroll s0
-Scroll s1
-
-mem.s0
-mem.s1
-db.s0 (table scroll_s0) s0 hash of seq0 'scroll_456BC...')
-db.s1 (table scroll_s1) ...
-
-scrolls
-{M0, ...}
-
-data
-{}
-*/

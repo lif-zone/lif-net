@@ -14,8 +14,7 @@ E.MAX_DECL = 32*1024;
 E.MAX_FRAME = 32*1024;
 export default E;
 
-// XXX NOW: change estore_put -> store_put
-function estore_put(store, val){
+function store_put(store, val){
   store = idb.unwrap(store);
   let wait = etask.wait();
   let req = store.put(val);
@@ -24,8 +23,7 @@ function estore_put(store, val){
   return wait;
 }
 
-// XXX NOW: change estore_get -> store_get
-function estore_get(store, val){
+function store_get(store, val){
   store = idb.unwrap(store);
   let wait = etask.wait();
   let req = store.get(val);
@@ -34,18 +32,18 @@ function estore_get(store, val){
   return wait;
 }
 
-function edb_get(store, key){
+function db_get(store, key){
   let tx = E.db.transaction(store, 'readonly');
   store = tx.objectStore(store);
-  return estore_get(store, key);
+  return store_get(store, key);
 }
 
-E.edb_get = edb_get;
+E.db_get = db_get;
 
-function edb_put(store, val){
+function db_put(store, val){
   let tx = E.db.transaction(store, 'readwrite');
   store = tx.objectStore(store);
-  return estore_put(store, val);
+  return store_put(store, val);
 }
 
 E.cursor_open = function cursor_continue(store){
@@ -115,7 +113,7 @@ E.init_scroll = scroll=>etask(function*init_scroll(){
   // XXX: handle errors and make sure db is always consistent
   let db_ver = E.db.version+1, ts = Date.now();
   o = {M, create_ts: ts, update_ts: ts, db_ver};
-  yield edb_put('scroll', o);
+  yield db_put('scroll', o);
   E.scrolls.set(M, o);
   return o;
 });
@@ -126,7 +124,7 @@ E.get_decl = (scroll, opt)=>etask(function*get_decl(){
   let M = b2s(scroll.M_hash(0, 0));
   yield E.init_scroll(scroll);
   // XXX: need to get big data from data store
-  let o = yield edb_get('decl', [M, seq]);
+  let o = yield db_get('decl', [M, seq]);
   if (!o)
     return;
   E.fix_struct(o);
@@ -143,7 +141,7 @@ E.get_decl_data = (decl, seq)=>etask(function*get_decl_data(){
     for (let i=0; i<frames.length; i++){
       let f = frames[i];
       if (f.h && !f.buf){
-        let o = yield edb_get('data', b2s(f.h));
+        let o = yield db_get('data', b2s(f.h));
         if (o.buf)
           fbuf.set_frame_buf(i, Buffer.from(o.buf));
       }
@@ -156,7 +154,7 @@ E.get_branch = scroll=>etask(function*get_branch(){
   let M = b2s(scroll.M_hash(0, 0));
   yield E.init_scroll(scroll);
   // XXX: need to get big data from data store
-  let o = yield edb_get('scroll', M);
+  let o = yield db_get('scroll', M);
   E.fix_struct(o);
   yield scroll.branch_from_static(o.branch);
 });
@@ -166,7 +164,7 @@ E.put_branch = scroll=>etask(function*put_branch(){
   let s = yield E.init_scroll(scroll);
   s.update_ts = Date.now();
   s.branch = scroll.branch_to_static();
-  yield edb_put('scroll', s);
+  yield db_put('scroll', s);
 });
 
 E.put_decl = (scroll, seq)=>etask(function*put_decl(){
@@ -178,11 +176,11 @@ E.put_decl = (scroll, seq)=>etask(function*put_decl(){
   // XXX: do all in transcation
   // XXX: need to save big data in data store
   let blob = {};
-  yield edb_put('decl', decl.to_static({max_decl: E.max_decl,
+  yield db_put('decl', decl.to_static({max_decl: E.max_decl,
     max_frame: E.max_frame, blob}));
   // XXX: need blob cache (and to do it only if blob was not before in db)
   for (let h in blob)
-    yield edb_put('data', {h, buf: blob[h]});
+    yield db_put('data', {h, buf: blob[h]});
 });
 
 // XXX: decide on better way to handle buffers
@@ -205,7 +203,7 @@ E.get_decl_static = (scroll, seq)=>etask(function*get_decl_static(){
   if (!E.scrolls.get(M))
     return null;
   // XXX: decide on better way to handle buffers
-  let o = yield edb_get('decl', [M, seq]);
+  let o = yield db_get('decl', [M, seq]);
   E.fix_struct(o);
   return o;
 });

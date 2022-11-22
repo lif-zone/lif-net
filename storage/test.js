@@ -831,7 +831,7 @@ const get_static_b = exp=>etask(function*get_static_b(){
 });
 
 const db_get_b = M=>etask(function*db_get_b(){
-  let db_o = yield DB.edb_get('scroll', b2s(M));
+  let db_o = yield DB.db_get('scroll', b2s(M));
   let db_b = db_o?.branch, ret;
   for (let b in db_b){
     ret = ret||{};
@@ -858,7 +858,7 @@ const mem_get_b = scroll=>etask(function mem_get_b(){
 const cmd_db_b = t=>etask(function*cmd_db_b(){
   let name = t.ctx||get_def('left'), scroll = get_scroll(name);
   let tested = yield get_static_b(t.r);
-  let db_o = DB.fix_struct(yield DB.edb_get('scroll',
+  let db_o = DB.fix_struct(yield DB.db_get('scroll',
     b2s(scroll.M_hash(0, 0))));
   let db_b = db_o?.branch;
   assert.equal(Object.keys(db_b||{}).length, Object.keys(tested).length,

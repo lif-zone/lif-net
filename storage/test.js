@@ -2116,6 +2116,19 @@ describe('scroll', ()=>{
           db.get_decl(seq1) #(mem1=(M1 sig1 D1:[D1F0 D1F1 D1f2 D1f3] m1 m0_1)
             mem_b=0:M1)
           db.get_decl(seq1 data) #(mem1=(M1 sig1 D1 m1 m0_1))`);
+        t('split_multi', `db_init(max_decl:60KB max_frame:32KB) s.scroll
+          s.decl(data:33KB) s.decl(data:33KB) S..clone(s..M2) #
+          db.put_decl(seq1) #(db1=(M1 sig1 D1:[D1F0 D1F1 D1f2] m1 m0_1)
+            db_data=(D1F2))
+          db.put_decl(seq2) #(db2=(M2 sig2 D2:[D2F0 D2F1 D2f2] m2)
+            db_data=(D1F2 D2F2))
+          S2..scroll(M0) #(mem0=(M0) !mem1 !mem2 mem_b=(0:M0))
+          db.get_decl(seq1) #(mem1=(M1 sig1 D1:[D1F0 D1F1 D1f2] m1 m0_1)
+            mem_b=0:M1)
+          db.get_decl(seq2) #(mem2=(M2 sig2 D2:[D2F0 D2F1 D2f2] m2) mem_b=0:M2)
+          db.get_decl(seq1 data) #(mem1=(M1 sig1 D1 m1 m0_1))
+          db.get_decl(seq2 data) #(mem2=(M2 sig2 D2 m2))
+        `);
       });
     });
   });

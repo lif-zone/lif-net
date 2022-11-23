@@ -1985,29 +1985,29 @@ describe('scroll', ()=>{
         t('one_soul', `s.scroll S..clone(s..M0) db_init #
           db.put_decl(seq0) #(db0={M0 sig0 D0 m0})
           db.put_branch #db_b=0:M0
-          mem.unload #(mem0={M0})
+          mem.unload #mem0={M0}
           db.get_decl(seq0) #(mem0={M0 sig0 D0 m0})`);
         t('two_soul', `conf(soul:manual) soul_s.s.scroll
           soul_S.S.clone(s..M0) S.db_init s.db_init S.# s.#
           S.db.put_decl(seq0) S.#(db0={M0 sig0 D0 m0}) s.#
-          S.db.put_branch S.#(db_b=0:M0) s.#
-          s.db.put_branch S.# s.#(db_b=0:M0)
-          S.mem.unload S.#(mem0={M0}) s.#
+          S.db.put_branch S.#db_b=0:M0 s.#
+          s.db.put_branch S.# s.#db_b=0:M0
+          S.mem.unload S.#mem0={M0} s.#
           S.db.get_decl(seq0) S.#(mem0={M0 sig0 D0 m0}) s.#`);
         t('b0_seq1_normal', `s.scroll(d:1) S..clone(s..M1) db_init #
           db.put_decl(seq0) #(db0={M0 sig0 D0 m0})
           db.put_decl(seq1) #(db1={M1 sig1 D1 m1 m0_1})
-          db.put_branch #(db_b=0:M1)
+          db.put_branch #db_b=0:M1
           mem.unload #(mem0={M0} !mem1 mem_b=0:M0)
-          db.get_branch #(mem_b=0:M1)
+          db.get_branch #mem_b=0:M1
           db.get_decl(seq0) #(mem0={M0 sig0 D0 m0})
           db.get_decl(seq1) #(mem1={M1 sig1 D1 m1 m0_1})`);
         t('b0_seq1_rev', `s.scroll(d:1) S..clone(s..M1) db_init #
           db.put_decl(seq0) #(db0={M0 sig0 D0 m0})
           db.put_decl(seq1) #(db1={M1 sig1 D1 m1 m0_1})
-          db.put_branch #(db_b=0:M1)
+          db.put_branch #db_b=0:M1
           mem.unload #(mem0={M0} !mem1 mem_b=0:M0)
-          db.get_branch #(mem_b=0:M1)
+          db.get_branch #mem_b=0:M1
           db.get_decl(seq1) #(mem1={M1 sig1 D1 m1 m0_1})
           db.get_decl(seq0) #(mem0={M0 sig0 D0 m0})`);
         t('b0_seq4', `s.scroll(d:1-4) S..clone(s..M4) db_init #
@@ -2016,9 +2016,9 @@ describe('scroll', ()=>{
           db.put_decl(seq2) #(db2={M2 sig2 D2 m2})
           db.put_decl(seq3) #(db3={M3 sig3 D3 m3 m2_3 m0_3})
           db.put_decl(seq4) #(db4={M4 sig4 D4 m4})
-          db.put_branch #(db_b=0:M4)
+          db.put_branch #db_b=0:M4
           mem.unload #(mem0={M0} !mem1 !mem2 !mem3 !mem4 mem_b=0:M0)
-          db.get_branch #(mem_b=0:M4)
+          db.get_branch #mem_b=0:M4
           db.get_decl(seq0) #(mem0={M0 sig0 D0 m0})
           db.get_decl(seq1) #(mem1={M1 sig1 D1 m1 m0_1})
           db.get_decl(seq2) #(mem2={M2 sig2 D2 m2})
@@ -2030,9 +2030,9 @@ describe('scroll', ()=>{
           db.put_decl(seq2) #(db2={M2 sig2 D2 m2})
           db.put_decl(seq3) #(db3={M3 sig3 D3 m3 m2_3 m0_3})
           db.put_decl(seq4) #(db4={M4 sig4 D4 m4})
-          db.put_branch #(db_b=0:M4)
+          db.put_branch #db_b=0:M4
           mem.unload #(mem0={M0} !mem1 !mem2 !mem3 !mem4 mem_b=0:M0)
-          db.get_branch #(mem_b=0:M4)
+          db.get_branch #mem_b=0:M4
           db.get_decl(seq4) #(mem4={M4 sig4 D4 m4})
           db.get_decl(seq3) #(mem3={M3 sig3 D3 m3 m2_3 m0_3})
           db.get_decl(seq2) #(mem2={M2 sig2 D2 m2})

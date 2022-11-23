@@ -347,6 +347,7 @@ export default class Scroll extends EventEmitter {
     this.merge_queue = new Map;
     this.merge_queue.get_one = Map_get_one;
     this.branch = new Map();
+    this.top = null;
     this.branch.next_id = 0;
     this.create_new_branch();
     // XXX HACK: why is needed (for soul?)
@@ -398,6 +399,8 @@ export default class Scroll extends EventEmitter {
     }
     if (!this.branch.get(b).top || this.branch.get(b).top.seq<seq){
       this.branch.get(b).top = {seq, M};
+      if (!this.top || this.top.seq<seq)
+        this.top = {b, seq, M};
       assert.equal(b2s(M), b2s(this.M_hash(b, this.branch.get(b).top.seq)),
         'invalid M'+seq+'b'+b);
     }
@@ -910,7 +913,7 @@ export default class Scroll extends EventEmitter {
     return o;
   }
   branch_from_static(bs){
-    assert(this.branch.size==1 && this.branch.get(0).top.seq==0,
+    assert(this.branch.size==1 && this.top.seq==0,
       'cannot update branch info after it was populated');
     let max = this.branch.next_id||0;
     for (let b in bs){

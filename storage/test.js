@@ -925,7 +925,7 @@ const test_run_single = (curr, o)=>etask(function*_test_run_single(){
   case '==': yield cmd_test(o); break;
   case 'b': yield cmd_b(o); break;
   case 'db_b': yield cmd_db_b(o); break;
-  // XXX NOW: need db_data
+  // XXX need db_data api
   case '//': break;
   case 'dbg': debugger; break; // eslint-disable-line no-debugger
   case '.':
@@ -2075,13 +2075,12 @@ describe('scroll', ()=>{
           db.get_decl(seq5) #mem5={M5b1 m4_5b1}
           db.get_decl(seq6) #mem6={M6b1 m6b1 sig6b1 D6b1}
           b(M4=s1.M4 3v0.M6=s0.M6)`);
-// NOW how to handle branch merge (b in db is wrong now)
-// NOW need dirty flag to know what needs to be saved to db; also for blob
+// XXX NOW how to handle branch merge (b in db is wrong now) + add tests
+// XXX NOW need dirty flag to know what needs to be saved to db; also for blob
 // XXX NOW: need transaction support for put_decl (otherwise we may leave
 // the db corrupted if there was a merge)
       });
       describe('db_data', ()=>{
-        // XXX NOW: test db_data with branch
         t('no_split', `s.scroll s.decl(data:32KB) S..clone(s..)
           db_init(max_decl:60KB max_frame:32KB) #
           db.put_decl(seq1) #db1={M1 sig1 D1 m1 m0_1}
@@ -2089,7 +2088,6 @@ describe('scroll', ()=>{
           db.get_decl(seq1) #(mem1={M1 sig1 D1 m1 m0_1} mem_b=0:M1)
           db.get_decl(seq1 data) #mem1={M1 sig1 D1 m1 m0_1}
         `);
-        // XXX: derry NOW: use {} for struct (and [] for array)
         t('split', `s.scroll s.decl(data:33KB) S..clone(s..)
           db_init(max_decl:60KB max_frame:32KB) #
           db.put_decl(seq1) #(db1={M1 sig1 D1:[D1F0 D1F1 D1f2] m1 m0_1}

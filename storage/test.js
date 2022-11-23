@@ -1069,6 +1069,8 @@ describe('parser', ()=>{
     t('a b', ['a', 'b']);
     t('a  b', ['a', 'b']);
     t('a\nb', ['a', 'b']);
+    t('#a', ['#a']);
+    t('#a b', ['#a', 'b']);
     t('a(b)', ['a(b)']);
     t('a[b]', ['a[b]']);
     t('a{b}', ['a{b}']);
@@ -1124,6 +1126,9 @@ describe('parser', ()=>{
     t('!a', {cmd: '!', l: '', r: 'a'});
     t('!a.b', {cmd: '!', l: '', r: 'a.b'});
     t('!(a.b)', {cmd: '!', l: '', r: '(a.b)'});
+    t('#(a)', {cmd: '#', l: '', r: 'a'});
+    t('#a', {cmd: '#', l: '', r: 'a'});
+    t('#ab', {cmd: '#', l: '', r: 'ab'});
   });
   it('parse_exp_arg', ()=>{
     const t = (s, exp)=>assert.deepEqual(tparser.parse_exp_arg(s),
@@ -1979,7 +1984,7 @@ describe('scroll', ()=>{
       describe('db_put', ()=>{
         t('one_soul', `s.scroll S..clone(s..M0) db_init #
           db.put_decl(seq0) #(db0={M0 sig0 D0 m0})
-          db.put_branch #(db_b=0:M0)
+          db.put_branch #db_b=0:M0
           mem.unload #(mem0={M0})
           db.get_decl(seq0) #(mem0={M0 sig0 D0 m0})`);
         t('two_soul', `conf(soul:manual) soul_s.s.scroll

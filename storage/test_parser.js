@@ -6,7 +6,7 @@ const E = {};
 export default E;
 
 function space(s){ return s ? ' '+s : ''; }
-function strip_parentesis(s){
+function rm_parentesis(s){
   if (s.charAt(0)!='(')
     return s;
   assert(s.charAt(s.length-1)==')', 'invalid '+s);
@@ -81,6 +81,8 @@ E.parse_push = function(curr, s){
 E._parse_exp = function(s){
   s = s.trim();
   let c, parentesis = [], first, meta = {s};
+  if ('#'==s.charAt(0))
+    return {cmd: '#', l: '', r: rm_parentesis(s.substr(1).trim()), meta};
   if ('//'==s.substr(0, 2))
     return {cmd: '//', l: '', r: s.substr(2).trim(), meta};
   if ('!'==s.charAt(0))
@@ -104,7 +106,7 @@ E._parse_exp = function(s){
         assert(s.charAt(i)==':' && cn=='=' || s.charAt(i)==cn,
           'invalid exp '+s);
         return {cmd: c+cn, l: s.substr(0, i),
-          r: strip_parentesis(s.substr(i+2)), meta};
+          r: rm_parentesis(s.substr(i+2)), meta};
       }
       return {cmd: c, l: s.substr(0, i), r: s.substr(i+1), meta};
     }

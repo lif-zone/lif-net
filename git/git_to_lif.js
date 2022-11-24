@@ -1,5 +1,6 @@
 // author: derry. coder: arik.
 import xerr from '../util/xerr.js';
+import etask from '../util/etask.js';
 import git from 'isomorphic-git';
 import http from 'isomorphic-git/http/node/index.cjs';
 import fs from 'fs';
@@ -19,7 +20,18 @@ function err_handler(err){
   throw err2;
 }
 
-async function start(){
+const _start = ()=>etask(function*_start(){
+  let dir = '/tmp/lif_server';
+  let url = 'https://github.com/lif-zone/server';
+  console.log('git2lif %s %s', url, dir);
+  yield git.clone({fs, http, dir, url});
+  let commits = yield git.log({fs, dir, ref: 'main'});
+  console.log('commit[0]:\n%o', commits[0]);
+});
+
+async function start(){ await _start(); }
+
+/* XXX: git api example
   let dir = '/tmp/lif_server';
   let url = 'https://github.com/lif-zone/server';
   console.log('git2lif %s %s', url, dir);
@@ -32,6 +44,6 @@ async function start(){
   let {blob} = await git.readBlob({fs, dir,
     oid: 'a4ec5a149c310c1663788aaaade0f4fb30b03634'});
   console.log('file:\n%s', Buffer.from(blob).toString('utf8'))
-}
+*/
 
 start();

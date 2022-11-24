@@ -92,7 +92,7 @@ const put_diff = (scroll, state_curr, state_next)=>etask(function*_put_diff(){
       if (seq_blob = oid2seq.get(next.oid))
         content = {seq: seq_blob};
       else if (seq_path = path2seq.get(path))
-        content = {diff: seq_path};
+        content = {diff: {seq: seq_path}};
       else
         blob = (yield git.readBlob({fs, dir: work_dir, oid: next.oid})).blob;
       decl = yield scroll.decl(content ? [{path, content}] : [{path}, blob]);
@@ -170,3 +170,29 @@ const start = ()=>etask(function*_start(){
 */
 
 (async()=>await start())();
+
+/* XXX from derry:
+commit 17: rename dnss.js -> dns_server + coding fixes e24039a1b371f9f05ce53829e9c6bc3ad675fa53
++ seq39 {"path":"/lib/dns_server.js"} blob
+* seq40 [{"file":"/package-lock.json","content":{"diff":{"seq":26}}}, ]
+* seq40 {"dir":"/",{unix_perm: 0755}}
+* seq40 {"dir":"/",del: true}
+* seq40 {"file":"/package-lock.json",del:true}
+* seq41 {"path":"/server.conf.js","content":{"diff":{"seq":36}}}
+* seq42 {"path":"/server.js","content":{"diff":{"seq":33}}}
+- seq43 {"path":"/lib/dnss.js","rm":true}
+
+
+a.js -> b.js
+{"file_src":"/a.js", file_dst: '/b.js', content: 'hello again'|{diff}, mv: '/a.js' seq3}
+{"file":"/a.js", del: true, mv: '/b.js'}
+
+a/a1.js
+a/a2.js
+
+/a - > /b
+
+{"file":"/b.js", content: 'hello again'|{diff}, mv: '/a.js' seq3}
+{"file":"/a.js", del: true, mv: '/b.js'}
+
+*/

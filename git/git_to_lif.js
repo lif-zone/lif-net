@@ -26,7 +26,7 @@ function err_handler(err){
   throw err2;
 }
 
-let g_pad=0;
+let g_pad=0, oid2seq = new Map();
 function pad(){ return ' '.repeat(2*g_pad); }
 
 const put_tree = (scroll, dir, oid)=>etask(function*_put_tree(){
@@ -34,13 +34,20 @@ const put_tree = (scroll, dir, oid)=>etask(function*_put_tree(){
   console.log(pad()+'%s %s', dir+'/', oid);
   for (let i=0; i<tree.length; i++){
     g_pad++;
-    let e = tree[i], path = dir+'/'+e.path, blob;
+    let e = tree[i], path = dir+'/'+e.path, blob, seq, seq_blob, content;
     switch (e.type){
     case 'blob':
-      console.log(pad()+'%s %s %s', path, e.mode, e.oid);
-      blob = (yield git.readBlob({fs, dir: work_dir, oid: e.oid})).blob;
+      if (!(seq_blob = oid2seq.get(e.oid)))
+        blob = (yield git.readBlob({fs, dir: work_dir, oid: e.oid})).blob;
+      else
+        content = {seq: seq_blob};
       // XXX: missing prev
-      scroll.decl([{path}, blob]);
+      // XXX: add e.mode
+      seq = (yield scroll.decl(content ? [{path, content}] :
+        [{path}, blob])).seq;
+      console.log(pad()+'seq%s path:%s %s', seq, path,
+        content ? 'content:'+JSON.stringify(content) : 'blob');
+      oid2seq.set(e.oid, seq);
       break;
     case 'tree':
       yield put_tree(scroll, path, e.oid);
@@ -50,7 +57,7 @@ const put_tree = (scroll, dir, oid)=>etask(function*_put_tree(){
     g_pad--;
   }
   // XXX: missing prev
-  scroll.decl({path: dir+'/'});
+  yield scroll.decl({path: dir+'/'});
 });
 
 const start = ()=>etask(function*_start(){
@@ -75,7 +82,7 @@ const start = ()=>etask(function*_start(){
     console.log('\n');
     // XXX: missing prev
     // XXX: missing author, date,...
-    scroll.decl({commit: oid, message: commit.message});
+    yield scroll.decl({commit: oid, message: commit.message});
   }
 });
 

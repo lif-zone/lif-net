@@ -28,32 +28,21 @@ function err_handler(err){
   throw err2;
 }
 
-let g_pad=0, oid2seq = new Map(), path2seq = new Map();
-function pad(){ return ''; }  // XXX: rm ' '.repeat(2*g_pad); }
+let oid2seq = new Map(), path2seq = new Map();
 
-const put_tree = (scroll, dir, oid, state_curr, state_next)=>etask(
+const get_next_state = (dir, oid, state_curr, state_next)=>etask(
   function*_put_tree(){
   let {tree} = yield git.readTree({fs, dir: work_dir, oid});
-  let next = {type: 'dir', path: dir, oid}, curr;
-  if (curr = state_curr[dir]){
-    delete state_curr[dir];
-    if (xutil.equal_deep(curr, next))
-      return;
-  }
+  let next = {type: 'dir', path: dir, oid};
   state_next[dir] = next;
-  console.log(pad()+'%s %s', dir||'/', oid);
+  // console.log(pad()+'%s %s', dir||'/', oid);
   for (let i=0; i<tree.length; i++){
-    g_pad++;
-    let e = tree[i], path = dir+'/'+e.path, blob, seq, seq_blob, content;
-    let seq_path;
+    let e = tree[i], path = dir+'/'+e.path;
     switch (e.type){
     case 'blob':
       next = {path, oid: e.oid};
-      if (curr = state_curr[path]){
-        delete state_curr[path];
-        if (xutil.equal_deep(curr, next))
-          continue;
-      }
+      state_next[path] = next;
+/*
       if (seq_blob = oid2seq.get(e.oid))
         content = {seq: seq_blob};
       else if (seq_path = path2seq.get(path))
@@ -67,17 +56,65 @@ const put_tree = (scroll, dir, oid, state_curr, state_next)=>etask(
       console.log(pad()+'%s %s', path, e.oid);
       oid2seq.set(e.oid, seq);
       path2seq.set(path, seq);
-      state_next[path] = next;
+*/
       break;
     case 'tree':
-      yield put_tree(scroll, path, e.oid, state_curr, state_next);
+      yield get_next_state(path, e.oid, state_curr, state_next);
       break;
     default: xerr.xexit('unknown type '+e.type);
     }
-    g_pad--;
   }
   // XXX: missing prev
-  yield scroll.decl({path: dir+'/'});
+//  yield scroll.decl({path: dir+'/'});
+  return state_next;
+});
+
+// XXX: how to detect file move (exact move, move+modifications)
+// eg commit 17: https://github.com/lif-zone/server/commit/e24039a1b371f9f05ce53829e9c6bc3ad675fa53?diff=split
+// XXX: what about directory move. need to optimize and not remove/readd all
+const put_diff = (scroll, state_curr, state_next)=>etask(function*_put_diff(){
+  // XXX: optimize, if directory is the same, no need to test all sub dir
+  for (let path in state_next){
+    let curr = state_curr[path], next = state_next[path], decl, fbuf;
+    let blob, seq_blob, content, seq_path;
+    delete state_curr[path];
+      // oid2seq.set(e.oid, seq);
+      // path2seq.set(path, seq);
+    if (xutil.equal_deep(curr, next))
+      continue;
+    if (next.type=='dir' && curr?.type=='dir')
+      continue;
+    if (next.type=='dir'){
+      decl = yield scroll.decl({path});
+      fbuf = decl.fbuf_get(0);
+      console.log('+ seq%s %s', decl.seq, fbuf.get_frames()[2].buf.toString());
+    } else {
+      if (seq_blob = oid2seq.get(next.oid))
+        content = {seq: seq_blob};
+      else if (seq_path = path2seq.get(path))
+        content = {diff: seq_path};
+      else
+        blob = (yield git.readBlob({fs, dir: work_dir, oid: next.oid})).blob;
+      decl = yield scroll.decl(content ? [{path, content}] : [{path}, blob]);
+      fbuf = decl.fbuf_get(0);
+      if (!curr){
+        console.log('+ seq%s %s%s', decl.seq,
+          fbuf.get_frames()[2].buf.toString(), blob ? ' blob' : '');
+      } else {
+        console.log('* seq%s %s%s', decl.seq,
+          fbuf.get_frames()[2].buf.toString(), blob ? ' blob' : '');
+      }
+    }
+    if (decl){
+      oid2seq.set(next.oid, decl.seq);
+      path2seq.set(path, decl.seq);
+    }
+  }
+  for (let path in state_curr){
+    let decl = yield scroll.decl([{path, rm: true}]);
+    let fbuf = decl.fbuf_get(0);
+    console.log('- seq%s %s', decl.seq, fbuf.get_frames()[2].buf.toString());
+  }
 });
 
 const start = ()=>etask(function*_start(){
@@ -93,12 +130,14 @@ const start = ()=>etask(function*_start(){
   let commits = yield git.log({fs, dir: work_dir, ref: 'main'});
   commits.reverse();
   let state_curr={};
-  for (let i=0; i<7; i++){
+  for (let i=0; i<18; i++){
     let oid = commits[i].oid, commit = commits[i].commit;
-    console.log(pad()+'commit %s: %s', i,
-      array.compact_self(commit.message.split('\n')).join('\\n'));
-    let seq = scroll.top.seq+1;
-    let state_next = {};
+    console.log('commit %s: %s %s', i,
+      array.compact_self(commit.message.split('\n')).join('\\n'), oid);
+    let state_next = yield get_next_state('', commit.tree, state_curr, {});
+    yield put_diff(scroll, state_curr, state_next);
+    console.log('');
+/*
     yield put_tree(scroll, '', commit.tree, state_curr, state_next);
     yield scroll.decl({commit: oid, message: commit.message});
     console.log('');
@@ -107,8 +146,7 @@ const start = ()=>etask(function*_start(){
       let fbuf = decl.fbuf_get(0);
       console.log(pad()+'seq%s %s', j, fbuf.get_frames()[2].buf.toString());
     }
-    console.log('');
-    assert.deepEqual(state_curr, {}, 'XXX delete');
+*/
     state_curr = state_next;
     // XXX: missing prev
     // XXX: missing author, date,...

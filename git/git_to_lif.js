@@ -48,8 +48,7 @@ const put_tree = (scroll, dir, oid)=>etask(function*_put_tree(){
       // XXX: add e.mode
       seq = (yield scroll.decl(content ? [{path, content}] :
         [{path}, blob])).seq;
-      console.log(pad()+'seq%s path:%s %s', seq, path,
-        content ? 'content:'+JSON.stringify(content) : 'blob');
+      console.log(pad()+'%s %s', path, e.oid);
       oid2seq.set(e.oid, seq);
       path2seq.set(path, seq);
       break;
@@ -76,17 +75,22 @@ const start = ()=>etask(function*_start(){
     {topic: 'git', src: url});
   let commits = yield git.log({fs, dir: work_dir, ref: 'main'});
   commits.reverse();
-  for (let i=0; i<5; i++){
+  for (let i=0; i<7; i++){
     let oid = commits[i].oid, commit = commits[i].commit;
     console.log(pad()+'commit %s: %s', i,
       array.compact_self(commit.message.split('\n')).join('\\n'));
-    g_pad++;
+    let seq = scroll.top.seq+1;
     yield put_tree(scroll, '', commit.tree);
-    g_pad--;
-    console.log('\n');
+    yield scroll.decl({commit: oid, message: commit.message});
+    console.log('');
+    for (let j=seq; j<=scroll.top.seq; j++){
+      let decl = yield scroll.get_decl(j);
+      let fbuf = decl.fbuf_get(0);
+      console.log(pad()+'seq%s %s', j, fbuf.get_frames()[2].buf.toString());
+    }
+    console.log('');
     // XXX: missing prev
     // XXX: missing author, date,...
-    yield scroll.decl({commit: oid, message: commit.message});
   }
 });
 

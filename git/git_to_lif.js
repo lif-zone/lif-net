@@ -2,10 +2,13 @@
 import xerr from '../util/xerr.js';
 import etask from '../util/etask.js';
 import array from '../util/array.js';
+import Scroll from '../storage/scroll.js';
+import Soul from '../storage/soul.js';
 import git from 'isomorphic-git';
 import http from 'isomorphic-git/http/node/index.cjs';
 import fs from 'fs';
-import assert from 'assert';
+import buf_util from '../peer-relay/buf_util.js';
+const s2b = buf_util.buf_from_str;
 const work_dir = '/tmp/lif_server';
 
 // XXX: mv to other place
@@ -26,40 +29,53 @@ function err_handler(err){
 let g_pad=0;
 function pad(){ return ' '.repeat(2*g_pad); }
 
-const put_tree = (dir, oid)=>etask(function*_put_tree(){
+const put_tree = (scroll, dir, oid)=>etask(function*_put_tree(){
   let {tree} = yield git.readTree({fs, dir: work_dir, oid});
-  console.log(pad()+'%s %s', dir, oid);
+  console.log(pad()+'%s %s', dir+'/', oid);
   for (let i=0; i<tree.length; i++){
     g_pad++;
-    let e = tree[i];
+    let e = tree[i], path = dir+'/'+e.path, blob;
     switch (e.type){
     case 'blob':
-      console.log(pad()+'%s %s %s', e.path, e.mode, e.oid);
+      console.log(pad()+'%s %s %s', path, e.mode, e.oid);
+      blob = (yield git.readBlob({fs, dir: work_dir, oid: e.oid})).blob;
+      // XXX: missing prev
+      scroll.decl([{path}, blob]);
       break;
     case 'tree':
-      debugger;
-      yield put_tree(dir+e.path+'/', e.oid);
+      yield put_tree(scroll, path, e.oid);
       break;
     default: xerr.xexit('unknown type '+e.type);
     }
     g_pad--;
   }
+  // XXX: missing prev
+  scroll.decl({path: dir+'/'});
 });
 
 const start = ()=>etask(function*_start(){
+  let keypair = {pub: s2b('44659cb51dec397ea66085679442505345e159940762c15ef7'+
+    '5ad279ecf05033'),
+    key: s2b('46f45a62f4c5971228747aa2d8ee66bd669ebd805c725286ee385b1d4a06dd'+
+    'bc44659cb51dec397ea66085679442505345e159940762c15ef75ad279ecf05033')};
   let url = 'https://github.com/lif-zone/server';
   console.log('git2lif %s %s', url, work_dir);
   yield git.clone({fs, http, dir: work_dir, url});
+  let scroll = yield Scroll.create({key: keypair.key, pub: keypair.pub},
+    {topic: 'git', src: url});
   let commits = yield git.log({fs, dir: work_dir, ref: 'main'});
   commits.reverse();
-  for (let i=0; i<commits.length; i++){
-    let commit = commits[i].commit;
+  for (let i=0; i<5; i++){
+    let oid = commits[i].oid, commit = commits[i].commit;
     console.log(pad()+'commit %s: %s', i,
       array.compact_self(commit.message.split('\n')).join('\\n'));
     g_pad++;
-    yield put_tree('/', commit.tree);
+    yield put_tree(scroll, '', commit.tree);
     g_pad--;
     console.log('\n');
+    // XXX: missing prev
+    // XXX: missing author, date,...
+    scroll.decl({commit: oid, message: commit.message});
   }
 });
 

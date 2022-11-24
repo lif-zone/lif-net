@@ -20,7 +20,7 @@ function err_handler(err){
   throw err2;
 }
 
-const _start = ()=>etask(function*_start(){
+const start = ()=>etask(function*_start(){
   let dir = '/tmp/lif_server';
   let url = 'https://github.com/lif-zone/server';
   console.log('git2lif %s %s', url, dir);
@@ -29,7 +29,6 @@ const _start = ()=>etask(function*_start(){
   console.log('commit[0]:\n%o', commits[0]);
 });
 
-async function start(){ await _start(); }
 
 /* XXX: git api example
   let dir = '/tmp/lif_server';
@@ -46,4 +45,4 @@ async function start(){ await _start(); }
   console.log('file:\n%s', Buffer.from(blob).toString('utf8'))
 */
 
-start();
+(async()=>await start())();

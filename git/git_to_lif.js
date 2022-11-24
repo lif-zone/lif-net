@@ -1,9 +1,12 @@
 // author: derry. coder: arik.
 import xerr from '../util/xerr.js';
 import etask from '../util/etask.js';
+import array from '../util/array.js';
 import git from 'isomorphic-git';
 import http from 'isomorphic-git/http/node/index.cjs';
 import fs from 'fs';
+import assert from 'assert';
+const work_dir = '/tmp/lif_server';
 
 // XXX: mv to other place
 xerr.set_exception_catch_all(true);
@@ -20,13 +23,44 @@ function err_handler(err){
   throw err2;
 }
 
+let g_pad=0;
+function pad(){ return ' '.repeat(2*g_pad); }
+
+const put_tree = (dir, oid)=>etask(function*_put_tree(){
+  let {tree} = yield git.readTree({fs, dir: work_dir, oid});
+  console.log(pad()+'%s %s', dir, oid);
+  for (let i=0; i<tree.length; i++){
+    g_pad++;
+    let e = tree[i];
+    switch (e.type){
+    case 'blob':
+      console.log(pad()+'%s %s %s', e.path, e.mode, e.oid);
+      break;
+    case 'tree':
+      debugger;
+      yield put_tree(dir+e.path+'/', e.oid);
+      break;
+    default: xerr.xexit('unknown type '+e.type);
+    }
+    g_pad--;
+  }
+});
+
 const start = ()=>etask(function*_start(){
-  let dir = '/tmp/lif_server';
   let url = 'https://github.com/lif-zone/server';
-  console.log('git2lif %s %s', url, dir);
-  yield git.clone({fs, http, dir, url});
-  let commits = yield git.log({fs, dir, ref: 'main'});
-  console.log('commit[0]:\n%o', commits[0]);
+  console.log('git2lif %s %s', url, work_dir);
+  yield git.clone({fs, http, dir: work_dir, url});
+  let commits = yield git.log({fs, dir: work_dir, ref: 'main'});
+  commits.reverse();
+  for (let i=0; i<commits.length; i++){
+    let commit = commits[i].commit;
+    console.log(pad()+'commit %s: %s', i,
+      array.compact_self(commit.message.split('\n')).join('\\n'));
+    g_pad++;
+    yield put_tree('/', commit.tree);
+    g_pad--;
+    console.log('\n');
+  }
 });
 
 

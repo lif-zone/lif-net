@@ -26,21 +26,24 @@ function err_handler(err){
   throw err2;
 }
 
-let g_pad=0, oid2seq = new Map();
+let g_pad=0, oid2seq = new Map(), path2seq = new Map();
 function pad(){ return ' '.repeat(2*g_pad); }
 
 const put_tree = (scroll, dir, oid)=>etask(function*_put_tree(){
   let {tree} = yield git.readTree({fs, dir: work_dir, oid});
-  console.log(pad()+'%s %s', dir+'/', oid);
+  console.log(pad()+'%s %s', dir||'/', oid);
   for (let i=0; i<tree.length; i++){
     g_pad++;
     let e = tree[i], path = dir+'/'+e.path, blob, seq, seq_blob, content;
+    let seq_path;
     switch (e.type){
     case 'blob':
-      if (!(seq_blob = oid2seq.get(e.oid)))
-        blob = (yield git.readBlob({fs, dir: work_dir, oid: e.oid})).blob;
-      else
+      if (seq_blob = oid2seq.get(e.oid))
         content = {seq: seq_blob};
+      else if (seq_path = path2seq.get(path))
+        content = {diff: seq_path};
+      else
+        blob = (yield git.readBlob({fs, dir: work_dir, oid: e.oid})).blob;
       // XXX: missing prev
       // XXX: add e.mode
       seq = (yield scroll.decl(content ? [{path, content}] :
@@ -48,6 +51,7 @@ const put_tree = (scroll, dir, oid)=>etask(function*_put_tree(){
       console.log(pad()+'seq%s path:%s %s', seq, path,
         content ? 'content:'+JSON.stringify(content) : 'blob');
       oid2seq.set(e.oid, seq);
+      path2seq.set(path, seq);
       break;
     case 'tree':
       yield put_tree(scroll, path, e.oid);

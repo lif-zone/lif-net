@@ -2,11 +2,13 @@
 import xerr from '../util/xerr.js';
 import etask from '../util/etask.js';
 import array from '../util/array.js';
+import xutil from '../util/util.js';
 import Scroll from '../storage/scroll.js';
 import Soul from '../storage/soul.js';
 import git from 'isomorphic-git';
 import http from 'isomorphic-git/http/node/index.cjs';
 import fs from 'fs';
+import assert from 'assert';
 import buf_util from '../peer-relay/buf_util.js';
 const s2b = buf_util.buf_from_str;
 const work_dir = '/tmp/lif_server';
@@ -27,10 +29,18 @@ function err_handler(err){
 }
 
 let g_pad=0, oid2seq = new Map(), path2seq = new Map();
-function pad(){ return ' '.repeat(2*g_pad); }
+function pad(){ return ''; }  // XXX: rm ' '.repeat(2*g_pad); }
 
-const put_tree = (scroll, dir, oid)=>etask(function*_put_tree(){
+const put_tree = (scroll, dir, oid, state_curr, state_next)=>etask(
+  function*_put_tree(){
   let {tree} = yield git.readTree({fs, dir: work_dir, oid});
+  let next = {type: 'dir', path: dir, oid}, curr;
+  if (curr = state_curr[dir]){
+    delete state_curr[dir];
+    if (xutil.equal_deep(curr, next))
+      return;
+  }
+  state_next[dir] = next;
   console.log(pad()+'%s %s', dir||'/', oid);
   for (let i=0; i<tree.length; i++){
     g_pad++;
@@ -38,6 +48,12 @@ const put_tree = (scroll, dir, oid)=>etask(function*_put_tree(){
     let seq_path;
     switch (e.type){
     case 'blob':
+      next = {path, oid: e.oid};
+      if (curr = state_curr[path]){
+        delete state_curr[path];
+        if (xutil.equal_deep(curr, next))
+          continue;
+      }
       if (seq_blob = oid2seq.get(e.oid))
         content = {seq: seq_blob};
       else if (seq_path = path2seq.get(path))
@@ -51,9 +67,10 @@ const put_tree = (scroll, dir, oid)=>etask(function*_put_tree(){
       console.log(pad()+'%s %s', path, e.oid);
       oid2seq.set(e.oid, seq);
       path2seq.set(path, seq);
+      state_next[path] = next;
       break;
     case 'tree':
-      yield put_tree(scroll, path, e.oid);
+      yield put_tree(scroll, path, e.oid, state_curr, state_next);
       break;
     default: xerr.xexit('unknown type '+e.type);
     }
@@ -75,12 +92,14 @@ const start = ()=>etask(function*_start(){
     {topic: 'git', src: url});
   let commits = yield git.log({fs, dir: work_dir, ref: 'main'});
   commits.reverse();
+  let state_curr={};
   for (let i=0; i<7; i++){
     let oid = commits[i].oid, commit = commits[i].commit;
     console.log(pad()+'commit %s: %s', i,
       array.compact_self(commit.message.split('\n')).join('\\n'));
     let seq = scroll.top.seq+1;
-    yield put_tree(scroll, '', commit.tree);
+    let state_next = {};
+    yield put_tree(scroll, '', commit.tree, state_curr, state_next);
     yield scroll.decl({commit: oid, message: commit.message});
     console.log('');
     for (let j=seq; j<=scroll.top.seq; j++){
@@ -89,6 +108,8 @@ const start = ()=>etask(function*_start(){
       console.log(pad()+'seq%s %s', j, fbuf.get_frames()[2].buf.toString());
     }
     console.log('');
+    assert.deepEqual(state_curr, {}, 'XXX delete');
+    state_curr = state_next;
     // XXX: missing prev
     // XXX: missing author, date,...
   }

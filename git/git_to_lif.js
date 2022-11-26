@@ -8,7 +8,6 @@ import Soul from '../storage/soul.js';
 import git from 'isomorphic-git';
 import http from 'isomorphic-git/http/node/index.cjs';
 import fs from 'fs';
-import assert from 'assert';
 import buf_util from '../peer-relay/buf_util.js';
 const s2b = buf_util.buf_from_str;
 const work_dir = '/tmp/lif_server';
@@ -85,7 +84,7 @@ const put_diff = (scroll, state_curr, state_next)=>etask(function*_put_diff(){
     if (next.type=='dir' && curr?.type=='dir')
       continue;
     if (next.type=='dir'){
-      decl = yield scroll.decl({path});
+      decl = yield scroll.decl({dir: path});
       fbuf = decl.fbuf_get(0);
       console.log('+ seq%s %s', decl.seq, fbuf.get_frames()[2].buf.toString());
     } else {
@@ -95,7 +94,8 @@ const put_diff = (scroll, state_curr, state_next)=>etask(function*_put_diff(){
         content = {diff: {seq: seq_path}};
       else
         blob = (yield git.readBlob({fs, dir: work_dir, oid: next.oid})).blob;
-      decl = yield scroll.decl(content ? [{path, content}] : [{path}, blob]);
+      decl = yield scroll.decl(content ? [{file: path, content}] :
+        [{file: path}, blob]);
       fbuf = decl.fbuf_get(0);
       if (!curr){
         console.log('+ seq%s %s%s', decl.seq,
@@ -111,7 +111,9 @@ const put_diff = (scroll, state_curr, state_next)=>etask(function*_put_diff(){
     }
   }
   for (let path in state_curr){
-    let decl = yield scroll.decl([{path, rm: true}]);
+    let curr = state_curr[path];
+    let decl = yield scroll.decl([curr.type=='dir' ? {dir: path, del: true} :
+      {file: path, del: true}]);
     let fbuf = decl.fbuf_get(0);
     console.log('- seq%s %s', decl.seq, fbuf.get_frames()[2].buf.toString());
   }
@@ -172,7 +174,8 @@ const start = ()=>etask(function*_start(){
 (async()=>await start())();
 
 /* XXX from derry:
-commit 17: rename dnss.js -> dns_server + coding fixes e24039a1b371f9f05ce53829e9c6bc3ad675fa53
+commit 17: rename dnss.js -> dns_server + coding fixes
+e24039a1b371f9f05ce53829e9c6bc3ad675fa53
 + seq39 {"path":"/lib/dns_server.js"} blob
 * seq40 [{"file":"/package-lock.json","content":{"diff":{"seq":26}}}, ]
 * seq40 {"dir":"/",{unix_perm: 0755}}

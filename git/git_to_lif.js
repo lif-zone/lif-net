@@ -29,20 +29,20 @@ function err_handler(err){
 
 let oid2seq = new Map(), path2seq = new Map();
 
-const get_next_state = (dir, oid, state_curr, state_next)=>etask(
+const get_next_state = (dir, oid, mode, state_curr, state_next)=>etask(
   function*_put_tree(){
   let {tree} = yield git_api.readTree({fs, dir: work_dir, oid});
-  let next = {type: 'dir', path: dir, oid};
+  let next = {type: 'dir', path: dir, oid, mode};
   state_next[dir] = next;
   for (let i=0; i<tree.length; i++){
     let e = tree[i], path = dir+'/'+e.path;
     switch (e.type){
     case 'blob':
-      next = {path, oid: e.oid};
+      next = {path, oid: e.oid, mode: e.mode};
       state_next[path] = next;
       break;
     case 'tree':
-      yield get_next_state(path, e.oid, state_curr, state_next);
+      yield get_next_state(path, e.oid, e.mode, state_curr, state_next);
       break;
     default: xerr.xexit('unknown type '+e.type);
     }
@@ -63,7 +63,7 @@ const put_diff = (scroll, state_curr, state_next)=>etask(function*_put_diff(){
       continue;
     if (next.type=='dir' && curr?.type=='dir')
       continue;
-    let git = {oid: next.oid};
+    let git = {oid: next.oid, mode: next.mode};
     if (next.type=='dir'){
       decl = yield scroll.decl({dir: path, git});
       fbuf = decl.fbuf_get(0);
@@ -120,11 +120,12 @@ const start = ()=>etask(function*_start(){
     console.log('');
     console.log('commit %s: %s %s', i,
       array.compact_self(commit.message.split('\n')).join('\\n'), oid);
-    let state_next = yield get_next_state('', commit.tree, state_curr, {});
+    let state_next = yield get_next_state('', commit.tree, 0, state_curr, {});
     yield put_diff(scroll, state_curr, state_next);
     // XXX: missing prev
     // XXX: missing author, date,...
-    let decl = yield scroll.decl({commit: oid, desc: commit.message});
+    let decl = yield scroll.decl({commit: oid, desc: commit.message,
+      git: commit});
     let fbuf = decl.fbuf_get(0);
     console.log('! seq%s %s', decl.seq, fbuf.get_frames()[2].buf.toString());
     state_curr = state_next;

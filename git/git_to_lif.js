@@ -34,28 +34,12 @@ const get_next_state = (dir, oid, state_curr, state_next)=>etask(
   let {tree} = yield git.readTree({fs, dir: work_dir, oid});
   let next = {type: 'dir', path: dir, oid};
   state_next[dir] = next;
-  // console.log(pad()+'%s %s', dir||'/', oid);
   for (let i=0; i<tree.length; i++){
     let e = tree[i], path = dir+'/'+e.path;
     switch (e.type){
     case 'blob':
       next = {path, oid: e.oid};
       state_next[path] = next;
-/*
-      if (seq_blob = oid2seq.get(e.oid))
-        content = {seq: seq_blob};
-      else if (seq_path = path2seq.get(path))
-        content = {diff: seq_path};
-      else
-        blob = (yield git.readBlob({fs, dir: work_dir, oid: e.oid})).blob;
-      // XXX: missing prev
-      // XXX: add e.mode
-      seq = (yield scroll.decl(content ? [{path, content}] :
-        [{path}, blob])).seq;
-      console.log(pad()+'%s %s', path, e.oid);
-      oid2seq.set(e.oid, seq);
-      path2seq.set(path, seq);
-*/
       break;
     case 'tree':
       yield get_next_state(path, e.oid, state_curr, state_next);
@@ -63,8 +47,6 @@ const get_next_state = (dir, oid, state_curr, state_next)=>etask(
     default: xerr.xexit('unknown type '+e.type);
     }
   }
-  // XXX: missing prev
-//  yield scroll.decl({path: dir+'/'});
   return state_next;
 });
 
@@ -77,8 +59,6 @@ const put_diff = (scroll, state_curr, state_next)=>etask(function*_put_diff(){
     let curr = state_curr[path], next = state_next[path], decl, fbuf;
     let blob, seq_blob, content, seq_path;
     delete state_curr[path];
-      // oid2seq.set(e.oid, seq);
-      // path2seq.set(path, seq);
     if (xutil.equal_deep(curr, next))
       continue;
     if (next.type=='dir' && curr?.type=='dir')
@@ -134,24 +114,17 @@ const start = ()=>etask(function*_start(){
   let state_curr={};
   for (let i=0; i<18; i++){
     let oid = commits[i].oid, commit = commits[i].commit;
+    console.log('');
     console.log('commit %s: %s %s', i,
       array.compact_self(commit.message.split('\n')).join('\\n'), oid);
     let state_next = yield get_next_state('', commit.tree, state_curr, {});
     yield put_diff(scroll, state_curr, state_next);
-    console.log('');
-/*
-    yield put_tree(scroll, '', commit.tree, state_curr, state_next);
-    yield scroll.decl({commit: oid, message: commit.message});
-    console.log('');
-    for (let j=seq; j<=scroll.top.seq; j++){
-      let decl = yield scroll.get_decl(j);
-      let fbuf = decl.fbuf_get(0);
-      console.log(pad()+'seq%s %s', j, fbuf.get_frames()[2].buf.toString());
-    }
-*/
-    state_curr = state_next;
     // XXX: missing prev
     // XXX: missing author, date,...
+    let decl = yield scroll.decl({commit: oid, message: commit.message});
+    let fbuf = decl.fbuf_get(0);
+    console.log('! seq%s %s', decl.seq, fbuf.get_frames()[2].buf.toString());
+    state_curr = state_next;
   }
 });
 

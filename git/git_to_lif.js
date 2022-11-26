@@ -5,7 +5,7 @@ import array from '../util/array.js';
 import xutil from '../util/util.js';
 import Scroll from '../storage/scroll.js';
 import Soul from '../storage/soul.js';
-import git from 'isomorphic-git';
+import git_api from 'isomorphic-git';
 import http from 'isomorphic-git/http/node/index.cjs';
 import fs from 'fs';
 import buf_util from '../peer-relay/buf_util.js';
@@ -31,7 +31,7 @@ let oid2seq = new Map(), path2seq = new Map();
 
 const get_next_state = (dir, oid, state_curr, state_next)=>etask(
   function*_put_tree(){
-  let {tree} = yield git.readTree({fs, dir: work_dir, oid});
+  let {tree} = yield git_api.readTree({fs, dir: work_dir, oid});
   let next = {type: 'dir', path: dir, oid};
   state_next[dir] = next;
   for (let i=0; i<tree.length; i++){
@@ -63,8 +63,9 @@ const put_diff = (scroll, state_curr, state_next)=>etask(function*_put_diff(){
       continue;
     if (next.type=='dir' && curr?.type=='dir')
       continue;
+    let git = {oid: next.oid};
     if (next.type=='dir'){
-      decl = yield scroll.decl({dir: path});
+      decl = yield scroll.decl({dir: path, git});
       fbuf = decl.fbuf_get(0);
       console.log('+ seq%s %s', decl.seq, fbuf.get_frames()[2].buf.toString());
     } else {
@@ -72,10 +73,12 @@ const put_diff = (scroll, state_curr, state_next)=>etask(function*_put_diff(){
         content = {seq: seq_blob};
       else if (seq_path = path2seq.get(path))
         content = {diff: {seq: seq_path}};
-      else
-        blob = (yield git.readBlob({fs, dir: work_dir, oid: next.oid})).blob;
-      decl = yield scroll.decl(content ? [{file: path, content}] :
-        [{file: path}, blob]);
+      else {
+        blob = (yield git_api.readBlob({fs, dir: work_dir, oid: next.oid}))
+        .blob;
+      }
+      decl = yield scroll.decl(content ? [{file: path, content, git}] :
+        [{file: path, git}, blob]);
       fbuf = decl.fbuf_get(0);
       if (!curr){
         console.log('+ seq%s %s%s', decl.seq,
@@ -106,10 +109,10 @@ const start = ()=>etask(function*_start(){
     'bc44659cb51dec397ea66085679442505345e159940762c15ef75ad279ecf05033')};
   let url = 'https://github.com/lif-zone/server';
   console.log('git2lif %s %s', url, work_dir);
-  yield git.clone({fs, http, dir: work_dir, url});
+  yield git_api.clone({fs, http, dir: work_dir, url});
   let scroll = yield Scroll.create({key: keypair.key, pub: keypair.pub},
     {topic: 'git', src: url});
-  let commits = yield git.log({fs, dir: work_dir, ref: 'main'});
+  let commits = yield git_api.log({fs, dir: work_dir, ref: 'main'});
   commits.reverse();
   let state_curr={};
   for (let i=0; i<18; i++){
@@ -121,28 +124,12 @@ const start = ()=>etask(function*_start(){
     yield put_diff(scroll, state_curr, state_next);
     // XXX: missing prev
     // XXX: missing author, date,...
-    let decl = yield scroll.decl({commit: oid, message: commit.message});
+    let decl = yield scroll.decl({commit: oid, desc: commit.message});
     let fbuf = decl.fbuf_get(0);
     console.log('! seq%s %s', decl.seq, fbuf.get_frames()[2].buf.toString());
     state_curr = state_next;
   }
 });
-
-
-/* XXX: git api example
-  let dir = '/tmp/lif_server';
-  let url = 'https://github.com/lif-zone/server';
-  console.log('git2lif %s %s', url, dir);
-  await git.clone({fs, http, dir, url});
-  let commits = await git.log({fs, dir, ref: 'main'});
-  console.log('commit[0]:\n%o', commits[0]);
-  let tree = await git.readTree({fs, dir,
-    oid: '3cb91212ef90fa3210c9cefdee1fd5c6c084a6e5'});
-  console.log('tree:\n%o', tree);
-  let {blob} = await git.readBlob({fs, dir,
-    oid: 'a4ec5a149c310c1663788aaaade0f4fb30b03634'});
-  console.log('file:\n%s', Buffer.from(blob).toString('utf8'))
-*/
 
 (async()=>await start())();
 

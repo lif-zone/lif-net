@@ -103,7 +103,12 @@ const put_diff = (scroll, state_curr, state_next)=>etask(function*_put_diff(){
 });
 
 // XXX TODO
-// diff files (text/binry)
+// XXX: rm git.message, add author, ts and rm from message (make func)
+// XXX: {seq: 57, link: {"l": 37}}, data-frame
+// initial sync
+// diff files (text/binary)
+//  binary - no diff
+//  text - diff, if diff_sz<0.5*blob_sz
 // test binary files
 // detect file/dir move
 // handle dir <-> file (change type)
@@ -111,7 +116,7 @@ const put_diff = (scroll, state_curr, state_next)=>etask(function*_put_diff(){
 // pgp for commits (gpgsig)
 // pgp for tags
 // export to git
-// support update of existing scroll (need to use prev)
+// incermental sync - support update of existing scroll (need to use prev)
 // - save persistent data to indexdeddb
 // - support pull (update of scroll with new commits)
 const start = ()=>etask(function*_start(){

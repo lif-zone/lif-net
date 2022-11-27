@@ -135,18 +135,18 @@ const put_diff = (scroll, state_curr, state_next)=>etask(function*_put_diff(){
 // XXX TODO
 // XXX: {seq: 57, link: {"l": 37}}, data-frame
 // seq57 {"file":"/package-lock.json","content":{"diff":{_l: "l"},
-// initial sync
-// diff files (text/binary)
+// initial sync:
+// - handle branches/merges/tags
+// - diff files (text/binary)
 //   binary - no diff
 //   text - diff, if diff_sz<0.5*blob_sz
-// test binary files
-// detect file/dir move
+//   test binary files
+// - detect file/dir move
 //   a.js -> b.js
 //   {"file_src":"/a.js", file_dst: '/b.js', content: 'hello'|{diff},
 //     mv: '/a.js' seq3}
 //   {"file":"/a.js", del: true, mv: '/b.js'}
-// handle dir <-> file (change type)
-// handle branches/merges/tags
+//   - handle dir <-> file (change type)
 // pgp for commits (gpgsig)
 // pgp for tags
 // export to git
@@ -176,8 +176,6 @@ const start = ()=>etask(function*_start(){
     let state_next = yield get_next_state('', commit.tree, 0, state_curr, {});
     yield put_diff(scroll, state_curr, state_next);
     // XXX: missing prev
-    // XXX: missing author, date,...
-    // XXX: rm git.message, add author, ts and rm from message (make func)
     let data = pick_rename(commit, {message: 'desc', 'author.name': 'author'});
     data.ts = date_utc(commit.author.timestamp, commit.author.timezoneOffset);
     let decl = yield scroll.decl({commit: oid, ...data, git: commit});

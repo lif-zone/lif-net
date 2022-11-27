@@ -9,6 +9,7 @@ import git_api from 'isomorphic-git';
 import http from 'isomorphic-git/http/node/index.cjs';
 import fs from 'fs';
 import buf_util from '../peer-relay/buf_util.js';
+import * as Diff from 'diff';
 const s2b = buf_util.buf_from_str;
 const work_dir = '/tmp/lif_server';
 
@@ -71,14 +72,31 @@ const put_diff = (scroll, state_curr, state_next)=>etask(function*_put_diff(){
     } else {
       if (seq_blob = oid2seq.get(next.oid))
         content = {seq: seq_blob};
-      else if (seq_path = path2seq.get(path))
-        content = {diff: {seq: seq_path}};
-      else {
+      else if (seq_path = path2seq.get(path)){
+        let decl_old = yield scroll.get_decl(seq_path);
+        // XXX: find better way
+        let oid_old = JSON.parse(
+          decl_old.fbuf_get(0).frames[2].buf.toString()).git.oid;
+        let buf_old = yield git_api.readBlob({fs, dir: work_dir,
+          oid: oid_old});
+        let buf_new = yield git_api.readBlob({fs, dir: work_dir,
+          oid: next.oid});
+        let s_old = Buffer.from(buf_old.blob).toString();
+        let s_new = Buffer.from(buf_new.blob).toString();
+        let diff = Diff.createPatch(path, s_old, s_new, '', '', {context: 0});
+        blob = Buffer.from(diff);
+        if (blob.length < 0.5*s_new.length)
+          content = {diff: {seq: seq_path}};
+        else
+          blob = buf_new;
+      } else {
         blob = (yield git_api.readBlob({fs, dir: work_dir, oid: next.oid}))
         .blob;
       }
-      decl = yield scroll.decl(content ? [{file: path, content, git}] :
-        [{file: path, git}, blob]);
+      let data = content ? [{file: path, content, git}] : [{file: path, git}];
+      if (blob)
+        data.push(blob);
+      decl = yield scroll.decl(data);
       fbuf = decl.fbuf_get(0);
       if (!curr){
         console.log('+ seq%s %s%s', decl.seq,
@@ -105,6 +123,7 @@ const put_diff = (scroll, state_curr, state_next)=>etask(function*_put_diff(){
 // XXX TODO
 // XXX: rm git.message, add author, ts and rm from message (make func)
 // XXX: {seq: 57, link: {"l": 37}}, data-frame
+// seq57 {"file":"/package-lock.json","content":{"diff":{_l: "l"},
 // initial sync
 // diff files (text/binary)
 //  binary - no diff

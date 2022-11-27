@@ -12,7 +12,7 @@ import buf_util from '../peer-relay/buf_util.js';
 const s2b = buf_util.buf_from_str;
 const work_dir = '/tmp/lif_server';
 
-// XXX: mv to other place
+// XXX: move to other place
 xerr.set_exception_catch_all(true);
 process.on('uncaughtException', err_handler);
 process.on('unhandledRejection', err_handler);
@@ -102,6 +102,14 @@ const put_diff = (scroll, state_curr, state_next)=>etask(function*_put_diff(){
   }
 });
 
+// XXX TODO
+// handle branches/merges
+// handle tags
+// pgp for commits
+// pgp for tags
+// test binary files
+// diff files (text/binry)
+// export to git
 const start = ()=>etask(function*_start(){
   let keypair = {pub: s2b('44659cb51dec397ea66085679442505345e159940762c15ef7'+
     '5ad279ecf05033'),

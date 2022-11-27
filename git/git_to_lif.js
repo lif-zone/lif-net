@@ -103,13 +103,17 @@ const put_diff = (scroll, state_curr, state_next)=>etask(function*_put_diff(){
 });
 
 // XXX TODO
-// handle branches/merges
-// handle tags
-// pgp for commits
-// pgp for tags
-// test binary files
 // diff files (text/binry)
+// test binary files
+// detect file/dir move
+// handle dir <-> file (change type)
+// handle branches/merges/tags
+// pgp for commits (gpgsig)
+// pgp for tags
 // export to git
+// support update of existing scroll (need to use prev)
+// - save persistent data to indexdeddb
+// - support pull (update of scroll with new commits)
 const start = ()=>etask(function*_start(){
   let keypair = {pub: s2b('44659cb51dec397ea66085679442505345e159940762c15ef7'+
     '5ad279ecf05033'),
@@ -118,6 +122,8 @@ const start = ()=>etask(function*_start(){
   let url = 'https://github.com/lif-zone/server';
   console.log('git2lif %s %s', url, work_dir);
   yield git_api.clone({fs, http, dir: work_dir, url});
+  yield git_api.pull({fs, http, dir: work_dir, url,
+    author: {name: 'XXX', email: 'xxx@xxx.com'}});
   let scroll = yield Scroll.create({key: keypair.key, pub: keypair.pub},
     {topic: 'git', src: url});
   let commits = yield git_api.log({fs, dir: work_dir, ref: 'main'});

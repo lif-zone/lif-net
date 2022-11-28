@@ -29,6 +29,15 @@ function err_handler(err){
   throw err2;
 }
 
+// XXX derry: mv to util (and is there better way)
+function is_bin(blob){
+  for (let i=0; i<blob.length; i++){
+    if (blob[i]==0)
+      return true;
+  }
+  return false;
+}
+
 function pick_rename(o, fields){
   let ret = {};
   for (let src in fields){
@@ -97,17 +106,21 @@ const put_diff = (scroll, prev, state_curr, state_next)=>etask(
         // XXX: find better way
         let oid_old = JSON.parse(
           decl_old.fbuf_get(0).frames[2].buf.toString()).git.oid;
-        let buf_old = yield git_api.readBlob({fs, dir: work_dir,
-          oid: oid_old});
-        let buf_new = yield git_api.readBlob({fs, dir: work_dir,
-          oid: next.oid});
-        let s_old = Buffer.from(buf_old.blob).toString();
-        let s_new = Buffer.from(buf_new.blob).toString();
-        let diff = Diff.createPatch(path, s_old, s_new, '', '', {context: 0});
-        blob = Buffer.from(diff);
-        if (blob.length < 0.5*s_new.length)
-          content = {diff: {seq: seq_path}};
-        else
+        let buf_old = (yield git_api.readBlob({fs, dir: work_dir,
+          oid: oid_old})).blob;
+        let buf_new = (yield git_api.readBlob({fs, dir: work_dir,
+          oid: next.oid})).blob;
+        if (is_bin(buf_old) || is_bin(buf_new)){
+          let s_old = Buffer.from(buf_old).toString();
+          let s_new = Buffer.from(buf_new).toString();
+          let diff = Diff.createPatch(path, s_old, s_new, '', '',
+            {context: 0});
+          blob = Buffer.from(diff);
+          if (blob.length < 0.5*s_new.length)
+            content = {diff: {seq: seq_path}};
+          else
+            blob = buf_new;
+        } else
           blob = buf_new;
       } else {
         blob = (yield git_api.readBlob({fs, dir: work_dir, oid: next.oid}))
@@ -155,10 +168,10 @@ const put_diff = (scroll, prev, state_curr, state_next)=>etask(
 // initial sync:
 // - handle branches/merges/tags
 //   - annotatedTag
-// - diff files (text/binary)
-//   binary - no diff
-//   text - diff, if diff_sz<0.5*blob_sz
-//   test binary files
+// + diff files (text/binary)
+//   + binary - no diff
+//   + text - diff, if diff_sz<0.5*blob_sz
+//   + test binary files
 // - detect file/dir move
 //   a.js -> b.js
 //   {"file_src":"/a.js", file_dst: '/b.js', content: 'hello'|{diff},
@@ -201,7 +214,6 @@ const start = ()=>etask(function*_start(){
     for (let i=0; i<Math.min(18, commits.length); i++){
       let oid = commits[i].oid, commit = commits[i].commit, parent;
       if (oid2seq.get(oid)){
-      debugger;
         state_curr = xutil.clone_deep(tree2state.get(commit.tree));
         prev = oid2seq.get(oid);
         continue;

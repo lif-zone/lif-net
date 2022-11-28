@@ -166,8 +166,7 @@ const put_diff = (scroll, prev, state_curr, state_next)=>etask(
 // XXX: {seq: 57, link: {"l": 37}}, data-frame
 // seq57 {"file":"/package-lock.json","content":{"diff":{_l: "l"},
 // initial sync:
-// - handle branches/merges/tags
-//   - annotatedTag
+// * handle merges
 // + diff files (text/binary)
 //   + binary - no diff
 //   + text - diff, if diff_sz<0.5*blob_sz
@@ -178,14 +177,15 @@ const put_diff = (scroll, prev, state_curr, state_next)=>etask(
 //     mv: '/a.js' seq3}
 //   {"file":"/a.js", del: true, mv: '/b.js'}
 //   - handle dir <-> file (change type)
-// pgp for commits (gpgsig)
-// pgp for tags
-// tags annotate
-// export to git
+// + pgp for commits (gpgsig)
+// + support branch
+// - support tags (annotate, pgpsig)
+// - support notes
+// - export to git
+// - incermental sync - support update of existing scroll (need to use prev)
+//   - save persistent data to indexdeddb
+//   - pull and update of scroll with new commits
 // private repositories
-// incermental sync - support update of existing scroll (need to use prev)
-// - save persistent data to indexdeddb
-// - support pull (update of scroll with new commits)
 const start = ()=>etask(function*_start(){
   let keypair = {pub: s2b('44659cb51dec397ea66085679442505345e159940762c15ef7'+
     '5ad279ecf05033'),

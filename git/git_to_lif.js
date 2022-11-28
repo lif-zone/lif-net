@@ -12,7 +12,7 @@ import assert from 'assert';
 import buf_util from '../peer-relay/buf_util.js';
 import * as Diff from 'diff';
 const s2b = buf_util.buf_from_str;
-const work_dir = '/tmp/lif_test2';
+const work_dir = '/tmp/lif_test_merge_simple';
 
 // XXX: move to other place
 xerr.set_exception_catch_all(true);
@@ -51,6 +51,7 @@ function pick_rename(o, fields){
 function date_utc(ts, tz){ return +new Date(ts+tz*60000); }
 
 let oid2seq = new Map(), path2seq = new Map(), tree2state = new Map();
+let seq2state = new Map();
 
 const get_next_state = (dir, oid, mode, state_curr, state_next)=>etask(
   function*_put_tree(){
@@ -86,6 +87,7 @@ const put_diff = (scroll, prev, state_curr, state_next)=>etask(
     delete state_curr[path];
     if (xutil.equal_deep(curr, next))
       continue;
+    // XXX: check behavior when dir become file and vice versa
     if (next.type=='dir' && curr?.type=='dir')
       continue;
     let git = {oid: next.oid, mode: next.mode};
@@ -191,7 +193,7 @@ const start = ()=>etask(function*_start(){
     '5ad279ecf05033'),
     key: s2b('46f45a62f4c5971228747aa2d8ee66bd669ebd805c725286ee385b1d4a06dd'+
     'bc44659cb51dec397ea66085679442505345e159940762c15ef75ad279ecf05033')};
-  let url = 'https://github.com/lif-zone/test2';
+  let url = 'https://github.com/lif-zone/test_merge_simple';
   console.log('git2lif %s %s', url, work_dir);
   yield git_api.clone({fs, http, dir: work_dir, url});
   let branches = yield git_api.listBranches({fs, dir: work_dir,
@@ -211,39 +213,43 @@ const start = ()=>etask(function*_start(){
       author: {name: 'XXX', email: 'xxx@xxx.com'}});
     let commits = yield git_api.log({fs, dir: work_dir, ref: branch});
     commits.reverse();
-    let state_curr={}, prev;
+    let state_curr={}; // XXX: move in
     for (let i=0; i<Math.min(18, commits.length); i++){
-      let oid = commits[i].oid, commit = commits[i].commit, parent;
+      let oid = commits[i].oid, commit = commits[i].commit, prev, merge;
       if (oid2seq.get(oid)){
-        state_curr = xutil.clone_deep(tree2state.get(commit.tree));
-        prev = oid2seq.get(oid);
+//        state_curr = xutil.clone_deep(tree2state.get(commit.tree));
+//        prev = oid2seq.get(oid);
         continue;
       }
       commit.parent.forEach(p=>{
         let seq_p = oid2seq.get(p);
+        assert(!merge, 'merge already defined '+p);
         assert(seq_p, 'parent not found '+p);
-        if (Array.isArray(parent))
-          parent.push(seq_p);
-        else if (parent)
-          parent = [parent, seq_p];
+        if (prev)
+          merge = seq_p;
         else
-          parent = seq_p;
+          prev = seq_p;
       });
+      state_curr = prev ? xutil.clone_deep(seq2state.get(prev)) : {};
       let state_next = yield get_next_state('', commit.tree, 0, state_curr);
+      let seq_start = scroll.top.seq;
       prev = yield put_diff(scroll, prev, state_curr, state_next);
       let info = pick_rename(commit,
         {message: 'desc', 'author.name': 'author'});
       info.ts = date_utc(commit.author.timestamp,
         commit.author.timezoneOffset);
-      let data = {commit: oid, parent, ...info};
+      // XXX commit_ops
+      let commit_ops = scroll.top.seq-seq_start;
+      let data = {commit: oid, commit_ops, ...info};
       if (prev!=scroll.top.seq)
         data.prev = prev;
-      data.git = commit;
+      data.git = merge ? {merge, ...commit} : {...commit};
       let decl = yield scroll.decl(data);
       let fbuf = decl.fbuf_get(0);
       oid2seq.set(oid, decl.seq);
       console.log('! seq%s %s', decl.seq, fbuf.get_frames()[2].buf.toString());
-      tree2state.set(commit.tree, xutil.clone_deep(state_next));
+      tree2state.set(commit.tree, xutil.clone_deep(state_next)); // XXX: rm
+      seq2state.set(decl.seq, xutil.clone_deep(state_next));
       state_curr = state_next;
       prev = decl.seq;
     }
@@ -252,11 +258,12 @@ const start = ()=>etask(function*_start(){
   for (let b=0; b<branches.length; b++){
     let branch = branches[b];
     let oid = yield git_api.resolveRef({fs, dir: work_dir, ref: branch});
+    let seq = oid2seq.get(oid);
+    assert(seq, 'branch not found '+branch);
     // XXX: set prev as pointer to previous branch
-    let decl = scroll.decl({branch, oid});
+    let decl = scroll.decl({branch, seq, git: {oid}});
     let fbuf = decl.fbuf_get(0);
     console.log('B seq%s %s', decl.seq, fbuf.get_frames()[2].buf.toString());
-    console.log('XXX %s %s', branch, oid);
   }
 });
 

@@ -93,10 +93,8 @@ const put_diff = (scroll, prev, state_curr, state_next)=>etask(
     let git = {oid: next.oid, mode: next.mode};
     if (next.type=='dir'){
       let data = {dir: path};
-      if (prev!=scroll.top.seq)
-        data.prev = prev;
       data.git = git;
-      decl = yield scroll.decl(data);
+      decl = yield scroll.decl({prev}, data);
       prev = decl.seq;
     } else {
       if (seq_blob = oid2seq.get(next.oid))
@@ -127,12 +125,10 @@ const put_diff = (scroll, prev, state_curr, state_next)=>etask(
         .blob;
       }
       let data = content ? [{file: path, content}] : [{file: path}];
-      if (prev!=scroll.top.seq)
-        data[0].prev = prev;
       data[0].git = git;
       if (blob)
         data.push(blob);
-      decl = yield scroll.decl(data);
+      decl = yield scroll.decl({prev}, data);
       prev = decl.seq;
     }
     if (decl){
@@ -144,9 +140,7 @@ const put_diff = (scroll, prev, state_curr, state_next)=>etask(
     let curr = state_curr[path];
     let data = curr.type=='dir' ? {dir: path, del: true} :
       {file: path, del: true};
-    if (prev!=scroll.top.seq)
-      data.prev = prev;
-    let decl = yield scroll.decl(data);
+    let decl = yield scroll.decl({prev}, data);
     prev = decl.seq;
   }
   return prev;
@@ -168,7 +162,8 @@ function dump_scroll(scroll){
     // XXX: need nice api
     let h = JSON.parse(fbuf.get_frames()[1].buf.toString());
     let o = JSON.parse(fbuf.get_frames()[2].buf.toString());
-    console.log('%s %s', json_str(xutil.pick(h, ['seq'])), json_str(o));
+    delete h.ts;
+    console.log('%s %s', json_str(h), json_str(o));
   }
 }
 
@@ -250,10 +245,8 @@ const start = ()=>etask(function*_start(){
       // XXX commit_ops
       let commit_ops = scroll.top.seq-seq_start;
       let data = {commit: oid, commit_ops, ...info};
-      if (prev!=scroll.top.seq)
-        data.prev = prev;
       data.git = merge ? {merge, ...commit} : {...commit};
-      let decl = yield scroll.decl(data);
+      let decl = yield scroll.decl({prev}, data);
       oid2seq.set(oid, decl.seq);
       tree2state.set(commit.tree, xutil.clone_deep(state_next)); // XXX: rm
       seq2state.set(decl.seq, xutil.clone_deep(state_next));

@@ -165,10 +165,11 @@ const put_diff = (scroll, prev, state_curr, state_next)=>etask(
 });
 
 // XXX TODO
-// XXX: {seq: 57, link: {"l": 37}}, data-frame
+// XXX: move prev to decl header part {seq, prev, link}
+// XXX: {seq: 57, link: {"l": 37}}, data-frame (and also for prev/merge
 // seq57 {"file":"/package-lock.json","content":{"diff":{_l: "l"},
 // initial sync:
-// * handle merges
+// + handle merges
 // + diff files (text/binary)
 //   + binary - no diff
 //   + text - diff, if diff_sz<0.5*blob_sz
@@ -184,6 +185,7 @@ const put_diff = (scroll, prev, state_curr, state_next)=>etask(
 // - support tags (annotate, pgpsig)
 // - support notes
 // - export to git
+// - cleanup code
 // - incermental sync - support update of existing scroll (need to use prev)
 //   - save persistent data to indexdeddb
 //   - pull and update of scroll with new commits

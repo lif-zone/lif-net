@@ -98,8 +98,6 @@ const put_diff = (scroll, prev, state_curr, state_next)=>etask(
       data.git = git;
       decl = yield scroll.decl(data);
       prev = decl.seq;
-      fbuf = decl.fbuf_get(0);
-      console.log('+ seq%s %s', decl.seq, fbuf.get_frames()[2].buf.toString());
     } else {
       if (seq_blob = oid2seq.get(next.oid))
         content = {seq: seq_blob};
@@ -136,14 +134,6 @@ const put_diff = (scroll, prev, state_curr, state_next)=>etask(
         data.push(blob);
       decl = yield scroll.decl(data);
       prev = decl.seq;
-      fbuf = decl.fbuf_get(0);
-      if (!curr){
-        console.log('+ seq%s %s%s', decl.seq,
-          fbuf.get_frames()[2].buf.toString(), blob ? ' blob' : '');
-      } else {
-        console.log('* seq%s %s%s', decl.seq,
-          fbuf.get_frames()[2].buf.toString(), blob ? ' blob' : '');
-      }
     }
     if (decl){
       oid2seq.set(next.oid, decl.seq);
@@ -158,11 +148,29 @@ const put_diff = (scroll, prev, state_curr, state_next)=>etask(
       data.prev = prev;
     let decl = yield scroll.decl(data);
     prev = decl.seq;
-    let fbuf = decl.fbuf_get(0);
-    console.log('- seq%s %s', decl.seq, fbuf.get_frames()[2].buf.toString());
   }
   return prev;
 });
+
+// XXX: ugly hack
+function json_str(o){
+  let s = JSON.stringify(o);
+  s = s.replace(/":/g, ': ');
+  s = s.replace(/,"/g, ', ');
+  s = s.replace(/{"/g, '{');
+  s = s.replace(/"/g, '\'');
+  return s;
+}
+
+function dump_scroll(scroll){
+  for (let i=0; i<=scroll.top.seq; i++){
+    let decl = scroll.get_decl(i), fbuf = decl.fbuf_get(0);
+    // XXX: need nice api
+    let h = JSON.parse(fbuf.get_frames()[1].buf.toString());
+    let o = JSON.parse(fbuf.get_frames()[2].buf.toString());
+    console.log('%s %s', json_str(xutil.pick(h, ['seq'])), json_str(o));
+  }
+}
 
 // XXX TODO
 // XXX: move prev to decl header part {seq, prev, link}
@@ -208,7 +216,6 @@ const start = ()=>etask(function*_start(){
     {topic: 'git', src: url});
   for (let b=0; b<branches.length; b++){
     let branch = branches[b];
-    console.log('XXX branch commit %s %s', b, branch);
     yield git_api.checkout({fs, http, dir: work_dir, ref: branch,
       remote: 'origin'});
     yield git_api.pull({fs, http, dir: work_dir, url,
@@ -247,15 +254,12 @@ const start = ()=>etask(function*_start(){
         data.prev = prev;
       data.git = merge ? {merge, ...commit} : {...commit};
       let decl = yield scroll.decl(data);
-      let fbuf = decl.fbuf_get(0);
       oid2seq.set(oid, decl.seq);
-      console.log('! seq%s %s', decl.seq, fbuf.get_frames()[2].buf.toString());
       tree2state.set(commit.tree, xutil.clone_deep(state_next)); // XXX: rm
       seq2state.set(decl.seq, xutil.clone_deep(state_next));
       state_curr = state_next;
       prev = decl.seq;
     }
-    console.log('');
   }
   for (let b=0; b<branches.length; b++){
     let branch = branches[b];
@@ -263,10 +267,9 @@ const start = ()=>etask(function*_start(){
     let seq = oid2seq.get(oid);
     assert(seq, 'branch not found '+branch);
     // XXX: set prev as pointer to previous branch
-    let decl = scroll.decl({branch, seq, git: {oid}});
-    let fbuf = decl.fbuf_get(0);
-    console.log('B seq%s %s', decl.seq, fbuf.get_frames()[2].buf.toString());
+    scroll.decl({branch, seq, git: {oid}});
   }
+  dump_scroll(scroll);
 });
 
 (async()=>await start())();

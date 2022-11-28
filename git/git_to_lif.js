@@ -8,10 +8,11 @@ import Soul from '../storage/soul.js';
 import git_api from 'isomorphic-git';
 import http from 'isomorphic-git/http/node/index.cjs';
 import fs from 'fs';
+import assert from 'assert';
 import buf_util from '../peer-relay/buf_util.js';
 import * as Diff from 'diff';
 const s2b = buf_util.buf_from_str;
-const work_dir = '/tmp/lif_test';
+const work_dir = '/tmp/lif_test2';
 
 // XXX: move to other place
 xerr.set_exception_catch_all(true);
@@ -40,7 +41,7 @@ function pick_rename(o, fields){
 
 function date_utc(ts, tz){ return +new Date(ts+tz*60000); }
 
-let oid2seq = new Map(), path2seq = new Map();
+let oid2seq = new Map(), path2seq = new Map(), tree2state = new Map();
 
 const get_next_state = (dir, oid, mode, state_curr, state_next)=>etask(
   function*_put_tree(){
@@ -67,7 +68,7 @@ const get_next_state = (dir, oid, mode, state_curr, state_next)=>etask(
 // XXX: how to detect file move (exact move, move+modifications)
 // eg commit 17: https://github.com/lif-zone/server/commit/e24039a1b371f9f05ce53829e9c6bc3ad675fa53?diff=split
 // XXX: what about directory move. need to optimize and not remove/readd all
-const put_diff = (scroll, parent, state_curr, state_next)=>etask(
+const put_diff = (scroll, prev, state_curr, state_next)=>etask(
   function*_put_diff(){
   // XXX: optimize, if directory is the same, no need to test all sub dir
   for (let path in state_next){
@@ -81,11 +82,11 @@ const put_diff = (scroll, parent, state_curr, state_next)=>etask(
     let git = {oid: next.oid, mode: next.mode};
     if (next.type=='dir'){
       let data = {dir: path};
-      if (parent!=scroll.top.seq)
-        data.prev = parent;
+      if (prev!=scroll.top.seq)
+        data.prev = prev;
       data.git = git;
       decl = yield scroll.decl(data);
-      parent = decl.seq;
+      prev = decl.seq;
       fbuf = decl.fbuf_get(0);
       console.log('+ seq%s %s', decl.seq, fbuf.get_frames()[2].buf.toString());
     } else {
@@ -113,13 +114,13 @@ const put_diff = (scroll, parent, state_curr, state_next)=>etask(
         .blob;
       }
       let data = content ? [{file: path, content}] : [{file: path}];
-      if (parent!=scroll.top.seq)
-        data[0].prev = parent;
+      if (prev!=scroll.top.seq)
+        data[0].prev = prev;
       data[0].git = git;
       if (blob)
         data.push(blob);
       decl = yield scroll.decl(data);
-      parent = decl.seq;
+      prev = decl.seq;
       fbuf = decl.fbuf_get(0);
       if (!curr){
         console.log('+ seq%s %s%s', decl.seq,
@@ -138,14 +139,14 @@ const put_diff = (scroll, parent, state_curr, state_next)=>etask(
     let curr = state_curr[path];
     let data = curr.type=='dir' ? {dir: path, del: true} :
       {file: path, del: true};
-    if (parent!=scroll.top.seq)
-      data.prev = parent;
+    if (prev!=scroll.top.seq)
+      data.prev = prev;
     let decl = yield scroll.decl(data);
-    parent = decl.seq;
+    prev = decl.seq;
     let fbuf = decl.fbuf_get(0);
     console.log('- seq%s %s', decl.seq, fbuf.get_frames()[2].buf.toString());
   }
-  return parent;
+  return prev;
 });
 
 // XXX TODO
@@ -153,6 +154,7 @@ const put_diff = (scroll, parent, state_curr, state_next)=>etask(
 // seq57 {"file":"/package-lock.json","content":{"diff":{_l: "l"},
 // initial sync:
 // - handle branches/merges/tags
+//   - annotatedTag
 // - diff files (text/binary)
 //   binary - no diff
 //   text - diff, if diff_sz<0.5*blob_sz
@@ -175,11 +177,9 @@ const start = ()=>etask(function*_start(){
     '5ad279ecf05033'),
     key: s2b('46f45a62f4c5971228747aa2d8ee66bd669ebd805c725286ee385b1d4a06dd'+
     'bc44659cb51dec397ea66085679442505345e159940762c15ef75ad279ecf05033')};
-  let url = 'https://github.com/lif-zone/test';
+  let url = 'https://github.com/lif-zone/test2';
   console.log('git2lif %s %s', url, work_dir);
   yield git_api.clone({fs, http, dir: work_dir, url});
-  yield git_api.pull({fs, http, dir: work_dir, url,
-    author: {name: 'XXX', email: 'xxx@xxx.com'}});
   let branches = yield git_api.listBranches({fs, dir: work_dir,
     remote: 'origin'});
   // XXX: need to add HEAD to scroll
@@ -190,38 +190,51 @@ const start = ()=>etask(function*_start(){
     {topic: 'git', src: url});
   for (let b=0; b<branches.length; b++){
     let branch = branches[b];
-    console.log('XXX branch %s', branch);
+    console.log('XXX branch commit %s %s', b, branch);
     yield git_api.checkout({fs, http, dir: work_dir, ref: branch,
       remote: 'origin'});
+    yield git_api.pull({fs, http, dir: work_dir, url,
+      author: {name: 'XXX', email: 'xxx@xxx.com'}});
     let commits = yield git_api.log({fs, dir: work_dir, ref: branch});
     commits.reverse();
-    let state_curr={};
+    let state_curr={}, prev;
     for (let i=0; i<Math.min(18, commits.length); i++){
       let oid = commits[i].oid, commit = commits[i].commit, parent;
-      if (oid2seq.get(oid))
+      if (oid2seq.get(oid)){
+      debugger;
+        state_curr = xutil.clone_deep(tree2state.get(commit.tree));
+        prev = oid2seq.get(oid);
         continue;
-      if (oid2seq.get(commit.parent[0]))
-        parent = oid2seq.get(commit.parent[0]);
-      if (i)
-        console.log('');
-      console.log('commit %s: %s parent %s %s', i, oid, parent,
-        array.compact_self(commit.message.split('\n')).join('\\n'), oid);
+      }
+      commit.parent.forEach(p=>{
+        let seq_p = oid2seq.get(p);
+        assert(seq_p, 'parent not found '+p);
+        if (Array.isArray(parent))
+          parent.push(seq_p);
+        else if (parent)
+          parent = [parent, seq_p];
+        else
+          parent = seq_p;
+      });
       let state_next = yield get_next_state('', commit.tree, 0, state_curr);
-      parent = yield put_diff(scroll, parent, state_curr, state_next);
+      prev = yield put_diff(scroll, prev, state_curr, state_next);
       // XXX: missing prev
       let info = pick_rename(commit,
         {message: 'desc', 'author.name': 'author'});
       info.ts = date_utc(commit.author.timestamp,
         commit.author.timezoneOffset);
-      let data = {commit: oid, ...info};
-      if (parent!=scroll.top.seq)
-        data.prev = parent;
+      // XXX: rm from commit
+      let data = {commit: oid, parent, ...info};
+      if (prev!=scroll.top.seq)
+        data.prev = prev;
       data.git = commit;
       let decl = yield scroll.decl(data);
       let fbuf = decl.fbuf_get(0);
       oid2seq.set(oid, decl.seq);
       console.log('! seq%s %s', decl.seq, fbuf.get_frames()[2].buf.toString());
+      tree2state.set(commit.tree, xutil.clone_deep(state_next));
       state_curr = state_next;
+      prev = decl.seq;
     }
     console.log('');
   }

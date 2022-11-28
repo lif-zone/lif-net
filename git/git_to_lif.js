@@ -180,6 +180,7 @@ const put_diff = (scroll, prev, state_curr, state_next)=>etask(
 //   - handle dir <-> file (change type)
 // pgp for commits (gpgsig)
 // pgp for tags
+// tags annotate
 // export to git
 // private repositories
 // incermental sync - support update of existing scroll (need to use prev)
@@ -230,12 +231,10 @@ const start = ()=>etask(function*_start(){
       });
       let state_next = yield get_next_state('', commit.tree, 0, state_curr);
       prev = yield put_diff(scroll, prev, state_curr, state_next);
-      // XXX: missing prev
       let info = pick_rename(commit,
         {message: 'desc', 'author.name': 'author'});
       info.ts = date_utc(commit.author.timestamp,
         commit.author.timezoneOffset);
-      // XXX: rm from commit
       let data = {commit: oid, parent, ...info};
       if (prev!=scroll.top.seq)
         data.prev = prev;
@@ -249,6 +248,15 @@ const start = ()=>etask(function*_start(){
       prev = decl.seq;
     }
     console.log('');
+  }
+  for (let b=0; b<branches.length; b++){
+    let branch = branches[b];
+    let oid = yield git_api.resolveRef({fs, dir: work_dir, ref: branch});
+    // XXX: set prev as pointer to previous branch
+    let decl = scroll.decl({branch, oid});
+    let fbuf = decl.fbuf_get(0);
+    console.log('B seq%s %s', decl.seq, fbuf.get_frames()[2].buf.toString());
+    console.log('XXX %s %s', branch, oid);
   }
 });
 

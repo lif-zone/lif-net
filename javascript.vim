@@ -34,6 +34,7 @@ syn match   javaScriptLineComment      "\/\/.*" contains=@Spell,javaScriptCommen
 syn match   javaScriptCommentSkip      "^[ \t]*\*\($\|[ \t]\+\)"
 syn region  javaScriptComment	       start="/\*"  end="\*/" contains=@Spell,javaScriptCommentTodo
 syn match   javaScriptSpecial	       "\\\d\d\d\|\\."
+syn match   javaScriptOperator2	       "\<delete "
 syn region  javaScriptStringD	       start=+"+  skip=+\\\\\|\\"+  end=+"\|$+	contains=javaScriptSpecial,@htmlPreproc
 syn region  javaScriptStringS	       start=+'+  skip=+\\\\\|\\'+  end=+'\|$+	contains=javaScriptSpecial,@htmlPreproc
 syn region  javaScriptStringT	       start=+`+  skip=+\\\\\|\\`+  end=+`+	contains=javaScriptSpecial,javaScriptEmbed,@htmlPreproc
@@ -47,19 +48,19 @@ syn region  javaScriptRegexpString     start=+[,(=+]\s*/[^/*]+ms=e-1,me=e-1 skip
 syn keyword javaScriptConditional	if else switch
 syn keyword javaScriptRepeat		while for do in
 syn keyword javaScriptBranch		break continue
-syn keyword javaScriptOperator		new delete instanceof typeof of
+syn keyword javaScriptOperator		new instanceof typeof
 syn keyword javaScriptType		Array Boolean Date Function Number Object String RegExp
-syn keyword javaScriptStatement		return with await yield
+syn keyword javaScriptStatement		return with await
 syn keyword javaScriptBoolean		true false
 syn keyword javaScriptNull		null undefined
 syn keyword javaScriptIdentifier	arguments this var let
 syn keyword javaScriptLabel		case default
 syn keyword javaScriptException		try catch finally throw
 syn keyword javaScriptMessage		alert confirm prompt status
-" syn keyword javaScriptGlobal		self window top parent
+syn keyword javaScriptGlobal		self window top parent
 syn keyword javaScriptMember		document event location 
-" syn keyword javaScriptDeprecated	escape unescape
-syn keyword javaScriptReserved		class const debugger export extends goto import super async
+syn keyword javaScriptDeprecated	escape unescape
+syn keyword javaScriptReserved		abstract boolean byte char class const debugger double enum export extends final float goto implements import int interface long native package private protected public short static super synchronized throws transient volatile async
 
 syn cluster  javaScriptEmbededExpr	contains=javaScriptBoolean,javaScriptNull,javaScriptIdentifier,javaScriptStringD,javaScriptStringS,javaScriptStringT
 
@@ -101,6 +102,7 @@ hi def link javaScriptConditional		Conditional
 hi def link javaScriptRepeat		Repeat
 hi def link javaScriptBranch		Conditional
 hi def link javaScriptOperator		Operator
+hi def link javaScriptOperator2		Operator
 hi def link javaScriptType			Type
 hi def link javaScriptStatement		Statement
 hi def link javaScriptFunction		Function

@@ -115,6 +115,14 @@ const put_diff = (scroll, prev, state_curr, state_next)=>etask(
     // XXX: check behavior when dir become file and vice versa
     if (next.type=='dir' && curr?.type=='dir')
       continue;
+    if (next && curr && next.type!=curr.type){
+      let data = curr.type=='dir' ? {dir: path, del: true} :
+        {file: path, del: true};
+      let decl = yield scroll.decl({prev}, data);
+      prev = decl.seq;
+      curr = null;
+      prev_oid = null;
+    }
     let git = {oid: next.oid, mode: next.mode};
     if (next.type=='dir'){
       let data = {dir: path}, move;
@@ -138,13 +146,13 @@ const put_diff = (scroll, prev, state_curr, state_next)=>etask(
       else if (seq_path = curr&&oid2seq.get(curr.oid)||path2seq.get(path)){
         let decl_old = yield scroll.get_decl(seq_path);
         // XXX: find better way
-        let oid_old = JSON.parse(
-          decl_old.fbuf_get(0).frames[2].buf.toString()).git.oid;
-        let buf_old = (yield git_api.readBlob({fs, dir: work_dir,
+        let d_old = JSON.parse(decl_old.fbuf_get(0).frames[2].buf.toString());
+        let oid_old = d_old.oid;
+        let buf_old = d_old.file && (yield git_api.readBlob({fs, dir: work_dir,
           oid: oid_old})).blob;
         let buf_new = (yield git_api.readBlob({fs, dir: work_dir,
           oid: next.oid})).blob;
-        if (is_bin(buf_old) || is_bin(buf_new))
+        if (!buf_old || is_bin(buf_old) || is_bin(buf_new))
           blob = buf_new;
         else {
           let s_old = Buffer.from(buf_old).toString();
@@ -220,14 +228,16 @@ function dump_scroll(scroll){
 //   + binary - no diff
 //   + text - diff, if diff_sz<0.5*blob_sz
 //   + test binary files
-// - detect file/dir move
-//   - a.js -> b.js
+// + detect file/dir move
+//   + a.js -> b.js
 //     {"file_src":"/a.js", file_dst: '/b.js', content: 'hello'|{diff},
 //     mv: '/a.js' seq3}
 //    {"file":"/a.js", del: true, mv: '/b.js'}
-//   - /a - > /b
-//   - handle dir <-> file (change type)
+//   + /a - > /b
+//   o handle dir <-> file (change type)
+//     o BUG: isomorphic-git doesn't support it during pull
 //   o detect move with changes
+// - test diretory delete
 // + pgp for commits (gpgsig)
 // + support branch
 // - support tags (annotate, pgpsig)

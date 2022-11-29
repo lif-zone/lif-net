@@ -101,8 +101,13 @@ class FS_state {
 const put_diff = (scroll, prev, state_curr, state_next)=>etask(
   function*_put_diff(){
   // XXX: optimize, if directory is the same, no need to test all sub dir
+  let move_dir = [];
   for (const [path, next] of state_next.path){
     let curr = state_curr.get(path), prev_oid = state_curr.get_oid(next.oid);
+    if (move_dir.find(p=>path.startsWith(p))){
+      state_curr.delete(prev_oid);
+      continue;
+    }
     let decl, blob, seq_blob, content, seq_path, move;
     state_curr.delete_path(path);
     if (xutil.equal_deep(curr, next))
@@ -112,12 +117,20 @@ const put_diff = (scroll, prev, state_curr, state_next)=>etask(
       continue;
     let git = {oid: next.oid, mode: next.mode};
     if (next.type=='dir'){
-      let data = {dir: path};
+      let data = {dir: path}, move;
+      if (!curr && prev_oid && prev_oid.path!=path &&
+        !path.startsWith(prev_oid.path)){
+        move = {dir: prev_oid.path};
+        move_dir.push(path+'/');
+        state_curr.delete(prev_oid);
+      }
+      if (move)
+        data.move = move;
       data.git = git;
       decl = yield scroll.decl({prev}, data);
       prev = decl.seq;
     } else {
-      if (!curr && prev_oid && prev_oid.path!=next.path){
+      if (!curr && prev_oid && prev_oid.path!=path){
         move = {file: prev_oid.path};
         state_curr.delete(prev_oid);
       } else if (seq_blob = oid2seq.get(next.oid))

@@ -212,10 +212,11 @@ E.dump_scroll = function(scroll){
 };
 
 // XXX TODO
-// XXX: move prev to decl header part {seq, prev, link}
-// XXX: {seq: 57, link: {"l": 37}}, data-frame (and also for prev/merge
-// seq57 {"file":"/package-lock.json","content":{"diff":{_l: "l"},
 // initial sync:
+// + move prev to decl header part {seq, prev, link}
+// - links {seq: 57, link: {"l": 37}}, data-frame (and also for prev/merge
+//   seq57 {"file":"/package-lock.json","content":{"diff":{_l: "l"}
+// * fix javascript.vim (delete and friends highlight0
 // + handle merges
 // + diff files (text/binary)
 //   + fix diff with merges
@@ -234,10 +235,10 @@ E.dump_scroll = function(scroll){
 // - test diretory delete
 // + pgp for commits (gpgsig)
 // + support branch
-// - support tags
-//   - simple tag
+// o support tags
+//   + simple tag
 //   - anotatedTag/git releases
-// - support notes
+// o support notes
 // - default branch/HEAD
 // - export to git
 // - cleanup code

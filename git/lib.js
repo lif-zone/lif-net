@@ -234,7 +234,9 @@ E.dump_scroll = function(scroll){
 // - test diretory delete
 // + pgp for commits (gpgsig)
 // + support branch
-// - support tags (annotate, pgpsig)
+// - support tags
+//   - simple tag
+//   - anotatedTag/git releases
 // - support notes
 // - default branch/HEAD
 // - export to git
@@ -249,6 +251,7 @@ E.import_git = (config, scroll)=>etask(function*_start(){
   config.http = config.http||http;
   yield git_api.clone({...config});
   let branches = yield git_api.listBranches({...config, remote: 'origin'});
+  let tags = yield git_api.listTags({...config, remote: 'origin'});
   // XXX: need to add HEAD to scroll
   array.rm_elm(branches, 'HEAD');
   array.rm_elm(branches, 'main');
@@ -292,13 +295,21 @@ E.import_git = (config, scroll)=>etask(function*_start(){
       prev = decl.seq;
     }
   }
-  for (let b=0; b<branches.length; b++){
-    let branch = branches[b];
+  for (let i=0; i<branches.length; i++){
+    let branch = branches[i];
     let oid = yield git_api.resolveRef({...config, ref: branch});
     let seq = oid2seq.get(oid);
     assert(seq, 'branch not found '+branch);
     // XXX: set prev as pointer to previous branch
     scroll.decl({branch, seq, git: {oid}});
+  }
+  for (let i=0; i<tags.length; i++){
+    let tag = tags[i];
+    let oid = yield git_api.resolveRef({...config, ref: tag});
+    let seq = oid2seq.get(oid);
+    assert(seq, 'tag not found '+tag);
+    // XXX: set prev as pointer to previous branch
+    scroll.decl({tag, seq, git: {oid}});
   }
 });
 

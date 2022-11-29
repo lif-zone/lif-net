@@ -173,7 +173,8 @@ function dump_scroll(scroll){
 // seq57 {"file":"/package-lock.json","content":{"diff":{_l: "l"},
 // initial sync:
 // + handle merges
-// + diff files (text/binary)
+// * diff files (text/binary)
+//   * fix diff with merges
 //   + binary - no diff
 //   + text - diff, if diff_sz<0.5*blob_sz
 //   + test binary files

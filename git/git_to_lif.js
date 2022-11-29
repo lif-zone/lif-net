@@ -162,8 +162,10 @@ function dump_scroll(scroll){
     // XXX: need nice api
     let h = JSON.parse(fbuf.get_frames()[1].buf.toString());
     let o = JSON.parse(fbuf.get_frames()[2].buf.toString());
+    let blob = fbuf.get_frames()[3];
     delete h.ts;
-    console.log('%s %s', json_str(h), json_str(o));
+    console.log('%s %s%s', json_str(h), json_str(o),
+      blob?.buf ? ' blob '+blob.buf.length : '');
   }
 }
 
@@ -221,11 +223,8 @@ const start = ()=>etask(function*_start(){
     let state_curr={}; // XXX: move in
     for (let i=0; i<Math.min(18, commits.length); i++){
       let oid = commits[i].oid, commit = commits[i].commit, prev, merge;
-      if (oid2seq.get(oid)){
-//        state_curr = xutil.clone_deep(tree2state.get(commit.tree));
-//        prev = oid2seq.get(oid);
+      if (oid2seq.get(oid))
         continue;
-      }
       commit.parent.forEach(p=>{
         let seq_p = oid2seq.get(p);
         assert(!merge, 'merge already defined '+p);

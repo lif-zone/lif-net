@@ -88,13 +88,11 @@ class FS_state {
     this.oid.set(o.oid, o);
     return this.path.set(path, o);
   }
-  delete(path){
-    let o = this.get(path);
-    if (!o)
-      return;
-    this.oid.delete(o.oid);
-    return this.path.delete(path);
+  delete(o){
+    this.path.delete(o.path);
+    this.path.delete(o.path);
   }
+  delete_path(path){ return this.path.delete(path); }
 }
 
 // XXX: how to detect file move (exact move, move+modifications)
@@ -106,7 +104,7 @@ const put_diff = (scroll, prev, state_curr, state_next)=>etask(
   for (const [path, next] of state_next.path){
     let curr = state_curr.get(path), prev_oid = state_curr.get_oid(next.oid);
     let decl, blob, seq_blob, content, seq_path, move;
-    state_curr.delete(path);
+    state_curr.delete_path(path);
     if (xutil.equal_deep(curr, next))
       continue;
     // XXX: check behavior when dir become file and vice versa
@@ -119,9 +117,9 @@ const put_diff = (scroll, prev, state_curr, state_next)=>etask(
       decl = yield scroll.decl({prev}, data);
       prev = decl.seq;
     } else {
-      if (prev_oid && prev_oid.path!=next.path){
+      if (!curr && prev_oid && prev_oid.path!=next.path){
         move = {file: prev_oid.path};
-        state_curr.delete(prev_oid.path);
+        state_curr.delete(prev_oid);
       } else if (seq_blob = oid2seq.get(next.oid))
         content = {seq: seq_blob};
       else if (seq_path = curr&&oid2seq.get(curr.oid)||path2seq.get(path)){

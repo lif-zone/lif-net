@@ -128,7 +128,7 @@ const put_diff = (config, scroll, prev, state_curr, state_next)=>etask(
         let decl_old = yield scroll.get_decl(seq_path);
         // XXX: find better way
         let d_old = JSON.parse(decl_old.fbuf_get(0).frames[2].buf.toString());
-        let oid_old = d_old.oid;
+        let oid_old = d_old.git.oid;
         let buf_old = d_old.file && (yield git_api.readBlob({...config,
           oid: oid_old})).blob;
         let buf_new = (yield git_api.readBlob({...config, oid: next.oid}))
@@ -175,7 +175,7 @@ const put_diff = (config, scroll, prev, state_curr, state_next)=>etask(
 });
 
 // XXX: ugly hack
-function json_str(o){
+E.json_str = function(o){
   let s = JSON.stringify(o);
   s = s.replace(/":/g, ': ');
   s = s.replace(/,"/g, ', ');
@@ -183,6 +183,20 @@ function json_str(o){
   s = s.replace(/"/g, '\'');
   return s;
 }
+
+E.scroll_to_lines = function(scroll){
+  let a = [];
+  for (let i=0; i<=scroll.top.seq; i++){
+    let decl = scroll.get_decl(i), fbuf = decl.fbuf_get(0);
+    // XXX: need nice api
+    let h = JSON.parse(fbuf.get_frames()[1].buf.toString());
+    let o = JSON.parse(fbuf.get_frames()[2].buf.toString());
+    let blob = fbuf.get_frames()[3];
+    delete h.ts;
+    a.push([h, o, blob ? blob?.buf.length : '']);
+  }
+  return a;
+};
 
 E.dump_scroll = function(scroll){
   for (let i=0; i<=scroll.top.seq; i++){
@@ -192,7 +206,7 @@ E.dump_scroll = function(scroll){
     let o = JSON.parse(fbuf.get_frames()[2].buf.toString());
     let blob = fbuf.get_frames()[3];
     delete h.ts;
-    console.log('%s %s%s', json_str(h), json_str(o),
+    console.log('%s %s%s', E.json_str(h), E.json_str(o),
       blob?.buf ? ' blob '+blob.buf.length : '');
   }
 };

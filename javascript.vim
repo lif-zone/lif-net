@@ -34,7 +34,7 @@ syn match   javaScriptLineComment      "\/\/.*" contains=@Spell,javaScriptCommen
 syn match   javaScriptCommentSkip      "^[ \t]*\*\($\|[ \t]\+\)"
 syn region  javaScriptComment	       start="/\*"  end="\*/" contains=@Spell,javaScriptCommentTodo
 syn match   javaScriptSpecial	       "\\\d\d\d\|\\."
-syn match   javaScriptOperator2	       "\<delete "
+syn match   javaScriptOperatorRe       "\<delete "
 syn region  javaScriptStringD	       start=+"+  skip=+\\\\\|\\"+  end=+"\|$+	contains=javaScriptSpecial,@htmlPreproc
 syn region  javaScriptStringS	       start=+'+  skip=+\\\\\|\\'+  end=+'\|$+	contains=javaScriptSpecial,@htmlPreproc
 syn region  javaScriptStringT	       start=+`+  skip=+\\\\\|\\`+  end=+`+	contains=javaScriptSpecial,javaScriptEmbed,@htmlPreproc
@@ -48,7 +48,7 @@ syn region  javaScriptRegexpString     start=+[,(=+]\s*/[^/*]+ms=e-1,me=e-1 skip
 syn keyword javaScriptConditional	if else switch
 syn keyword javaScriptRepeat		while for do in
 syn keyword javaScriptBranch		break continue
-syn keyword javaScriptOperator		new instanceof typeof
+syn keyword javaScriptOperator		new instanceof typeof of
 syn keyword javaScriptType		Array Boolean Date Function Number Object String RegExp
 syn keyword javaScriptStatement		return with await
 syn keyword javaScriptBoolean		true false
@@ -102,7 +102,7 @@ hi def link javaScriptConditional		Conditional
 hi def link javaScriptRepeat		Repeat
 hi def link javaScriptBranch		Conditional
 hi def link javaScriptOperator		Operator
-hi def link javaScriptOperator2		Operator
+hi def link javaScriptOperatorRe	Operator
 hi def link javaScriptType			Type
 hi def link javaScriptStatement		Statement
 hi def link javaScriptFunction		Function

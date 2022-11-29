@@ -12,8 +12,7 @@ import assert from 'assert';
 import buf_util from '../peer-relay/buf_util.js';
 import * as Diff from 'diff';
 const s2b = buf_util.buf_from_str;
-const repository = 'test_move';
-const work_dir = '/tmp/lif_'+repository;
+const E = {};
 
 // XXX: move to other place
 xerr.set_exception_catch_all(true);
@@ -54,9 +53,9 @@ function date_utc(ts, tz){ return +new Date(ts+tz*60000); }
 let oid2seq = new Map(), path2seq = new Map(), tree2state = new Map();
 let seq2state = new Map();
 
-const get_next_state = (dir, oid, mode, state_curr, state_next)=>etask(
-  function*_put_tree(){
-  let {tree} = yield git_api.readTree({fs, dir: work_dir, oid});
+const get_next_state = (config, dir, oid, mode, state_curr, state_next)=>
+  etask(function*_put_tree(){
+  let {tree} = yield git_api.readTree({...config, oid});
   let next = {type: 'dir', path: dir, oid, mode};
   state_next = state_next||new FS_state();
   state_next.set(dir, next);
@@ -68,7 +67,8 @@ const get_next_state = (dir, oid, mode, state_curr, state_next)=>etask(
       state_next.set(path, next);
       break;
     case 'tree':
-      yield get_next_state(path, e.oid, e.mode, state_curr, state_next);
+      yield get_next_state(config, path, e.oid, e.mode, state_curr,
+        state_next);
       break;
     default: xerr.xexit('unknown type '+e.type);
     }
@@ -98,7 +98,7 @@ class FS_state {
 // XXX: how to detect file move (exact move, move+modifications)
 // eg commit 17: https://github.com/lif-zone/server/commit/e24039a1b371f9f05ce53829e9c6bc3ad675fa53?diff=split
 // XXX: what about directory move. need to optimize and not remove/readd all
-const put_diff = (scroll, prev, state_curr, state_next)=>etask(
+const put_diff = (config, scroll, prev, state_curr, state_next)=>etask(
   function*_put_diff(){
   // XXX: optimize, if directory is the same, no need to test all sub dir
   let move_dir = [];
@@ -148,10 +148,10 @@ const put_diff = (scroll, prev, state_curr, state_next)=>etask(
         // XXX: find better way
         let d_old = JSON.parse(decl_old.fbuf_get(0).frames[2].buf.toString());
         let oid_old = d_old.oid;
-        let buf_old = d_old.file && (yield git_api.readBlob({fs, dir: work_dir,
+        let buf_old = d_old.file && (yield git_api.readBlob({...config,
           oid: oid_old})).blob;
-        let buf_new = (yield git_api.readBlob({fs, dir: work_dir,
-          oid: next.oid})).blob;
+        let buf_new = (yield git_api.readBlob({...config, oid: next.oid}))
+        .blob;
         if (!buf_old || is_bin(buf_old) || is_bin(buf_new))
           blob = buf_new;
         else {
@@ -166,8 +166,7 @@ const put_diff = (scroll, prev, state_curr, state_next)=>etask(
             blob = buf_new;
         }
       } else {
-        blob = (yield git_api.readBlob({fs, dir: work_dir, oid: next.oid}))
-        .blob;
+        blob = (yield git_api.readBlob({...config, oid: next.oid})).blob;
       }
       let data = [{file: path}];
       if (move)
@@ -242,35 +241,28 @@ function dump_scroll(scroll){
 // + support branch
 // - support tags (annotate, pgpsig)
 // - support notes
+// - default branch/HEAD
 // - export to git
 // - cleanup code
 // - incermental sync - support update of existing scroll (need to use prev)
 //   - save persistent data to indexdeddb
 //   - pull and update of scroll with new commits
 // private repositories
-const start = ()=>etask(function*_start(){
-  let keypair = {pub: s2b('44659cb51dec397ea66085679442505345e159940762c15ef7'+
-    '5ad279ecf05033'),
-    key: s2b('46f45a62f4c5971228747aa2d8ee66bd669ebd805c725286ee385b1d4a06dd'+
-    'bc44659cb51dec397ea66085679442505345e159940762c15ef75ad279ecf05033')};
-  let url = 'https://github.com/lif-zone/'+repository;
-  console.log('git2lif %s %s', url, work_dir);
-  yield git_api.clone({fs, http, dir: work_dir, url});
-  let branches = yield git_api.listBranches({fs, dir: work_dir,
-    remote: 'origin'});
+E.import_git = (config, scroll)=>etask(function*_start(){
+  config = {...config};
+  config.fs = config.fs||fs;
+  config.http = config.http||http;
+  yield git_api.clone({...config});
+  let branches = yield git_api.listBranches({...config, remote: 'origin'});
   // XXX: need to add HEAD to scroll
   array.rm_elm(branches, 'HEAD');
   array.rm_elm(branches, 'main');
   branches.unshift('main');
-  let scroll = yield Scroll.create({key: keypair.key, pub: keypair.pub},
-    {topic: 'git', src: url});
   for (let b=0; b<branches.length; b++){
     let branch = branches[b];
-    yield git_api.checkout({fs, http, dir: work_dir, ref: branch,
-      remote: 'origin'});
-    yield git_api.pull({fs, http, dir: work_dir, url,
-      author: {name: 'XXX', email: 'xxx@xxx.com'}});
-    let commits = yield git_api.log({fs, dir: work_dir, ref: branch});
+    yield git_api.checkout({...config, ref: branch, remote: 'origin'});
+    yield git_api.pull({...config});
+    let commits = yield git_api.log({...config, ref: branch});
     commits.reverse();
     for (let i=0; i<Math.min(18, commits.length); i++){
       let oid = commits[i].oid, commit = commits[i].commit, prev, merge;
@@ -286,9 +278,10 @@ const start = ()=>etask(function*_start(){
           prev = seq_p;
       });
       let state_curr = new FS_state(prev && seq2state.get(prev));
-      let state_next = yield get_next_state('', commit.tree, 0, state_curr);
+      let state_next = yield get_next_state(config, '', commit.tree, 0,
+        state_curr);
       let seq_start = scroll.top.seq;
-      prev = yield put_diff(scroll, prev, state_curr, state_next);
+      prev = yield put_diff(config, scroll, prev, state_curr, state_next);
       let info = pick_rename(commit,
         {message: 'desc', 'author.name': 'author'});
       info.ts = date_utc(commit.author.timestamp,
@@ -306,14 +299,31 @@ const start = ()=>etask(function*_start(){
   }
   for (let b=0; b<branches.length; b++){
     let branch = branches[b];
-    let oid = yield git_api.resolveRef({fs, dir: work_dir, ref: branch});
+    let oid = yield git_api.resolveRef({...config, ref: branch});
     let seq = oid2seq.get(oid);
     assert(seq, 'branch not found '+branch);
     // XXX: set prev as pointer to previous branch
     scroll.decl({branch, seq, git: {oid}});
   }
+});
+
+const start = ()=>etask(function*_start(){
+  let keypair = {pub: s2b('44659cb51dec397ea66085679442505345e159940762c15ef7'+
+    '5ad279ecf05033'),
+    key: s2b('46f45a62f4c5971228747aa2d8ee66bd669ebd805c725286ee385b1d4a06dd'+
+    'bc44659cb51dec397ea66085679442505345e159940762c15ef75ad279ecf05033')};
+  let repository = 'lif-zone/test_move';
+  let dir = '/tmp/lif_'+repository.replace('/', '-'); // XXX: escape
+  let url = 'https://github.com/'+repository;
+  let scroll = yield Scroll.create({key: keypair.key, pub: keypair.pub},
+    {topic: 'git', src: url});
+  let config = {dir, url, author: {name: 'XXX', email: 'xxx@xxx.com'}};
+  console.log('git2lif %s %s', url, dir);
+  yield E.import_git(config, scroll);
   dump_scroll(scroll);
 });
 
-(async()=>await start())();
+if (!xutil.is_mocha())
+  (async()=>await start())();
 
+export default E;

@@ -99,7 +99,7 @@ const put_diff = (scroll, prev, state_curr, state_next)=>etask(
     } else {
       if (seq_blob = oid2seq.get(next.oid))
         content = {seq: seq_blob};
-      else if (seq_path = path2seq.get(path)){
+      else if (seq_path = curr&&oid2seq.get(curr.oid)||path2seq.get(path)){
         let decl_old = yield scroll.get_decl(seq_path);
         // XXX: find better way
         let oid_old = JSON.parse(
@@ -108,7 +108,9 @@ const put_diff = (scroll, prev, state_curr, state_next)=>etask(
           oid: oid_old})).blob;
         let buf_new = (yield git_api.readBlob({fs, dir: work_dir,
           oid: next.oid})).blob;
-        if (is_bin(buf_old) || is_bin(buf_new)){
+        if (is_bin(buf_old) || is_bin(buf_new))
+          blob = buf_new;
+        else {
           let s_old = Buffer.from(buf_old).toString();
           let s_new = Buffer.from(buf_new).toString();
           let diff = Diff.createPatch(path, s_old, s_new, '', '',
@@ -118,8 +120,7 @@ const put_diff = (scroll, prev, state_curr, state_next)=>etask(
             content = {diff: {seq: seq_path}};
           else
             blob = buf_new;
-        } else
-          blob = buf_new;
+        }
       } else {
         blob = (yield git_api.readBlob({fs, dir: work_dir, oid: next.oid}))
         .blob;
@@ -175,8 +176,8 @@ function dump_scroll(scroll){
 // seq57 {"file":"/package-lock.json","content":{"diff":{_l: "l"},
 // initial sync:
 // + handle merges
-// * diff files (text/binary)
-//   * fix diff with merges
+// + diff files (text/binary)
+//   + fix diff with merges
 //   + binary - no diff
 //   + text - diff, if diff_sz<0.5*blob_sz
 //   + test binary files

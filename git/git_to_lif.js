@@ -82,7 +82,7 @@ const put_diff = (scroll, prev, state_curr, state_next)=>etask(
   function*_put_diff(){
   // XXX: optimize, if directory is the same, no need to test all sub dir
   for (let path in state_next){
-    let curr = state_curr[path], next = state_next[path], decl, fbuf;
+    let curr = state_curr[path], next = state_next[path], decl;
     let blob, seq_blob, content, seq_path;
     delete state_curr[path];
     if (xutil.equal_deep(curr, next))

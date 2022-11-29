@@ -12,7 +12,8 @@ import assert from 'assert';
 import buf_util from '../peer-relay/buf_util.js';
 import * as Diff from 'diff';
 const s2b = buf_util.buf_from_str;
-const work_dir = '/tmp/lif_test_merge_simple';
+const repository = 'test_move';
+const work_dir = '/tmp/lif_'+repository;
 
 // XXX: move to other place
 xerr.set_exception_catch_all(true);
@@ -57,14 +58,14 @@ const get_next_state = (dir, oid, mode, state_curr, state_next)=>etask(
   function*_put_tree(){
   let {tree} = yield git_api.readTree({fs, dir: work_dir, oid});
   let next = {type: 'dir', path: dir, oid, mode};
-  state_next = state_next||{};
-  state_next[dir] = next;
+  state_next = state_next||new FS_state();
+  state_next.set(dir, next);
   for (let i=0; i<tree.length; i++){
     let e = tree[i], path = dir+'/'+e.path;
     switch (e.type){
     case 'blob':
       next = {path, oid: e.oid, mode: e.mode};
-      state_next[path] = next;
+      state_next.set(path, next);
       break;
     case 'tree':
       yield get_next_state(path, e.oid, e.mode, state_curr, state_next);
@@ -75,16 +76,25 @@ const get_next_state = (dir, oid, mode, state_curr, state_next)=>etask(
   return state_next;
 });
 
+class FS_state {
+  constructor(state){
+    this.path = new Map(state?.path);
+  }
+  get(path){ return this.path.get(path); }
+  set(path, o){ return this.path.set(path, o); }
+  delete(path){ return this.path.delete(path); }
+}
+
 // XXX: how to detect file move (exact move, move+modifications)
 // eg commit 17: https://github.com/lif-zone/server/commit/e24039a1b371f9f05ce53829e9c6bc3ad675fa53?diff=split
 // XXX: what about directory move. need to optimize and not remove/readd all
 const put_diff = (scroll, prev, state_curr, state_next)=>etask(
   function*_put_diff(){
   // XXX: optimize, if directory is the same, no need to test all sub dir
-  for (let path in state_next){
-    let curr = state_curr[path], next = state_next[path], decl;
+  for (const [path, next] of state_next.path){
+    let curr = state_curr.get(path), decl;
     let blob, seq_blob, content, seq_path;
-    delete state_curr[path];
+    state_curr.delete(path);
     if (xutil.equal_deep(curr, next))
       continue;
     // XXX: check behavior when dir become file and vice versa
@@ -137,8 +147,7 @@ const put_diff = (scroll, prev, state_curr, state_next)=>etask(
       path2seq.set(path, decl.seq);
     }
   }
-  for (let path in state_curr){
-    let curr = state_curr[path];
+  for (const [path, curr] of state_curr.path){
     let data = curr.type=='dir' ? {dir: path, del: true} :
       {file: path, del: true};
     let decl = yield scroll.decl({prev}, data);
@@ -182,11 +191,13 @@ function dump_scroll(scroll){
 //   + text - diff, if diff_sz<0.5*blob_sz
 //   + test binary files
 // - detect file/dir move
-//   a.js -> b.js
-//   {"file_src":"/a.js", file_dst: '/b.js', content: 'hello'|{diff},
+//   - a.js -> b.js
+//     {"file_src":"/a.js", file_dst: '/b.js', content: 'hello'|{diff},
 //     mv: '/a.js' seq3}
-//   {"file":"/a.js", del: true, mv: '/b.js'}
+//    {"file":"/a.js", del: true, mv: '/b.js'}
+//   - /a - > /b
 //   - handle dir <-> file (change type)
+//   o detect move with changes
 // + pgp for commits (gpgsig)
 // + support branch
 // - support tags (annotate, pgpsig)
@@ -202,7 +213,7 @@ const start = ()=>etask(function*_start(){
     '5ad279ecf05033'),
     key: s2b('46f45a62f4c5971228747aa2d8ee66bd669ebd805c725286ee385b1d4a06dd'+
     'bc44659cb51dec397ea66085679442505345e159940762c15ef75ad279ecf05033')};
-  let url = 'https://github.com/lif-zone/test_merge_simple';
+  let url = 'https://github.com/lif-zone/'+repository;
   console.log('git2lif %s %s', url, work_dir);
   yield git_api.clone({fs, http, dir: work_dir, url});
   let branches = yield git_api.listBranches({fs, dir: work_dir,
@@ -221,7 +232,6 @@ const start = ()=>etask(function*_start(){
       author: {name: 'XXX', email: 'xxx@xxx.com'}});
     let commits = yield git_api.log({fs, dir: work_dir, ref: branch});
     commits.reverse();
-    let state_curr={}; // XXX: move in
     for (let i=0; i<Math.min(18, commits.length); i++){
       let oid = commits[i].oid, commit = commits[i].commit, prev, merge;
       if (oid2seq.get(oid))
@@ -235,7 +245,7 @@ const start = ()=>etask(function*_start(){
         else
           prev = seq_p;
       });
-      state_curr = prev ? xutil.clone_deep(seq2state.get(prev)) : {};
+      let state_curr = new FS_state(prev && seq2state.get(prev));
       let state_next = yield get_next_state('', commit.tree, 0, state_curr);
       let seq_start = scroll.top.seq;
       prev = yield put_diff(scroll, prev, state_curr, state_next);
@@ -249,9 +259,8 @@ const start = ()=>etask(function*_start(){
       data.git = merge ? {merge, ...commit} : {...commit};
       let decl = yield scroll.decl({prev}, data);
       oid2seq.set(oid, decl.seq);
-      tree2state.set(commit.tree, xutil.clone_deep(state_next)); // XXX: rm
-      seq2state.set(decl.seq, xutil.clone_deep(state_next));
-      state_curr = state_next;
+      tree2state.set(commit.tree, new FS_state(state_next)); // XXX: rm
+      seq2state.set(decl.seq, new FS_state(state_next));
       prev = decl.seq;
     }
   }

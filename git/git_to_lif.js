@@ -79,10 +79,22 @@ const get_next_state = (dir, oid, mode, state_curr, state_next)=>etask(
 class FS_state {
   constructor(state){
     this.path = new Map(state?.path);
+    this.oid = new Map(state?.oid);
   }
   get(path){ return this.path.get(path); }
-  set(path, o){ return this.path.set(path, o); }
-  delete(path){ return this.path.delete(path); }
+  get_oid(oid){ return this.oid.get(oid); }
+  set(path, o){
+    assert(o.oid && path==o.path, 'invalid state entry');
+    this.oid.set(o.oid, o);
+    return this.path.set(path, o);
+  }
+  delete(path){
+    let o = this.get(path);
+    if (!o)
+      return;
+    this.oid.delete(o.oid);
+    return this.path.delete(path);
+  }
 }
 
 // XXX: how to detect file move (exact move, move+modifications)
@@ -92,8 +104,8 @@ const put_diff = (scroll, prev, state_curr, state_next)=>etask(
   function*_put_diff(){
   // XXX: optimize, if directory is the same, no need to test all sub dir
   for (const [path, next] of state_next.path){
-    let curr = state_curr.get(path), decl;
-    let blob, seq_blob, content, seq_path;
+    let curr = state_curr.get(path), prev_oid = state_curr.get_oid(next.oid);
+    let decl, blob, seq_blob, content, seq_path, move;
     state_curr.delete(path);
     if (xutil.equal_deep(curr, next))
       continue;
@@ -107,7 +119,10 @@ const put_diff = (scroll, prev, state_curr, state_next)=>etask(
       decl = yield scroll.decl({prev}, data);
       prev = decl.seq;
     } else {
-      if (seq_blob = oid2seq.get(next.oid))
+      if (prev_oid && prev_oid.path!=next.path){
+        move = {file: prev_oid.path};
+        state_curr.delete(prev_oid.path);
+      } else if (seq_blob = oid2seq.get(next.oid))
         content = {seq: seq_blob};
       else if (seq_path = curr&&oid2seq.get(curr.oid)||path2seq.get(path)){
         let decl_old = yield scroll.get_decl(seq_path);
@@ -135,7 +150,11 @@ const put_diff = (scroll, prev, state_curr, state_next)=>etask(
         blob = (yield git_api.readBlob({fs, dir: work_dir, oid: next.oid}))
         .blob;
       }
-      let data = content ? [{file: path, content}] : [{file: path}];
+      let data = [{file: path}];
+      if (move)
+        data[0].move = move;
+      if (content)
+        data[0].content = content;
       data[0].git = git;
       if (blob)
         data.push(blob);

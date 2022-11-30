@@ -167,10 +167,8 @@ export default class DB {
   put_scroll = scroll=>etask({_: this}, function*put_scroll(){
     let _this = this._;
     yield _this.put_branch(scroll);
-    for (const [seq] of scroll.dmap){
-      console.log('XXX save seq%s', seq);
+    for (const [seq] of scroll.dmap)
       yield _this.put_decl(scroll, seq);
-    }
   });
   // XXX: decide on better way to handle buffers
   fix_struct(o){

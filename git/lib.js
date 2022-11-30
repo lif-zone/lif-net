@@ -35,6 +35,7 @@ let oid2seq = new Map(), path2seq = new Map(), seq2state = new Map();
 
 const get_state = (config, dir, oid, mode, state)=>
   etask(function*_put_tree(){
+  mode = mode||0;
   let {tree} = yield git_api.readTree({...config, oid});
   let next = {type: 'dir', path: dir, oid, mode};
   state = state||new FS_state();
@@ -304,7 +305,7 @@ E.import_git = (config, scroll)=>etask(function*_start(){
           prev = seq_p;
       });
       let state_curr = new FS_state(prev && seq2state.get(prev));
-      let state_next = yield get_state(config, '', commit.tree, 0);
+      let state_next = yield get_state(config, '', commit.tree);
       let seq_start = scroll.top.seq;
       prev = yield put_diff(config, scroll, prev, state_curr, state_next);
       let info = pick_rename(commit,

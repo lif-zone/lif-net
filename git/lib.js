@@ -31,8 +31,7 @@ function pick_rename(o, fields){
 
 function date_utc(ts, tz){ return +new Date(ts+tz*60000); }
 
-let oid2seq = new Map(), path2seq = new Map(), tree2state = new Map();
-let seq2state = new Map();
+let oid2seq = new Map(), path2seq = new Map(), seq2state = new Map();
 
 const get_next_state = (config, dir, oid, mode, state_curr, state_next)=>
   etask(function*_put_tree(){
@@ -319,7 +318,6 @@ E.import_git = (config, scroll)=>etask(function*_start(){
       data.git = merge ? {merge, ...commit} : {...commit};
       let decl = yield scroll.decl({prev, group}, data);
       oid2seq.set(oid, decl.seq);
-      tree2state.set(commit.tree, new FS_state(state_next)); // XXX: rm
       seq2state.set(decl.seq, new FS_state(state_next));
       prev = decl.seq;
     }

@@ -35,6 +35,7 @@ let oid2seq = new Map(), path2seq = new Map(), seq2state = new Map();
 
 const get_state = (config, dir, oid, mode, state)=>
   etask(function*_put_tree(){
+  mode = mode||0;
   let {tree} = yield git_api.readTree({...config, oid});
   let next = {type: 'dir', path: dir, oid, mode};
   state = state||new FS_state();
@@ -229,6 +230,18 @@ function build_prev_sync_index(scroll){
   return prev_sync;
 }
 
+const get_state_seq = (config, scroll, seq)=>etask(function*get_state_seq(){
+  let tree = scroll.get_decl(seq).fbuf_get(0).get_json(2).git.tree;
+  assert(tree, 'no tree for seq'+seq);
+  let state = seq2state.get(seq);
+  assert(state, 'XXX state not found seq'+seq); // XXX: rm
+  if (state)
+    return state;
+  state = yield get_state(config, '', tree);
+  seq2state.set(seq, state);
+  return state;
+});
+
 // XXX TODO
 // initial sync:
 // * fix javascript.vim (delete and friends highlight0
@@ -303,7 +316,8 @@ E.import_git = (config, scroll)=>etask(function*_start(){
         else
           prev = seq_p;
       });
-      let state_curr = new FS_state(prev && seq2state.get(prev));
+      let state_curr = !prev ? new FS_state() :
+        new FS_state(yield get_state_seq(config, scroll, prev));
       let state_next = yield get_state(config, '', commit.tree);
       let seq_start = scroll.top.seq;
       prev = yield put_diff(config, scroll, prev, state_curr, state_next);
@@ -316,7 +330,7 @@ E.import_git = (config, scroll)=>etask(function*_start(){
       data.git = merge ? {merge, ...commit} : {...commit};
       let decl = yield scroll.decl({prev, group}, data);
       oid2seq.set(oid, decl.seq);
-      seq2state.set(decl.seq, new FS_state(state_next));
+      seq2state.set(decl.seq, state_next);
       prev = decl.seq;
     }
   }

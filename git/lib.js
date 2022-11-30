@@ -127,8 +127,7 @@ const put_diff = (config, scroll, prev, state_curr, state_next)=>etask(
         content = 'l';
       } else if (seq_path = curr&&oid2seq.get(curr.oid)||path2seq.get(path)){
         let decl_old = yield scroll.get_decl(seq_path);
-        // XXX: find better way
-        let d_old = JSON.parse(decl_old.fbuf_get(0).frames[2].buf.toString());
+        let d_old = decl_old.fbuf_get(0).get_json(2);
         let oid_old = d_old.git.oid;
         let buf_old = d_old.file && (yield git_api.readBlob({...config,
           oid: oid_old})).blob;
@@ -190,9 +189,8 @@ E.scroll_to_lines = function(scroll){
   let a = [];
   for (let i=0; i<=scroll.top.seq; i++){
     let decl = scroll.get_decl(i), fbuf = decl.fbuf_get(0);
-    // XXX: need nice api
-    let h = JSON.parse(fbuf.get_frames()[1].buf.toString());
-    let o = JSON.parse(fbuf.get_frames()[2].buf.toString());
+    let h = fbuf.get_json(1);
+    let o = fbuf.get_json(2);
     let blob = fbuf.get_frames()[3];
     delete h.ts;
     a.push([h, o, blob ? blob?.buf.length : '']);
@@ -204,14 +202,34 @@ E.dump_scroll = function(scroll){
   for (let i=0; i<=scroll.top.seq; i++){
     let decl = scroll.get_decl(i), fbuf = decl.fbuf_get(0);
     // XXX: need nice api
-    let h = JSON.parse(fbuf.get_frames()[1].buf.toString());
-    let o = JSON.parse(fbuf.get_frames()[2].buf.toString());
+    let h = {...fbuf.get_json(1)};
+    let o = fbuf.get_json(2);
     let blob = fbuf.get_frames()[3];
     delete h.ts;
     console.log('%s %s%s', E.json_str(h), E.json_str(o),
       blob?.buf ? ' blob '+blob.buf.length : '');
   }
 };
+
+function build_prev_sync_index(scroll){
+  // XXX: need to have built-in index in scroll
+  let prev_sync = {commit: new Map(), branch: new Map(), tag: new Map(),
+    head: null};
+  if (true)
+    return prev_sync;
+  for (const [seq, decl] of scroll.dmap){
+    let data = decl.fbuf_get(0).get_json(2);
+    if (data.commit)
+      prev_sync.commit.set(data.commit, {seq});
+    if (data.branch)
+      prev_sync.branch.set(data.branch, {seq});
+    if (data.tag)
+      prev_sync.tag.set(data.tag, {seq});
+    if (data.head)
+      prev_sync.head = {seq};
+  }
+  return prev_sync;
+}
 
 // XXX TODO
 // initial sync:
@@ -248,6 +266,10 @@ E.dump_scroll = function(scroll){
 // - incermental sync - support update of existing scroll (need to use prev)
 //   - pull and update of scroll with new commits
 // - export to git
+// - fix scroll api:
+//   - get_scroll/put_scroll
+//   - make api friendly to use (eg. get_json)
+//   - make db api object oriented and support on demand loading
 // private repositories
 E.import_git = (config, scroll)=>etask(function*_start(){
   config = {...config};
@@ -256,6 +278,7 @@ E.import_git = (config, scroll)=>etask(function*_start(){
   yield git_api.clone({...config});
   let branches = yield git_api.listBranches({...config, remote: 'origin'});
   let tags = yield git_api.listTags({...config, remote: 'origin'});
+  let prev_sync = build_prev_sync_index(scroll);
   array.rm_elm(branches, 'HEAD');
   array.rm_elm(branches, 'main');
   branches.unshift('main');
@@ -267,6 +290,10 @@ E.import_git = (config, scroll)=>etask(function*_start(){
     commits.reverse();
     for (let i=0; i<Math.min(18, commits.length); i++){
       let oid = commits[i].oid, commit = commits[i].commit, prev, merge;
+      if (prev_sync.commit.get(oid)){
+        console.log('XXX skip prev sync %s', oid);
+        continue;
+      }
       if (oid2seq.get(oid))
         continue;
       commit.parent.forEach(p=>{

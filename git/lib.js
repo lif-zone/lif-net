@@ -182,7 +182,7 @@ E.json_str = function(o){
   s = s.replace(/{"/g, '{');
   s = s.replace(/"/g, '\'');
   return s;
-}
+};
 
 E.scroll_to_lines = function(scroll){
   let a = [];
@@ -217,6 +217,7 @@ E.dump_scroll = function(scroll){
 // - links {seq: 57, link: {"l": 37}}, data-frame (and also for prev/merge
 //   seq57 {"file":"/package-lock.json","content":{"diff":{_l: "l"}
 // * fix javascript.vim (delete and friends highlight0
+//   - send derry patch
 // + handle merges
 // + diff files (text/binary)
 //   + fix diff with merges
@@ -240,11 +241,11 @@ E.dump_scroll = function(scroll){
 //   - anotatedTag/git releases
 // o support notes
 // - default branch/HEAD
-// - export to git
+// - save persistent data to indexdeddb
 // - cleanup code
 // - incermental sync - support update of existing scroll (need to use prev)
-//   - save persistent data to indexdeddb
 //   - pull and update of scroll with new commits
+// - export to git
 // private repositories
 E.import_git = (config, scroll)=>etask(function*_start(){
   config = {...config};

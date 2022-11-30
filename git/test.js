@@ -5,7 +5,7 @@ import xerr from '../util/xerr.js';
 import xtest from '../util/test_lib.js'; // eslint-disable-line no-unused-vars
 import etask from '../util/etask.js';
 import Scroll from '../storage/scroll.js';
-import Soul from '../storage/soul.js';
+import Soul from '../storage/soul.js'; // eslint-disable-line no-unused-vars
 import lib from './lib.js';
 import buf_util from '../peer-relay/buf_util.js';
 const s2b = buf_util.buf_from_str;
@@ -56,9 +56,11 @@ describe('lib', function(){
     for (let i=0; i<Math.max(a.length, exp.length); i++)
       assert.deepEqual(a[i], exp[i], 'line '+i);
   }));
-  // disable red error on long lines: call Mark_error(0)
-  // XXX: use: set colorcolumn=80
+  // XXX: dir > add '/' at the end
+  // XXX: commit_ops -> group
+  // XXX: [{seq: 19, group: # lines , link: {l: 17}}, {file: '/main_file3', content: {diff: 'l'}, git: {oid: 'c11256c184e585acd4bc63f86adc1b4cb512affa', mode: '100644'}}, 142],
   t('test_move', [
+    /* eslint-disable max-len */ // disable vim red error: call Mark_error(0)
     [{seq: 0}, {scroll: {crypt: [{sig: 'ed25519', hash: 'blake2b', lif: 'lif1'}], pub: '44659cb51dec397ea66085679442505345e159940762c15ef75ad279ecf05033', topic: 'git', src: 'https://github.com/lif-zone/test_move'}}, ''],
     [{seq: 1}, {dir: '', git: {oid: '56fb07d314f8b32b4f125895c9c2711f8dc66f1d', mode: 0}}, ''],
     [{seq: 2}, {file: '/a', git: {oid: '7780c82f7ec168abd6f2cd9f756058fcedad80f2', mode: '100644'}}, 16825],
@@ -81,8 +83,10 @@ describe('lib', function(){
     [{seq: 19}, {file: '/b/a', del: true}, ''],
     [{seq: 20}, {commit: 'aa18f16781702a407f879aca38902577418f7cb3', commit_ops: 3, desc: 'change b from dir to file\n', author: 'lif-rnd', ts: 1662511341, git: {parent: ['c0232fb014456ae8ee9b8060121a67016eda6512'], tree: 'c4fa6729ae5f884522d97fc6145f0bb588453a41', author: {email: 'lif.zone.main@gmail.com', timestamp: 1669711341, timezoneOffset: -120}, committer: {name: 'lif-rnd', email: 'lif.zone.main@gmail.com', timestamp: 1669711341, timezoneOffset: -120}}}, ''],
     [{seq: 21}, {branch: 'main', seq: 20, git: {oid: 'aa18f16781702a407f879aca38902577418f7cb3'}}, ''],
+    /* eslint-enable */
   ]);
   t('test_merge_simple', [
+    /* eslint-disable max-len */ // disable vim red error: call Mark_error(0)
     [{seq: 0}, {scroll: {crypt: [{sig: 'ed25519', hash: 'blake2b', lif: 'lif1'}], pub: '44659cb51dec397ea66085679442505345e159940762c15ef75ad279ecf05033', topic: 'git', src: 'https://github.com/lif-zone/test_merge_simple'}}, ''],
     [{seq: 1}, {dir: '', git: {oid: '32cc970d8d2957a4f613b17070297f3c5ef6397a', mode: 0}}, ''],
     [{seq: 2}, {file: '/main_file1', git: {oid: '8b137891791fe96927ad78e64b0aad7bded08bdc', mode: '100644'}}, 8],
@@ -107,6 +111,7 @@ describe('lib', function(){
     [{seq: 21}, {branch: 'main', seq: 20, git: {oid: 'e37d0cbddd4c351996dae2a01f04986dbab5b071'}}, ''],
     [{seq: 22}, {branch: 'branch1', seq: 13, git: {oid: 'd4181b6ca66e54bb077feb44f6554d0c6236ba2b'}}, ''],
     [{seq: 23}, {tag: 'test_tag1', seq: 13, git: {oid: 'd4181b6ca66e54bb077feb44f6554d0c6236ba2b'}}, ''],
+    /* eslint-enable */
   ]);
 });
 

@@ -296,6 +296,7 @@ const get_state_seq = (config, scroll, seq)=>etask(function*get_state_seq(){
 //   - make db api object oriented and support on demand loading
 // - check how git fork works
 // - add more tests (and move all repositories to lif-rnd instead of lif-zone)
+// - BUG: empty git repository sync will crash
 // private repositories
 E.import_git = (config, scroll)=>etask(function*_start(){
   config = {...config};
@@ -316,10 +317,8 @@ E.import_git = (config, scroll)=>etask(function*_start(){
     commits.reverse();
     for (let i=0; i<Math.min(18, commits.length); i++){
       let oid = commits[i].oid, commit = commits[i].commit, prev, merge;
-      if (prev_sync.commit.get(oid)){
-        console.log('XXX skip prev sync %s', oid);
+      if (prev_sync.commit.get(oid))
         continue;
-      }
       if (oid2seq.get(oid))
         continue;
       commit.parent.forEach(p=>{

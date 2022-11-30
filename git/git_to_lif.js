@@ -45,7 +45,7 @@ const open_scroll = src=>etask(function*open_scroll(){
 });
 
 const start = ()=>etask(function*_start(){
-  let repository = 'lif-rnd/test_merge';
+  let repository = 'lif-rnd/test_sync';
   let dir = '/tmp/lif_'+repository.replace('/', '-'); // XXX: escape
   let url = 'https://github.com/'+repository;
   let config = {dir, url, author: {name: 'XXX', email: 'xxx@xxx.com'}};

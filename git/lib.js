@@ -35,7 +35,6 @@ let oid2seq = new Map(), path2seq = new Map(), seq2state = new Map();
 
 const get_state = (config, dir, oid, mode, state)=>
   etask(function*_put_tree(){
-  mode = mode||0;
   let {tree} = yield git_api.readTree({...config, oid});
   let next = {type: 'dir', path: dir, oid, mode};
   state = state||new FS_state();

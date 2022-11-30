@@ -225,6 +225,15 @@ function build_prev_sync_index(scroll){
     head: null};
   for (const [seq, decl] of scroll.dmap){
     let data = decl.fbuf_get(0).get_json(2), oid = data.git?.oid;
+    if (data.del){
+      if (data.branch)
+        prev_sync.branch.delete(data.branch, {seq});
+      if (data.tag)
+        prev_sync.tag.delete(data.tag, {seq});
+      if (data.head)
+        prev_sync.head = null;
+      continue;
+    }
     if (data.file || data.dir){
       assert(oid, 'missing oid for seq '+seq);
       oid2seq.set(oid, seq);
@@ -403,6 +412,12 @@ E.import_git = (config, scroll)=>etask(function*_start(){
       yield scroll.decl({prev, link}, {head: 'l', git: {oid: head_oid}});
   }
   // XXX: check for branch/tag/head deletion
+  for (const [branch, o] of prev_sync.branch){
+    if (branch_curr[branch])
+      continue;
+    let prev = o.seq;
+    yield scroll.decl({prev}, {branch, del: true});
+  }
   for (const [tag, o] of prev_sync.tag){
     if (tag_curr[tag])
       continue;

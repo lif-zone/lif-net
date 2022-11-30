@@ -31,7 +31,7 @@ function pick_rename(o, fields){
 
 function date_utc(ts, tz){ return +new Date(ts+tz*60000); }
 
-let oid2seq = new Map(), path2seq = new Map(), seq2state = new Map();
+let oid2seq, path2seq, seq2state; // XXX: make it context-based (not global)
 
 const get_state = (config, dir, oid, mode, state)=>
   etask(function*_put_tree(){
@@ -69,7 +69,7 @@ class FS_state {
     return this.path.set(path, o);
   }
   delete(o){
-    this.path.delete(o.path);
+    this.path.delete(o.oid);
     this.path.delete(o.path);
   }
   delete_path(path){ return this.path.delete(path); }
@@ -78,18 +78,21 @@ class FS_state {
 // XXX: how to detect file move (exact move, move+modifications)
 // eg commit 17: https://github.com/lif-zone/server/commit/e24039a1b371f9f05ce53829e9c6bc3ad675fa53?diff=split
 // XXX: what about directory move. need to optimize and not remove/readd all
-const put_diff = (config, scroll, prev, state_curr, state_next)=>etask(
+const put_diff = (config, scroll, prev, state_next)=>etask(
   function*_put_diff(){
+  let state_curr = prev ? yield get_state_seq(config, scroll, prev) :
+    new FS_state();
+  let state_del = new FS_state(state_curr);
   // XXX: optimize, if directory is the same, no need to test all sub dir
   let move_dir = [];
   for (const [path, next] of state_next.path){
     let curr = state_curr.get(path), prev_oid = state_curr.get_oid(next.oid);
     if (move_dir.find(p=>path.startsWith(p))){
-      state_curr.delete(prev_oid);
+      state_del.delete(prev_oid);
       continue;
     }
     let decl, blob, seq_blob, link, content, seq_path, move;
-    state_curr.delete_path(path);
+    state_del.delete_path(path);
     if (xutil.equal_deep(curr, next))
       continue;
     // XXX: check behavior when dir become file and vice versa
@@ -107,10 +110,10 @@ const put_diff = (config, scroll, prev, state_curr, state_next)=>etask(
     if (next.type=='dir'){
       let data = {dir: path+'/'}, move;
       if (!curr && prev_oid && prev_oid.path!=path &&
-        !path.startsWith(prev_oid.path)){
+        !path.startsWith(prev_oid.path) && !state_next.get(prev_oid.path)){
         move = {dir: prev_oid.path+'/'};
         move_dir.push(path+'/');
-        state_curr.delete(prev_oid);
+        state_del.delete(prev_oid);
       }
       if (move)
         data.move = move;
@@ -118,9 +121,10 @@ const put_diff = (config, scroll, prev, state_curr, state_next)=>etask(
       decl = yield scroll.decl({prev}, data);
       prev = decl.seq;
     } else {
-      if (!curr && prev_oid && prev_oid.path!=path){
+      if (!curr && prev_oid && prev_oid.path!=path &&
+        !state_next.get(prev_oid.path)){
         move = {file: prev_oid.path};
-        state_curr.delete(prev_oid);
+        state_del.delete(prev_oid);
       } else if (seq_blob = oid2seq.get(next.oid)){
         link = {l: seq_blob};
         content = 'l';
@@ -165,7 +169,7 @@ const put_diff = (config, scroll, prev, state_curr, state_next)=>etask(
       path2seq.set(path, decl.seq);
     }
   }
-  for (const [path, curr] of state_curr.path){
+  for (const [path, curr] of state_del.path){
     let data = curr.type=='dir' ? {dir: path+'/', del: true} :
       {file: path, del: true};
     let decl = yield scroll.decl({prev}, data);
@@ -248,9 +252,9 @@ const get_state_seq = (config, scroll, seq)=>etask(function*get_state_seq(){
   assert(tree, 'no tree for seq'+seq);
   let state = seq2state.get(seq);
   if (state)
-    return state;
+    return new FS_state(state);
   state = yield get_state(config, '', tree);
-  seq2state.set(seq, state);
+  seq2state.set(seq, new FS_state(state));
   return state;
 });
 
@@ -299,6 +303,9 @@ const get_state_seq = (config, scroll, seq)=>etask(function*get_state_seq(){
 // - BUG: empty git repository sync will crash
 // private repositories
 E.import_git = (config, scroll)=>etask(function*_start(){
+  oid2seq = new Map();
+  path2seq = new Map();
+  seq2state = new Map();
   config = {...config};
   config.fs = config.fs||fs;
   config.http = config.http||http;
@@ -330,11 +337,9 @@ E.import_git = (config, scroll)=>etask(function*_start(){
         else
           prev = seq_p;
       });
-      let state_curr = !prev ? new FS_state() :
-        new FS_state(yield get_state_seq(config, scroll, prev));
       let state_next = yield get_state(config, '', commit.tree);
       let seq_start = scroll.top.seq;
-      prev = yield put_diff(config, scroll, prev, state_curr, state_next);
+      prev = yield put_diff(config, scroll, prev, state_next);
       let info = pick_rename(commit,
         {message: 'desc', 'author.name': 'author'});
       info.ts = date_utc(commit.author.timestamp,
@@ -344,16 +349,18 @@ E.import_git = (config, scroll)=>etask(function*_start(){
       data.git = merge ? {merge, ...commit} : {...commit};
       let decl = yield scroll.decl({prev, group}, data);
       oid2seq.set(oid, decl.seq);
-      seq2state.set(decl.seq, state_next);
+      seq2state.set(decl.seq, new FS_state(state_next));
       prev = decl.seq;
     }
   }
   let refs = yield git_api.listServerRefs({...config, remote: 'origin'});
   let head_oid = refs.find(o=>o.ref=='HEAD')?.oid, head_seq;
+  let branch_curr = {}, tag_curr = {};
   for (let i=0; i<branches.length; i++){
     let branch = branches[i];
     let oid = yield git_api.resolveRef({...config, ref: branch});
     let seq = oid2seq.get(oid), link = {l: seq}, dst = 'l';
+    branch_curr[branch] = {seq, oid};
     assert(seq, 'branch not found '+branch);
     let prev = prev_sync.branch.get(branch)?.seq;
     if (prev){
@@ -372,6 +379,7 @@ E.import_git = (config, scroll)=>etask(function*_start(){
     let tag = tags[i];
     let oid = yield git_api.resolveRef({...config, ref: tag});
     let seq = oid2seq.get(oid), link = {l: seq}, dst = 'l';
+    tag_curr[tag] = {seq, oid};
     assert(seq, 'tag not found '+tag);
     let prev = prev_sync.tag.get(tag)?.seq;
     if (prev){
@@ -379,7 +387,7 @@ E.import_git = (config, scroll)=>etask(function*_start(){
       if (prev_d.fbuf_get(0).get_json(2).git.oid==oid)
         continue;
     }
-    yield scroll.decl({link}, {tag, dst, git: {oid}});
+    yield scroll.decl({prev, link}, {tag, dst, git: {oid}});
   }
   if (head_oid){
     head_seq = head_seq || oid2seq(head_oid);
@@ -395,6 +403,12 @@ E.import_git = (config, scroll)=>etask(function*_start(){
       yield scroll.decl({prev, link}, {head: 'l', git: {oid: head_oid}});
   }
   // XXX: check for branch/tag/head deletion
+  for (const [tag, o] of prev_sync.tag){
+    if (tag_curr[tag])
+      continue;
+    let prev = o.seq;
+    yield scroll.decl({prev}, {tag, del: true});
+  }
 });
 
 export default E;

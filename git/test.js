@@ -35,13 +35,12 @@ function dump_lines(a){
   }
 }
 describe('lib', function(){
-  this.timeout(30000);
+  this.timeout(xutil.is_inspect() ? 9999999999 : 30000);
   let keypair = {pub: s2b('44659cb51dec397ea66085679442505345e159940762c15ef7'+
     '5ad279ecf05033'),
     key: s2b('46f45a62f4c5971228747aa2d8ee66bd669ebd805c725286ee385b1d4a06dd'+
     'bc44659cb51dec397ea66085679442505345e159940762c15ef75ad279ecf05033')};
   const t = (repository, exp)=>it(repository, ()=>etask(function*test_move(){
-    repository = repository;
     let dir = '/tmp/lif_'+repository.replace('/', '-'); // XXX: escape
     let url = 'https://github.com/'+repository;
     let scroll = yield Scroll.create({key: keypair.key, pub: keypair.pub},
@@ -56,6 +55,8 @@ describe('lib', function(){
     for (let i=0; i<Math.max(a.length, exp.length); i++)
       assert.deepEqual(a[i], exp[i], 'line '+i);
   }));
+  // XXX: create new test with move of file inside directory, move files with
+  // same hash etc
   t('lif-zone/test_move', [
     /* eslint-disable max-len */ // disable vim red error: call Mark_error(0)
     [{seq: 0}, {scroll: {crypt: [{sig: 'ed25519', hash: 'blake2b', lif: 'lif1'}], pub: '44659cb51dec397ea66085679442505345e159940762c15ef75ad279ecf05033', topic: 'git', src: 'https://github.com/lif-zone/test_move'}}, ''],
@@ -65,7 +66,7 @@ describe('lib', function(){
     [{seq: 4}, {file: '/b', move: {file: '/a'}, git: {oid: '7780c82f7ec168abd6f2cd9f756058fcedad80f2', mode: '100644'}}, ''],
     [{seq: 5, group: 1}, {commit: 'd13f423f4853887bd7503f078b2887da6b64e43b', desc: 'move a to b\n', author: 'lif-rnd', ts: 1662504157, git: {parent: ['4160553ff40409ebd42a5cf29c02b3e0d2cade54'], tree: 'ae9feeea8f8441f0aead5573258d0c53a945a488', author: {email: 'lif.zone.main@gmail.com', timestamp: 1669704157, timezoneOffset: -120}, committer: {name: 'lif-rnd', email: 'lif.zone.main@gmail.com', timestamp: 1669704157, timezoneOffset: -120}}}, ''],
     [{seq: 6}, {dir: '/dir1/', git: {oid: 'ae9feeea8f8441f0aead5573258d0c53a945a488', mode: '040000'}}, ''],
-    [{seq: 7}, {file: '/dir1/b', move: {file: '/b'}, git: {oid: '7780c82f7ec168abd6f2cd9f756058fcedad80f2', mode: '100644'}}, ''],
+    [{seq: 7, link: {l: 4}}, {file: '/dir1/b', content: 'l', git: {oid: '7780c82f7ec168abd6f2cd9f756058fcedad80f2', mode: '100644'}}, ''],
     [{seq: 8, group: 2}, {commit: '05dfa3ebd084699425fe3ac202ec7cae7bbee89b', desc: 'move /b -> /dir1/b\n', author: 'lif-rnd', ts: 1662508931, git: {parent: ['d13f423f4853887bd7503f078b2887da6b64e43b'], tree: 'ebe5469761eaaf19bddac27a3fe49cec61897e31', author: {email: 'lif.zone.main@gmail.com', timestamp: 1669708931, timezoneOffset: -120}, committer: {name: 'lif-rnd', email: 'lif.zone.main@gmail.com', timestamp: 1669708931, timezoneOffset: -120}}}, ''],
     [{seq: 9}, {file: '/dir1/c', git: {oid: 'bc9e3e7b4c0e05a8efb4942498c1afc86d431672', mode: '100644'}}, 16815],
     [{seq: 10, group: 1}, {commit: '3538536829ce7864fa53cdd85b78af1e8c5c8522', desc: 'add c\n', author: 'lif-rnd', ts: 1662508975, git: {parent: ['05dfa3ebd084699425fe3ac202ec7cae7bbee89b'], tree: 'cc979e3f890c963534e4b02dd99cf6178d282959', author: {email: 'lif.zone.main@gmail.com', timestamp: 1669708975, timezoneOffset: -120}, committer: {name: 'lif-rnd', email: 'lif.zone.main@gmail.com', timestamp: 1669708975, timezoneOffset: -120}}}, ''],
@@ -114,14 +115,7 @@ describe('lib', function(){
     /* eslint-enable */
   ]);
   // XXX TODO: find way to check sync
-  t('lif-rnd/test_sync', [
-    [{seq: 0}, {scroll: {crypt: [{sig: 'ed25519', hash: 'blake2b', lif: 'lif1'}], pub: '44659cb51dec397ea66085679442505345e159940762c15ef75ad279ecf05033', topic: 'git', src: 'https://github.com/lif-rnd/test_sync'}}, ''],
-    [{seq: 1}, {dir: '/', git: {oid: '32cc970d8d2957a4f613b17070297f3c5ef6397a', mode: 0}}, ''],
-    [{seq: 2}, {file: '/main_file1', git: {oid: '8b137891791fe96927ad78e64b0aad7bded08bdc', mode: '100644'}}, 8],
-    [{seq: 3, group: 2}, {commit: '1f0f5727ba4a38330caaf97e49d0bfc9dc2867b9', desc: 'Create main_file1\n', author: 'lif-rnd', ts: 1662610343, git: {parent: [], tree: '32cc970d8d2957a4f613b17070297f3c5ef6397a', author: {email: '79463501+lif-rnd@users.noreply.github.com', timestamp: 1669810343, timezoneOffset: -120}, committer: {name: 'GitHub', email: 'noreply@github.com', timestamp: 1669810343, timezoneOffset: -120}, gpgsig: '-----BEGIN PGP SIGNATURE-----\n\nwsBcBAABCAAQBQJjh0inCRBK7hj4Ov3rIwAAZGAIAE8L+88Nb42xZ/DjKbMKduiP\noez8bQ1XNvzy4q9JbrQMhzFCixF75UOjfjE0ERUb0KShVAmhurwxR/BwEV2jlABp\nBekPj0WJ/L3rOfRVyxHamwhlscsMfzDA2ZBbzVy4uVUQs9cbALKkGQinz9AvppOf\nZYTDLUADCV8qkNrl65+0HiTLmrKu2h4Xkw7K//kIt6f3On/vtP/tmqLlVrryvKOG\nq8aDgNi9QVNbArgJBVJzNAQ4oMPPfcWLNWpRHiS5VarPH80x2M2lEVBS7oVPwMXR\n/23RL0ahuYW3/tB+HfApgdg3y7AHgTovyWUUrU1Tp4+GW+r/m29TOJk1ZN/H3Mk=\n=HdZh\n-----END PGP SIGNATURE-----\n'}}, ''],
-    [{seq: 4, link: {l: 3}}, {branch: 'main', dst: 'l', git: {oid: '1f0f5727ba4a38330caaf97e49d0bfc9dc2867b9'}}, ''],
-    [{seq: 5, link: {l: 4}}, {head: 'l', git: {oid: '1f0f5727ba4a38330caaf97e49d0bfc9dc2867b9'}}, ''],
-  ]);
+  if (0) t('lif-rnd/test_sync', 'dump');
   // XXX: add test for file diff
   // XXX: add test for binary file
 });

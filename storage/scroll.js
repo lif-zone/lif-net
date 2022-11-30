@@ -391,8 +391,8 @@ export default class Scroll extends EventEmitter {
       header.prev = prev;
     if (group)
       header.group = group;
-    if (link!==undefined)
-      header.link = prev;
+    if (link)
+      header.link = link;
     let data = new Data({frames: [header].concat(frames)});
     let decl = new Decl({scroll: this, seq, data});
     this.dmap.set(seq, decl);

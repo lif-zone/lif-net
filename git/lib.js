@@ -286,11 +286,10 @@ E.import_git = (config, scroll)=>etask(function*_start(){
         {message: 'desc', 'author.name': 'author'});
       info.ts = date_utc(commit.author.timestamp,
         commit.author.timezoneOffset);
-      // XXX commit_ops
-      let commit_ops = scroll.top.seq-seq_start;
-      let data = {commit: oid, commit_ops, ...info};
+      let group = scroll.top.seq-seq_start;
+      let data = {commit: oid, ...info};
       data.git = merge ? {merge, ...commit} : {...commit};
-      let decl = yield scroll.decl({prev}, data);
+      let decl = yield scroll.decl({prev, group}, data);
       oid2seq.set(oid, decl.seq);
       tree2state.set(commit.tree, new FS_state(state_next)); // XXX: rm
       seq2state.set(decl.seq, new FS_state(state_next));

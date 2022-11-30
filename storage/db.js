@@ -10,7 +10,7 @@ const b2s = buf_util.buf_to_str;
 setGlobalVars();
 
 export default class DB {
-  init = opt=>etask({_: this}, function*db_init(){
+  init = (opt={})=>etask({_: this}, function*db_init(){
     let _this = this._;
     if (_this.inited)
       return xerr('db already inited');
@@ -20,7 +20,7 @@ export default class DB {
     _this.max_decl = opt.max_decl||DB.MAX_DECL;
     if (opt.delete)
       _this.delete_db();
-    _this.db = yield idb.openDB('lif'+_this.postfix, undefined, {
+    _this.db = yield idb.openDB('lif_db'+_this.postfix, undefined, {
       upgrade(db, oldVersion, newVersion, transaction, event){
         // XXX how to wait for creation of table and verify both are created
         db.createObjectStore('scroll', {keyPath: 'M'});
@@ -29,16 +29,15 @@ export default class DB {
         db.createObjectStore('data', {keyPath: 'h'});
     }});
     _this.scrolls = new Map();
-    let tx, store;
-    tx = _this.db.transaction('scroll', 'readonly');
-    store = tx.objectStore('scroll');
+    let tx = _this.db.transaction('scroll', 'readonly');
+    let store = tx.objectStore('scroll');
     for (let cursor = yield _this.cursor_open(store); cursor;
       cursor = yield _this.cursor_continue(cursor))
     {
       _this.scrolls.set(cursor.key, cursor.value);
     }
   });
-  uninit = opt=>etask({_: this}, function*db_uninit(){
+  uninit = (opt={})=>etask({_: this}, function*db_uninit(){
     let _this = this._;
     if (!_this.inited)
       return xerr('db not inited');
@@ -99,12 +98,13 @@ export default class DB {
     // XXX: need to get big data from data store
     let o = yield _this.db_get('decl', [M, seq]);
     if (!o)
-      return;
+      return scroll.get_decl(seq, {create: false});
     _this.fix_struct(o);
     let decl = scroll.get_decl(seq);
     decl.from_static(o);
     if (data)
       yield _this.get_decl_data(decl, seq);
+    return decl;
   });
   get_decl_data = (decl, seq)=>etask({_: this}, function*get_decl_data(){
     let _this = this._;
@@ -156,6 +156,22 @@ export default class DB {
     for (let h in blob)
       yield _this.db_put('data', {h, buf: blob[h]});
   });
+  get_scroll = scroll=>etask({_: this}, function*get_scroll(){
+    let _this = this._;
+    yield _this.get_branch(scroll);
+    // XXX HACK: need to iterate over all scroll decl data
+    for (let i=0; i<=scroll.top.seq; i++)
+      yield _this.get_decl(scroll, {seq: i, data: true});
+  });
+  // XXX: need test + only to update dirty data
+  put_scroll = scroll=>etask({_: this}, function*put_scroll(){
+    let _this = this._;
+    yield _this.put_branch(scroll);
+    for (const [seq] of scroll.dmap){
+      console.log('XXX save seq%s', seq);
+      yield _this.put_decl(scroll, seq);
+    }
+  });
   // XXX: decide on better way to handle buffers
   fix_struct(o){
     if (!o)
@@ -185,7 +201,7 @@ export default class DB {
     assert(!_this.db, 'db is opened');
     if (global.shimIndexedDB.__getConfig('memoryDatabase'))
       return;
-    yield idb.deleteDB('lif'+_this.postfix);
+    yield idb.deleteDB('lif_db'+_this.postfix);
   });
 }
 

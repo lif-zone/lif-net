@@ -10,7 +10,8 @@ import {Buffer} from 'buffer';
 import buf_util from '../peer-relay/buf_util.js';
 import {r_fix, r_parent, r_eq, r_includes, r_str, r_split} from './range.js';
 const assign = Object.assign; // XXX: rm, use ...
-const b2s = buf_util.buf_to_str, beq = buf_util.buf_eq;
+const s2b = buf_util.buf_from_str, b2s = buf_util.buf_to_str;
+const beq = buf_util.buf_eq;
 const stringify = JSON.stringify.bind(JSON);
 // https://en.wikipedia.org/wiki/Merkle_tree#Second_preimage_attack
 const LEAF_TYPE = enc_u64(0), PARENT_TYPE = enc_u64(1), ROOT_TYPE = enc_u64(2);
@@ -135,6 +136,11 @@ class Frame_buffer extends EventEmitter {
     assert(!this.frames[0].sig || this.frames[0].sig.equals(sig),
       'sig changed');
     this.frames[0].sig = sig;
+  }
+  get_json(i){ // XXX: need better implemenation + add caching of result
+    let buf = this.frames[i]?.buf;
+    if (buf)
+      return JSON.parse(buf.toString());
   }
 }
 
@@ -1171,9 +1177,13 @@ Scroll.create = function(opt, d){
 };
 
 Scroll.open = function(opt){
-  assert(util.is_mocha() || seq==0, 'producion scroll must have M0');
   assert(util.is_mocha()||!opt.soul, 'producion must use global soul');
-  let {seq, h} = Buffer.isBuffer(opt.M) ? {seq: 0, h: opt.M} : opt.M||{};
+  let seq, h;
+  if (typeof opt.M=='string')
+    [seq, h] = [0, s2b(opt.M)];
+  else
+    [seq, h] = Buffer.isBuffer(opt.M) ? [0, opt.M] : [opt.M.seq, opt.M.h];
+  assert(util.is_mocha() || seq==0, 'producion scroll must have M0');
   let soul = opt.soul||Scroll.soul;
   let scroll = seq==0 && soul.get(h);
   if (scroll)

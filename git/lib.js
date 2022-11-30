@@ -242,7 +242,7 @@ E.dump_scroll = function(scroll){
 //   + simple tag
 //   o anotatedTag/git releases
 // o support notes
-// - default branch/HEAD
+// + default branch/HEAD
 // - save persistent data to indexdeddb
 // - cleanup code
 // - incermental sync - support update of existing scroll (need to use prev)
@@ -256,7 +256,6 @@ E.import_git = (config, scroll)=>etask(function*_start(){
   yield git_api.clone({...config});
   let branches = yield git_api.listBranches({...config, remote: 'origin'});
   let tags = yield git_api.listTags({...config, remote: 'origin'});
-  // XXX: need to add HEAD to scroll
   array.rm_elm(branches, 'HEAD');
   array.rm_elm(branches, 'main');
   branches.unshift('main');
@@ -298,13 +297,17 @@ E.import_git = (config, scroll)=>etask(function*_start(){
       prev = decl.seq;
     }
   }
+  let refs = yield git_api.listServerRefs({...config, remote: 'origin'});
+  let head_oid = refs.find(o=>o.ref=='HEAD')?.oid, head_seq;
   for (let i=0; i<branches.length; i++){
     let branch = branches[i];
     let oid = yield git_api.resolveRef({...config, ref: branch});
     let seq = oid2seq.get(oid), link = {l: seq}, dst = 'l';
     assert(seq, 'branch not found '+branch);
     // XXX: set prev as pointer to previous branch
-    scroll.decl({link}, {branch, dst, git: {oid}});
+    let decl = yield scroll.decl({link}, {branch, dst, git: {oid}});
+    if (oid==head_oid)
+      head_seq = decl.seq;
   }
   for (let i=0; i<tags.length; i++){
     let tag = tags[i];
@@ -312,7 +315,13 @@ E.import_git = (config, scroll)=>etask(function*_start(){
     let seq = oid2seq.get(oid), link = {l: seq}, dst = 'l';
     assert(seq, 'tag not found '+tag);
     // XXX: set prev as pointer to previous branch
-    scroll.decl({link}, {tag, dst, git: {oid}});
+    yield scroll.decl({link}, {tag, dst, git: {oid}});
+  }
+  if (head_oid){
+    head_seq = head_seq || oid2seq(head_oid);
+    assert(head_seq, 'head seq not found '+head_oid);
+    let link = {l: head_seq};
+    yield scroll.decl({link}, {head: 'l', git: {oid: head_oid}});
   }
 });
 

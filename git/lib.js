@@ -97,7 +97,7 @@ const put_diff = (config, scroll, prev, state_curr, state_next)=>etask(
     if (next.type=='dir' && curr?.type=='dir')
       continue;
     if (next && curr && next.type!=curr.type){
-      let data = curr.type=='dir' ? {dir: path, del: true} :
+      let data = curr.type=='dir' ? {dir: path+'/', del: true} :
         {file: path, del: true};
       let decl = yield scroll.decl({prev}, data);
       prev = decl.seq;
@@ -106,10 +106,10 @@ const put_diff = (config, scroll, prev, state_curr, state_next)=>etask(
     }
     let git = {oid: next.oid, mode: next.mode};
     if (next.type=='dir'){
-      let data = {dir: path}, move;
+      let data = {dir: path+'/'}, move;
       if (!curr && prev_oid && prev_oid.path!=path &&
         !path.startsWith(prev_oid.path)){
-        move = {dir: prev_oid.path};
+        move = {dir: prev_oid.path+'/'};
         move_dir.push(path+'/');
         state_curr.delete(prev_oid);
       }
@@ -166,7 +166,7 @@ const put_diff = (config, scroll, prev, state_curr, state_next)=>etask(
     }
   }
   for (const [path, curr] of state_curr.path){
-    let data = curr.type=='dir' ? {dir: path, del: true} :
+    let data = curr.type=='dir' ? {dir: path+'/', del: true} :
       {file: path, del: true};
     let decl = yield scroll.decl({prev}, data);
     prev = decl.seq;

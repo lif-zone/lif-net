@@ -210,16 +210,29 @@ E.dump_scroll = function(scroll){
   }
 };
 
+function dir2path(dir){
+  assert.equal(dir[dir.length-1], '/', 'invalid dir '+dir);
+  return dir.substr(0, dir.length-1);
+}
+
 function build_prev_sync_index(scroll){
   // XXX: need to have built-in index in scroll
   let prev_sync = {commit: new Map(), branch: new Map(), tag: new Map(),
     head: null};
-  if (true)
-    return prev_sync;
   for (const [seq, decl] of scroll.dmap){
-    let data = decl.fbuf_get(0).get_json(2);
-    if (data.commit)
+    let data = decl.fbuf_get(0).get_json(2), oid = data.git?.oid;
+    if (data.file || data.dir){
+      assert(oid, 'missing oid for seq '+seq);
+      oid2seq.set(oid, seq);
+    }
+    if (data.file)
+      path2seq.set(data.file, seq);
+    if (data.dir)
+      path2seq.set(dir2path(data.dir), seq);
+    if (data.commit){
+      oid2seq.set(data.commit, seq);
       prev_sync.commit.set(data.commit, {seq});
+    }
     if (data.branch)
       prev_sync.branch.set(data.branch, {seq});
     if (data.tag)
@@ -234,7 +247,6 @@ const get_state_seq = (config, scroll, seq)=>etask(function*get_state_seq(){
   let tree = scroll.get_decl(seq).fbuf_get(0).get_json(2).git.tree;
   assert(tree, 'no tree for seq'+seq);
   let state = seq2state.get(seq);
-  assert(state, 'XXX state not found seq'+seq); // XXX: rm
   if (state)
     return state;
   state = yield get_state(config, '', tree);
@@ -244,6 +256,7 @@ const get_state_seq = (config, scroll, seq)=>etask(function*get_state_seq(){
 
 // XXX TODO
 // initial sync:
+// - derry: branch change on every git commit on that branch
 // * fix javascript.vim (delete and friends highlight0
 //   - send derry patch
 // + move prev to decl header part {seq, prev, link}
@@ -281,6 +294,8 @@ const get_state_seq = (config, scroll, seq)=>etask(function*get_state_seq(){
 //   - get_scroll/put_scroll
 //   - make api friendly to use (eg. get_json)
 //   - make db api object oriented and support on demand loading
+// - check how git fork works
+// - add more tests (and move all repositories to lif-rnd instead of lif-zone)
 // private repositories
 E.import_git = (config, scroll)=>etask(function*_start(){
   config = {...config};
@@ -341,8 +356,16 @@ E.import_git = (config, scroll)=>etask(function*_start(){
     let oid = yield git_api.resolveRef({...config, ref: branch});
     let seq = oid2seq.get(oid), link = {l: seq}, dst = 'l';
     assert(seq, 'branch not found '+branch);
-    // XXX: set prev as pointer to previous branch
-    let decl = yield scroll.decl({link}, {branch, dst, git: {oid}});
+    let prev = prev_sync.branch.get(branch)?.seq;
+    if (prev){
+      let prev_d = yield scroll.get_decl(prev);
+      if (prev_d.fbuf_get(0).get_json(2).git.oid==oid){
+        if (oid==head_oid)
+          head_seq = prev;
+        continue;
+      }
+    }
+    let decl = yield scroll.decl({prev, link}, {branch, dst, git: {oid}});
     if (oid==head_oid)
       head_seq = decl.seq;
   }
@@ -351,15 +374,28 @@ E.import_git = (config, scroll)=>etask(function*_start(){
     let oid = yield git_api.resolveRef({...config, ref: tag});
     let seq = oid2seq.get(oid), link = {l: seq}, dst = 'l';
     assert(seq, 'tag not found '+tag);
-    // XXX: set prev as pointer to previous branch
+    let prev = prev_sync.tag.get(tag)?.seq;
+    if (prev){
+      let prev_d = yield scroll.get_decl(prev);
+      if (prev_d.fbuf_get(0).get_json(2).git.oid==oid)
+        continue;
+    }
     yield scroll.decl({link}, {tag, dst, git: {oid}});
   }
   if (head_oid){
     head_seq = head_seq || oid2seq(head_oid);
     assert(head_seq, 'head seq not found '+head_oid);
     let link = {l: head_seq};
-    yield scroll.decl({link}, {head: 'l', git: {oid: head_oid}});
+    let prev = prev_sync.head?.seq, same;
+    if (prev){
+      let prev_d = yield scroll.get_decl(prev);
+      if (prev_d.fbuf_get(0).get_json(2).git.oid==head_oid)
+        same = true;
+    }
+    if (!same)
+      yield scroll.decl({prev, link}, {head: 'l', git: {oid: head_oid}});
   }
+  // XXX: check for branch/tag/head deletion
 });
 
 export default E;

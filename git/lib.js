@@ -89,7 +89,7 @@ const put_diff = (config, scroll, prev, state_curr, state_next)=>etask(
       state_curr.delete(prev_oid);
       continue;
     }
-    let decl, blob, seq_blob, content, seq_path, move;
+    let decl, blob, seq_blob, link, content, seq_path, move;
     state_curr.delete_path(path);
     if (xutil.equal_deep(curr, next))
       continue;
@@ -122,9 +122,10 @@ const put_diff = (config, scroll, prev, state_curr, state_next)=>etask(
       if (!curr && prev_oid && prev_oid.path!=path){
         move = {file: prev_oid.path};
         state_curr.delete(prev_oid);
-      } else if (seq_blob = oid2seq.get(next.oid))
-        content = {seq: seq_blob};
-      else if (seq_path = curr&&oid2seq.get(curr.oid)||path2seq.get(path)){
+      } else if (seq_blob = oid2seq.get(next.oid)){
+        link = {l: seq_blob};
+        content = 'l';
+      } else if (seq_path = curr&&oid2seq.get(curr.oid)||path2seq.get(path)){
         let decl_old = yield scroll.get_decl(seq_path);
         // XXX: find better way
         let d_old = JSON.parse(decl_old.fbuf_get(0).frames[2].buf.toString());
@@ -141,9 +142,10 @@ const put_diff = (config, scroll, prev, state_curr, state_next)=>etask(
           let diff = Diff.createPatch(path, s_old, s_new, '', '',
             {context: 0});
           blob = Buffer.from(diff);
-          if (blob.length < 0.5*s_new.length)
-            content = {diff: {seq: seq_path}};
-          else
+          if (blob.length < 0.5*s_new.length){
+            link = {l: seq_path};
+            content = {diff: 'l'};
+          } else
             blob = buf_new;
         }
       } else {
@@ -157,7 +159,7 @@ const put_diff = (config, scroll, prev, state_curr, state_next)=>etask(
       data[0].git = git;
       if (blob)
         data.push(blob);
-      decl = yield scroll.decl({prev}, data);
+      decl = yield scroll.decl({prev, link}, data);
       prev = decl.seq;
     }
     if (decl){
@@ -213,11 +215,11 @@ E.dump_scroll = function(scroll){
 
 // XXX TODO
 // initial sync:
-// + move prev to decl header part {seq, prev, link}
-// - links {seq: 57, link: {"l": 37}}, data-frame (and also for prev/merge
-//   seq57 {"file":"/package-lock.json","content":{"diff":{_l: "l"}
 // * fix javascript.vim (delete and friends highlight0
 //   - send derry patch
+// + move prev to decl header part {seq, prev, link}
+// + links {seq: 57, link: {"l": 37}}, data-frame (and also for prev/merge
+//   seq57 {"file":"/package-lock.json","content":{"diff":{_l: "l"}
 // + handle merges
 // + diff files (text/binary)
 //   + fix diff with merges
@@ -238,7 +240,7 @@ E.dump_scroll = function(scroll){
 // + support branch
 // o support tags
 //   + simple tag
-//   - anotatedTag/git releases
+//   o anotatedTag/git releases
 // o support notes
 // - default branch/HEAD
 // - save persistent data to indexdeddb
@@ -299,18 +301,18 @@ E.import_git = (config, scroll)=>etask(function*_start(){
   for (let i=0; i<branches.length; i++){
     let branch = branches[i];
     let oid = yield git_api.resolveRef({...config, ref: branch});
-    let seq = oid2seq.get(oid);
+    let seq = oid2seq.get(oid), link = {l: seq}, dst = 'l';
     assert(seq, 'branch not found '+branch);
     // XXX: set prev as pointer to previous branch
-    scroll.decl({branch, seq, git: {oid}});
+    scroll.decl({link}, {branch, dst, git: {oid}});
   }
   for (let i=0; i<tags.length; i++){
     let tag = tags[i];
     let oid = yield git_api.resolveRef({...config, ref: tag});
-    let seq = oid2seq.get(oid);
+    let seq = oid2seq.get(oid), link = {l: seq}, dst = 'l';
     assert(seq, 'tag not found '+tag);
     // XXX: set prev as pointer to previous branch
-    scroll.decl({tag, seq, git: {oid}});
+    scroll.decl({link}, {tag, dst, git: {oid}});
   }
 });
 

@@ -113,5 +113,7 @@ describe('lib', function(){
     [{seq: 24, link: {l: 21}}, {head: 'l', git: {oid: 'e37d0cbddd4c351996dae2a01f04986dbab5b071'}}, '']
     /* eslint-enable */
   ]);
+  // XXX: add test for file diff
+  // XXX: add test for binary file
 });
 

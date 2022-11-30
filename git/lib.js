@@ -33,27 +33,26 @@ function date_utc(ts, tz){ return +new Date(ts+tz*60000); }
 
 let oid2seq = new Map(), path2seq = new Map(), seq2state = new Map();
 
-const get_next_state = (config, dir, oid, mode, state_curr, state_next)=>
+const get_state = (config, dir, oid, mode, state)=>
   etask(function*_put_tree(){
   let {tree} = yield git_api.readTree({...config, oid});
   let next = {type: 'dir', path: dir, oid, mode};
-  state_next = state_next||new FS_state();
-  state_next.set(dir, next);
+  state = state||new FS_state();
+  state.set(dir, next);
   for (let i=0; i<tree.length; i++){
     let e = tree[i], path = dir+'/'+e.path;
     switch (e.type){
     case 'blob':
       next = {path, oid: e.oid, mode: e.mode};
-      state_next.set(path, next);
+      state.set(path, next);
       break;
     case 'tree':
-      yield get_next_state(config, path, e.oid, e.mode, state_curr,
-        state_next);
+      yield get_state(config, path, e.oid, e.mode, state);
       break;
     default: xerr.xexit('unknown type '+e.type);
     }
   }
-  return state_next;
+  return state;
 });
 
 class FS_state {
@@ -305,8 +304,7 @@ E.import_git = (config, scroll)=>etask(function*_start(){
           prev = seq_p;
       });
       let state_curr = new FS_state(prev && seq2state.get(prev));
-      let state_next = yield get_next_state(config, '', commit.tree, 0,
-        state_curr);
+      let state_next = yield get_state(config, '', commit.tree, 0);
       let seq_start = scroll.top.seq;
       prev = yield put_diff(config, scroll, prev, state_curr, state_next);
       let info = pick_rename(commit,

@@ -1,4 +1,6 @@
+#!/usr/bin/env node
 // author: derry. coder: arik.
+import yargs from 'yargs/yargs';
 import xerr from '../util/xerr.js';
 import etask from '../util/etask.js';
 import xutil from '../util/util.js';
@@ -9,6 +11,7 @@ import buf_util from '../peer-relay/buf_util.js';
 import lib from './lib.js';
 const soul = Scroll.soul, db = soul.db;
 const s2b = buf_util.buf_from_str;
+const argv = yargs(process.argv).argv;
 const E = {};
 const keypair = {
   pub: s2b('44659cb51dec397ea66085679442505345e159940762c15ef75ad279ecf05033'),
@@ -45,9 +48,27 @@ const open_scroll = src=>etask(function*open_scroll(){
 });
 
 const start = ()=>etask(function*_start(){
-  let repository = 'lif-rnd/test_sync2';
-  let dir = '/tmp/lif_'+repository.replace('/', '-'); // XXX: escape
-  let url = 'https://github.com/'+repository;
+  let del, repo = 'lif-rnd/test_sync2';
+  let dir = '/tmp/lif_git_'+repo.replace('/', '-'); // XXX: escape
+  let url = 'https://github.com/'+repo;
+  for (let arg in argv){
+    let val = argv[arg];
+    switch (arg){
+    case '_': break;
+    case '$0': break;
+    case 'repo': repo = val; break;
+    case 'delete': del = val; break;
+    default: xerr.xexit('invalid arg %s', arg);
+    }
+  }
+  console.log('git2lif %s %s %s', url, dir, del ? 'delete' : 'sync');
+  if (del){
+    console.log('XXX TODO --delete');
+    console.log('rm -rf /tmp/lif_git_*');
+    console.log('rm -rf /tmp/D_lif_db*.sqlite');
+    console.log('rm /tmp/__sysdb__.sqlite');
+    return;
+  }
   let config = {dir, url, author: {name: 'XXX', email: 'xxx@xxx.com'}};
   // XXX: fix db api to be friendly to use
   yield DB.init({shim_conf: {checkOrigin: false, databaseBasePath: '/tmp',
@@ -58,7 +79,6 @@ const start = ()=>etask(function*_start(){
     scroll = yield Scroll.create({key: keypair.key, pub: keypair.pub},
       {topic: 'git', src: url});
   }
-  console.log('git2lif %s %s', url, dir);
   yield lib.import_git(config, scroll);
   lib.dump_scroll(scroll);
   console.log('saving to db');

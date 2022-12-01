@@ -411,7 +411,6 @@ E.import_git = (config, scroll)=>etask(function*_start(){
     if (!same)
       yield scroll.decl({prev, link}, {head: 'l', git: {oid: head_oid}});
   }
-  // XXX: check for branch/tag/head deletion
   for (const [branch, o] of prev_sync.branch){
     if (branch_curr[branch])
       continue;
@@ -424,6 +423,8 @@ E.import_git = (config, scroll)=>etask(function*_start(){
     let prev = o.seq;
     yield scroll.decl({prev}, {tag, del: true});
   }
+  if (!head_oid && prev_sync.head)
+    yield scroll.decl({prev: prev_sync.head}, {head: true, del: true});
 });
 
 export default E;

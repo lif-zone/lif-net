@@ -49,8 +49,6 @@ const open_scroll = src=>etask(function*open_scroll(){
 
 const start = ()=>etask(function*_start(){
   let del, repo = 'lif-rnd/test_sync2';
-  let dir = '/tmp/lif_git_'+repo.replace('/', '-'); // XXX: escape
-  let url = 'https://github.com/'+repo;
   for (let arg in argv){
     let val = argv[arg];
     switch (arg){
@@ -61,6 +59,8 @@ const start = ()=>etask(function*_start(){
     default: xerr.xexit('invalid arg %s', arg);
     }
   }
+  let dir = '/tmp/lif_git_'+repo.replace('/', '-'); // XXX: escape
+  let url = 'https://github.com/'+repo;
   console.log('git2lif %s %s %s', url, dir, del ? 'delete' : 'sync');
   if (del){
     console.log('XXX TODO --delete');

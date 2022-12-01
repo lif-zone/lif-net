@@ -267,6 +267,19 @@ const get_state_seq = (config, scroll, seq)=>etask(function*get_state_seq(){
   return state;
 });
 
+const git_get_head = config=>etask(function*git_get_head(){
+  // XXX: we call it to force getting origin refs into directory
+  yield git_api.listServerRefs({...config, remote: 'origin'});
+  let s, m;
+  try {
+    let file = config.dir+'/.git/refs/remotes/origin/HEAD';
+    s = ''+(yield fs.promises.readFile(file));
+  } catch(err){ return ''; }
+  if (!s || !(m = s.match(/^ref: .*\/([^/]+)$/)))
+    return '';
+  return m[1].trim();
+});
+
 // XXX TODO
 // synatx fixup:
 // head -> branch: 'HEAD'
@@ -379,8 +392,7 @@ E.import_git = (config, scroll)=>etask(function*_start(){
       prev = decl.seq;
     }
   }
-  let refs = yield git_api.listServerRefs({...config, remote: 'origin'});
-  let head_oid = refs.find(o=>o.ref=='HEAD')?.oid, head_seq;
+  let head = yield git_get_head(config), head_seq;
   let branch_curr = {}, tag_curr = {};
   for (let i=0; i<branches.length; i++){
     let branch = branches[i];
@@ -392,13 +404,13 @@ E.import_git = (config, scroll)=>etask(function*_start(){
     if (prev){
       let prev_d = yield scroll.get_decl(prev);
       if (prev_d.fbuf_get(0).get_json(2).git.oid==oid){
-        if (oid==head_oid)
+        if (head==branch)
           head_seq = prev;
         continue;
       }
     }
     let decl = yield scroll.decl({prev, link}, {branch, dst, git: {oid}});
-    if (oid==head_oid)
+    if (head==branch)
       head_seq = decl.seq;
   }
   for (let i=0; i<tags.length; i++){
@@ -415,18 +427,17 @@ E.import_git = (config, scroll)=>etask(function*_start(){
     }
     yield scroll.decl({prev, link}, {tag, dst, git: {oid}});
   }
-  if (head_oid){
-    head_seq = head_seq || oid2seq(head_oid);
-    assert(head_seq, 'head seq not found '+head_oid);
-    let link = {l: head_seq};
-    let prev = prev_sync.head?.seq, same;
+  if (head_seq){
+    let link = head_seq, same;
+    let prev = prev_sync.branch.get('HEAD')?.seq;
     if (prev){
       let prev_d = yield scroll.get_decl(prev);
-      if (prev_d.fbuf_get(0).get_json(2).git.oid==head_oid)
-        same = true;
+      // XXX: ugly code, need proper api
+      same = prev_d.fbuf_get(0).get_json(1).link==link;
     }
     if (!same)
-      yield scroll.decl({prev, link}, {head: 'l', git: {oid: head_oid}});
+      yield scroll.decl({prev, link}, {branch: 'HEAD'});
+    branch_curr.HEAD = {seq: head_seq};
   }
   for (const [branch, o] of prev_sync.branch){
     if (branch_curr[branch])
@@ -440,8 +451,6 @@ E.import_git = (config, scroll)=>etask(function*_start(){
     let prev = o.seq;
     yield scroll.decl({prev}, {tag, del: true});
   }
-  if (!head_oid && prev_sync.head)
-    yield scroll.decl({prev: prev_sync.head}, {head: true, del: true});
 });
 
 export default E;

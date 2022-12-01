@@ -290,7 +290,6 @@ const get_state_seq = (config, scroll, seq)=>etask(function*get_state_seq(){
 //   o handle dir <-> file (change type)
 //     o BUG: isomorphic-git doesn't support it during pull
 //   o detect move with changes
-// - test diretory delete
 // + pgp for commits (gpgsig)
 // + support branch
 // o support tags
@@ -298,19 +297,20 @@ const get_state_seq = (config, scroll, seq)=>etask(function*get_state_seq(){
 //   o anotatedTag/git releases
 // o support notes
 // + default branch/HEAD
-// - save persistent data to indexdeddb
-// - cleanup code
-// - incermental sync - support update of existing scroll (need to use prev)
-//   - pull and update of scroll with new commits
+// + save persistent data to indexdeddb
+// * incermental sync - support update of existing scroll (need to use prev)
+//   * pull and update of scroll with new commits
 // - export to git
-// - fix scroll api:
-//   - get_scroll/put_scroll
-//   - make api friendly to use (eg. get_json)
-//   - make db api object oriented and support on demand loading
-// - check how git fork works
-// - add more tests (and move all repositories to lif-rnd instead of lif-zone)
+// - check how fork works
+// - cleanup code
+//   - add more tests (and move all repositories to lif-rnd from lif-zone)
+//   - test diretory delete
+//   - fix scroll api:
+//     - get_scroll/put_scroll
+//     - make api friendly to use (eg. get_json)
+//     - make db api object oriented and support on demand loading
 // - BUG: empty git repository sync will crash
-// private repositories
+// - private repositories (allow auth)
 E.import_git = (config, scroll)=>etask(function*_start(){
   oid2seq = new Map();
   path2seq = new Map();

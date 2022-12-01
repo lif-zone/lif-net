@@ -106,7 +106,7 @@ const put_diff = (config, scroll, prev, state_next)=>etask(
       curr = null;
       prev_oid = null;
     }
-    let git = {oid: next.oid, mode: next.mode};
+    let git = {oid: next.oid, mode: next.mode}, add;
     if (next.type=='dir'){
       let data = {dir: path+'/'}, move;
       if (!curr && prev_oid && prev_oid.path!=path &&
@@ -151,11 +151,14 @@ const put_diff = (config, scroll, prev, state_next)=>etask(
             blob = buf_new;
         }
       } else {
+        add = true;
         blob = (yield git_api.readBlob({...config, oid: next.oid})).blob;
       }
       let data = [{file: path}];
       if (move)
         data[0].move = move;
+      else if (add)
+        data[0].add = true;
       if (content)
         data[0].content = content;
       data[0].git = git;

@@ -13,6 +13,7 @@
     "mvp-bundle": "browserify mvp/pub/debug.js > mvp/pub/debug.bundle.js"
   },
   "dependencies": {
+    "yargs": "17.6.2",
     "diff": "5.1.0",
     "isomorphic-git": "1.21.0",
     "indexeddbshim": "10.0.0",

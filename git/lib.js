@@ -268,8 +268,25 @@ const get_state_seq = (config, scroll, seq)=>etask(function*get_state_seq(){
 });
 
 // XXX TODO
+// synatx fixup:
+// head -> branch: 'HEAD'
+// link: 12 -> link: {_: 12}}
+// file(dir) exact content links are for origin
+// new file/dir: {add: true} // default (but optional)
+// rename del -> rm
+// content
+// {seq: 8, link: 6} {file: '/branch1_file1', ...}
+// {seq: 8, link: 6} {file: '/branch1_file1', content: {d: '_'}, ...}
+// {seq: 8, link: 6} {file: '/branch1_file1', content: {d: 1}, ...}
+// {seq: 8} {file: '/branch1_file1', content: 1, ...}, blob
+// {seq: 8} {file: '/branch1_file1', content: 'abc', ...}
+// diff
+// {seq: 8, link: 6} {file: '/branch1_file1', diff: 1, ...}, blob
+// {seq: 8, link: 6} {file: '/branch1_file1', diff: 'abc', ...}
+// {seq: 8, link: 6} {file: '/branch1_file1', diff: {d: 1}, ...}, blob
+// {seq: 8, link: 6} {file: '/branch1_file1', diff: {d: '_'}}
+//
 // initial sync:
-// - derry: branch change on every git commit on that branch
 // * fix javascript.vim (delete and friends highlight0
 //   - send derry patch
 // + move prev to decl header part {seq, prev, link}
@@ -301,7 +318,6 @@ const get_state_seq = (config, scroll, seq)=>etask(function*get_state_seq(){
 // * incermental sync - support update of existing scroll (need to use prev)
 //   * pull and update of scroll with new commits
 // - export to git
-// - check how fork works
 // - cleanup code
 //   - add more tests (and move all repositories to lif-rnd from lif-zone)
 //   - test diretory delete
@@ -309,6 +325,7 @@ const get_state_seq = (config, scroll, seq)=>etask(function*get_state_seq(){
 //     - get_scroll/put_scroll
 //     - make api friendly to use (eg. get_json)
 //     - make db api object oriented and support on demand loading
+// - check how fork works
 // - BUG: empty git repository sync will crash
 // - private repositories (allow auth)
 E.import_git = (config, scroll)=>etask(function*_start(){

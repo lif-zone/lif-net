@@ -72,16 +72,16 @@ describe('lib', function(){
     [{seq: 10, group: 1}, {commit: '3538536829ce7864fa53cdd85b78af1e8c5c8522', desc: 'add c\n', author: 'lif-rnd', ts: 1662508975, git: {parent: ['05dfa3ebd084699425fe3ac202ec7cae7bbee89b'], tree: 'cc979e3f890c963534e4b02dd99cf6178d282959', author: {email: 'lif.zone.main@gmail.com', timestamp: 1669708975, timezoneOffset: -120}, committer: {name: 'lif-rnd', email: 'lif.zone.main@gmail.com', timestamp: 1669708975, timezoneOffset: -120}}}, ''],
     [{seq: 11}, {dir: '/dir2/', move: {dir: '/dir1/'}, git: {oid: '9129578255419d388a0419d7141018caabf23743', mode: '040000'}}, ''],
     [{seq: 12, group: 1}, {commit: 'a7dc61ad160e9e5d004f02b86e79bc289ad24af8', desc: '/dir1 -> /dir2\n', author: 'lif-rnd', ts: 1662509524, git: {parent: ['3538536829ce7864fa53cdd85b78af1e8c5c8522'], tree: '557ba02895c7542a074c9311be83493bf143e61c', author: {email: 'lif.zone.main@gmail.com', timestamp: 1669709524, timezoneOffset: -120}, committer: {name: 'lif-rnd', email: 'lif.zone.main@gmail.com', timestamp: 1669709524, timezoneOffset: -120}}}, ''],
-    [{seq: 13}, {file: '/b', del: true}, ''],
+    [{seq: 13}, {file: '/b', rm: true}, ''],
     [{seq: 14}, {dir: '/b/', git: {oid: '457a6ae49e105547244493d0f5426725c4fd2d20', mode: '040000'}}, ''],
     [{seq: 15}, {file: '/b/a', git: {oid: 'd6459e005434a49a66a3ddec92279a86160ad71f', mode: '100644'}}, 32],
     [{seq: 16, group: 3}, {commit: 'c0232fb014456ae8ee9b8060121a67016eda6512', desc: 'change b from file to dir\n', author: 'lif-rnd', ts: 1662510970, git: {parent: ['a7dc61ad160e9e5d004f02b86e79bc289ad24af8'], tree: 'd6b77bf060783ee6ad13012eba917a35b104462b', author: {email: 'lif.zone.main@gmail.com', timestamp: 1669710970, timezoneOffset: -120}, committer: {name: 'lif-rnd', email: 'lif.zone.main@gmail.com', timestamp: 1669710970, timezoneOffset: -120}}}, ''],
-    [{seq: 17}, {dir: '/b/', del: true}, ''],
+    [{seq: 17}, {dir: '/b/', rm: true}, ''],
     [{seq: 18}, {file: '/b', git: {oid: '6d700c06af2977bb61a59cdefb4957ec3ef4f6ff', mode: '100644'}}, 64],
-    [{seq: 19}, {file: '/b/a', del: true}, ''],
+    [{seq: 19}, {file: '/b/a', rm: true}, ''],
     [{seq: 20, group: 3}, {commit: 'aa18f16781702a407f879aca38902577418f7cb3', desc: 'change b from dir to file\n', author: 'lif-rnd', ts: 1662511341, git: {parent: ['c0232fb014456ae8ee9b8060121a67016eda6512'], tree: 'c4fa6729ae5f884522d97fc6145f0bb588453a41', author: {email: 'lif.zone.main@gmail.com', timestamp: 1669711341, timezoneOffset: -120}, committer: {name: 'lif-rnd', email: 'lif.zone.main@gmail.com', timestamp: 1669711341, timezoneOffset: -120}}}, ''],
     [{seq: 21, link: {l: 20}}, {branch: 'main', dst: 'l', git: {oid: 'aa18f16781702a407f879aca38902577418f7cb3'}}, ''],
-    [{seq: 22, link: {l: 21}}, {head: 'l', git: {oid: 'aa18f16781702a407f879aca38902577418f7cb3'}}, '']
+    [{seq: 22, link: 21}, {branch: 'HEAD'}, '']
     /* eslint-enable */
   ]);
   t('lif-zone/test_merge_simple', [
@@ -111,7 +111,7 @@ describe('lib', function(){
     [{seq: 21, link: {l: 20}}, {branch: 'main', dst: 'l', git: {oid: 'e37d0cbddd4c351996dae2a01f04986dbab5b071'}}, ''],
     [{seq: 22, link: {l: 13}}, {branch: 'branch1', dst: 'l', git: {oid: 'd4181b6ca66e54bb077feb44f6554d0c6236ba2b'}}, ''],
     [{seq: 23, link: {l: 13}}, {tag: 'test_tag1', dst: 'l', git: {oid: 'd4181b6ca66e54bb077feb44f6554d0c6236ba2b'}}, ''],
-    [{seq: 24, link: {l: 21}}, {head: 'l', git: {oid: 'e37d0cbddd4c351996dae2a01f04986dbab5b071'}}, '']
+    [{seq: 24, link: 21}, {branch: 'HEAD'}, '']
     /* eslint-enable */
   ]);
   // XXX TODO: find way to check sync

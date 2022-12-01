@@ -99,8 +99,8 @@ const put_diff = (config, scroll, prev, state_next)=>etask(
     if (next.type=='dir' && curr?.type=='dir')
       continue;
     if (next && curr && next.type!=curr.type){
-      let data = curr.type=='dir' ? {dir: path+'/', del: true} :
-        {file: path, del: true};
+      let data = curr.type=='dir' ? {dir: path+'/', rm: true} :
+        {file: path, rm: true};
       let decl = yield scroll.decl({prev}, data);
       prev = decl.seq;
       curr = null;
@@ -170,8 +170,8 @@ const put_diff = (config, scroll, prev, state_next)=>etask(
     }
   }
   for (const [path, curr] of state_del.path){
-    let data = curr.type=='dir' ? {dir: path+'/', del: true} :
-      {file: path, del: true};
+    let data = curr.type=='dir' ? {dir: path+'/', rm: true} :
+      {file: path, rm: true};
     let decl = yield scroll.decl({prev}, data);
     prev = decl.seq;
   }
@@ -225,7 +225,7 @@ function build_prev_sync_index(scroll){
     head: null};
   for (const [seq, decl] of scroll.dmap){
     let data = decl.fbuf_get(0).get_json(2), oid = data.git?.oid;
-    if (data.del){
+    if (data.rm){
       if (data.branch)
         prev_sync.branch.delete(data.branch, {seq});
       if (data.tag)
@@ -282,11 +282,12 @@ const git_get_head = config=>etask(function*git_get_head(){
 
 // XXX TODO
 // synatx fixup:
-// head -> branch: 'HEAD'
-// link: 12 -> link: {_: 12}}
-// file(dir) exact content links are for origin
-// new file/dir: {add: true} // default (but optional)
-// rename del -> rm
+// + head -> branch: 'HEAD'
+// - link: 12 -> link: {_: 12}}
+// - file(dir) exact content links are without sub-link (point to first seq)
+// - new file/dir/branch/tag: {add: true} // default (but optional)
+// + rename del -> rm
+// - fix read from db - need proper api to parse links etc
 // content
 // {seq: 8, link: 6} {file: '/branch1_file1', ...}
 // {seq: 8, link: 6} {file: '/branch1_file1', content: {d: '_'}, ...}

@@ -259,7 +259,7 @@ function build_prev_sync_index(scroll){
     if (data.dir)
       path2seq.set(dir2path(data.dir), seq);
     if (data.commit){
-      assert(!data.commit, 'multiple commits with same commit seq'+seq);
+      assert(!oid2seq.get(data.commit), 'multiple same commits seq'+seq);
       oid2seq.set(data.commit, seq);
       prev_sync.commit.set(data.commit, {seq});
     }
@@ -404,7 +404,7 @@ E.import_git = (config, scroll)=>etask(function*_start(){
   for (let i=0; i<branches.length; i++){
     let branch = branches[i];
     let oid = yield git_api.resolveRef({...config, ref: branch});
-    let seq = oid2seq.get(oid), link = {l: seq}, dst = 'l';
+    let seq = oid2seq.get(oid), link = seq;
     branch_curr[branch] = {seq, oid};
     assert(seq, 'branch not found '+branch);
     let prev = prev_sync.branch.get(branch)?.seq, add = !prev;
@@ -416,7 +416,7 @@ E.import_git = (config, scroll)=>etask(function*_start(){
         continue;
       }
     }
-    let data = {branch, dst};
+    let data = {branch};
     if (add)
       data.add = true;
     data.git = {oid};
@@ -427,7 +427,7 @@ E.import_git = (config, scroll)=>etask(function*_start(){
   for (let i=0; i<tags.length; i++){
     let tag = tags[i];
     let oid = yield git_api.resolveRef({...config, ref: tag});
-    let seq = oid2seq.get(oid), link = {l: seq}, dst = 'l';
+    let seq = oid2seq.get(oid), link = seq;
     tag_curr[tag] = {seq, oid};
     assert(seq, 'tag not found '+tag);
     let prev = prev_sync.tag.get(tag)?.seq, add = !prev;
@@ -436,7 +436,7 @@ E.import_git = (config, scroll)=>etask(function*_start(){
       if (prev_d.fbuf_get(0).get_json(2).git.oid==oid)
         continue;
     }
-    let data = {tag, dst};
+    let data = {tag};
     if (add)
       data.add = true;
     data.git = {oid};

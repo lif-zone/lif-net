@@ -305,8 +305,9 @@ const git_get_head = config=>etask(function*git_get_head(){
 // * fix javascript.vim (delete and friends highlight0
 //   - send derry patch
 // + verify we {add: true} for root directory
-// - change to op: 'add'|'rm'|'mod'|'mv'|'commit'
-// * header: {key_val: ['dir', 'file', 'branch', 'tag'], op_default: 'mod'}
+// + header: {key_val: ['dir', 'file', 'branch', 'tag'], op_default: 'mod'}
+// * change to op: 'add'|'rm'|'mod'|'mv'|'commit'
+// - {branch: 'b'} on the {seq, prev} frame
 //   o handle dir <-> file (change type)
 //     o BUG: isomorphic-git doesn't support it during pull
 //   o detect move with changes

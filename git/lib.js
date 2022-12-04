@@ -404,7 +404,7 @@ E.import_git = (config, scroll)=>etask(function*_start(){
     let seq = oid2seq.get(oid), link = {l: seq}, dst = 'l';
     branch_curr[branch] = {seq, oid};
     assert(seq, 'branch not found '+branch);
-    let prev = prev_sync.branch.get(branch)?.seq;
+    let prev = prev_sync.branch.get(branch)?.seq, add = !prev;
     if (prev){
       let prev_d = yield scroll.get_decl(prev);
       if (prev_d.fbuf_get(0).get_json(2).git.oid==oid){
@@ -413,7 +413,11 @@ E.import_git = (config, scroll)=>etask(function*_start(){
         continue;
       }
     }
-    let decl = yield scroll.decl({prev, link}, {branch, dst, git: {oid}});
+    let data = {branch, dst};
+    if (add)
+      data.add = true;
+    data.git = {oid};
+    let decl = yield scroll.decl({prev, link}, data);
     if (head==branch)
       head_seq = decl.seq;
   }
@@ -423,37 +427,45 @@ E.import_git = (config, scroll)=>etask(function*_start(){
     let seq = oid2seq.get(oid), link = {l: seq}, dst = 'l';
     tag_curr[tag] = {seq, oid};
     assert(seq, 'tag not found '+tag);
-    let prev = prev_sync.tag.get(tag)?.seq;
+    let prev = prev_sync.tag.get(tag)?.seq, add = !prev;
     if (prev){
       let prev_d = yield scroll.get_decl(prev);
       if (prev_d.fbuf_get(0).get_json(2).git.oid==oid)
         continue;
     }
-    yield scroll.decl({prev, link}, {tag, dst, git: {oid}});
+    let data = {tag, dst};
+    if (add)
+      data.add = true;
+    data.git = {oid};
+    yield scroll.decl({prev, link}, data);
   }
   if (head_seq){
     let link = head_seq, same;
-    let prev = prev_sync.branch.get('HEAD')?.seq;
+    let prev = prev_sync.branch.get('HEAD')?.seq, add = !prev;
     if (prev){
       let prev_d = yield scroll.get_decl(prev);
       // XXX: ugly code, need proper api
       same = prev_d.fbuf_get(0).get_json(1).link==link;
     }
-    if (!same)
-      yield scroll.decl({prev, link}, {branch: 'HEAD'});
+    if (!same){
+      let data = {branch: 'HEAD'};
+      if (add)
+        data.add = true;
+      yield scroll.decl({prev, link}, data);
+    }
     branch_curr.HEAD = {seq: head_seq};
   }
   for (const [branch, o] of prev_sync.branch){
     if (branch_curr[branch])
       continue;
     let prev = o.seq;
-    yield scroll.decl({prev}, {branch, del: true});
+    yield scroll.decl({prev}, {branch, rm: true});
   }
   for (const [tag, o] of prev_sync.tag){
     if (tag_curr[tag])
       continue;
     let prev = o.seq;
-    yield scroll.decl({prev}, {tag, del: true});
+    yield scroll.decl({prev}, {tag, rm: true});
   }
 });
 

@@ -81,8 +81,8 @@ describe('lib', function(){
     [{seq: 18}, {file: '/b', /* add: true */ git: {oid: '6d700c06af2977bb61a59cdefb4957ec3ef4f6ff', mode: '100644'}}, 64],
     [{seq: 19}, {file: '/b/a', rm: true}, ''],
     [{seq: 20, group: 3}, {commit: 'aa18f16781702a407f879aca38902577418f7cb3', desc: 'change b from dir to file\n', author: 'lif-rnd', ts: 1662511341, git: {parent: ['c0232fb014456ae8ee9b8060121a67016eda6512'], tree: 'c4fa6729ae5f884522d97fc6145f0bb588453a41', author: {email: 'lif.zone.main@gmail.com', timestamp: 1669711341, timezoneOffset: -120}, committer: {name: 'lif-rnd', email: 'lif.zone.main@gmail.com', timestamp: 1669711341, timezoneOffset: -120}}}, ''],
-    [{seq: 21, link: {l: 20}}, {branch: 'main', dst: 'l', git: {oid: 'aa18f16781702a407f879aca38902577418f7cb3'}}, ''],
-    [{seq: 22, link: 21}, {branch: 'HEAD'}, '']
+    [{seq: 21, link: {l: 20}}, {branch: 'main', dst: 'l', add: true, git: {oid: 'aa18f16781702a407f879aca38902577418f7cb3'}}, ''],
+    [{seq: 22, link: 21}, {branch: 'HEAD', add: true}, '']
     /* eslint-enable */
   ]);
   t('lif-zone/test_merge_simple', [
@@ -109,10 +109,10 @@ describe('lib', function(){
     [{seq: 19, link: {l: 17}}, {file: '/main_file3', content: {diff: 'l'}, git: {oid: 'c11256c184e585acd4bc63f86adc1b4cb512affa', mode: '100644'}}, 142],
     [{seq: 20, group: 1}, {commit: 'e37d0cbddd4c351996dae2a01f04986dbab5b071', desc: 'Update main_file3\n', author: 'lif-rnd', ts: 1662441111, git: {parent: ['3c32b322655215d3723de7362a6880bb7ff20e4d'], tree: '1502fba729c0cff38abe633bc4d8482b9f927c72', author: {email: '79463501+lif-rnd@users.noreply.github.com', timestamp: 1669641111, timezoneOffset: -120}, committer: {name: 'GitHub', email: 'noreply@github.com', timestamp: 1669641111, timezoneOffset: -120}, gpgsig: '-----BEGIN PGP SIGNATURE-----\n\nwsBcBAABCAAQBQJjhLOXCRBK7hj4Ov3rIwAA1ngIAHkTU5r8EjgVFrgFGVFlKaPe\nbvhX93CKosjCE/e+yHWF8KsGxFP8+e+pxwZqEk1S6UrCx5LYFqx0+04B+bcrcE37\nrgzt5lNU4l0hREhUUtQVdKPCJRSnSE6xdQYIGe2nePDPHMWXLF3SrD841HvsctTO\nvUEuEkjJ8jk0R3hJGec7t1E3op3owdUWLgI/BYZcdQCEP/oNg57whpoZfC8ITNxj\nUyXYlqetCrI4aUxxytv4yejXDULwiyt+zwBBioWy8YhqQlpYEgwh39g1XKAmQiQx\nXvIHQCdPCbYkEQC1mmA7xHUp7S8yZuxVV0oSEJNYBE4flKD2ID6rPMwOFmt7PmE=\n=MIIl\n-----END PGP SIGNATURE-----\n'}}, ''],
     // XXX derry: instead of link use prev
-    [{seq: 21, link: {l: 20}}, {branch: 'main', dst: 'l', git: {oid: 'e37d0cbddd4c351996dae2a01f04986dbab5b071'}}, ''],
-    [{seq: 22, link: {l: 13}}, {branch: 'branch1', dst: 'l', git: {oid: 'd4181b6ca66e54bb077feb44f6554d0c6236ba2b'}}, ''],
-    [{seq: 23, link: {l: 13}}, {tag: 'test_tag1', dst: 'l', git: {oid: 'd4181b6ca66e54bb077feb44f6554d0c6236ba2b'}}, ''],
-    [{seq: 24, link: 21}, {branch: 'HEAD'}, '']
+    [{seq: 21, link: {l: 20}}, {branch: 'main', dst: 'l', add: true, git: {oid: 'e37d0cbddd4c351996dae2a01f04986dbab5b071'}}, ''],
+    [{seq: 22, link: {l: 13}}, {branch: 'branch1', dst: 'l', add: true, git: {oid: 'd4181b6ca66e54bb077feb44f6554d0c6236ba2b'}}, ''],
+    [{seq: 23, link: {l: 13}}, {tag: 'test_tag1', dst: 'l', add: true, git: {oid: 'd4181b6ca66e54bb077feb44f6554d0c6236ba2b'}}, ''],
+    [{seq: 24, link: 21}, {branch: 'HEAD', add: true}, '']
     /* eslint-enable */
   ]);
   // XXX TODO: find way to check sync

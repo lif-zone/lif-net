@@ -136,7 +136,7 @@ const put_diff = (config, scroll, prev, state_next)=>etask(
     } else {
       if (!curr && prev_oid && prev_oid.path!=path &&
         !state_next.get(prev_oid.path)){
-        move = {file: prev_oid.path};
+        move = prev_oid.path;
         state_del.delete(prev_oid);
       } else if (seq_blob = oid2seq.get(next.oid))
         link = seq_blob;
@@ -165,11 +165,10 @@ const put_diff = (config, scroll, prev, state_next)=>etask(
         content = 1;
         blob = (yield git_api.readBlob({...config, oid: next.oid})).blob;
       }
-      let data = [{file: path}];
+      let op = move ? 'mv' : add ? 'add' : 'mod';
+      let data = [{op, file: path}];
       if (move)
-        data[0].move = move;
-      else if (add)
-        data[0].add = true;
+        data[0].file_src = move;
       if (content)
         data[0].content = content;
       if (diff)

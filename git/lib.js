@@ -309,35 +309,17 @@ const git_get_head = config=>etask(function*git_get_head(){
 // initial sync:
 // * fix javascript.vim (delete and friends highlight0
 //   - send derry patch
-// + move prev to decl header part {seq, prev, link}
-// + links {seq: 57, link: {"l": 37}}, data-frame (and also for prev/merge
-//   seq57 {"file":"/package-lock.json","content":{"diff":{_l: "l"}
-// + handle merges
-// + diff files (text/binary)
-//   + fix diff with merges
-//   + binary - no diff
-//   + text - diff, if diff_sz<0.5*blob_sz
-//   + test binary files
-// + detect file/dir move
-//   + a.js -> b.js
-//     {"file_src":"/a.js", file_dst: '/b.js', content: 'hello'|{diff},
-//     mv: '/a.js' seq3}
-//    {"file":"/a.js", del: true, mv: '/b.js'}
-//   + /a - > /b
+// verify we {add: true} for root directory
+// change to op: 'add'|'rm'|'mod'|'mv'|'commit'
+// header: {key_val: ['dir', 'file', 'branch', 'tag'], op_default: 'mod'}
 //   o handle dir <-> file (change type)
 //     o BUG: isomorphic-git doesn't support it during pull
 //   o detect move with changes
-// + pgp for commits (gpgsig)
-// + support branch
-// o support tags
-//   + simple tag
-//   o anotatedTag/git releases
-// o support notes
-// + default branch/HEAD
-// + save persistent data to indexdeddb
 // * incermental sync - support update of existing scroll (need to use prev)
 //   * pull and update of scroll with new commits
-// - export to git
+// - BUG - after branch delete, git pull will have an error
+//   (coulnd' resolve...)
+// - git api to scroll (export to git)
 // - cleanup code
 //   - add more tests (and move all repositories to lif-rnd from lif-zone)
 //   - test diretory delete

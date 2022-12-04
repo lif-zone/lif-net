@@ -91,7 +91,7 @@ const put_diff = (config, scroll, prev, state_next)=>etask(
       state_del.delete(prev_oid);
       continue;
     }
-    let decl, blob, seq_blob, link, content, seq_path, move;
+    let decl, blob, seq_blob, link, content, diff, seq_path, move;
     state_del.delete_path(path);
     if (xutil.equal_deep(curr, next))
       continue;
@@ -140,12 +140,11 @@ const put_diff = (config, scroll, prev, state_next)=>etask(
         else {
           let s_old = Buffer.from(buf_old).toString();
           let s_new = Buffer.from(buf_new).toString();
-          let diff = Diff.createPatch(path, s_old, s_new, '', '',
+          let s_diff = Diff.createPatch(path, s_old, s_new, '', '',
             {context: 0});
-          blob = Buffer.from(diff);
+          blob = Buffer.from(s_diff);
           if (blob.length < 0.5*s_new.length){
-            link = {l: seq_path};
-            content = {diff: 'l'};
+            [link, diff] = [seq_path, 1];
           } else
             [content, blob] = [1, buf_new];
         }
@@ -161,6 +160,8 @@ const put_diff = (config, scroll, prev, state_next)=>etask(
         data[0].add = true;
       if (content)
         data[0].content = content;
+      if (diff)
+        data[0].diff = diff;
       data[0].git = git;
       if (blob)
         data.push(blob);

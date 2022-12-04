@@ -75,10 +75,8 @@ const start = ()=>etask(function*_start(){
     useSQLiteIndexes: true}});
   yield db.init();
   let scroll = yield open_scroll(url);
-  if (!scroll){
-    scroll = yield Scroll.create({key: keypair.key, pub: keypair.pub},
-      {topic: 'git', src: url});
-  }
+  if (!scroll)
+    scroll = yield lib.new_scroll(keypair, url);
   yield lib.import_git(config, scroll);
   lib.dump_scroll(scroll);
   console.log('saving to db');

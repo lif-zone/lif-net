@@ -3,6 +3,7 @@ import xerr from '../util/xerr.js';
 import etask from '../util/etask.js';
 import array from '../util/array.js';
 import xutil from '../util/util.js';
+import Scroll from '../storage/scroll.js';
 import git_api from 'isomorphic-git';
 import http from 'isomorphic-git/http/node/index.cjs';
 import fs from 'fs';
@@ -300,20 +301,12 @@ const git_get_head = config=>etask(function*git_get_head(){
 });
 
 // XXX TODO
-// synatx fixup:
-// + head -> branch: 'HEAD'
-// + file(dir) exact content links are without sub-link (point to first seq)
-// + new file/dir/branch/tag: {add: true} // default (but optional)
-// + rename del -> rm
-// + link: 12 -> link: {_: 12}}
-// - fix read from db - need proper api to parse links, content, diff
-//
 // initial sync:
 // * fix javascript.vim (delete and friends highlight0
 //   - send derry patch
-// verify we {add: true} for root directory
-// change to op: 'add'|'rm'|'mod'|'mv'|'commit'
-// header: {key_val: ['dir', 'file', 'branch', 'tag'], op_default: 'mod'}
+// + verify we {add: true} for root directory
+// - change to op: 'add'|'rm'|'mod'|'mv'|'commit'
+// * header: {key_val: ['dir', 'file', 'branch', 'tag'], op_default: 'mod'}
 //   o handle dir <-> file (change type)
 //     o BUG: isomorphic-git doesn't support it during pull
 //   o detect move with changes
@@ -455,5 +448,10 @@ E.import_git = (config, scroll)=>etask(function*_start(){
     yield scroll.decl({prev}, {tag, rm: true});
   }
 });
+
+E.new_scroll = function(keypair, src){
+  return Scroll.create({...keypair}, {topic: 'git', src,
+    key_val: ['dir', 'file', 'branch', 'tag'], op_default: 'mod'});
+};
 
 export default E;

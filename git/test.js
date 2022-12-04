@@ -4,7 +4,6 @@ import xutil from '../util/util.js';
 import xerr from '../util/xerr.js';
 import xtest from '../util/test_lib.js'; // eslint-disable-line no-unused-vars
 import etask from '../util/etask.js';
-import Scroll from '../storage/scroll.js';
 import Soul from '../storage/soul.js'; // eslint-disable-line no-unused-vars
 import lib from './lib.js';
 import buf_util from '../peer-relay/buf_util.js';
@@ -43,8 +42,7 @@ describe('lib', function(){
   const t = (repository, exp)=>it(repository, ()=>etask(function*test_move(){
     let dir = '/tmp/lif_'+repository.replace('/', '-'); // XXX: escape
     let url = 'https://github.com/'+repository;
-    let scroll = yield Scroll.create({key: keypair.key, pub: keypair.pub},
-      {topic: 'git', src: url});
+    let scroll = yield lib.new_scroll(keypair, url);
     let config = {dir, url, author: {name: 'XXX', email: 'xxx@xxx.com'}};
     yield lib.import_git(config, scroll);
     let a = lib.scroll_to_lines(scroll);
@@ -59,7 +57,7 @@ describe('lib', function(){
   // same hash etc
   t('lif-zone/test_move', [
     /* eslint-disable max-len */ // disable vim red error: call Mark_error(0)
-    [{seq: 0}, {scroll: {crypt: [{sig: 'ed25519', hash: 'blake2b', lif: 'lif1'}], pub: '44659cb51dec397ea66085679442505345e159940762c15ef75ad279ecf05033', topic: 'git', src: 'https://github.com/lif-zone/test_move'}}, ''],
+    [{seq: 0}, {scroll: {crypt: [{sig: 'ed25519', hash: 'blake2b', lif: 'lif1'}], pub: '44659cb51dec397ea66085679442505345e159940762c15ef75ad279ecf05033', topic: 'git', src: 'https://github.com/lif-zone/test_move', key_val: ['dir', 'file', 'branch', 'tag'], op_default: 'mod'}}, ''],
     [{seq: 1}, {dir: '/', add: true, git: {oid: '56fb07d314f8b32b4f125895c9c2711f8dc66f1d', mode: 0}}, ''],
     [{seq: 2}, {file: '/a', add: true, content: 1, git: {oid: '7780c82f7ec168abd6f2cd9f756058fcedad80f2', mode: '100644'}}, 16825],
     [{seq: 3, group: 2}, {commit: '4160553ff40409ebd42a5cf29c02b3e0d2cade54', desc: 'Create a\n', author: 'lif-rnd', ts: 1662503747, git: {parent: [], tree: '56fb07d314f8b32b4f125895c9c2711f8dc66f1d', author: {email: '79463501+lif-rnd@users.noreply.github.com', timestamp: 1669703747, timezoneOffset: -120}, committer: {name: 'GitHub', email: 'noreply@github.com', timestamp: 1669703747, timezoneOffset: -120}, gpgsig: '-----BEGIN PGP SIGNATURE-----\n\nwsBcBAABCAAQBQJjhahDCRBK7hj4Ov3rIwAAnpwIAERdey8XBjlOhm5T8hnPhDUS\nlfuK6mT/zO2Jw9YL1kfF6iK9cefdvFrcjq6Ecbq4TgkQSAaPYeBAEKJYhWa3yIMr\nVBjQy0o6YnK8Sf2jqNr/vyCCLsRaN3ANuuV8G09AUjh6Cn1I635vNBMjg41T/jqX\nFCVDrs+I+xUMItL9XIRG9IBrkKBzZv25kbhqg6smfmfBydR6nO7hNMF3qvG16Eye\nhtz7p4/jH92e8a+GwEP6CD6PrS4bF2yv0KaCgJr/sQqN36mF9RcVanTHvSn7PBaV\naFCYmUr36mXeGEd5VJflXD1o54ikte1/S5QwGmN1j+8lxwNSzoxfjQLEJYmn0V0=\n=B9M5\n-----END PGP SIGNATURE-----\n'}}, ''],
@@ -86,7 +84,7 @@ describe('lib', function(){
   ]);
   t('lif-zone/test_merge_simple', [
     /* eslint-disable max-len */ // disable vim red error: call Mark_error(0)
-    [{seq: 0}, {scroll: {crypt: [{sig: 'ed25519', hash: 'blake2b', lif: 'lif1'}], pub: '44659cb51dec397ea66085679442505345e159940762c15ef75ad279ecf05033', topic: 'git', src: 'https://github.com/lif-zone/test_merge_simple'}}, ''],
+    [{seq: 0}, {scroll: {crypt: [{sig: 'ed25519', hash: 'blake2b', lif: 'lif1'}], pub: '44659cb51dec397ea66085679442505345e159940762c15ef75ad279ecf05033', topic: 'git', src: 'https://github.com/lif-zone/test_merge_simple', key_val: ['dir', 'file', 'branch', 'tag'], op_default: 'mod'}}, ''],
     [{seq: 1}, {dir: '/', add: true, git: {oid: '32cc970d8d2957a4f613b17070297f3c5ef6397a', mode: 0}}, ''],
     [{seq: 2}, {file: '/main_file1', add: true, content: 1, git: {oid: '8b137891791fe96927ad78e64b0aad7bded08bdc', mode: '100644'}}, 8],
     [{seq: 3, group: 2}, {commit: '90d08c6fe5d7a766218f3db8355402d1e88030a9', desc: 'Create main_file1\n', author: 'lif-rnd', ts: 1662436166, git: {parent: [], tree: '32cc970d8d2957a4f613b17070297f3c5ef6397a', author: {email: '79463501+lif-rnd@users.noreply.github.com', timestamp: 1669636166, timezoneOffset: -120}, committer: {name: 'GitHub', email: 'noreply@github.com', timestamp: 1669636166, timezoneOffset: -120}, gpgsig: '-----BEGIN PGP SIGNATURE-----\n\nwsBcBAABCAAQBQJjhKBGCRBK7hj4Ov3rIwAA43YIAEjDCcABxKUBwXqYNE88ZqQp\nGvUpw8rNg1mXvJtEj17t7SN56pRURUrDJBsAzt9BFylO+D4lRHUmcxEsSB/BL05I\nGmT51/URh+Zf7e0+ttcqj4aGxMWxxs+zD6jHHJQyFZopt9CXduAvKe35pi8qv6PP\npIT+kmq5amY8xRGlRxXEW0ND/H/UcxcpYT8956Bh4uVRW7Pgn2+/I4Z85IJQCi5u\nl8b7H+y0dGI6LmMbQ990UZZR3j8oCFUodfIysoQs2jIsXdhy0tPHXyU25B0KMXld\nhfcnkHqn0iGblqpl+hoq6o1dCFJwPwUN2sqSHxTa2O1AoTxRcrD4392KS5xZ+1Y=\n=+NNt\n-----END PGP SIGNATURE-----\n'}}, ''],

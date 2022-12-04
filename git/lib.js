@@ -261,10 +261,10 @@ function build_prev_sync_index(scroll){
       path2seq.set(data.file, seq);
     if (data.dir)
       path2seq.set(dir2path(data.dir), seq);
-    if (data.commit){
-      assert(!oid2seq.get(data.commit), 'multiple same commits seq'+seq);
-      oid2seq.set(data.commit, seq);
-      prev_sync.commit.set(data.commit, {seq});
+    if (data.op=='commit'){
+      assert(!oid2seq.get(data.git.oid), 'multiple same commits seq'+seq);
+      oid2seq.set(data.git.oid, seq);
+      prev_sync.commit.set(data.git.oid, {seq});
     }
     if (data.branch)
       prev_sync.branch.set(data.branch, {seq});
@@ -369,8 +369,8 @@ E.import_git = (config, scroll)=>etask(function*_start(){
       info.ts = date_utc(commit.author.timestamp,
         commit.author.timezoneOffset);
       let group = scroll.top.seq-seq_start;
-      let data = {commit: oid, ...info};
-      data.git = merge ? {merge, ...commit} : {...commit};
+      let data = {op: 'commit', ...info};
+      data.git = merge ? {oid, merge, ...commit} : {oid, ...commit};
       let decl = yield scroll.decl({prev, group}, data);
       oid2seq.set(oid, decl.seq);
       seq2state.set(decl.seq, new FS_state(state_next));

@@ -100,8 +100,8 @@ const put_diff = (config, scroll, prev, state_next)=>etask(
     if (next.type=='dir' && curr?.type=='dir')
       continue;
     if (next && curr && next.type!=curr.type){
-      let data = curr.type=='dir' ? {dir: path+'/', rm: true} :
-        {file: path, rm: true};
+      let data = curr.type=='dir' ? {op: 'rm', dir: path+'/'} :
+        {op: 'rm', file: path};
       let decl = yield scroll.decl({prev}, data);
       prev = decl.seq;
       curr = null;
@@ -186,8 +186,8 @@ const put_diff = (config, scroll, prev, state_next)=>etask(
     }
   }
   for (const [path, curr] of state_del.path){
-    let data = curr.type=='dir' ? {dir: path+'/', rm: true} :
-      {file: path, rm: true};
+    let data = curr.type=='dir' ? {op: 'rm', dir: path+'/'} :
+      {op: 'rm', file: path};
     let decl = yield scroll.decl({prev}, data);
     prev = decl.seq;
   }
@@ -241,7 +241,7 @@ function build_prev_sync_index(scroll){
     head: null};
   for (const [seq, decl] of scroll.dmap){
     let data = decl.fbuf_get(0).get_json(2), oid = data.git?.oid;
-    if (data.rm){
+    if (data.op=='rm'){
       if (data.branch)
         prev_sync.branch.delete(data.branch, {seq});
       if (data.tag)

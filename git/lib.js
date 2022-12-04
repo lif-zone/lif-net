@@ -303,19 +303,8 @@ const git_get_head = config=>etask(function*git_get_head(){
 // + file(dir) exact content links are without sub-link (point to first seq)
 // + new file/dir/branch/tag: {add: true} // default (but optional)
 // + rename del -> rm
-// - link: 12 -> link: {_: 12}}
-// - fix read from db - need proper api to parse links etc
-// content
-// {seq: 8, link: 6} {file: '/branch1_file1', ...}
-// {seq: 8, link: 6} {file: '/branch1_file1', content: {d: '_'}, ...}
-// {seq: 8, link: 6} {file: '/branch1_file1', content: {d: 1}, ...}
-// {seq: 8} {file: '/branch1_file1', content: 1, ...}, blob
-// {seq: 8} {file: '/branch1_file1', content: 'abc', ...}
-// diff
-// {seq: 8, link: 6} {file: '/branch1_file1', diff: 1, ...}, blob
-// {seq: 8, link: 6} {file: '/branch1_file1', diff: 'abc', ...}
-// {seq: 8, link: 6} {file: '/branch1_file1', diff: {d: 1}, ...}, blob
-// {seq: 8, link: 6} {file: '/branch1_file1', diff: {d: '_'}}
+// + link: 12 -> link: {_: 12}}
+// - fix read from db - need proper api to parse links, content, diff
 //
 // initial sync:
 // * fix javascript.vim (delete and friends highlight0

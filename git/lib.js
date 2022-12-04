@@ -125,10 +125,9 @@ const put_diff = (config, scroll, prev, state_next)=>etask(
         !state_next.get(prev_oid.path)){
         move = {file: prev_oid.path};
         state_del.delete(prev_oid);
-      } else if (seq_blob = oid2seq.get(next.oid)){
-        link = {l: seq_blob};
-        content = 'l';
-      } else if (seq_path = curr&&oid2seq.get(curr.oid)||path2seq.get(path)){
+      } else if (seq_blob = oid2seq.get(next.oid))
+        link = seq_blob;
+      else if (seq_path = curr&&oid2seq.get(curr.oid)||path2seq.get(path)){
         let decl_old = yield scroll.get_decl(seq_path);
         let d_old = decl_old.fbuf_get(0).get_json(2);
         let oid_old = d_old.git.oid;
@@ -148,10 +147,11 @@ const put_diff = (config, scroll, prev, state_next)=>etask(
             link = {l: seq_path};
             content = {diff: 'l'};
           } else
-            blob = buf_new;
+            [content, blob] = [1, buf_new];
         }
       } else {
         add = true;
+        content = 1;
         blob = (yield git_api.readBlob({...config, oid: next.oid})).blob;
       }
       let data = [{file: path}];
@@ -240,7 +240,7 @@ function build_prev_sync_index(scroll){
     }
     if (data.file || data.dir){
       assert(oid, 'missing oid for seq '+seq);
-      if (!oid2seq.get(next.oid))
+      if (!oid2seq.get(oid))
         oid2seq.set(oid, seq);
     }
     if (data.file)
@@ -289,10 +289,10 @@ const git_get_head = config=>etask(function*git_get_head(){
 // XXX TODO
 // synatx fixup:
 // + head -> branch: 'HEAD'
-// - link: 12 -> link: {_: 12}}
-// - file(dir) exact content links are without sub-link (point to first seq)
+// + file(dir) exact content links are without sub-link (point to first seq)
 // + new file/dir/branch/tag: {add: true} // default (but optional)
 // + rename del -> rm
+// - link: 12 -> link: {_: 12}}
 // - fix read from db - need proper api to parse links etc
 // content
 // {seq: 8, link: 6} {file: '/branch1_file1', ...}

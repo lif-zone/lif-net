@@ -129,7 +129,7 @@ const put_diff = (config, scroll, prev, state_next)=>etask(
       let op = move ? 'mv' : add ? 'add' : 'mod';
       let data = {op, dir: path+'/'};
       if (move)
-        data.dir_src = move;
+        data.src = move;
       data.git = git;
       decl = yield scroll.decl({prev}, data);
       prev = decl.seq;
@@ -168,7 +168,7 @@ const put_diff = (config, scroll, prev, state_next)=>etask(
       let op = move ? 'mv' : add ? 'add' : 'mod';
       let data = [{op, file: path}];
       if (move)
-        data[0].file_src = move;
+        data[0].src = move;
       if (content)
         data[0].content = content;
       if (diff)
@@ -305,6 +305,7 @@ const git_get_head = config=>etask(function*git_get_head(){
 // + verify we {add: true} for root directory
 // + header: {key_val: ['dir', 'file', 'branch', 'tag'], op_default: 'mod'}
 // * change to op: 'add'|'rm'|'mod'|'mv'|'commit'
+// - move commit to be before files
 // - {branch: 'b'} on the {seq, prev} frame
 //   o handle dir <-> file (change type)
 //     o BUG: isomorphic-git doesn't support it during pull

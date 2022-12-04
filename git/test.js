@@ -61,14 +61,14 @@ describe('lib', function(){
     [{seq: 1}, {op: 'add', dir: '/', git: {oid: '56fb07d314f8b32b4f125895c9c2711f8dc66f1d', mode: 0}}, ''],
     [{seq: 2}, {op: 'add', file: '/a', content: 1, git: {oid: '7780c82f7ec168abd6f2cd9f756058fcedad80f2', mode: '100644'}}, 16825],
     [{seq: 3, group: 2}, {op: 'commit', desc: 'Create a\n', author: 'lif-rnd', ts: 1662503747, git: {oid: '4160553ff40409ebd42a5cf29c02b3e0d2cade54', parent: [], tree: '56fb07d314f8b32b4f125895c9c2711f8dc66f1d', author: {email: '79463501+lif-rnd@users.noreply.github.com', timestamp: 1669703747, timezoneOffset: -120}, committer: {name: 'GitHub', email: 'noreply@github.com', timestamp: 1669703747, timezoneOffset: -120}, gpgsig: '-----BEGIN PGP SIGNATURE-----\n\nwsBcBAABCAAQBQJjhahDCRBK7hj4Ov3rIwAAnpwIAERdey8XBjlOhm5T8hnPhDUS\nlfuK6mT/zO2Jw9YL1kfF6iK9cefdvFrcjq6Ecbq4TgkQSAaPYeBAEKJYhWa3yIMr\nVBjQy0o6YnK8Sf2jqNr/vyCCLsRaN3ANuuV8G09AUjh6Cn1I635vNBMjg41T/jqX\nFCVDrs+I+xUMItL9XIRG9IBrkKBzZv25kbhqg6smfmfBydR6nO7hNMF3qvG16Eye\nhtz7p4/jH92e8a+GwEP6CD6PrS4bF2yv0KaCgJr/sQqN36mF9RcVanTHvSn7PBaV\naFCYmUr36mXeGEd5VJflXD1o54ikte1/S5QwGmN1j+8lxwNSzoxfjQLEJYmn0V0=\n=B9M5\n-----END PGP SIGNATURE-----\n'}}, ''],
-    [{seq: 4}, {op: 'mv', file: '/b', file_src: '/a', git: {oid: '7780c82f7ec168abd6f2cd9f756058fcedad80f2', mode: '100644'}}, ''],
+    [{seq: 4}, {op: 'mv', file: '/b', src: '/a', git: {oid: '7780c82f7ec168abd6f2cd9f756058fcedad80f2', mode: '100644'}}, ''],
     [{seq: 5, group: 1}, {op: 'commit', desc: 'move a to b\n', author: 'lif-rnd', ts: 1662504157, git: {oid: 'd13f423f4853887bd7503f078b2887da6b64e43b', parent: ['4160553ff40409ebd42a5cf29c02b3e0d2cade54'], tree: 'ae9feeea8f8441f0aead5573258d0c53a945a488', author: {email: 'lif.zone.main@gmail.com', timestamp: 1669704157, timezoneOffset: -120}, committer: {name: 'lif-rnd', email: 'lif.zone.main@gmail.com', timestamp: 1669704157, timezoneOffset: -120}}}, ''],
     [{seq: 6}, {op: 'add', dir: '/dir1/', git: {oid: 'ae9feeea8f8441f0aead5573258d0c53a945a488', mode: '040000'}}, ''],
     [{seq: 7, link: 2}, {op: 'add', file: '/dir1/b', git: {oid: '7780c82f7ec168abd6f2cd9f756058fcedad80f2', mode: '100644'}}, ''],
     [{seq: 8, group: 2}, {op: 'commit', desc: 'move /b -> /dir1/b\n', author: 'lif-rnd', ts: 1662508931, git: {oid: '05dfa3ebd084699425fe3ac202ec7cae7bbee89b', parent: ['d13f423f4853887bd7503f078b2887da6b64e43b'], tree: 'ebe5469761eaaf19bddac27a3fe49cec61897e31', author: {email: 'lif.zone.main@gmail.com', timestamp: 1669708931, timezoneOffset: -120}, committer: {name: 'lif-rnd', email: 'lif.zone.main@gmail.com', timestamp: 1669708931, timezoneOffset: -120}}}, ''],
     [{seq: 9}, {op: 'add', file: '/dir1/c', content: 1, git: {oid: 'bc9e3e7b4c0e05a8efb4942498c1afc86d431672', mode: '100644'}}, 16815],
     [{seq: 10, group: 1}, {op: 'commit', desc: 'add c\n', author: 'lif-rnd', ts: 1662508975, git: {oid: '3538536829ce7864fa53cdd85b78af1e8c5c8522', parent: ['05dfa3ebd084699425fe3ac202ec7cae7bbee89b'], tree: 'cc979e3f890c963534e4b02dd99cf6178d282959', author: {email: 'lif.zone.main@gmail.com', timestamp: 1669708975, timezoneOffset: -120}, committer: {name: 'lif-rnd', email: 'lif.zone.main@gmail.com', timestamp: 1669708975, timezoneOffset: -120}}}, ''],
-    [{seq: 11}, {op: 'mv', dir: '/dir2/', dir_src: '/dir1/', git: {oid: '9129578255419d388a0419d7141018caabf23743', mode: '040000'}}, ''],
+    [{seq: 11}, {op: 'mv', dir: '/dir2/', src: '/dir1/', git: {oid: '9129578255419d388a0419d7141018caabf23743', mode: '040000'}}, ''],
     [{seq: 12, group: 1}, {op: 'commit', desc: '/dir1 -> /dir2\n', author: 'lif-rnd', ts: 1662509524, git: {oid: 'a7dc61ad160e9e5d004f02b86e79bc289ad24af8', parent: ['3538536829ce7864fa53cdd85b78af1e8c5c8522'], tree: '557ba02895c7542a074c9311be83493bf143e61c', author: {email: 'lif.zone.main@gmail.com', timestamp: 1669709524, timezoneOffset: -120}, committer: {name: 'lif-rnd', email: 'lif.zone.main@gmail.com', timestamp: 1669709524, timezoneOffset: -120}}}, ''],
     [{seq: 13}, {op: 'rm', file: '/b'}, ''],
     [{seq: 14}, {op: 'add', dir: '/b/', git: {oid: '457a6ae49e105547244493d0f5426725c4fd2d20', mode: '040000'}}, ''],
@@ -83,6 +83,7 @@ describe('lib', function(){
     /* eslint-enable */
   ]);
   t('lif-zone/test_merge_simple', [
+  // XXX: move commit to being of new files/modifications
     /* eslint-disable max-len */ // disable vim red error: call Mark_error(0)
     [{seq: 0}, {scroll: {crypt: [{sig: 'ed25519', hash: 'blake2b', lif: 'lif1'}], pub: '44659cb51dec397ea66085679442505345e159940762c15ef75ad279ecf05033', topic: 'git', src: 'https://github.com/lif-zone/test_merge_simple', key_val: ['dir', 'file', 'branch', 'tag'], op_default: 'mod'}}, ''],
     [{seq: 1}, {op: 'add', dir: '/', git: {oid: '32cc970d8d2957a4f613b17070297f3c5ef6397a', mode: 0}}, ''],

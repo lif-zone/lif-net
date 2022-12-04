@@ -392,10 +392,8 @@ E.import_git = (config, scroll)=>etask(function*_start(){
         continue;
       }
     }
-    let data = {branch};
-    if (add)
-      data.add = true;
-    data.git = {oid};
+    let op = add ? 'add' : 'mod';
+    let data = {op, branch};
     let decl = yield scroll.decl({prev, link}, data);
     if (head==branch)
       head_seq = decl.seq;
@@ -412,10 +410,8 @@ E.import_git = (config, scroll)=>etask(function*_start(){
       if (prev_d.fbuf_get(0).get_json(2).git.oid==oid)
         continue;
     }
-    let data = {tag};
-    if (add)
-      data.add = true;
-    data.git = {oid};
+    let op = add ? 'add' : 'mod';
+    let data = {op, tag};
     yield scroll.decl({prev, link}, data);
   }
   if (head_seq){
@@ -427,9 +423,8 @@ E.import_git = (config, scroll)=>etask(function*_start(){
       same = prev_d.fbuf_get(0).get_json(1).link==link;
     }
     if (!same){
-      let data = {branch: 'HEAD'};
-      if (add)
-        data.add = true;
+      let op = add ? 'add' : 'mod';
+      let data = {op, branch: 'HEAD'};
       yield scroll.decl({prev, link}, data);
     }
     branch_curr.HEAD = {seq: head_seq};
@@ -438,13 +433,13 @@ E.import_git = (config, scroll)=>etask(function*_start(){
     if (branch_curr[branch])
       continue;
     let prev = o.seq;
-    yield scroll.decl({prev}, {branch, rm: true});
+    yield scroll.decl({prev}, {op: 'rm', branch});
   }
   for (const [tag, o] of prev_sync.tag){
     if (tag_curr[tag])
       continue;
     let prev = o.seq;
-    yield scroll.decl({prev}, {tag, rm: true});
+    yield scroll.decl({prev}, {op: 'rm', tag});
   }
 });
 

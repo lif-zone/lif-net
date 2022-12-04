@@ -78,8 +78,8 @@ describe('lib', function(){
     [{seq: 18}, {op: 'add', file: '/b', git: {oid: '6d700c06af2977bb61a59cdefb4957ec3ef4f6ff', mode: '100644'}}, 64],
     [{seq: 19}, {op: 'rm', file: '/b/a'}, ''],
     [{seq: 20, group: 3}, {op: 'commit', desc: 'change b from dir to file\n', author: 'lif-rnd', ts: 1662511341, git: {oid: 'aa18f16781702a407f879aca38902577418f7cb3', parent: ['c0232fb014456ae8ee9b8060121a67016eda6512'], tree: 'c4fa6729ae5f884522d97fc6145f0bb588453a41', author: {email: 'lif.zone.main@gmail.com', timestamp: 1669711341, timezoneOffset: -120}, committer: {name: 'lif-rnd', email: 'lif.zone.main@gmail.com', timestamp: 1669711341, timezoneOffset: -120}}}, ''],
-    [{seq: 21, link: 20}, {branch: 'main', add: true, git: {oid: 'aa18f16781702a407f879aca38902577418f7cb3'}}, ''],
-    [{seq: 22, link: 21}, {branch: 'HEAD', add: true}, '']
+    [{seq: 21, link: 20}, {op: 'add', branch: 'main'}, ''],
+    [{seq: 22, link: 21}, {op: 'add', branch: 'HEAD'}, '']
     /* eslint-enable */
   ]);
   t('lif-zone/test_merge_simple', [
@@ -105,10 +105,10 @@ describe('lib', function(){
     [{seq: 18, group: 1}, {op: 'commit', desc: 'Update main_file3\n', author: 'lif-rnd', ts: 1662441093, git: {oid: '3c32b322655215d3723de7362a6880bb7ff20e4d', parent: ['529918326b683cebb869faa11ee487f70828fb31'], tree: 'fbb42df9c7e0ab16dad95b6f9cc0974c659dcc70', author: {email: '79463501+lif-rnd@users.noreply.github.com', timestamp: 1669641093, timezoneOffset: -120}, committer: {name: 'GitHub', email: 'noreply@github.com', timestamp: 1669641093, timezoneOffset: -120}, gpgsig: '-----BEGIN PGP SIGNATURE-----\n\nwsBcBAABCAAQBQJjhLOFCRBK7hj4Ov3rIwAAsCYIACg4E3IFa812oLVhyduHhLMv\nNzx2cCdNiEHg45zQNGQGKYhRIhGEnaUuOR0z2tClih4jPKnVk/VDgsCi5b4zmKJn\nsna27ceqzAGTKF0Sfr+6V7Taa8+IppXbwspX3ZXCeZB00oM7XFXbORoXpXtZgqZj\nYVNIMflogzqRasqhyCv18qriONjdZoj7aaW2IqYZLGivLopNuHFxVs0XjCE9D9WB\nXkPNQYb7AL/XgsveurC+3I4o20MsC0s7bE0y8NL6Di3ApLnLPEPvCd/uOyJC/bfi\nMp0hyXI3Z5m1hhwrwsoKrlt6p53NobQtGjnRfPn2H20uPffIEselbUKLkSI3hwo=\n=Sfg9\n-----END PGP SIGNATURE-----\n'}}, ''],
     [{seq: 19, link: 17}, {op: 'mod', file: '/main_file3', diff: 1, git: {oid: 'c11256c184e585acd4bc63f86adc1b4cb512affa', mode: '100644'}}, 142],
     [{seq: 20, group: 1}, {op: 'commit', desc: 'Update main_file3\n', author: 'lif-rnd', ts: 1662441111, git: {oid: 'e37d0cbddd4c351996dae2a01f04986dbab5b071', parent: ['3c32b322655215d3723de7362a6880bb7ff20e4d'], tree: '1502fba729c0cff38abe633bc4d8482b9f927c72', author: {email: '79463501+lif-rnd@users.noreply.github.com', timestamp: 1669641111, timezoneOffset: -120}, committer: {name: 'GitHub', email: 'noreply@github.com', timestamp: 1669641111, timezoneOffset: -120}, gpgsig: '-----BEGIN PGP SIGNATURE-----\n\nwsBcBAABCAAQBQJjhLOXCRBK7hj4Ov3rIwAA1ngIAHkTU5r8EjgVFrgFGVFlKaPe\nbvhX93CKosjCE/e+yHWF8KsGxFP8+e+pxwZqEk1S6UrCx5LYFqx0+04B+bcrcE37\nrgzt5lNU4l0hREhUUtQVdKPCJRSnSE6xdQYIGe2nePDPHMWXLF3SrD841HvsctTO\nvUEuEkjJ8jk0R3hJGec7t1E3op3owdUWLgI/BYZcdQCEP/oNg57whpoZfC8ITNxj\nUyXYlqetCrI4aUxxytv4yejXDULwiyt+zwBBioWy8YhqQlpYEgwh39g1XKAmQiQx\nXvIHQCdPCbYkEQC1mmA7xHUp7S8yZuxVV0oSEJNYBE4flKD2ID6rPMwOFmt7PmE=\n=MIIl\n-----END PGP SIGNATURE-----\n'}}, ''],
-    [{seq: 21, link: 20}, {branch: 'main', add: true, git: {oid: 'e37d0cbddd4c351996dae2a01f04986dbab5b071'}}, ''],
-    [{seq: 22, link: 13}, {branch: 'branch1', add: true, git: {oid: 'd4181b6ca66e54bb077feb44f6554d0c6236ba2b'}}, ''],
-    [{seq: 23, link: 13}, {tag: 'test_tag1', add: true, git: {oid: 'd4181b6ca66e54bb077feb44f6554d0c6236ba2b'}}, ''],
-    [{seq: 24, link: 21}, {branch: 'HEAD', add: true}, '']
+    [{seq: 21, link: 20}, {op: 'add', branch: 'main'}, ''],
+    [{seq: 22, link: 13}, {op: 'add', branch: 'branch1'}, ''],
+    [{seq: 23, link: 13}, {op: 'add', tag: 'test_tag1'}, ''],
+    [{seq: 24, link: 21}, {op: 'add', branch: 'HEAD'}, '']
     /* eslint-enable */
   ]);
   // XXX TODO: find way to check sync

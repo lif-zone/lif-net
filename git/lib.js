@@ -120,17 +120,16 @@ const put_diff = (config, scroll, prev, state_next)=>etask(
     // {seq: 8, link: {_: 6, d: 3}} {file: '/branch1_file1', diff: {d: 'd'}}
     let git = {oid: next.oid, mode: next.mode}, add = !curr;
     if (next.type=='dir'){
-      let data = {dir: path+'/'}, move;
       if (!curr && prev_oid && prev_oid.path!=path &&
         !path.startsWith(prev_oid.path) && !state_next.get(prev_oid.path)){
-        move = {dir: prev_oid.path+'/'};
+        move = prev_oid.path+'/';
         move_dir.push(path+'/');
         state_del.delete(prev_oid);
       }
+      let op = move ? 'mv' : add ? 'add' : 'mod';
+      let data = {op, dir: path+'/'};
       if (move)
-        data.move = move;
-      if (add)
-        data.add = true;
+        data.dir_src = move;
       data.git = git;
       decl = yield scroll.decl({prev}, data);
       prev = decl.seq;

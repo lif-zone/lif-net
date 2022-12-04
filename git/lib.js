@@ -117,7 +117,7 @@ const put_diff = (config, scroll, prev, state_next)=>etask(
     // {seq: 8, link: 6} {file: '/branch1_file1', diff: 'abc', ...}
     // {seq: 8, link: 6} {file: '/branch1_file1', diff: {d: 1}, ...}, blob
     // {seq: 8, link: {_: 6, d: 3}} {file: '/branch1_file1', diff: {d: 'd'}}
-    let git = {oid: next.oid, mode: next.mode}, add;
+    let git = {oid: next.oid, mode: next.mode}, add = !curr;
     if (next.type=='dir'){
       let data = {dir: path+'/'}, move;
       if (!curr && prev_oid && prev_oid.path!=path &&
@@ -160,7 +160,6 @@ const put_diff = (config, scroll, prev, state_next)=>etask(
             [content, blob] = [1, buf_new];
         }
       } else {
-        add = true;
         content = 1;
         blob = (yield git_api.readBlob({...config, oid: next.oid})).blob;
       }

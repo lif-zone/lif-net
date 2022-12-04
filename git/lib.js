@@ -168,7 +168,8 @@ const put_diff = (config, scroll, prev, state_next)=>etask(
       prev = decl.seq;
     }
     if (decl){
-      oid2seq.set(next.oid, decl.seq);
+      if (!oid2seq.get(next.oid))
+        oid2seq.set(next.oid, decl.seq);
       path2seq.set(path, decl.seq);
     }
   }
@@ -239,13 +240,15 @@ function build_prev_sync_index(scroll){
     }
     if (data.file || data.dir){
       assert(oid, 'missing oid for seq '+seq);
-      oid2seq.set(oid, seq);
+      if (!oid2seq.get(next.oid))
+        oid2seq.set(oid, seq);
     }
     if (data.file)
       path2seq.set(data.file, seq);
     if (data.dir)
       path2seq.set(dir2path(data.dir), seq);
     if (data.commit){
+      assert(!data.commit, 'multiple commits with same commit seq'+seq);
       oid2seq.set(data.commit, seq);
       prev_sync.commit.set(data.commit, {seq});
     }
@@ -288,7 +291,7 @@ const git_get_head = config=>etask(function*git_get_head(){
 // + head -> branch: 'HEAD'
 // - link: 12 -> link: {_: 12}}
 // - file(dir) exact content links are without sub-link (point to first seq)
-// - new file/dir/branch/tag: {add: true} // default (but optional)
+// + new file/dir/branch/tag: {add: true} // default (but optional)
 // + rename del -> rm
 // - fix read from db - need proper api to parse links etc
 // content

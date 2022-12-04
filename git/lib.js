@@ -128,6 +128,8 @@ const put_diff = (config, scroll, prev, state_next)=>etask(
       }
       if (move)
         data.move = move;
+      if (add)
+        data.add = true;
       data.git = git;
       decl = yield scroll.decl({prev}, data);
       prev = decl.seq;

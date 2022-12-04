@@ -106,6 +106,17 @@ const put_diff = (config, scroll, prev, state_next)=>etask(
       curr = null;
       prev_oid = null;
     }
+    // content
+    // {seq: 8, link: 6} {file: '/branch1_file1', ...}
+    // {seq: 8, link: 6} {file: '/branch1_file1', content: {d: '_'}, ...}
+    // {seq: 8} {file: '/branch1_file1', content: {d: 1}, ...}, blob
+    // {seq: 8} {file: '/branch1_file1', content: 1, ...}, blob
+    // {seq: 8} {file: '/branch1_file1', content: 'abc', ...}
+    // diff
+    // {seq: 8, link: 6} {file: '/branch1_file1', diff: 1, ...}, blob
+    // {seq: 8, link: 6} {file: '/branch1_file1', diff: 'abc', ...}
+    // {seq: 8, link: 6} {file: '/branch1_file1', diff: {d: 1}, ...}, blob
+    // {seq: 8, link: {_: 6, d: 3}} {file: '/branch1_file1', diff: {d: 'd'}}
     let git = {oid: next.oid, mode: next.mode}, add;
     if (next.type=='dir'){
       let data = {dir: path+'/'}, move;

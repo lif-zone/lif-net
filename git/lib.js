@@ -85,13 +85,11 @@ class FS_state {
 // XXX: how to detect file move (exact move, move+modifications)
 // eg commit 17: https://github.com/lif-zone/server/commit/e24039a1b371f9f05ce53829e9c6bc3ad675fa53?diff=split
 // XXX: what about directory move. need to optimize and not remove/readd all
-const put_diff = (config, scroll, prev, state_next)=>etask(
-  function*_put_diff(){
-  let state_curr = prev ? yield get_state_seq(config, scroll, prev) :
-    new FS_state();
+const prepare_diff = (config, scroll, top, state_curr, state_next)=>etask(
+  function*_prepare_diff(){
   let state_del = new FS_state(state_curr, {write: true});
   // XXX: optimize, if directory is the same, no need to test all sub dir
-  let move_dir = [], queue = {}, top = scroll.top.seq;
+  let move_dir = [], queue = {};
   for (const [path, next] of state_next.path){
     let curr = state_curr.get(path), prev_oid = state_curr.get_oid(next.oid);
     if (move_dir.find(p=>path.startsWith(p))){
@@ -109,8 +107,8 @@ const put_diff = (config, scroll, prev, state_next)=>etask(
       let data = curr.type=='dir' ? {op: 'rm', dir: path+'/'} :
         {op: 'rm', file: path};
       top++;
-      queue[top] = {seq: top, header: {prev}, data};
-      prev = curr = prev_oid = null;
+      queue[top] = {seq: top, header: {}, data};
+      curr = prev_oid = null;
     }
     // content
     // {seq: 8, link: 6} {file: '/branch1_file1', ...}
@@ -137,8 +135,7 @@ const put_diff = (config, scroll, prev, state_next)=>etask(
         data.src = move;
       data.git = git;
       top++;
-      qd = queue[top] = {seq: top, header: {prev}, data};
-      prev = null;
+      qd = queue[top] = {seq: top, header: {}, data};
     } else {
       if (!curr && prev_oid && prev_oid.path!=path &&
         !state_next.get(prev_oid.path)){
@@ -150,12 +147,14 @@ const put_diff = (config, scroll, prev, state_next)=>etask(
         let d_old;
         if (queue[seq_path]){
           d_old = queue[seq_path].data;
+          if (d_old.op=='rm')
+            d_old = null;
         } else {
           let decl_old = yield scroll.get_decl(seq_path);
           d_old = decl_old.fbuf_get(0).get_json(2);
         }
-        let oid_old = d_old.git.oid;
-        let buf_old = d_old.file && (yield git_api.readBlob({...config,
+        let oid_old = d_old?.git.oid;
+        let buf_old = d_old?.file && (yield git_api.readBlob({...config,
           oid: oid_old})).blob;
         let buf_new = (yield git_api.readBlob({...config, oid: next.oid}))
         .blob;
@@ -188,8 +187,7 @@ const put_diff = (config, scroll, prev, state_next)=>etask(
       if (blob)
         data.push(blob);
       top++;
-      qd = queue[top] = {seq: top, header: {prev, link}, data};
-      prev = null;
+      qd = queue[top] = {seq: top, header: {link}, data};
     }
     if (qd){
       if (!oid2seq.get(next.oid))
@@ -201,13 +199,14 @@ const put_diff = (config, scroll, prev, state_next)=>etask(
     let data = curr.type=='dir' ? {op: 'rm', dir: path+'/'} :
       {op: 'rm', file: path};
     top++;
-    queue[top] = {seq: top, header: {prev}, data};
-    prev = null;
+    queue[top] = {seq: top, header: {}, data};
   }
+  return queue;
+});
+
+const put_diff = (scroll, queue)=>etask(function*_push_diff(){
   for (let seq in queue)
     yield scroll.decl(queue[seq].header, queue[seq].data);
-  assert.equal(scroll.top.seq, top, 'top mismatch');
-  return prev || top;
 });
 
 // XXX: ugly hack
@@ -438,7 +437,7 @@ E.import_git = (config, scroll)=>etask(function*_start(){
   }
   let split_map = build_branch_split_map(all_commit, branch_commit);
   for (let branch in branch_commit){
-    let curr = branch_commit[branch];
+    let curr = branch_commit[branch], prev_tree;
     for (const [oid, o] of curr.commit){
       let commit = o.commit, prev, merge;
       if (!o.state) // ie, prev_sync
@@ -449,20 +448,26 @@ E.import_git = (config, scroll)=>etask(function*_start(){
         let seq_p = oid2seq.get(p);
         assert(!merge, 'merge already defined '+p);
         assert(seq_p, 'parent not found '+p);
-        if (prev)
-          merge = seq_p;
-        else
-          prev = seq_p;
+        if (prev){ // XXX: super ugly
+          merge = seq_p +
+            (scroll.dmap.get(seq_p).fbuf_get(0).get_json(1).group||0);
+        } else { // XXX: super ugly
+          prev_tree = seq_p;
+          prev = seq_p +
+            (scroll.dmap.get(seq_p).fbuf_get(0).get_json(1).group||0);
+        }
       });
       let state = o.state;
       assert(state, 'missing state for new commit');
-      let seq_start = scroll.top.seq;
-      prev = yield put_diff(config, scroll, prev, state);
-      let info = pick_rename(commit,
+      let state_prev = prev_tree ?
+        yield get_state_seq(config, scroll, prev_tree) : new FS_state();
+      let queue = yield prepare_diff(config, scroll, scroll.top.seq+1,
+        state_prev, state);
+       let info = pick_rename(commit,
         {message: 'desc', 'author.name': 'author'});
       info.ts = date_utc(commit.author.timestamp,
         commit.author.timezoneOffset);
-      let group = scroll.top.seq-seq_start;
+      let group = Object.keys(queue).length;
       let data = {op: 'commit', ...info};
       data.git = merge ? {oid, merge, ...commit} : {oid, ...commit};
       let lbranch = fix_lif_name(lif_branch, split_map.split[oid]?.branch);
@@ -473,6 +478,7 @@ E.import_git = (config, scroll)=>etask(function*_start(){
       seq2state.set(decl.seq, state);
       state.read_only = true;
       prev = decl.seq;
+      yield put_diff(scroll, queue);
     }
   }
   let head = yield git_get_head(config), head_seq;

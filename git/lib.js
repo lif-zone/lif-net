@@ -346,7 +346,6 @@ E.import_git = (config, scroll)=>etask(function*_start(){
   array.rm_elm(branches, 'HEAD');
   array.rm_elm(branches, 'main'); // XXX: do it on HEAD branch
   branches.unshift('main');
-
   let branch_tree = {};
   for (let b=0; b<branches.length; b++){
     let branch = branches[b];

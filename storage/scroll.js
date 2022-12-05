@@ -389,7 +389,7 @@ export default class Scroll extends EventEmitter {
       [opt, frames] = [{b: 0}, opt];
     if (typeof opt=='number')
       opt = {b: opt};
-    let {b, prev, group, link} = opt;
+    let {b, prev, group, link, branch} = opt;
     b = b||0;
     let top = this.branch.get(b).top;
     let seq = top ? top.seq+1 : 0, header = {seq, ts: Date.now()};
@@ -399,6 +399,8 @@ export default class Scroll extends EventEmitter {
       header.group = group;
     if (link)
       header.link = link;
+    if (branch)
+      header.branch = branch;
     let data = new Data({frames: [header].concat(frames)});
     let decl = new Decl({scroll: this, seq, data});
     this.dmap.set(seq, decl);

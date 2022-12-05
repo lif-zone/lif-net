@@ -401,7 +401,7 @@ function fix_lif_name(lif_branch, branch){
 // - check how fork works
 // - BUG: empty git repository sync will crash
 // - private repositories (allow auth)
-E.import_git = (config, scroll)=>etask(function*_start(){
+E.import_git = (config, scroll, opt={})=>etask(function*_start(){
   oid2seq = new Map();
   path2seq = new Map();
   seq2state = new Map();
@@ -421,7 +421,8 @@ E.import_git = (config, scroll)=>etask(function*_start(){
     assert(!branch_commit[branch], 'branch already exist '+branch);
     yield git_api.checkout({...config, ref: branch, remote: 'origin'});
     yield git_api.pull({...config});
-    let head = yield git_api.resolveRef({...config, ref: branch});
+    let head = opt.ref ? opt.ref[branch] :
+      yield git_api.resolveRef({...config, ref: branch});
     let curr = branch_commit[branch] = {head, commit: new Map()};
     // XXX: optimize, read only from last prev_sync commit
     let commits = yield git_api.log({...config, ref: branch});
@@ -435,6 +436,9 @@ E.import_git = (config, scroll)=>etask(function*_start(){
         continue;
       }
       commit = commits[i].commit;
+      let ts = date_utc(commit.author.timestamp, commit.author.timezoneOffset);
+      if (opt.max_ts && ts > opt.max_ts)
+        continue;
       let state = yield build_state(config, '', commit.tree);
       curr.commit.set(oid, {oid, commit, state});
       all_commit.set(oid, {oid, commit});
@@ -485,7 +489,8 @@ E.import_git = (config, scroll)=>etask(function*_start(){
   let branch_curr = {}, tag_curr = {};
   for (let i=0; i<branches.length; i++){
     let branch = branches[i];
-    let oid = yield git_api.resolveRef({...config, ref: branch});
+    let oid = opt.ref ? opt.ref[branch] :
+      yield git_api.resolveRef({...config, ref: branch});
     let seq = oid2seq.get(oid), link = seq;
     branch_curr[branch] = {seq, oid};
     assert(seq, 'branch not found '+branch);
@@ -507,7 +512,8 @@ E.import_git = (config, scroll)=>etask(function*_start(){
   }
   for (let i=0; i<tags.length; i++){
     let tag = tags[i];
-    let oid = yield git_api.resolveRef({...config, ref: tag});
+    let oid = opt.ref ? opt.ref[tag] :
+      yield git_api.resolveRef({...config, ref: tag});
     let seq = oid2seq.get(oid), link = seq;
     tag_curr[tag] = {seq, oid};
     assert(seq, 'tag not found '+tag);

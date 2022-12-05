@@ -39,12 +39,14 @@ describe('lib', function(){
     '5ad279ecf05033'),
     key: s2b('46f45a62f4c5971228747aa2d8ee66bd669ebd805c725286ee385b1d4a06dd'+
     'bc44659cb51dec397ea66085679442505345e159940762c15ef75ad279ecf05033')};
-  const t = (repository, exp)=>it(repository, ()=>etask(function*test_move(){
+  const _t = (repository, imports, exp)=>it(repository,
+    ()=>etask(function*test_move(){
     let dir = '/tmp/lif_'+repository.replace('/', '-'); // XXX: escape
     let url = 'https://github.com/'+repository;
     let scroll = yield lib.new_scroll(keypair, url);
     let config = {dir, url, author: {name: 'XXX', email: 'xxx@xxx.com'}};
-    yield lib.import_git(config, scroll);
+    for (let i=0; i<imports.length; i++)
+      yield lib.import_git(config, scroll, {...imports[i]});
     let a = lib.scroll_to_lines(scroll);
     if (exp=='dump'){
       dump_lines(a);
@@ -53,6 +55,7 @@ describe('lib', function(){
     for (let i=0; i<Math.max(a.length, exp.length); i++)
       assert.deepEqual(a[i], exp[i], 'line '+i);
   }));
+  const t = (repository, exp)=>_t(repository, [{max_ts: 0, ref: null}], exp);
   // XXX: create new test with move of file inside directory, move files with
   // same hash etc
   t('lif-zone/test_move', [
@@ -113,7 +116,10 @@ describe('lib', function(){
     /* eslint-enable */
   ]);
   // XXX TODO: find way to check sync
-  if (0) t('lif-rnd/test_sync', 'dump');
+  _t('lif-rnd/test_sync', [{max_ts: 1663045046, ref: {
+    main: 'f2ebe4a9f85961144aa16b9fad4148d712f206f7',
+    HEAD: 'f2ebe4a9f85961144aa16b9fad4148d712f206f7'}},
+    {max_ts: 0, ref: null}], 'dump');
   // XXX: add test for file diff
   // XXX: add test for binary file
 });

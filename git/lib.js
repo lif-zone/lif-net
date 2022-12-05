@@ -39,7 +39,7 @@ const build_state = (config, dir, oid, mode, state)=>
   mode = mode||0;
   let {tree} = yield git_api.readTree({...config, oid});
   let next = {type: 'dir', path: dir, oid, mode};
-  state = state||new FS_state();
+  state = state||new FS_state(null, {write: true});
   state.set(dir, next);
   for (let i=0; i<tree.length; i++){
     let e = tree[i], path = dir+'/'+e.path;
@@ -58,22 +58,28 @@ const build_state = (config, dir, oid, mode, state)=>
 });
 
 class FS_state {
-  constructor(state){
+  constructor(state, opt={}){
     this.path = new Map(state?.path);
     this.oid = new Map(state?.oid);
+    this.read_only = !opt.write;
   }
   get(path){ return this.path.get(path); }
   get_oid(oid){ return this.oid.get(oid); }
   set(path, o){
+    assert(!this.read_only, 'read only state');
     assert(o.oid && path==o.path, 'invalid state entry');
     this.oid.set(o.oid, o);
     return this.path.set(path, o);
   }
   delete(o){
+    assert(!this.read_only, 'read only state');
     this.path.delete(o.oid);
     this.path.delete(o.path);
   }
-  delete_path(path){ return this.path.delete(path); }
+  delete_path(path){
+    assert(!this.read_only, 'read only state');
+    return this.path.delete(path);
+  }
 }
 
 // XXX: how to detect file move (exact move, move+modifications)
@@ -83,7 +89,7 @@ const put_diff = (config, scroll, prev, state_next)=>etask(
   function*_put_diff(){
   let state_curr = prev ? yield get_state_seq(config, scroll, prev) :
     new FS_state();
-  let state_del = new FS_state(state_curr);
+  let state_del = new FS_state(state_curr, {write: true});
   // XXX: optimize, if directory is the same, no need to test all sub dir
   let move_dir = [];
   for (const [path, next] of state_next.path){
@@ -279,9 +285,10 @@ const get_state_seq = (config, scroll, seq)=>etask(function*get_state_seq(){
   assert(tree, 'no tree for seq'+seq);
   let state = seq2state.get(seq);
   if (state)
-    return new FS_state(state);
+    return state;
   state = yield build_state(config, '', tree);
-  seq2state.set(seq, new FS_state(state));
+  seq2state.set(seq, state);
+  state.read_only = true;
   return state;
 });
 
@@ -372,7 +379,8 @@ E.import_git = (config, scroll)=>etask(function*_start(){
       data.git = merge ? {oid, merge, ...commit} : {oid, ...commit};
       let decl = yield scroll.decl({prev, group}, data);
       oid2seq.set(oid, decl.seq);
-      seq2state.set(decl.seq, new FS_state(state_next));
+      seq2state.set(decl.seq, state_next);
+      state_next.read_only = true;
       prev = decl.seq;
     }
   }

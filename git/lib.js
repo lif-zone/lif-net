@@ -344,17 +344,34 @@ E.import_git = (config, scroll)=>etask(function*_start(){
   let tags = yield git_api.listTags({...config, remote: 'origin'});
   let prev_sync = build_prev_sync_index(scroll);
   array.rm_elm(branches, 'HEAD');
-  array.rm_elm(branches, 'main');
+  array.rm_elm(branches, 'main'); // XXX: do it on HEAD branch
   branches.unshift('main');
+
+  let branch_tree = {};
   for (let b=0; b<branches.length; b++){
     let branch = branches[b];
+    assert(!branch_tree[branch], 'branch already exist '+branch);
+    let curr = branch_tree[branch] = {commit: new Map()};
     yield git_api.checkout({...config, ref: branch, remote: 'origin'});
     yield git_api.pull({...config});
     let commits = yield git_api.log({...config, ref: branch});
     commits.reverse();
     for (let i=0; i<Math.min(18, commits.length); i++){
-      let oid = commits[i].oid, commit = commits[i].commit, prev, merge;
-      if (prev_sync.commit.get(oid))
+      let oid = commits[i].oid, commit = prev_sync.commit.get(oid);
+      if (commit){
+        curr.commit.set(oid, {oid, commit});
+        continue;
+      }
+      commit = commits[i].commit;
+      let state = yield build_state(config, '', commit.tree);
+      curr.commit.set(oid, {oid, commit, state});
+    }
+  }
+  for (let branch in branch_tree){
+    let curr = branch_tree[branch];
+    for (const [oid, o] of curr.commit){
+      let commit = o.commit, prev, merge;
+      if (!o.state) // ie, prev_sync
         continue;
       if (oid2seq.get(oid))
         continue;
@@ -367,9 +384,10 @@ E.import_git = (config, scroll)=>etask(function*_start(){
         else
           prev = seq_p;
       });
-      let state_next = yield build_state(config, '', commit.tree);
+      let state = o.state;
+      assert(state, 'missing state for new commit');
       let seq_start = scroll.top.seq;
-      prev = yield put_diff(config, scroll, prev, state_next);
+      prev = yield put_diff(config, scroll, prev, state);
       let info = pick_rename(commit,
         {message: 'desc', 'author.name': 'author'});
       info.ts = date_utc(commit.author.timestamp,
@@ -379,8 +397,8 @@ E.import_git = (config, scroll)=>etask(function*_start(){
       data.git = merge ? {oid, merge, ...commit} : {oid, ...commit};
       let decl = yield scroll.decl({prev, group}, data);
       oid2seq.set(oid, decl.seq);
-      seq2state.set(decl.seq, state_next);
-      state_next.read_only = true;
+      seq2state.set(decl.seq, state);
+      state.read_only = true;
       prev = decl.seq;
     }
   }
@@ -395,7 +413,8 @@ E.import_git = (config, scroll)=>etask(function*_start(){
     let prev = prev_sync.branch.get(branch)?.seq, add = !prev;
     if (prev){
       let prev_d = yield scroll.get_decl(prev);
-      if (prev_d.fbuf_get(0).get_json(2).git.oid==oid){
+      // XXX: need to properly parse link
+      if (prev_d.fbuf_get(0).get_json(1).link==seq){
         if (head==branch)
           head_seq = prev;
         continue;
@@ -416,7 +435,8 @@ E.import_git = (config, scroll)=>etask(function*_start(){
     let prev = prev_sync.tag.get(tag)?.seq, add = !prev;
     if (prev){
       let prev_d = yield scroll.get_decl(prev);
-      if (prev_d.fbuf_get(0).get_json(2).git.oid==oid)
+      // XXX: need to properly parse link
+      if (prev_d.fbuf_get(0).get_json(1).link==seq)
         continue;
     }
     let op = add ? 'add' : 'mod';
@@ -428,7 +448,7 @@ E.import_git = (config, scroll)=>etask(function*_start(){
     let prev = prev_sync.branch.get('HEAD')?.seq, add = !prev;
     if (prev){
       let prev_d = yield scroll.get_decl(prev);
-      // XXX: ugly code, need proper api
+      // XXX: need to properly parse link
       same = prev_d.fbuf_get(0).get_json(1).link==link;
     }
     if (!same){

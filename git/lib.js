@@ -356,7 +356,7 @@ E.import_git = (config, scroll)=>etask(function*_start(){
     // XXX: optimize, read only from last prev_sync commit
     let commits = yield git_api.log({...config, ref: branch});
     commits.reverse();
-    for (let i=0; i<Math.min(18, commits.length); i++){
+    for (let i=0; i<commits.length; i++){
       let oid = commits[i].oid, commit = prev_sync.commit.get(oid);
       if (commit){
         curr.commit.set(oid, {oid, commit});

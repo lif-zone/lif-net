@@ -34,7 +34,7 @@ function date_utc(ts, tz){ return +new Date(ts+tz*60000); }
 
 let oid2seq, path2seq, seq2state; // XXX: make it context-based (not global)
 
-const get_state = (config, dir, oid, mode, state)=>
+const build_state = (config, dir, oid, mode, state)=>
   etask(function*_put_tree(){
   mode = mode||0;
   let {tree} = yield git_api.readTree({...config, oid});
@@ -49,7 +49,7 @@ const get_state = (config, dir, oid, mode, state)=>
       state.set(path, next);
       break;
     case 'tree':
-      yield get_state(config, path, e.oid, e.mode, state);
+      yield build_state(config, path, e.oid, e.mode, state);
       break;
     default: xerr.xexit('unknown type '+e.type);
     }
@@ -280,7 +280,7 @@ const get_state_seq = (config, scroll, seq)=>etask(function*get_state_seq(){
   let state = seq2state.get(seq);
   if (state)
     return new FS_state(state);
-  state = yield get_state(config, '', tree);
+  state = yield build_state(config, '', tree);
   seq2state.set(seq, new FS_state(state));
   return state;
 });
@@ -360,7 +360,7 @@ E.import_git = (config, scroll)=>etask(function*_start(){
         else
           prev = seq_p;
       });
-      let state_next = yield get_state(config, '', commit.tree);
+      let state_next = yield build_state(config, '', commit.tree);
       let seq_start = scroll.top.seq;
       prev = yield put_diff(config, scroll, prev, state_next);
       let info = pick_rename(commit,

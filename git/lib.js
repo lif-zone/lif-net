@@ -354,6 +354,7 @@ E.import_git = (config, scroll)=>etask(function*_start(){
     let curr = branch_tree[branch] = {commit: new Map()};
     yield git_api.checkout({...config, ref: branch, remote: 'origin'});
     yield git_api.pull({...config});
+    // XXX: optimize, read only from last prev_sync commit
     let commits = yield git_api.log({...config, ref: branch});
     commits.reverse();
     for (let i=0; i<Math.min(18, commits.length); i++){

@@ -393,7 +393,7 @@ export default class Scroll extends EventEmitter {
     b = b||0;
     let top = this.branch.get(b).top;
     let seq = top ? top.seq+1 : 0, header = {seq, ts: Date.now()};
-    if (prev!==undefined && prev!=seq-1)
+    if (prev>0 && prev!=seq-1)
       header.prev = prev;
     if (group)
       header.group = group;

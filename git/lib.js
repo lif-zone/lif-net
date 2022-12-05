@@ -335,6 +335,9 @@ function build_branch_split_map(commits, branch_commit){
     for (let curr=commits.get(head), prev; curr;
       prev = curr, curr = commits.get(curr.commit.parent[0]))
     {
+      // XXX: need to handle case where default branch is not main any more
+      // (in that situation, the parent of main is null and need to split
+      // on other branch)
       if (curr.branch[0]!=branch){
         real_branches[head].split = prev.oid;
         break;

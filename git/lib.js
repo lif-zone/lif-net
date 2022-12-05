@@ -245,8 +245,16 @@ function build_prev_sync_index(scroll){
   // XXX: need to have built-in index in scroll
   let prev_sync = {commit: new Map(), branch: new Map(), tag: new Map(),
     head: null};
+  let lif_branch = new Map();
   for (const [seq, decl] of scroll.dmap){
+    // XXX: need api to get header/data part of frames
+    let header = decl.fbuf_get(0).get_json(1);
     let data = decl.fbuf_get(0).get_json(2), oid = data.git?.oid;
+    if (header.branch){
+      assert(!lif_branch.get(header.branch),
+        'duplicated branch split '+header.branch);
+      lif_branch.set(header.branch, {split: seq});
+    }
     if (data.op=='rm'){
       if (data.branch)
         prev_sync.branch.delete(data.branch, {seq});
@@ -277,7 +285,7 @@ function build_prev_sync_index(scroll){
     if (data.head)
       prev_sync.head = {seq};
   }
-  return prev_sync;
+  return {prev_sync, lif_branch};
 }
 
 const get_state_seq = (config, scroll, seq)=>etask(function*get_state_seq(){
@@ -304,6 +312,50 @@ const git_get_head = config=>etask(function*git_get_head(){
     return '';
   return m[1].trim();
 });
+
+function build_branch_split_map(commits, branch_commit){
+  let real_branches = {};
+  for (const branch in branch_commit){
+    let head = branch_commit[branch].head;
+    if (real_branches[head]?.head==head){
+      real_branches[head].dup = real_branches[head].dup||{};
+      real_branches[head].dup.push(branch);
+      continue;
+    }
+    real_branches[head] = {branch, head, dup: []};
+    for (let curr=commits.get(head); curr;
+      curr = commits.get(curr.commit.parent[0]))
+    {
+      curr.branch = curr.branch||[];
+      curr.branch.push(branch);
+    }
+  }
+  for (let head in real_branches){
+    let branch = real_branches[head].branch;
+    for (let curr=commits.get(head), prev; curr;
+      prev = curr, curr = commits.get(curr.commit.parent[0]))
+    {
+      if (curr.branch[0]!=branch){
+        real_branches[head].split = prev.oid;
+        break;
+      }
+    }
+  }
+  let ret = {real_branches, split: {}};
+  for (let head in real_branches){
+    let curr = real_branches[head];
+    ret.split[curr.split] = curr;
+  }
+  return ret;
+}
+
+function fix_lif_name(lif_branch, branch){
+  if (!branch)
+    return;
+  let name = branch;
+  for (let i=1; lif_branch.get(name); i++, name = branch+'_lif'+i);
+  return name;
+}
 
 // XXX TODO
 // initial sync:
@@ -342,33 +394,38 @@ E.import_git = (config, scroll)=>etask(function*_start(){
   yield git_api.clone({...config});
   let branches = yield git_api.listBranches({...config, remote: 'origin'});
   let tags = yield git_api.listTags({...config, remote: 'origin'});
-  let prev_sync = build_prev_sync_index(scroll);
+  let {prev_sync, lif_branch} = build_prev_sync_index(scroll);
   array.rm_elm(branches, 'HEAD');
   array.rm_elm(branches, 'main'); // XXX: do it on HEAD branch
   branches.unshift('main');
-  let branch_tree = {};
+  let branch_commit = {}, all_commit = new Map;
   for (let b=0; b<branches.length; b++){
     let branch = branches[b];
-    assert(!branch_tree[branch], 'branch already exist '+branch);
-    let curr = branch_tree[branch] = {commit: new Map()};
+    assert(!branch_commit[branch], 'branch already exist '+branch);
     yield git_api.checkout({...config, ref: branch, remote: 'origin'});
     yield git_api.pull({...config});
+    let head = yield git_api.resolveRef({...config, ref: branch});
+    let curr = branch_commit[branch] = {head, commit: new Map()};
     // XXX: optimize, read only from last prev_sync commit
     let commits = yield git_api.log({...config, ref: branch});
     commits.reverse();
     for (let i=0; i<commits.length; i++){
       let oid = commits[i].oid, commit = prev_sync.commit.get(oid);
       if (commit){
-        curr.commit.set(oid, {oid, commit});
+        let o = all_commit.get(oid)||{oid, commit: commits[i].commit};
+        curr.commit.set(oid, o);
+        all_commit.set(oid, o);
         continue;
       }
       commit = commits[i].commit;
       let state = yield build_state(config, '', commit.tree);
       curr.commit.set(oid, {oid, commit, state});
+      all_commit.set(oid, {oid, commit});
     }
   }
-  for (let branch in branch_tree){
-    let curr = branch_tree[branch];
+  let split_map = build_branch_split_map(all_commit, branch_commit);
+  for (let branch in branch_commit){
+    let curr = branch_commit[branch];
     for (const [oid, o] of curr.commit){
       let commit = o.commit, prev, merge;
       if (!o.state) // ie, prev_sync
@@ -395,7 +452,10 @@ E.import_git = (config, scroll)=>etask(function*_start(){
       let group = scroll.top.seq-seq_start;
       let data = {op: 'commit', ...info};
       data.git = merge ? {oid, merge, ...commit} : {oid, ...commit};
-      let decl = yield scroll.decl({prev, group}, data);
+      let lbranch = fix_lif_name(lif_branch, split_map.split[oid]?.branch);
+      let decl = yield scroll.decl({prev, group, branch: lbranch}, data);
+      if (lbranch && !lif_branch[lbranch])
+        lif_branch[lbranch] = {split: decl.seq};
       oid2seq.set(oid, decl.seq);
       seq2state.set(decl.seq, state);
       state.read_only = true;

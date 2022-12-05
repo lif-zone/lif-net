@@ -91,14 +91,14 @@ const put_diff = (config, scroll, prev, state_next)=>etask(
     new FS_state();
   let state_del = new FS_state(state_curr, {write: true});
   // XXX: optimize, if directory is the same, no need to test all sub dir
-  let move_dir = [];
+  let move_dir = [], queue = {}, top = scroll.top.seq;
   for (const [path, next] of state_next.path){
     let curr = state_curr.get(path), prev_oid = state_curr.get_oid(next.oid);
     if (move_dir.find(p=>path.startsWith(p))){
       state_del.delete(prev_oid);
       continue;
     }
-    let decl, blob, seq_blob, link, content, diff, seq_path, move;
+    let qd, blob, seq_blob, link, content, diff, seq_path, move;
     state_del.delete_path(path);
     if (xutil.equal_deep(curr, next))
       continue;
@@ -108,7 +108,8 @@ const put_diff = (config, scroll, prev, state_next)=>etask(
     if (next && curr && next.type!=curr.type){
       let data = curr.type=='dir' ? {op: 'rm', dir: path+'/'} :
         {op: 'rm', file: path};
-      yield scroll.decl({prev}, data);
+      top++;
+      queue[top] = {seq: top, header: {prev}, data};
       prev = curr = prev_oid = null;
     }
     // content
@@ -135,7 +136,8 @@ const put_diff = (config, scroll, prev, state_next)=>etask(
       if (move)
         data.src = move;
       data.git = git;
-      decl = yield scroll.decl({prev}, data);
+      top++;
+      qd = queue[top] = {seq: top, header: {prev}, data};
       prev = null;
     } else {
       if (!curr && prev_oid && prev_oid.path!=path &&
@@ -145,8 +147,13 @@ const put_diff = (config, scroll, prev, state_next)=>etask(
       } else if (seq_blob = oid2seq.get(next.oid))
         link = seq_blob;
       else if (seq_path = curr&&oid2seq.get(curr.oid)||path2seq.get(path)){
-        let decl_old = yield scroll.get_decl(seq_path);
-        let d_old = decl_old.fbuf_get(0).get_json(2);
+        let d_old;
+        if (queue[seq_path]){
+          d_old = queue[seq_path].data;
+        } else {
+          let decl_old = yield scroll.get_decl(seq_path);
+          d_old = decl_old.fbuf_get(0).get_json(2);
+        }
         let oid_old = d_old.git.oid;
         let buf_old = d_old.file && (yield git_api.readBlob({...config,
           oid: oid_old})).blob;
@@ -180,22 +187,27 @@ const put_diff = (config, scroll, prev, state_next)=>etask(
       data[0].git = git;
       if (blob)
         data.push(blob);
-      decl = yield scroll.decl({prev, link}, data);
+      top++;
+      qd = queue[top] = {seq: top, header: {prev, link}, data};
       prev = null;
     }
-    if (decl){
+    if (qd){
       if (!oid2seq.get(next.oid))
-        oid2seq.set(next.oid, decl.seq);
-      path2seq.set(path, decl.seq);
+        oid2seq.set(next.oid, qd.seq);
+      path2seq.set(path, qd.seq);
     }
   }
   for (const [path, curr] of state_del.path){
     let data = curr.type=='dir' ? {op: 'rm', dir: path+'/'} :
       {op: 'rm', file: path};
-    yield scroll.decl({prev}, data);
+    top++;
+    queue[top] = {seq: top, header: {prev}, data};
     prev = null;
   }
-  return prev || scroll.top.seq;
+  for (let seq in queue)
+    yield scroll.decl(queue[seq].header, queue[seq].data);
+  assert.equal(scroll.top.seq, top, 'top mismatch');
+  return prev || top;
 });
 
 // XXX: ugly hack

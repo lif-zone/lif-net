@@ -108,10 +108,8 @@ const put_diff = (config, scroll, prev, state_next)=>etask(
     if (next && curr && next.type!=curr.type){
       let data = curr.type=='dir' ? {op: 'rm', dir: path+'/'} :
         {op: 'rm', file: path};
-      let decl = yield scroll.decl({prev}, data);
-      prev = decl.seq;
-      curr = null;
-      prev_oid = null;
+      yield scroll.decl({prev}, data);
+      prev = curr = prev_oid = null;
     }
     // content
     // {seq: 8, link: 6} {file: '/branch1_file1', ...}
@@ -138,7 +136,7 @@ const put_diff = (config, scroll, prev, state_next)=>etask(
         data.src = move;
       data.git = git;
       decl = yield scroll.decl({prev}, data);
-      prev = decl.seq;
+      prev = null;
     } else {
       if (!curr && prev_oid && prev_oid.path!=path &&
         !state_next.get(prev_oid.path)){
@@ -183,7 +181,7 @@ const put_diff = (config, scroll, prev, state_next)=>etask(
       if (blob)
         data.push(blob);
       decl = yield scroll.decl({prev, link}, data);
-      prev = decl.seq;
+      prev = null;
     }
     if (decl){
       if (!oid2seq.get(next.oid))
@@ -194,10 +192,10 @@ const put_diff = (config, scroll, prev, state_next)=>etask(
   for (const [path, curr] of state_del.path){
     let data = curr.type=='dir' ? {op: 'rm', dir: path+'/'} :
       {op: 'rm', file: path};
-    let decl = yield scroll.decl({prev}, data);
-    prev = decl.seq;
+    yield scroll.decl({prev}, data);
+    prev = null;
   }
-  return prev;
+  return prev || scroll.top.seq;
 });
 
 // XXX: ugly hack

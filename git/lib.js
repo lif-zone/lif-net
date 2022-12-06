@@ -258,7 +258,7 @@ function dir2path(dir){
 
 function build_prev_sync_index(scroll){
   // XXX: need to have built-in index in scroll
-  let prev_sync = {commit: new Map(), branch: new Map(), tag: new Map(),
+  let prev_sync = {commit: new Map(), git_branch: new Map(), tag: new Map(),
     head: null};
   let lif_branch = new Map();
   for (const [seq, decl] of scroll.dmap){
@@ -271,8 +271,8 @@ function build_prev_sync_index(scroll){
       lif_branch.set(header.branch, {split: seq});
     }
     if (data.op=='rm'){
-      if (data.branch)
-        prev_sync.branch.delete(data.branch, {seq});
+      if (data.git_branch)
+        prev_sync.git_branch.delete(data.git_branch, {seq});
       if (data.tag)
         prev_sync.tag.delete(data.tag, {seq});
       if (data.head)
@@ -293,8 +293,8 @@ function build_prev_sync_index(scroll){
       oid2seq.set(data.git.oid, seq);
       prev_sync.commit.set(data.git.oid, {seq});
     }
-    if (data.branch)
-      prev_sync.branch.set(data.branch, {seq});
+    if (data.git_branch)
+      prev_sync.git_branch.set(data.git_branch, {seq});
     if (data.tag)
       prev_sync.tag.set(data.tag, {seq});
     if (data.head)
@@ -372,7 +372,7 @@ function fix_lif_name(lif_branch, branch){
   if (!branch)
     return;
   let name = branch;
-  for (let i=1; lif_branch.get(name); i++, name = branch+'_lif'+i);
+  for (let i=1; lif_branch.get(name); i++, name = branch+' '+i);
   return name;
 }
 
@@ -495,26 +495,26 @@ E.import_git = (config, scroll, opt={})=>etask(function*_start(){
   let head = branches.length ? yield git_get_head(config) : null;
   let branch_curr = {}, tag_curr = {}, head_seq;
   for (let i=0; i<branches.length; i++){
-    let branch = branches[i];
-    let oid = opt.ref ? opt.ref[branch] :
-      yield git_api.resolveRef({...config, ref: branch});
+    let git_branch = branches[i];
+    let oid = opt.ref ? opt.ref[git_branch] :
+      yield git_api.resolveRef({...config, ref: git_branch});
     let seq = oid2seq.get(oid), link = seq;
-    branch_curr[branch] = {seq, oid};
-    assert(seq, 'branch not found '+branch);
-    let prev = prev_sync.branch.get(branch)?.seq, add = !prev;
+    branch_curr[git_branch] = {seq, oid};
+    assert(seq, 'git_branch not found '+git_branch);
+    let prev = prev_sync.git_branch.get(git_branch)?.seq, add = !prev;
     if (prev){
       let prev_d = yield scroll.get_decl(prev);
       // XXX: need to properly parse link
       if (prev_d.fbuf_get(0).get_json(1).link==seq){
-        if (head==branch)
+        if (head==git_branch)
           head_seq = prev;
         continue;
       }
     }
     let op = add ? 'add' : 'mod';
-    let data = {op, branch};
+    let data = {op, git_branch};
     let decl = yield scroll.decl({prev, link}, data);
-    if (head==branch)
+    if (head==git_branch)
       head_seq = decl.seq;
   }
   for (let i=0; i<tags.length; i++){
@@ -537,7 +537,7 @@ E.import_git = (config, scroll, opt={})=>etask(function*_start(){
   }
   if (head_seq){
     let link = head_seq, same;
-    let prev = prev_sync.branch.get('HEAD')?.seq, add = !prev;
+    let prev = prev_sync.git_branch.get('HEAD')?.seq, add = !prev;
     if (prev){
       let prev_d = yield scroll.get_decl(prev);
       // XXX: need to properly parse link
@@ -545,16 +545,16 @@ E.import_git = (config, scroll, opt={})=>etask(function*_start(){
     }
     if (!same){
       let op = add ? 'add' : 'mod';
-      let data = {op, branch: 'HEAD'};
+      let data = {op, git_branch: 'HEAD'};
       yield scroll.decl({prev, link}, data);
     }
     branch_curr.HEAD = {seq: head_seq};
   }
-  for (const [branch, o] of prev_sync.branch){
-    if (branch_curr[branch])
+  for (const [git_branch, o] of prev_sync.git_branch){
+    if (branch_curr[git_branch])
       continue;
     let prev = o.seq;
-    yield scroll.decl({prev}, {op: 'rm', branch});
+    yield scroll.decl({prev}, {op: 'rm', git_branch});
   }
   for (const [tag, o] of prev_sync.tag){
     if (tag_curr[tag])
@@ -566,7 +566,7 @@ E.import_git = (config, scroll, opt={})=>etask(function*_start(){
 
 E.new_scroll = function(keypair, src){
   return Scroll.create({...keypair}, {topic: 'git', src,
-    key_val: ['dir', 'file', 'branch', 'tag'], op_default: 'mod'});
+    key_val: ['dir', 'file', 'git_branch', 'tag'], op_default: 'mod'});
 };
 
 export default E;

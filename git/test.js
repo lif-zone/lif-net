@@ -140,8 +140,18 @@ describe('lib', function(){
       main: 'cb42290303d83a9254397228e586f45539bbe010',
       branch1: 'f748254314933c43f7992743c3ef8c04f7f0a70d',
       branch2: '63f7e4a5ba325b71f00f32dc53d45a606c1b75eb',
-      branch3: 'cb42290303d83a9254397228e586f45539bbe010'}}
-    ], [
+      branch3: 'cb42290303d83a9254397228e586f45539bbe010'}},
+    {max_ts: 1663110666, ref: {
+      main: '549f06c75c8818b582f552d110094a4b617196f9',
+      branch1: 'f748254314933c43f7992743c3ef8c04f7f0a70d',
+      branch2: '63f7e4a5ba325b71f00f32dc53d45a606c1b75eb',
+      branch3: 'cb42290303d83a9254397228e586f45539bbe010'}},
+    {max_ts: 1663111371, ref: {
+      main: '549f06c75c8818b582f552d110094a4b617196f9',
+      branch1: 'f748254314933c43f7992743c3ef8c04f7f0a70d',
+      branch2: '63f7e4a5ba325b71f00f32dc53d45a606c1b75eb',
+      branch3: '9215645089772245e3583f257527e4ac40093607'}},
+    {max_ts: 0, ref: null}], [
     /* eslint-disable max-len */ // disable vim red error: call Mark_error(0)
     [{seq: 0}, {scroll: {crypt: [{sig: 'ed25519', hash: 'blake2b', lif: 'lif1'}], pub: '44659cb51dec397ea66085679442505345e159940762c15ef75ad279ecf05033', topic: 'git', src: 'https://github.com/lif-rnd/test_branch', key_val: ['dir', 'file', 'branch', 'tag'], op_default: 'mod'}}, ''],
     [{seq: 1}, {op: 'add', dir: '/', git: {oid: '35338222e6691c303d4bc6768450229d93e14c67', mode: 0}}, ''],
@@ -156,9 +166,16 @@ describe('lib', function(){
     [{seq: 10, link: 7}, {op: 'add', branch: 'branch1'}, ''],
     [{seq: 11, link: 9}, {op: 'add', branch: 'branch2'}, ''],
     [{seq: 12, link: 3}, {op: 'add', branch: 'branch3'}, ''],
+    [{seq: 13, prev: 3, link: 6}, {op: 'add', file: '/file3', git: {oid: '8b137891791fe96927ad78e64b0aad7bded08bdc', mode: '100644'}}, ''],
+    [{seq: 14, group: 1}, {op: 'commit', desc: 'Create file3\n', author: 'lif-rnd', ts: 1663110666, git: {oid: '549f06c75c8818b582f552d110094a4b617196f9', parent: ['cb42290303d83a9254397228e586f45539bbe010'], tree: 'bb3f78e2ad68af212832099440312cd01e49a3f9', author: {email: '79463501+lif-rnd@users.noreply.github.com', timestamp: 1670310666, timezoneOffset: -120}, committer: {name: 'GitHub', email: 'noreply@github.com', timestamp: 1670310666, timezoneOffset: -120}, gpgsig: '-----BEGIN PGP SIGNATURE-----\n\nwsBcBAABCAAQBQJjjusKCRBK7hj4Ov3rIwAAj7gIAAqprXp0r1yaOobPqVWskS3i\nKQjtUjNpgncDQy2MHXfI50u3pSB7mnQ3W5VQobhRedv2BOQaXVUfUWQmUCEFCs+3\nZlWZmD3is02oF7th3Y5cdEhJFf6o6ufmZyGWoL91pUHGp2sTi4anz9KPkiwuLN5M\nkOK7Yjmzf8Ke/cQu0c0oi4x+MrH5TzRj1YQNgrIwwhluCAdwf6wt03Zm/j/Et3Xl\niSKezlD+xyM4SaZyTQU1lcwrJZj/bDJ0iPCOWSad1xK6p7yCh4hqPn0jmDR2L2YG\nup2t3YoAffPs3oqNhPqDcMIGZ9kyYdoloU6AqmVU/XwtA1dHUFUCpMWTaL2GjXE=\n=hbvO\n-----END PGP SIGNATURE-----\n'}}, ''],
+    [{seq: 15, prev: 4, link: 14}, {op: 'mod', branch: 'main'}, ''],
+    [{seq: 16, prev: 5, link: 15}, {op: 'mod', branch: 'HEAD'}, ''],
+    [{seq: 17, prev: 3, link: 6}, {op: 'add', file: '/file2 branch3', git: {oid: '8b137891791fe96927ad78e64b0aad7bded08bdc', mode: '100644'}}, ''],
+    [{seq: 18, group: 1, branch: 'branch3'}, {op: 'commit', desc: 'Create file2 branch3\n', author: 'lif-rnd', ts: 1663111371, git: {oid: '9215645089772245e3583f257527e4ac40093607', parent: ['cb42290303d83a9254397228e586f45539bbe010'], tree: '4cd44cb973a7ddc82935cd8fa18a25eef1f51027', author: {email: '79463501+lif-rnd@users.noreply.github.com', timestamp: 1670311371, timezoneOffset: -120}, committer: {name: 'GitHub', email: 'noreply@github.com', timestamp: 1670311371, timezoneOffset: -120}, gpgsig: '-----BEGIN PGP SIGNATURE-----\n\nwsBcBAABCAAQBQJjju3LCRBK7hj4Ov3rIwAAcvcIACrprgbq4W4meyHBAc5BOj58\nUpiJidHvTpG41Qemlm6gqs5OJLBLdYHO/baxr44yUxfRe7xHhdsIL/aybYfmKsY7\nSy6ZFgdsjyIrG3nSgTE1qz+zw9fUvmfVlZMt66LzdsktIfeQT4p7lECyKPKAuAYo\nh2tPHjyLH9ZMlPpAR7wAgmvEG+U1Nl+iWPU82zXLCEJZnpsynZSI+K8QgRzAvovj\ncOywktazoBW4FwQvRefypMV0CMwnkIKh9dP6L9eOwqMx9a0ydG+cqhkSl137X777\n7OWPyf0rmhMmX905XhLjkL9XSU9e/47JnOUUI4S4il/7pwYD/XG4D00kWFkPaq4=\n=73h+\n-----END PGP SIGNATURE-----\n'}}, ''],
+    [{seq: 19, prev: 12, link: 18}, {op: 'mod', branch: 'branch3'}, ''],
     /* eslint-enable */
   ]);
-  // XXX: add test for file diff
-  // XXX: add test for binary file
+    // XXX: add test for file diff
+    // XXX: add test for binary file
 });
 

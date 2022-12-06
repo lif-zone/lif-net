@@ -353,7 +353,8 @@ function build_branch_split_map(commits, branch_commit){
       // (in that situation, the parent of main is null and need to split
       // on other branch)
       if (curr.branch[0]!=branch){
-        real_branches[head].split = prev.oid;
+        if (prev)
+          real_branches[head].split = prev.oid;
         break;
       }
     }
@@ -402,7 +403,6 @@ function fix_lif_name(lif_branch, branch){
 // - BUG: empty git repository sync will crash
 // - private repositories (allow auth)
 E.import_git = (config, scroll, opt={})=>etask(function*_start(){
-debugger;
   oid2seq = new Map();
   path2seq = new Map();
   seq2state = new Map();

@@ -34,7 +34,7 @@ function dump_lines(a){
   }
 }
 describe('lib', function(){
-  this.timeout(xutil.is_inspect() ? 9999999999 : 30000);
+  this.timeout(xutil.is_inspect() ? 9999999999 : 60000);
   let keypair = {pub: s2b('44659cb51dec397ea66085679442505345e159940762c15ef7'+
     '5ad279ecf05033'),
     key: s2b('46f45a62f4c5971228747aa2d8ee66bd669ebd805c725286ee385b1d4a06dd'+
@@ -157,6 +157,12 @@ describe('lib', function(){
       branch2: '63f7e4a5ba325b71f00f32dc53d45a606c1b75eb',
       branch2_b1: '70327166e0bbc36da012739545f77e392f6557f5',
       branch3: '9215645089772245e3583f257527e4ac40093607'}},
+    {max_ts: 1663113277, ref: {
+      main: 'ebfa9a6980f982ffef775895cbb5a6e48a3cfc3c',
+      branch1: 'f748254314933c43f7992743c3ef8c04f7f0a70d',
+      branch2: '63f7e4a5ba325b71f00f32dc53d45a606c1b75eb',
+      branch2_b1: '70327166e0bbc36da012739545f77e392f6557f5',
+      branch3: '9215645089772245e3583f257527e4ac40093607'}},
     {max_ts: 0, ref: null}], [
     /* eslint-disable max-len */ // disable vim red error: call Mark_error(0)
     [{seq: 0}, {scroll: {crypt: [{sig: 'ed25519', hash: 'blake2b', lif: 'lif1'}], pub: '44659cb51dec397ea66085679442505345e159940762c15ef75ad279ecf05033', topic: 'git', src: 'https://github.com/lif-rnd/test_branch', key_val: ['dir', 'file', 'branch', 'tag'], op_default: 'mod'}}, ''],
@@ -182,10 +188,15 @@ describe('lib', function(){
     [{seq: 20, prev: 9, branch: 'branch2_b1', link: 6}, {op: 'add', file: '/file1 branch2b1', git: {oid: '8b137891791fe96927ad78e64b0aad7bded08bdc', mode: '100644'}}, ''],
     [{seq: 21, group: 1}, {op: 'commit', desc: 'Create file1 branch2b1\n', author: 'lif-rnd', ts: 1663112168, git: {oid: '70327166e0bbc36da012739545f77e392f6557f5', parent: ['63f7e4a5ba325b71f00f32dc53d45a606c1b75eb'], tree: '4e86b847aab802c24615e45fa335bcbe4b5c140c', author: {email: '79463501+lif-rnd@users.noreply.github.com', timestamp: 1670312168, timezoneOffset: -120}, committer: {name: 'GitHub', email: 'noreply@github.com', timestamp: 1670312168, timezoneOffset: -120}, gpgsig: '-----BEGIN PGP SIGNATURE-----\n\nwsBcBAABCAAQBQJjjvDoCRBK7hj4Ov3rIwAABtIIACHrk4Yb/21/PVGQtFbmtqza\nL95ulOOgoTLsBBJjgC4R/Dlj8oYFs8BChhtM1sHJryKfJbr5O/HrAj7pzkREcXnZ\nKfVZ8IlKG0QNLIwQ0rGudS+sMSKE9p7NImQoAbMPn22Jzy4muHhvpuFJqKEfswWW\njiX1RZX87/SHig1OF7327Wjs5JV3eJQ6t5dby0PVlowKI/+Vg/rbYYXDpMOKdxZS\njxFfGrRQrNkoQ55ie67VZY1uRsOdxWOUGT31o4lwKEp9A/85pcXtC3PHS8NFoB6d\nWMQCvaZXmlkltLRNtdw/K3ZpIO34ECci+oH8M6c0dE+FuDGnku+BiIYd7BmVmdY=\n=FCOr\n-----END PGP SIGNATURE-----\n'}}, ''],
     [{seq: 22, link: 21}, {op: 'add', branch: 'branch2_b1'}, ''],
+    [{seq: 23, prev: 14, link: 6}, {op: 'add', file: '/file1-branch1', git: {oid: '8b137891791fe96927ad78e64b0aad7bded08bdc', mode: '100644'}}, ''],
+    [{seq: 24, group: 1}, {op: 'commit', desc: 'Merge pull request #1 from lif-rnd/branch1\n\nmerge branch1\n', author: 'lif-rnd', ts: 1663113277, git: {oid: 'ebfa9a6980f982ffef775895cbb5a6e48a3cfc3c', merge: 7, parent: ['549f06c75c8818b582f552d110094a4b617196f9', 'f748254314933c43f7992743c3ef8c04f7f0a70d'], tree: '359251f3c033d9580c8ce17af1388f18a3030db2', author: {email: '79463501+lif-rnd@users.noreply.github.com', timestamp: 1670313277, timezoneOffset: -120}, committer: {name: 'GitHub', email: 'noreply@github.com', timestamp: 1670313277, timezoneOffset: -120}, gpgsig: '-----BEGIN PGP SIGNATURE-----\n\nwsBcBAABCAAQBQJjjvU9CRBK7hj4Ov3rIwAAAcgIAD9wFvI7hVZWa8w6KLOJLPsS\nVU+AUiCGI9UOyuJgZTrxJkqo6PXV2bkgqYKxjiKXnzknPkETI/MD4p/tKbnN87L0\nNUFkl15GGxrO2tlL3dK7raE9L9cJ6qcxG4uPb8z9Q+Mli/qnJSX92OexXa6IXNWt\n0n8jLNRCZu28qDJWgEadw1nIXD36Q6qNeuITYNKUJWALDtLyocDnWsYSp2gQxiiC\njNTvbDignq34emgFozzXbT/bkgNnrMV+zmr9TJCLWVWWUOb17UoNqOGkvVcKqx2D\n6XTGFMNl9ZD/KtRTkX0+gGNt4rMyDMTwLHRcZPYoaUcQrgLA5w5dwZqparjTQE4=\n=wCu8\n-----END PGP SIGNATURE-----\n'}}, ''],
+    [{seq: 25, prev: 15, link: 24}, {op: 'mod', branch: 'main'}, ''],
+    [{seq: 26, prev: 16, link: 25}, {op: 'mod', branch: 'HEAD'}, ''],
     /* eslint-enable */
   ]);
     // XXX: add test for file diff
     // XXX: add test for binary file
     // XXX: test commit of permission change only
+    // XXX: test branch deletion and recreation
 });
 

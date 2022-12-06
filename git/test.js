@@ -151,6 +151,12 @@ describe('lib', function(){
       branch1: 'f748254314933c43f7992743c3ef8c04f7f0a70d',
       branch2: '63f7e4a5ba325b71f00f32dc53d45a606c1b75eb',
       branch3: '9215645089772245e3583f257527e4ac40093607'}},
+    {max_ts: 1663112168, ref: {
+      main: '549f06c75c8818b582f552d110094a4b617196f9',
+      branch1: 'f748254314933c43f7992743c3ef8c04f7f0a70d',
+      branch2: '63f7e4a5ba325b71f00f32dc53d45a606c1b75eb',
+      branch2_b1: '70327166e0bbc36da012739545f77e392f6557f5',
+      branch3: '9215645089772245e3583f257527e4ac40093607'}},
     {max_ts: 0, ref: null}], [
     /* eslint-disable max-len */ // disable vim red error: call Mark_error(0)
     [{seq: 0}, {scroll: {crypt: [{sig: 'ed25519', hash: 'blake2b', lif: 'lif1'}], pub: '44659cb51dec397ea66085679442505345e159940762c15ef75ad279ecf05033', topic: 'git', src: 'https://github.com/lif-rnd/test_branch', key_val: ['dir', 'file', 'branch', 'tag'], op_default: 'mod'}}, ''],
@@ -173,6 +179,9 @@ describe('lib', function(){
     [{seq: 17, prev: 3, link: 6}, {op: 'add', file: '/file2 branch3', git: {oid: '8b137891791fe96927ad78e64b0aad7bded08bdc', mode: '100644'}}, ''],
     [{seq: 18, group: 1, branch: 'branch3'}, {op: 'commit', desc: 'Create file2 branch3\n', author: 'lif-rnd', ts: 1663111371, git: {oid: '9215645089772245e3583f257527e4ac40093607', parent: ['cb42290303d83a9254397228e586f45539bbe010'], tree: '4cd44cb973a7ddc82935cd8fa18a25eef1f51027', author: {email: '79463501+lif-rnd@users.noreply.github.com', timestamp: 1670311371, timezoneOffset: -120}, committer: {name: 'GitHub', email: 'noreply@github.com', timestamp: 1670311371, timezoneOffset: -120}, gpgsig: '-----BEGIN PGP SIGNATURE-----\n\nwsBcBAABCAAQBQJjju3LCRBK7hj4Ov3rIwAAcvcIACrprgbq4W4meyHBAc5BOj58\nUpiJidHvTpG41Qemlm6gqs5OJLBLdYHO/baxr44yUxfRe7xHhdsIL/aybYfmKsY7\nSy6ZFgdsjyIrG3nSgTE1qz+zw9fUvmfVlZMt66LzdsktIfeQT4p7lECyKPKAuAYo\nh2tPHjyLH9ZMlPpAR7wAgmvEG+U1Nl+iWPU82zXLCEJZnpsynZSI+K8QgRzAvovj\ncOywktazoBW4FwQvRefypMV0CMwnkIKh9dP6L9eOwqMx9a0ydG+cqhkSl137X777\n7OWPyf0rmhMmX905XhLjkL9XSU9e/47JnOUUI4S4il/7pwYD/XG4D00kWFkPaq4=\n=73h+\n-----END PGP SIGNATURE-----\n'}}, ''],
     [{seq: 19, prev: 12, link: 18}, {op: 'mod', branch: 'branch3'}, ''],
+    [{seq: 20, prev: 9, link: 6}, {op: 'add', file: '/file1 branch2b1', git: {oid: '8b137891791fe96927ad78e64b0aad7bded08bdc', mode: '100644'}}, ''],
+    [{seq: 21, group: 1, branch: 'branch2_b1'}, {op: 'commit', desc: 'Create file1 branch2b1\n', author: 'lif-rnd', ts: 1663112168, git: {oid: '70327166e0bbc36da012739545f77e392f6557f5', parent: ['63f7e4a5ba325b71f00f32dc53d45a606c1b75eb'], tree: '4e86b847aab802c24615e45fa335bcbe4b5c140c', author: {email: '79463501+lif-rnd@users.noreply.github.com', timestamp: 1670312168, timezoneOffset: -120}, committer: {name: 'GitHub', email: 'noreply@github.com', timestamp: 1670312168, timezoneOffset: -120}, gpgsig: '-----BEGIN PGP SIGNATURE-----\n\nwsBcBAABCAAQBQJjjvDoCRBK7hj4Ov3rIwAABtIIACHrk4Yb/21/PVGQtFbmtqza\nL95ulOOgoTLsBBJjgC4R/Dlj8oYFs8BChhtM1sHJryKfJbr5O/HrAj7pzkREcXnZ\nKfVZ8IlKG0QNLIwQ0rGudS+sMSKE9p7NImQoAbMPn22Jzy4muHhvpuFJqKEfswWW\njiX1RZX87/SHig1OF7327Wjs5JV3eJQ6t5dby0PVlowKI/+Vg/rbYYXDpMOKdxZS\njxFfGrRQrNkoQ55ie67VZY1uRsOdxWOUGT31o4lwKEp9A/85pcXtC3PHS8NFoB6d\nWMQCvaZXmlkltLRNtdw/K3ZpIO34ECci+oH8M6c0dE+FuDGnku+BiIYd7BmVmdY=\n=FCOr\n-----END PGP SIGNATURE-----\n'}}, ''],
+    [{seq: 22, link: 21}, {op: 'add', branch: 'branch2_b1'}, ''],
     /* eslint-enable */
   ]);
     // XXX: add test for file diff

@@ -402,6 +402,7 @@ function fix_lif_name(lif_branch, branch){
 // - BUG: empty git repository sync will crash
 // - private repositories (allow auth)
 E.import_git = (config, scroll, opt={})=>etask(function*_start(){
+debugger;
   oid2seq = new Map();
   path2seq = new Map();
   seq2state = new Map();
@@ -409,12 +410,16 @@ E.import_git = (config, scroll, opt={})=>etask(function*_start(){
   config.fs = config.fs||fs;
   config.http = config.http||http;
   yield git_api.clone({...config});
-  let branches = yield git_api.listBranches({...config, remote: 'origin'});
+  let branches = opt.ref ? Object.keys(opt.ref) :
+    yield git_api.listBranches({...config, remote: 'origin'});
   let tags = yield git_api.listTags({...config, remote: 'origin'});
   let {prev_sync, lif_branch} = build_prev_sync_index(scroll);
-  array.rm_elm(branches, 'HEAD');
-  array.rm_elm(branches, 'main'); // XXX: do it on HEAD branch
-  branches.unshift('main');
+  if (branches.includes('HEAD'))
+    array.rm_elm(branches, 'HEAD');
+  if (branches.includes('main')){
+    array.rm_elm(branches, 'main'); // XXX: do it on HEAD branch
+    branches.unshift('main');
+  }
   let branch_commit = {}, all_commit = new Map;
   for (let b=0; b<branches.length; b++){
     let branch = branches[b];
@@ -472,7 +477,7 @@ E.import_git = (config, scroll, opt={})=>etask(function*_start(){
         {message: 'desc', 'author.name': 'author'});
       info.ts = date_utc(commit.author.timestamp,
         commit.author.timezoneOffset);
-      let group = -Object.keys(diff.queue).length;
+      let group = Object.keys(diff.queue).length;
       let data = {op: 'commit', ...info};
       data.git = merge ? {oid, merge, ...commit} : {oid, ...commit};
       let lbranch = fix_lif_name(lif_branch, split_map.split[oid]?.branch);
@@ -485,8 +490,8 @@ E.import_git = (config, scroll, opt={})=>etask(function*_start(){
       prev = decl.seq;
     }
   }
-  let head = yield git_get_head(config), head_seq;
-  let branch_curr = {}, tag_curr = {};
+  let head = branches.length ? yield git_get_head(config) : null;
+  let branch_curr = {}, tag_curr = {}, head_seq;
   for (let i=0; i<branches.length; i++){
     let branch = branches[i];
     let oid = opt.ref ? opt.ref[branch] :

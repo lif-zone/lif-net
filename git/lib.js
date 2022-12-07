@@ -570,3 +570,12 @@ E.new_scroll = function(keypair, src){
 };
 
 export default E;
+
+// XXX: TODO
+// put debugger on packetfileSha on GitPackIndex.js and verify it is 0
+//    write(this.packfileSha, 'hex')
+//  const totalBuffer = Buffer.concat(buffers)
+// XXX: when adding files, sort them abc in the group
+// 1. export scroll to git objects and verify same sha
+// 2. implement git discovery (list of remote refs)
+// 3. implement support for git checkout/pull

@@ -7,7 +7,7 @@ import etask from '../util/etask.js';
 import Soul from '../storage/soul.js'; // eslint-disable-line no-unused-vars
 import lib from './lib.js';
 import buf_util from '../peer-relay/buf_util.js';
-const s2b = buf_util.buf_from_str;
+const s2b = buf_util.buf_from_str, b2s = buf_util.buf_to_str
 
 // XXX: make it automatic for all node/browser in proc.js
 xerr.set_exception_catch_all(true);
@@ -54,6 +54,17 @@ describe('lib', function(){
     }
     for (let i=0; i<Math.max(a.length, exp.length); i++)
       assert.deepEqual(a[i], exp[i], 'line '+i);
+    for (const [seq, decl] of scroll.dmap){
+      let data = decl.fbuf_get(0).get_json(2);
+      if (data.op=='rm')
+        continue;
+      if (data.file){
+        let buf = yield lib.get_file(scroll, data.git.oid);
+        if (0) // XXX: WIP
+        assert.equal(lib.git_hash(buf), data.git.oid,
+          'git hash mismatch seq'+seq);
+      }
+    }
   }));
   const t = (repository, exp)=>_t(repository, repository,
     [{max_ts: 0, ref: null}], exp);

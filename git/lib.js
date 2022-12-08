@@ -3,12 +3,15 @@ import xerr from '../util/xerr.js';
 import etask from '../util/etask.js';
 import array from '../util/array.js';
 import xutil from '../util/util.js';
+import xcrypto from '../util/crypto.js';
 import Scroll from '../storage/scroll.js';
 import git_api from 'isomorphic-git';
 import http from 'isomorphic-git/http/node/index.cjs';
 import fs from 'fs';
 import assert from 'assert';
 import * as Diff from 'diff';
+import buf_util from '../peer-relay/buf_util.js';
+const b2s = buf_util.buf_to_str
 const E = {};
 
 // XXX derry: mv to util (and is there better way)
@@ -569,6 +572,18 @@ E.new_scroll = function(keypair, src){
     key_val: ['dir', 'file', 'git_branch', 'tag'], op_default: 'mod'});
 };
 
+E.get_file = (scroll, oid)=>etask(function*_get_file(){
+  return Buffer.from('XXX');
+});
+
+E.git_wrap = function({type, object}){
+  return Buffer.concat([
+    Buffer.from(`${type} ${object.byteLength.toString()}\x00`), object]);
+};
+
+E.git_hash = function(type, object){
+  return b2s(xcrypto.sha1(E.git_wrap({type, object}))); };
+
 export default E;
 
 // XXX: TODO
@@ -579,3 +594,5 @@ export default E;
 // 1. export scroll to git objects and verify same sha
 // 2. implement git discovery (list of remote refs)
 // 3. implement support for git checkout/pull
+// 4. implement support for git push
+// 5. review other apis (branch, tag, log, logref...)

@@ -40,6 +40,9 @@ E.keypair_from_str = function(keys_str){
   return {pub: s2b(_keys.pub), key: s2b(_keys.key)};
 };
 
+E.sha1 = function(buf){
+  return Buffer.from(crypto.createHash('sha1').update(buf).digest()); };
+
 E.sha256 = function(buf){
   return Buffer.from(crypto.createHash('sha256').update(buf).digest()); };
 

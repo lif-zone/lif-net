@@ -62,7 +62,6 @@ describe('lib', function(){
         if (!data.content) // XXX: WIP
           continue;
         let buf = yield lib.get_file(scroll, decl);
-        if (0)
         assert.equal(lib.git_hash('blob', buf), data.git.oid,
           'git hash mismatch seq'+seq);
       }

@@ -17,9 +17,11 @@ const stringify = JSON.stringify.bind(JSON);
 const LEAF_TYPE = enc_u64(0), PARENT_TYPE = enc_u64(1), ROOT_TYPE = enc_u64(2);
 function enc_u64(v){ return enc.encode(enc.uint64, v); }
 
-function to_frame(o){
+function to_frame(o){ // XXX: need test
   if (Buffer.isBuffer(o))
     return {buf: o};
+  if (o instanceof Uint8Array)
+    return {buf: Buffer.from(o)};
   if (typeof o=='object')
     return {buf: Buffer.from(stringify(o))};
   if (typeof o=='string')
@@ -137,6 +139,7 @@ class Frame_buffer extends EventEmitter {
       'sig changed');
     this.frames[0].sig = sig;
   }
+  get(i){ return this.frames[i]?.buf; }
   get_json(i){ // XXX: need better implemenation + add caching of result
     let buf = this.frames[i]?.buf;
     if (buf)
@@ -1183,7 +1186,7 @@ Scroll.open = function(opt){
   let seq, h;
   if (typeof opt.M=='string')
     [seq, h] = [0, s2b(opt.M)];
-  else
+  else // XXX: support Uint8Array
     [seq, h] = Buffer.isBuffer(opt.M) ? [0, opt.M] : [opt.M.seq, opt.M.h];
   assert(util.is_mocha() || seq==0, 'producion scroll must have M0');
   let soul = opt.soul||Scroll.soul;

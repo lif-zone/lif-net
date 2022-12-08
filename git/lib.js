@@ -11,7 +11,7 @@ import fs from 'fs';
 import assert from 'assert';
 import * as Diff from 'diff';
 import buf_util from '../peer-relay/buf_util.js';
-const b2s = buf_util.buf_to_str
+const b2s = buf_util.buf_to_str;
 const E = {};
 
 // XXX derry: mv to util (and is there better way)
@@ -572,7 +572,18 @@ E.new_scroll = function(keypair, src){
     key_val: ['dir', 'file', 'git_branch', 'tag'], op_default: 'mod'});
 };
 
-E.get_file = (scroll, oid)=>etask(function*_get_file(){
+E.get_file = (scroll, decl)=>etask(function*_get_file(){
+  let fbuf = decl.fbuf_get(0);
+  let header = fbuf.get_json(1);
+  let data = fbuf.get_json(2);
+  assert(data.file, 'invalid file seq'+decl.seq);
+  if (data.op=='rm')
+    return;
+  // XXX: need proper api
+  if (data.content){
+    if (Number.isInteger(data.content))
+      return fbuf.get(2+data.content);
+  }
   return Buffer.from('XXX');
 });
 

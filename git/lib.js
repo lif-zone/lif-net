@@ -157,7 +157,7 @@ const prepare_diff = (config, scroll, top, prev, lbranch, state_next)=>etask(
             d_old = null;
         } else {
           let decl_old = yield scroll.get_decl(seq_path);
-          d_old = (yield decl_old.fbuf_get(0)).get_json(2);
+          d_old = yield decl_old.get_json(2);
         }
         let oid_old = d_old?.git.oid;
         let buf_old = d_old?.file && (yield git_api.readBlob({...config,
@@ -234,9 +234,9 @@ E.scroll_to_lines = function(scroll){
     let decl = scroll.get_decl(i), fbuf = decl.fbuf_get_sync(0);
     let h = fbuf.get_json(1);
     let o = fbuf.get_json(2);
-    let blob = fbuf.get_frames()[3];
+    let blob = fbuf.get(3);
     delete h.ts;
-    a.push([h, o, blob ? blob?.buf.length : '']);
+    a.push([h, o, blob ? blob.length : '']);
   }
   return a;
 };
@@ -247,10 +247,10 @@ E.dump_scroll = function(scroll){
     // XXX: need nice api
     let h = {...fbuf.get_json(1)};
     let o = fbuf.get_json(2);
-    let blob = fbuf.get_frames()[3];
+    let blob = fbuf.get(3);
     delete h.ts;
     console.log('%s %s%s', E.json_str(h), E.json_str(o),
-      blob?.buf ? ' blob '+blob.buf.length : '');
+      blob ? ' blob '+blob.length : '');
   }
 };
 
@@ -266,8 +266,8 @@ const build_prev_sync_index = scroll=>etask(function*(){
   let lif_branch = new Map();
   for (const [seq, decl] of scroll.dmap){
     // XXX: need api to get header/data part of frames
-    let header = (yield decl.fbuf_get(0)).get_json(1);
-    let data = (yield decl.fbuf_get(0)).get_json(2), oid = data.git?.oid;
+    let header = yield decl.get_json(1);
+    let data = yield decl.get_json(2), oid = data.git?.oid;
     if (header.branch){
       assert(!lif_branch.get(header.branch),
         'duplicated branch split '+header.branch);
@@ -307,7 +307,7 @@ const build_prev_sync_index = scroll=>etask(function*(){
 });
 
 const get_state_seq = (config, scroll, seq)=>etask(function*get_state_seq(){
-  let tree = (yield scroll.get_decl(seq).fbuf_get(0)).get_json(2).git.tree;
+  let tree = (yield scroll.get_decl(seq).get_json(2)).git.tree;
   assert(tree, 'no tree for seq'+seq);
   let state = seq2state.get(seq);
   if (state)
@@ -508,7 +508,7 @@ E.import_git = (config, scroll, opt={})=>etask(function*_start(){
     if (prev){
       let prev_d = yield scroll.get_decl(prev);
       // XXX: need to properly parse link
-      if ((yield prev_d.fbuf_get(0)).get_json(1).link==seq){
+      if ((yield prev_d.get_json(1)).link==seq){
         if (head==git_branch)
           head_seq = prev;
         continue;
@@ -531,7 +531,7 @@ E.import_git = (config, scroll, opt={})=>etask(function*_start(){
     if (prev){
       let prev_d = yield scroll.get_decl(prev);
       // XXX: need to properly parse link
-      if ((yield prev_d.fbuf_get(0)).get_json(1).link==seq)
+      if ((yield prev_d.get_json(1)).link==seq)
         continue;
     }
     let op = add ? 'add' : 'mod';
@@ -544,7 +544,7 @@ E.import_git = (config, scroll, opt={})=>etask(function*_start(){
     if (prev){
       let prev_d = yield scroll.get_decl(prev);
       // XXX: need to properly parse link
-      same = (yield prev_d.fbuf_get(0)).get_json(1).link==link;
+      same = (yield prev_d.get_json(1)).link==link;
     }
     if (!same){
       let op = add ? 'add' : 'mod';
@@ -576,7 +576,7 @@ E.new_scroll = function(keypair, src){
 const get_content = decl=>etask(function*(){
   // XXX: need proper api and verify it loads from db
   while (true){
-    let data = yield decl.fbuf_get(0).get_json(2);
+    let data = yield decl.get_json(2);
     let o = Scroll.parse_buf_ref(data.ref);
     assert(o, 'missing conent seq'+decl.seq);
     if (o.buf)

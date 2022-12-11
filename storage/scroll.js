@@ -1022,9 +1022,29 @@ class Decl extends EventEmitter {
   M_hash(b){ return this.M.get_hash(b); }
   fbuf_get(b){
     let _this = this;
-    return etask({_: this}, function(){
+    return etask(function(){
       // XXX: load data from db/net
       return _this.fbuf_get_sync(b);
+    });
+  }
+  get_buf(opt){
+    let _this = this;
+    if (Number.isInteger(opt))
+      opt = {b: 0, d: opt};
+    let d = opt.d;
+    return etask(function*(){
+      let fbuf = yield _this.fbuf_get(opt.b);
+      return fbuf.get(d);
+    });
+  }
+  get_json(opt){
+    let _this = this;
+    if (Number.isInteger(opt))
+      opt = {b: 0, d: opt};
+    let d = opt.d;
+    return etask(function*(){
+      let fbuf = yield _this.fbuf_get(opt.b);
+      return fbuf.get_json(d);
     });
   }
   copy(bdst, bsrc){

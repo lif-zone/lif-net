@@ -54,14 +54,17 @@ describe('lib', function(){
     }
     for (let i=0; i<Math.max(a.length, exp.length); i++)
       assert.deepEqual(a[i], exp[i], 'line '+i);
+    if (true) // XXX WIP
+      return;
     for (const [seq, decl] of scroll.dmap){
-      let data = decl.fbuf_get(0).get_json(2);
-      if (data.op=='rm')
+      let data = (yield decl.fbuf_get(0)).get_json(2);
+      if (data.op=='rm') // XXX: verfiy file doesn't exist
+        continue;
+      if (data.op=='mv') // XXX: verify file resolution is correct
         continue;
       if (data.file){
-        if (!data.content) // XXX: WIP
-          continue;
         let buf = yield lib.get_file(scroll, decl);
+        assert(buf, 'file not found seq'+seq);
         assert.equal(lib.git_hash('blob', buf), data.git.oid,
           'git hash mismatch seq'+seq);
       }

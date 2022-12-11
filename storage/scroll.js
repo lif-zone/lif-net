@@ -1021,7 +1021,7 @@ class Decl extends EventEmitter {
   m_hash(b, range){ return this.m_get(range).get_hash(b); }
   M_hash(b){ return this.M.get_hash(b); }
   fbuf_get(b){
-    let _this;
+    let _this = this;
     return etask({_: this}, function(){
       // XXX: load data from db/net
       return _this.fbuf_get_sync(b);

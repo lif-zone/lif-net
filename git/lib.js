@@ -157,7 +157,7 @@ const prepare_diff = (config, scroll, top, prev, lbranch, state_next)=>etask(
             d_old = null;
         } else {
           let decl_old = yield scroll.get_decl(seq_path);
-          d_old = decl_old.fbuf_get(0).get_json(2);
+          d_old = (yield decl_old.fbuf_get(0)).get_json(2);
         }
         let oid_old = d_old?.git.oid;
         let buf_old = d_old?.file && (yield git_api.readBlob({...config,
@@ -231,7 +231,7 @@ E.json_str = function(o){
 E.scroll_to_lines = function(scroll){
   let a = [];
   for (let i=0; i<=scroll.top.seq; i++){
-    let decl = scroll.get_decl(i), fbuf = decl.fbuf_get(0);
+    let decl = scroll.get_decl(i), fbuf = decl.fbuf_get_sync(0);
     let h = fbuf.get_json(1);
     let o = fbuf.get_json(2);
     let blob = fbuf.get_frames()[3];
@@ -243,7 +243,7 @@ E.scroll_to_lines = function(scroll){
 
 E.dump_scroll = function(scroll){
   for (let i=0; i<=scroll.top.seq; i++){
-    let decl = scroll.get_decl(i), fbuf = decl.fbuf_get(0);
+    let decl = scroll.get_decl(i), fbuf = decl.fbuf_get_sync(0);
     // XXX: need nice api
     let h = {...fbuf.get_json(1)};
     let o = fbuf.get_json(2);
@@ -259,15 +259,15 @@ function dir2path(dir){
   return dir.substr(0, dir.length-1);
 }
 
-function build_prev_sync_index(scroll){
+const build_prev_sync_index = scroll=>etask(function*(){
   // XXX: need to have built-in index in scroll
   let prev_sync = {commit: new Map(), git_branch: new Map(), tag: new Map(),
     head: null};
   let lif_branch = new Map();
   for (const [seq, decl] of scroll.dmap){
     // XXX: need api to get header/data part of frames
-    let header = decl.fbuf_get(0).get_json(1);
-    let data = decl.fbuf_get(0).get_json(2), oid = data.git?.oid;
+    let header = (yield decl.fbuf_get(0)).get_json(1);
+    let data = (yield decl.fbuf_get(0)).get_json(2), oid = data.git?.oid;
     if (header.branch){
       assert(!lif_branch.get(header.branch),
         'duplicated branch split '+header.branch);
@@ -304,10 +304,10 @@ function build_prev_sync_index(scroll){
       prev_sync.head = {seq};
   }
   return {prev_sync, lif_branch};
-}
+});
 
 const get_state_seq = (config, scroll, seq)=>etask(function*get_state_seq(){
-  let tree = scroll.get_decl(seq).fbuf_get(0).get_json(2).git.tree;
+  let tree = (yield scroll.get_decl(seq).fbuf_get(0)).get_json(2).git.tree;
   assert(tree, 'no tree for seq'+seq);
   let state = seq2state.get(seq);
   if (state)
@@ -417,7 +417,7 @@ E.import_git = (config, scroll, opt={})=>etask(function*_start(){
   let branches = opt.ref ? Object.keys(opt.ref) :
     yield git_api.listBranches({...config, remote: 'origin'});
   let tags = yield git_api.listTags({...config, remote: 'origin'});
-  let {prev_sync, lif_branch} = build_prev_sync_index(scroll);
+  let {prev_sync, lif_branch} = yield build_prev_sync_index(scroll);
   if (branches.includes('HEAD'))
     array.rm_elm(branches, 'HEAD');
   if (branches.includes('main')){
@@ -508,7 +508,7 @@ E.import_git = (config, scroll, opt={})=>etask(function*_start(){
     if (prev){
       let prev_d = yield scroll.get_decl(prev);
       // XXX: need to properly parse link
-      if (prev_d.fbuf_get(0).get_json(1).link==seq){
+      if ((yield prev_d.fbuf_get(0)).get_json(1).link==seq){
         if (head==git_branch)
           head_seq = prev;
         continue;
@@ -531,7 +531,7 @@ E.import_git = (config, scroll, opt={})=>etask(function*_start(){
     if (prev){
       let prev_d = yield scroll.get_decl(prev);
       // XXX: need to properly parse link
-      if (prev_d.fbuf_get(0).get_json(1).link==seq)
+      if ((yield prev_d.fbuf_get(0)).get_json(1).link==seq)
         continue;
     }
     let op = add ? 'add' : 'mod';
@@ -544,7 +544,7 @@ E.import_git = (config, scroll, opt={})=>etask(function*_start(){
     if (prev){
       let prev_d = yield scroll.get_decl(prev);
       // XXX: need to properly parse link
-      same = prev_d.fbuf_get(0).get_json(1).link==link;
+      same = (yield prev_d.fbuf_get(0)).get_json(1).link==link;
     }
     if (!same){
       let op = add ? 'add' : 'mod';
@@ -572,19 +572,35 @@ E.new_scroll = function(keypair, src){
     key_val: ['dir', 'file', 'git_branch', 'tag'], op_default: 'mod'});
 };
 
+// XXX: this need to be generic scorll api
+const get_content = decl=>etask(function*(){
+  // XXX: need proper api and verify it loads from db
+  while (true){
+    let data = yield decl.fbuf_get(0).get_json(2);
+    let o = Scroll.parse_buf_ref(data.ref);
+    assert(o, 'missing conent seq'+decl.seq);
+    if (o.buf)
+      return buf;
+    if (o.d)
+      return this.fbuf_get(b).get(o.d+2);
+    let seq = Scroll.resolve_link(o.l);
+    assert(seq<decl.seq, 'link can only point backwards');
+    decl = yield decl.scorll.get_decl(seq);
+  }
+});
+
 E.get_file = (scroll, decl)=>etask(function*_get_file(){
   let fbuf = decl.fbuf_get(0);
   let header = fbuf.get_json(1);
   let data = fbuf.get_json(2);
   assert(data.file, 'invalid file seq'+decl.seq);
-  if (data.op=='rm')
+  if (data.op=='rm') // XXX: TODO
     return;
-  // XXX: need proper api
-  if (data.content){
-    if (Number.isInteger(data.content))
-      return fbuf.get(2+data.content);
-  }
-  return Buffer.from('XXX');
+  if (data.op=='mv') // XXX: TODO
+    return;
+  if (data.diff)
+    return yield get_diff(decl);
+  return yield get_content(decl);
 });
 
 E.git_wrap = function({type, object}){
@@ -607,3 +623,21 @@ export default E;
 // 3. implement support for git checkout/pull
 // 4. implement support for git push
 // 5. review other apis (branch, tag, log, logref...)
+// TODO
+// - remove usage of dmap
+// - verify all scroll access is async
+
+/* derry: Short summary of our call:
+1. All scroll data is loaded async (up to the frame level) from db/network.
+
+2. Partial merkel branch: are treaded a cache-only data. We don't use
+   it until we can fully verify it and merge with main branch
+
+3. Conflict merkel branch:
+3.1 if the conlfict is below a seq that the client arelady recieved, we ignore
+it and just notify the client about it.
+3.2 if the conflict is above the seq that client already recieved, we wait
+for the client to decide how to resolve (yield callback).
+the client will decide which version to choose. the client will save
+(top seq/M) for future access of the scorll.
+*/

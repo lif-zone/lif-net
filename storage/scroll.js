@@ -183,6 +183,12 @@ function parse_buf_ref(ref){
   assert.fail('invalid ref %o', ref);
 }
 
+function resolve_link(links, l){ // XXX: need test
+  if (typeof links=='string')
+    links = {_: links};
+  return links[l];
+}
+
 function hconcat(a){ return crypto.blake2b(Buffer.concat(a)); }
 function hconcat_safe(a){
   if (a.findIndex(o=>!o)!=-1)
@@ -1250,6 +1256,7 @@ Scroll.open = function(opt){
 
 Scroll.supported_crypt = [{sig: 'ed25519', hash: 'blake2b', lif: 'lif1'}];
 Scroll.parse_buf_ref = parse_buf_ref;
+Scroll.resolve_link = resolve_link;
 Scroll.hconcat = hconcat; // XXX need test
 Scroll.hconcat_safe = hconcat_safe; // XXX need test
 Scroll.hparent = hparent; // XXX need test

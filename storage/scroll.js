@@ -168,13 +168,13 @@ Frame_buffer.calc_hash = function(frames, opt={}){
   return crypto.blake2b(buf);
 };
 
-function parse_data_ref(ref){
+function parse_buf_ref(ref){
+  if (ref===undefined || ref===null)
+    return {l: '_'};
   if (Number.isInteger(ref))
     return {d: ref};
   if (typeof ref=='string')
     return {buf: Buffer.from(ref)};
-  if (!ref)
-    return null;
   if (Number.isInteger(ref.d))
     return {d: ref.d};
   if (typeof ref.d=='string')
@@ -1019,6 +1019,14 @@ class Decl extends EventEmitter {
   }
   m_hash(b, range){ return this.m_get(range).get_hash(b); }
   M_hash(b){ return this.M.get_hash(b); }
+  get_buf(data_ref, opt={}){
+    let b = opt.b||0;
+    let o = Scroll.parse_buf_ref(data_ref);
+    if (!o)
+      return null;
+    if (o.d)
+      return this.fbuf_get(b).get(o.d+2);
+  }
   copy(bdst, bsrc){
     assert(this.to_b(bdst)!=this.to_b(bsrc), 'copy same b'+bdst+'<- b'+bsrc);
     let M = this.M.get_hash(bsrc);
@@ -1215,7 +1223,7 @@ Scroll.open = function(opt){
 };
 
 Scroll.supported_crypt = [{sig: 'ed25519', hash: 'blake2b', lif: 'lif1'}];
-Scroll.parse_data_ref = parse_data_ref;
+Scroll.parse_buf_ref = parse_buf_ref;
 Scroll.hconcat = hconcat; // XXX need test
 Scroll.hconcat_safe = hconcat_safe; // XXX need test
 Scroll.hparent = hparent; // XXX need test

@@ -1039,12 +1039,18 @@ class Decl extends EventEmitter {
   }
   get_json(opt){
     let _this = this;
-    if (Number.isInteger(opt))
+    if (opt===undefined)
+      opt = {b: 0, d: [1, 2]}; // header & data section
+   else if (Number.isInteger(opt) || Array.isArray(opt))
       opt = {b: 0, d: opt};
     let d = opt.d;
     return etask(function*(){
       let fbuf = yield _this.fbuf_get(opt.b);
-      return fbuf.get_json(d);
+      if (!Array.isArray(d))
+        return fbuf.get_json(d);
+      let a = [];
+      d.forEach(i=>a.push(fbuf.get_json(i)));
+      return a;
     });
   }
   copy(bdst, bsrc){

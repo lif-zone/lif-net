@@ -754,7 +754,7 @@ const cmd_test = t=>etask(function*cmd_test(){
             ' exists '+t.meta.s);
           break;
         case 'd':
-          assert(!decl || !decl.fbuf_get(b).h, 'd'+seq+'b'+b+' exists '+
+          assert(!decl || !decl.fbuf_get_sync(b).h, 'd'+seq+'b'+b+' exists '+
             t.meta.s);
           break;
         case 'M':

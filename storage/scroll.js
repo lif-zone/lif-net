@@ -4,6 +4,7 @@ import assert from 'assert';
 import {EventEmitter} from 'events';
 import crypto from '../util/crypto.js';
 import util from '../util/util.js';
+import etask from '../util/etask.js';
 import xerr from '../util/xerr.js';
 import enc from 'compact-encoding';
 import {Buffer} from 'buffer';
@@ -888,8 +889,8 @@ export default class Scroll extends EventEmitter {
         let val = v[type];
         switch (type){
         case 'sig': decl.sig_set(b, val); break;
-        case 'd': decl.fbuf_get(b).set_hash(val); break;
-        case 'D': decl.fbuf_get(b).set_frames(val); break;
+        case 'd': decl.fbuf_get_sync(b).set_hash(val); break;
+        case 'D': decl.fbuf_get_sync(b).set_frames(val); break;
         case 'M': decl.M.set_hash(b, val); break;
         case 'm':
           for (let s in val)
@@ -913,7 +914,7 @@ export default class Scroll extends EventEmitter {
   }
   seq_sig(b, seq){ return this.get_decl(seq)?.sig_get(b); }
   seq_d(b, seq){ return this.get_decl(seq).d_hash(b); }
-  seq_D(b, seq){ return this.get_decl(seq).fbuf_get(b).get_frames(); }
+  seq_D(b, seq){ return this.get_decl(seq).fbuf_get_sync(b).get_frames(); }
   m_hash(b, range){
     let [, e] = range = r_fix(range), decl = this.get_decl(e);
     return decl.m_hash(b||0, range);
@@ -996,7 +997,7 @@ class Decl extends EventEmitter {
   }
   to_b(b){ return this.scroll.to_b(b, this.seq); }
   sign(b){
-    let scroll = this.scroll, d = this.fbuf_get(b).get_hash();
+    let scroll = this.scroll, d = this.fbuf_get_sync(b).get_hash();
     assert(scroll.key, 'cannot sign without key');
     let buf = this.seq ? Buffer.concat([d, scroll.M_hash(b, this.seq-1)])
       : scroll.prev_scroll ? Buffer.concat([d, scroll.prev_scroll]) : d;
@@ -1004,14 +1005,14 @@ class Decl extends EventEmitter {
     this.sig_set(b, sig);
   }
   sig_set(b, sig){
-    this.fbuf_get(b).sig_set(sig);
+    this.fbuf_get_sync(b).sig_set(sig);
     this.emit('sig', {b}); // XXX NOW: need to emit also from set_frames
     return sig;
   }
-  sig_get(b){ return this.fbuf_get(b).sig_get(); }
-  fbuf_get(b){ return this.data.get(this.to_b(b)); }
+  sig_get(b){ return this.fbuf_get_sync(b).sig_get(); }
+  fbuf_get_sync(b){ return this.data.get(this.to_b(b)); }
   data_get(){ return this.data; }
-  d_hash(b){ return this.fbuf_get(b).get_hash(); }
+  d_hash(b){ return this.fbuf_get_sync(b).get_hash(); }
   m_get(range){
     let i = merkel_array_pos(range);
     assert.deepEqual(this.m[i].range, r_fix(range));
@@ -1019,13 +1020,12 @@ class Decl extends EventEmitter {
   }
   m_hash(b, range){ return this.m_get(range).get_hash(b); }
   M_hash(b){ return this.M.get_hash(b); }
-  get_buf(data_ref, opt={}){
-    let b = opt.b||0;
-    let o = Scroll.parse_buf_ref(data_ref);
-    if (!o)
-      return null;
-    if (o.d)
-      return this.fbuf_get(b).get(o.d+2);
+  fbuf_get(b){
+    let _this;
+    return etask({_: this}, function(){
+      // XXX: load data from db/net
+      return _this.fbuf_get_sync(b);
+    });
   }
   copy(bdst, bsrc){
     assert(this.to_b(bdst)!=this.to_b(bsrc), 'copy same b'+bdst+'<- b'+bsrc);
@@ -1057,7 +1057,7 @@ class Decl extends EventEmitter {
         assert(!o.M[b], 'M already set');
         o.M[b] = this.M_hash(b);
       }
-      let frames = this.fbuf_get(b).get_frames();
+      let frames = this.fbuf_get_sync(b).get_frames();
       // XXX: move this logic to Frame_buffer
       if (frames.length>1 || frames[0].sig || frames[0].h_rest){
         let frames2 = [], total=0;
@@ -1102,7 +1102,7 @@ class Decl extends EventEmitter {
         this.m_get([+i, this.seq]).set_hash(+b, m[b]);
     }
     for (const b in o.D)
-      this.fbuf_get(+b).set_frames(o.D[b]);
+      this.fbuf_get_sync(+b).set_frames(o.D[b]);
   }
 }
 

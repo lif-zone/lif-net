@@ -168,6 +168,20 @@ Frame_buffer.calc_hash = function(frames, opt={}){
   return crypto.blake2b(buf);
 };
 
+function parse_data_ref(ref){
+  if (Number.isInteger(ref))
+    return {d: ref};
+  if (typeof ref=='string')
+    return {buf: Buffer.from(ref)};
+  if (!ref)
+    return null;
+  if (Number.isInteger(ref.d))
+    return {d: ref.d};
+  if (typeof ref.d=='string')
+    return {l: ref.d};
+  assert.fail('invalid ref %o', ref);
+}
+
 function hconcat(a){ return crypto.blake2b(Buffer.concat(a)); }
 function hconcat_safe(a){
   if (a.findIndex(o=>!o)!=-1)
@@ -1201,6 +1215,7 @@ Scroll.open = function(opt){
 };
 
 Scroll.supported_crypt = [{sig: 'ed25519', hash: 'blake2b', lif: 'lif1'}];
+Scroll.parse_data_ref = parse_data_ref;
 Scroll.hconcat = hconcat; // XXX need test
 Scroll.hconcat_safe = hconcat_safe; // XXX need test
 Scroll.hparent = hparent; // XXX need test

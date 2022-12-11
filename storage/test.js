@@ -1267,6 +1267,17 @@ describe('scroll', ()=>{
       t(14, '0_7 8_11 12_13 14', '15');
       t(15, '0_15', '16 16_17 16_19 16_23 16_31');
     });
+    it('parse_data_ref', ()=>{
+      const t = (val, exp)=>assert.deepEqual(Scroll.parse_data_ref(val), exp);
+      t(null, null);
+      t(undefined, null);
+      t(0, {d: 0});
+      t(1, {d: 1});
+      t('', {buf: Buffer.from('')});
+      t('a', {buf: Buffer.from('a')});
+      t({d: 1}, {d: 1});
+      t({d: '_'}, {l: '_'}); // XXX: derry, rename to l: '_'
+    });
   });
   describe('macro', ()=>{
     it('to_m', ()=>{

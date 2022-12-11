@@ -54,15 +54,13 @@ describe('lib', function(){
     }
     for (let i=0; i<Math.max(a.length, exp.length); i++)
       assert.deepEqual(a[i], exp[i], 'line '+i);
-    if (true) // XXX WIP
-      return;
     for (const [seq, decl] of scroll.dmap){
       let data = (yield decl.fbuf_get(0)).get_json(2);
       if (data.op=='rm') // XXX: verfiy file doesn't exist
         continue;
       if (data.op=='mv') // XXX: verify file resolution is correct
         continue;
-      if (data.file){
+      if (data.file && !data.diff){
         let buf = yield lib.get_file(scroll, decl);
         assert(buf, 'file not found seq'+seq);
         assert.equal(lib.git_hash('blob', buf), data.git.oid,
@@ -94,7 +92,7 @@ describe('lib', function(){
     [{seq: 15}, {op: 'add', file: '/b/a', content: 1, git: {oid: 'd6459e005434a49a66a3ddec92279a86160ad71f', mode: '100644'}}, 4],
     [{seq: 16, group: 3}, {op: 'commit', desc: 'change b from file to dir\n', author: 'lif-rnd', ts: 1662510970, git: {oid: 'c0232fb014456ae8ee9b8060121a67016eda6512', parent: ['a7dc61ad160e9e5d004f02b86e79bc289ad24af8'], tree: 'd6b77bf060783ee6ad13012eba917a35b104462b', author: {email: 'lif.zone.main@gmail.com', timestamp: 1669710970, timezoneOffset: -120}, committer: {name: 'lif-rnd', email: 'lif.zone.main@gmail.com', timestamp: 1669710970, timezoneOffset: -120}}}, ''],
     [{seq: 17}, {op: 'rm', dir: '/b/'}, ''],
-    [{seq: 18}, {op: 'add', file: '/b', git: {oid: '6d700c06af2977bb61a59cdefb4957ec3ef4f6ff', mode: '100644'}}, 9],
+    [{seq: 18}, {op: 'add', file: '/b', content: 1, git: {oid: '6d700c06af2977bb61a59cdefb4957ec3ef4f6ff', mode: '100644'}}, 9],
     [{seq: 19}, {op: 'rm', file: '/b/a'}, ''],
     [{seq: 20, group: 3}, {op: 'commit', desc: 'change b from dir to file\n', author: 'lif-rnd', ts: 1662511341, git: {oid: 'aa18f16781702a407f879aca38902577418f7cb3', parent: ['c0232fb014456ae8ee9b8060121a67016eda6512'], tree: 'c4fa6729ae5f884522d97fc6145f0bb588453a41', author: {email: 'lif.zone.main@gmail.com', timestamp: 1669711341, timezoneOffset: -120}, committer: {name: 'lif-rnd', email: 'lif.zone.main@gmail.com', timestamp: 1669711341, timezoneOffset: -120}}}, ''],
     [{seq: 21, link: 20}, {op: 'add', git_branch: 'main'}, ''],

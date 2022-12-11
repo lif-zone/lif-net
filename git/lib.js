@@ -165,7 +165,7 @@ const prepare_diff = (config, scroll, top, prev, lbranch, state_next)=>etask(
         let buf_new = (yield git_api.readBlob({...config, oid: next.oid}))
         .blob;
         if (!buf_old || is_bin(buf_old) || is_bin(buf_new))
-          blob = buf_new;
+          [content, blob] = [1, buf_new];
         else {
           let s_old = Buffer.from(buf_old).toString();
           let s_new = Buffer.from(buf_new).toString();
@@ -265,9 +265,7 @@ const build_prev_sync_index = scroll=>etask(function*(){
     head: null};
   let lif_branch = new Map();
   for (const [seq, decl] of scroll.dmap){
-    // XXX: need api to get header/data part of frames
-    let header = yield decl.get_json(1);
-    let data = yield decl.get_json(2), oid = data.git?.oid;
+    let [header, data] = yield decl.get_json(), oid = data.git?.oid;
     if (header.branch){
       assert(!lif_branch.get(header.branch),
         'duplicated branch split '+header.branch);
@@ -575,24 +573,23 @@ E.new_scroll = function(keypair, src){
 // XXX: this need to be generic scorll api
 const get_content = decl=>etask(function*(){
   // XXX: need proper api and verify it loads from db
-  while (true){
-    let data = yield decl.get_json(2);
-    let o = Scroll.parse_buf_ref(data.ref);
+  while (decl){
+    let [header, data] = yield decl.get_json();
+    let o = Scroll.parse_buf_ref(data.content);
     assert(o, 'missing conent seq'+decl.seq);
     if (o.buf)
-      return buf;
+      return o.buf;
     if (o.d)
-      return this.fbuf_get(b).get(o.d+2);
-    let seq = Scroll.resolve_link(o.l);
+      return decl.get_buf(o.d+2);
+    let seq = Scroll.resolve_link(header.link, o.l);
     assert(seq<decl.seq, 'link can only point backwards');
-    decl = yield decl.scorll.get_decl(seq);
+    decl = yield decl.scroll.get_decl(seq);
   }
+  assert.fail('failed to get content');
 });
 
 E.get_file = (scroll, decl)=>etask(function*_get_file(){
-  let fbuf = decl.fbuf_get(0);
-  let header = fbuf.get_json(1);
-  let data = fbuf.get_json(2);
+  let data = yield decl.get_json(2);
   assert(data.file, 'invalid file seq'+decl.seq);
   if (data.op=='rm') // XXX: TODO
     return;

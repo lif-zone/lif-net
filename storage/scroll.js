@@ -184,9 +184,10 @@ function parse_buf_ref(ref){
 }
 
 function resolve_link(links, l){ // XXX: need test
-  if (typeof links=='string')
-    links = {_: links};
-  return links[l];
+  links = Number.isInteger(links) ? {_: links} : links||{};
+  let seq = links[l];
+  assert(seq>=0, 'invalid link '+l);
+  return seq;
 }
 
 function hconcat(a){ return crypto.blake2b(Buffer.concat(a)); }

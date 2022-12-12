@@ -60,7 +60,7 @@ describe('lib', function(){
         continue;
       if (data.op=='mv') // XXX: verify file resolution is correct
         continue;
-      if (data.file && !data.diff){
+      if (data.file){
         let buf = yield lib.get_file(scroll, decl);
         assert(buf, 'file not found seq'+seq);
         assert.equal(lib.git_hash('blob', buf), data.git.oid,

@@ -571,14 +571,13 @@ E.new_scroll = function(keypair, src){
 };
 
 const get_content = decl=>etask(function*(){
-  // XXX: need proper api and verify it loads from db
   let [header, data] = yield decl.get_json();
   let o = Scroll.parse_buf_ref(data.diff ? data.diff : data.content), buf;
   assert(o, 'missing conent seq'+decl.seq);
   if (o.buf)
     buf = o.buf;
   else if (o.d)
-    buf = decl.get_buf(o.d+2);
+    buf = yield decl.get_buf(o.d+2);
   else {
     let seq = Scroll.resolve_link(header.link, o.l);
     assert(seq<decl.seq, 'link can only point backwards');
@@ -587,11 +586,11 @@ const get_content = decl=>etask(function*(){
   }
   if (!data.diff)
     return buf;
-  assert.fail('XXX TODO');
-  let base_seq = Scroll.resolve_link(header.link, '_');
-  let decl_base = decl.scroll.get(base_seq);
-  let base_buf = yield get_content(decl_base);
-  return buf;
+  let src_seq = Scroll.resolve_link(header.link, '_');
+  let src_decl = yield decl.scroll.get_decl(src_seq);
+  let src = yield get_content(src_decl);
+  let s = Diff.applyPatch(src.toString(), buf.toString());
+  return Buffer.from(s);
 });
 
 E.get_file = (scroll, decl)=>etask(function*_get_file(){

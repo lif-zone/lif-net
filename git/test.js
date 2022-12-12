@@ -6,6 +6,7 @@ import xtest from '../util/test_lib.js'; // eslint-disable-line no-unused-vars
 import etask from '../util/etask.js';
 import Soul from '../storage/soul.js'; // eslint-disable-line no-unused-vars
 import lib from './lib.js';
+import git_util from './util.js';
 import buf_util from '../peer-relay/buf_util.js';
 const s2b = buf_util.buf_from_str;
 
@@ -33,6 +34,102 @@ function dump_lines(a){
       a[i][2]||"''");
   }
 }
+describe('util', function(){
+  it('parse_commit', ()=>{
+    const t = (val, exp)=>assert.deepEqual(git_util.parse_commit(val), exp);
+    t('tree d1718651c1c6fd695c8ecfd3dac98c793c62b33d\n'+
+      'parent 632392939fe3e3abcfd259ef24f2ff2a08d55f73\n'+
+      'author lif-rnd <lif.zone.main@gmail.com> 1670841758 +0200\n'+
+      'committer lif-rnd <lif.zone.main@gmail.com> 1670841758 +0200\n'+
+      '\n'+'Commit from cli with pgp\n'+
+      '\n'+'Signed-off-by: lif-rnd <lif.zone.main@gmail.com>\n',
+      {parent: ['632392939fe3e3abcfd259ef24f2ff2a08d55f73'],
+      tree: 'd1718651c1c6fd695c8ecfd3dac98c793c62b33d',
+      author: {name: 'lif-rnd', email: 'lif.zone.main@gmail.com',
+        timestamp: 1670841758,tz_offset: -120},
+      committer: {name: 'lif-rnd', email: 'lif.zone.main@gmail.com',
+        timestamp: 1670841758, tz_offset:-120},
+      message: 'Commit from cli with pgp\n\n'+
+        'Signed-off-by: lif-rnd <lif.zone.main@gmail.com>\n',
+    });
+    t('tree 078aefbd762262acbb1fe3d372493017d954ab27\n'+
+      'parent 4ee9e2edc6655e077b2b01f379b7acc5e3c35d8f\n'+
+      'author lif-rnd <lif.zone.main@gmail.com> 1670842140 +0200\n'+
+      'committer lif-rnd <lif.zone.main@gmail.com> 1670842140 +0200\n'+
+      'gpgsig -----BEGIN PGP SIGNATURE-----\n'+
+      ' \n'+
+      ' iQGzBAABCgAdFiEEndepdIBVI/JR3VFqk63BrWpcXVgFAmOXBx8ACgkQk63BrWpc\n'+
+      ' XVhX5AwAj0KkfEYd5jEm9Si5t4EfT0vFQqC2pHcBEwJB8g0Rvoq0otx4QEEHSYiE\n'+
+      ' 1yNxxrl3Ei0/EFZsADDJ5oZODXEZGssQgIfRPphoqueMmcl/IQ9J5mtgaGS+0EtX\n'+
+      ' pIt0ztktIJ3i1EZeSR3EB6Cch5gXORtWhDHTCgk8gReskuSLXm6f37V6PFM+mVl5\n'+
+      ' 7ZfyV0H6paumCPubgQFJ60y2o4FC2jGe4MYiIZEU1x7l6WG808PSWBe3FknTG0yW\n'+
+      ' 0vYpAwTfD7io5Q5HQzbjzyo+Z8xtj13zsfU1Lw/P3pMdgbOvDckvArgvCV23kD4A\n'+
+      ' 3SmNdtToYwsTpMTEyPX7lZ+aOPsU4kyEHa/eDNZ41MsQOPajBFi+S1eTHBL7RxON\n'+
+      ' o0u2MFoFEBmpNsLnVJUnY9a72tdeldGq5NKq1mrZIccOq88ybzlGWaVBAmGwTGXb\n'+
+      ' I0XQP0JuNdGqXP50yMSzsqNpNIZPK6vrl6o7Faz2Y595cZbR+/XGnwmlaqTYTidX\n'+
+      ' rFCDMFtn\n'+
+      ' =gY2P\n'+
+      ' -----END PGP SIGNATURE-----\n'+
+      '\n'+
+      'test\n', {
+        tree: '078aefbd762262acbb1fe3d372493017d954ab27',
+        parent: ['4ee9e2edc6655e077b2b01f379b7acc5e3c35d8f'],
+        author: {name: 'lif-rnd', email: 'lif.zone.main@gmail.com',
+          timestamp: 1670842140, tz_offset: -120},
+        committer: {name: 'lif-rnd', email: 'lif.zone.main@gmail.com',
+          timestamp: 1670842140, tz_offset: -120},
+        gpgsig: '-----BEGIN PGP SIGNATURE-----\n\n'+
+          'iQGzBAABCgAdFiEEndepdIBVI/JR3VFqk63BrWpcXVgFAmOXBx8ACgkQk63BrWpc\n'+
+          'XVhX5AwAj0KkfEYd5jEm9Si5t4EfT0vFQqC2pHcBEwJB8g0Rvoq0otx4QEEHSYiE\n'+
+          '1yNxxrl3Ei0/EFZsADDJ5oZODXEZGssQgIfRPphoqueMmcl/IQ9J5mtgaGS+0EtX\n'+
+          'pIt0ztktIJ3i1EZeSR3EB6Cch5gXORtWhDHTCgk8gReskuSLXm6f37V6PFM+mVl5\n'+
+          '7ZfyV0H6paumCPubgQFJ60y2o4FC2jGe4MYiIZEU1x7l6WG808PSWBe3FknTG0yW\n'+
+          '0vYpAwTfD7io5Q5HQzbjzyo+Z8xtj13zsfU1Lw/P3pMdgbOvDckvArgvCV23kD4A\n'+
+          '3SmNdtToYwsTpMTEyPX7lZ+aOPsU4kyEHa/eDNZ41MsQOPajBFi+S1eTHBL7RxON\n'+
+          'o0u2MFoFEBmpNsLnVJUnY9a72tdeldGq5NKq1mrZIccOq88ybzlGWaVBAmGwTGXb\n'+
+          'I0XQP0JuNdGqXP50yMSzsqNpNIZPK6vrl6o7Faz2Y595cZbR+/XGnwmlaqTYTidX\n'+
+          'rFCDMFtn\n=gY2P\n-----END PGP SIGNATURE-----',
+        message: 'test\n'
+      });
+      t('tree 1b130e91ce06ba813c9695da80eb58152fe32587\n'+
+        'author lif-rnd <79463501+lif-rnd@users.noreply.github.com> '+
+        '1670839296 +0200\n'+
+        'committer GitHub <noreply@github.com> 1670839296 +0200\n'+
+        'gpgsig -----BEGIN PGP SIGNATURE-----\n'+
+        ' \n'+
+        ' wsBcBAABCAAQBQJjlvwACRBK7hj4Ov3rIwAAAswIAFPmNEqZow/IUewkig8OnOot\n'+
+        ' brQTqOE9qb83naHpE6cGNOq+uOn0Twav6xsWI5B7/h7t0kOPMUPJcA8xmxduGN4+\n'+
+        ' 1Sw0ByvVoeO3x/UOpavv5SayuyOuxFNOasHFrHwne4ONyzM5J8EUkV4/oHYE+2jZ\n'+
+        ' NWeJlvSSg85wA23YF1/7tAFV/wZrC3tFkFht3ZQraHDNBV2nG/vqUxtPxuvRAR8V\n'+
+        ' FwIGDJ4uYW1gSxMdAP6MPFVkY+pzJmzEHKT22TC1InhZ5mklEPDNuSnuYAxRE2Cs\n'+
+        ' L/O964lnhIfRpRUuuN7Fq02PHWSgtcsav++OrzjM+75Tp8JMz5a8FUOTIqSpaZk=\n'+
+        ' =dun1\n'+
+        ' -----END PGP SIGNATURE-----\n'+
+        ' \n'+
+        '\n'+
+        'Create file_from_www', {
+        tree: '1b130e91ce06ba813c9695da80eb58152fe32587',
+        parent: [],
+        author: {name: 'lif-rnd',
+          email: '79463501+lif-rnd@users.noreply.github.com',
+          timestamp: 1670839296, tz_offset: -120},
+        committer: {name: 'GitHub', email: 'noreply@github.com',
+          timestamp: 1670839296, tz_offset: -120},
+        gpgsig: '-----BEGIN PGP SIGNATURE-----\n' +
+        '\n'+
+        'wsBcBAABCAAQBQJjlvwACRBK7hj4Ov3rIwAAAswIAFPmNEqZow/IUewkig8OnOot\n'+
+        'brQTqOE9qb83naHpE6cGNOq+uOn0Twav6xsWI5B7/h7t0kOPMUPJcA8xmxduGN4+\n'+
+        '1Sw0ByvVoeO3x/UOpavv5SayuyOuxFNOasHFrHwne4ONyzM5J8EUkV4/oHYE+2jZ\n'+
+        'NWeJlvSSg85wA23YF1/7tAFV/wZrC3tFkFht3ZQraHDNBV2nG/vqUxtPxuvRAR8V\n'+
+        'FwIGDJ4uYW1gSxMdAP6MPFVkY+pzJmzEHKT22TC1InhZ5mklEPDNuSnuYAxRE2Cs\n'+
+        'L/O964lnhIfRpRUuuN7Fq02PHWSgtcsav++OrzjM+75Tp8JMz5a8FUOTIqSpaZk=\n'+
+        '=dun1\n'+
+        '-----END PGP SIGNATURE-----\n',
+        message: 'Create file_from_www'
+      });
+  });
+});
+
 describe('lib', function(){
   this.timeout(xutil.is_inspect() ? 9999999999 : 60000);
   let keypair = {pub: s2b('44659cb51dec397ea66085679442505345e159940762c15ef7'+

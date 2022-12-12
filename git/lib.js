@@ -570,22 +570,28 @@ E.new_scroll = function(keypair, src){
     key_val: ['dir', 'file', 'git_branch', 'tag'], op_default: 'mod'});
 };
 
-// XXX: this need to be generic scorll api
 const get_content = decl=>etask(function*(){
   // XXX: need proper api and verify it loads from db
-  while (decl){
-    let [header, data] = yield decl.get_json();
-    let o = Scroll.parse_buf_ref(data.content);
-    assert(o, 'missing conent seq'+decl.seq);
-    if (o.buf)
-      return o.buf;
-    if (o.d)
-      return decl.get_buf(o.d+2);
+  let [header, data] = yield decl.get_json();
+  let o = Scroll.parse_buf_ref(data.diff ? data.diff : data.content), buf;
+  assert(o, 'missing conent seq'+decl.seq);
+  if (o.buf)
+    buf = o.buf;
+  else if (o.d)
+    buf = decl.get_buf(o.d+2);
+  else {
     let seq = Scroll.resolve_link(header.link, o.l);
     assert(seq<decl.seq, 'link can only point backwards');
-    decl = yield decl.scroll.get_decl(seq);
+    let decl2 = yield decl.scroll.get_decl(seq);
+    buf = yield get_content(decl2);
   }
-  assert.fail('failed to get content');
+  if (!data.diff)
+    return buf;
+  assert.fail('XXX TODO');
+  let base_seq = Scroll.resolve_link(header.link, '_');
+  let decl_base = decl.scroll.get(base_seq);
+  let base_buf = yield get_content(decl_base);
+  return buf;
 });
 
 E.get_file = (scroll, decl)=>etask(function*_get_file(){
@@ -595,8 +601,6 @@ E.get_file = (scroll, decl)=>etask(function*_get_file(){
     return;
   if (data.op=='mv') // XXX: TODO
     return;
-  if (data.diff)
-    return yield get_diff(decl);
   return yield get_content(decl);
 });
 

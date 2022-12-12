@@ -596,8 +596,8 @@ const get_content = decl=>etask(function*(){
 E.get_file = (scroll, decl)=>etask(function*_get_file(){
   let data = yield decl.get_json(2);
   assert(data.file, 'invalid file seq'+decl.seq);
-  if (data.op=='rm') // XXX: TODO
-    return;
+  if (data.op=='rm')
+    return null;
   if (data.op=='mv') // XXX: TODO
     return;
   return yield get_content(decl);

@@ -56,11 +56,14 @@ describe('lib', function(){
       assert.deepEqual(a[i], exp[i], 'line '+i);
     for (const [seq, decl] of scroll.dmap){
       let data = (yield decl.fbuf_get(0)).get_json(2);
-      if (data.op=='rm') // XXX: verfiy file doesn't exist
-        continue;
       if (data.op=='mv') // XXX: verify file resolution is correct
         continue;
       if (data.file){
+        if (data.op=='rm'){
+          assert.equal(yield lib.get_file(scroll, decl), null,
+            'git mismatch seq'+seq);
+          continue;
+        }
         let buf = yield lib.get_file(scroll, decl);
         assert(buf, 'file not found seq'+seq);
         assert.equal(lib.git_hash('blob', buf), data.git.oid,

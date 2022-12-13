@@ -2,8 +2,10 @@
 import xerr from '../util/xerr.js';
 import etask from '../util/etask.js';
 import array from '../util/array.js';
+import date from '../util/date.js';
 import xutil from '../util/util.js';
 import xcrypto from '../util/crypto.js';
+import git_util from './util.js';
 import Scroll from '../storage/scroll.js';
 import git_api from 'isomorphic-git';
 import http from 'isomorphic-git/http/node/index.cjs';
@@ -13,7 +15,6 @@ import * as Diff from 'diff';
 import buf_util from '../peer-relay/buf_util.js';
 const b2s = buf_util.buf_to_str;
 const E = {};
-
 // XXX derry: mv to util (and is there better way)
 function is_bin(blob){
   for (let i=0; i<blob.length; i++){
@@ -164,6 +165,8 @@ const prepare_diff = (config, scroll, top, prev, lbranch, state_next)=>etask(
           oid: oid_old})).blob;
         let buf_new = (yield git_api.readBlob({...config, oid: next.oid}))
         .blob;
+        if (E.git_hash('blob', buf_new)!=next.oid)
+          throw new Error('failed check same sha1 oid'+next.oid);
         if (!buf_old || is_bin(buf_old) || is_bin(buf_new))
           [content, blob] = [1, buf_new];
         else {
@@ -180,6 +183,8 @@ const prepare_diff = (config, scroll, top, prev, lbranch, state_next)=>etask(
       } else {
         content = 1;
         blob = (yield git_api.readBlob({...config, oid: next.oid})).blob;
+        if (E.git_hash('blob', blob)!=next.oid)
+          throw new Error('failed check same sha1 oid'+next.oid);
       }
       let op = move ? 'mv' : add ? 'add' : 'mod';
       let data = [{op, file: path}];
@@ -411,6 +416,7 @@ E.import_git = (config, scroll, opt={})=>etask(function*_start(){
   config = {...config};
   config.fs = config.fs||fs;
   config.http = config.http||http;
+  config.cache = {};
   yield git_api.clone({...config});
   let branches = opt.ref ? Object.keys(opt.ref) :
     yield git_api.listBranches({...config, remote: 'origin'});
@@ -455,11 +461,14 @@ E.import_git = (config, scroll, opt={})=>etask(function*_start(){
   for (let branch in branch_commit){
     let curr = branch_commit[branch];
     for (const [oid, o] of curr.commit){
-      let commit = o.commit, prev, merge;
+      let prev, merge;
       if (!o.state) // ie, prev_sync
         continue;
       if (oid2seq.get(oid))
         continue;
+      let commit_raw = (yield git_api.readObject({...config, oid,
+        format: 'deflated'})).object.toString();
+      let commit = git_util.parse_commit(commit_raw);
       commit.parent.forEach(p=>{
         let seq_p = oid2seq.get(p);
         assert(!merge, 'merge already defined '+p);
@@ -479,7 +488,7 @@ E.import_git = (config, scroll, opt={})=>etask(function*_start(){
       // XXX: if empty commit, then need to set lif_branch on the commit
       prev = diff.prev;
       yield put_diff(scroll, diff.queue);
-       let info = pick_rename(commit,
+      let info = pick_rename(commit,
         {message: 'desc', 'author.name': 'author'});
       info.ts = date_utc(commit.author.timestamp,
         commit.author.timezoneOffset);
@@ -487,6 +496,9 @@ E.import_git = (config, scroll, opt={})=>etask(function*_start(){
       let data = {op: 'commit', ...info};
       data.git = merge ? {oid, merge, ...commit} : {oid, ...commit};
       let decl = yield scroll.decl({prev, group}, data);
+      let oid_calc = E.git_hash('commit', yield E.get_commit(decl));
+      if (oid_calc!=oid)
+        throw new Error('failed check same sha1 oid'+oid);
       oid2seq.set(oid, decl.seq);
       seq2state.set(decl.seq, state);
       state.read_only = true;
@@ -593,7 +605,7 @@ const get_content = decl=>etask(function*(){
   return Buffer.from(s);
 });
 
-E.get_file = (scroll, decl)=>etask(function*_get_file(){
+E.get_file = decl=>etask(function*_get_file(){
   let data = yield decl.get_json(2);
   assert(data.file, 'invalid file seq'+decl.seq);
   if (data.op=='rm')
@@ -603,11 +615,38 @@ E.get_file = (scroll, decl)=>etask(function*_get_file(){
   return yield get_content(decl);
 });
 
+E.get_commit = decl=>etask(function*_get_commit(){
+  let data = yield decl.get_json(2), git = data.git, s='';
+  let prev = yield decl.get_prev({group: 1});
+  let data_prev = prev && (yield prev.get_json(2));
+  let line = git_util.render_header;
+  // XXX: derry, how to handle errors
+  assert(git, 'invalid commit seq'+decl.seq);
+  s+=line('tree', git.tree);
+  if (data_prev?.op=='commit')
+    s+=line('parent', data_prev.git?.oid);
+  if (git.merge){
+    let merge = yield decl.scroll.get_decl(git.merge);
+    s+=line('parent', (yield merge.get_json(2)).git?.oid);
+  }
+  s+=line('author', data.author+' <'+git.author?.email+'> '+
+    git.author?.timestamp+' '+date.format_tz(git.author?.timezoneOffset));
+  s+=line('committer', git.committer?.name+' <'+git.committer?.email+'> '+
+    git.committer?.timestamp+' '+
+    date.format_tz(git.committer?.timezoneOffset));
+  if (git.gpgsig)
+    s+=line('gpgsig', git.gpgsig);
+  s += '\n'+data.desc;
+  return Buffer.from(s);
+});
+
+// XXX: mv to util
 E.git_wrap = function({type, object}){
   return Buffer.concat([
     Buffer.from(`${type} ${object.byteLength.toString()}\x00`), object]);
 };
 
+// XXX: mv to util
 E.git_hash = function(type, object){
   return b2s(xcrypto.sha1(E.git_wrap({type, object}))); };
 

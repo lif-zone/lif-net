@@ -193,8 +193,7 @@ describe('lib', function(){
     '5ad279ecf05033'),
     key: s2b('46f45a62f4c5971228747aa2d8ee66bd669ebd805c725286ee385b1d4a06dd'+
     'bc44659cb51dec397ea66085679442505345e159940762c15ef75ad279ecf05033')};
-  const _t = (name, repository, imports, exp)=>it(name,
-    ()=>etask(function*test_move(){
+  const _t = (name, repository, imports, exp)=>it(name, ()=>etask(function*(){
     let dir = '/tmp/lif_'+repository.replace('/', '-'); // XXX: escape
     let url = 'https://github.com/'+repository;
     let scroll = yield lib.new_scroll(keypair, url);
@@ -202,10 +201,8 @@ describe('lib', function(){
     for (let i=0; i<imports.length; i++)
       yield lib.import_git(config, scroll, {...imports[i]});
     let a = lib.scroll_to_lines(scroll);
-    if (exp=='dump'){
-      dump_lines(a);
-      return;
-    }
+    if (exp=='dump')
+      return dump_lines(a);
     for (let i=0; i<Math.max(a.length, exp.length); i++)
       assert.deepEqual(a[i], exp[i], 'line '+i);
     for (const [seq, decl] of scroll.dmap){
@@ -304,6 +301,68 @@ describe('lib', function(){
     [{seq: 24, link: 21}, {op: 'add', git_branch: 'HEAD'}, '']
     /* eslint-enable */
   ]);
+/* XXX TODO
+// XXX how indexdb handles int/string/other indexes
+rename branch->conflict
+scrolls = [ // KEYPATH scfid. INDEX scroll, cfid
+  {scfid: 0, scroll: '4817AB', cfid: 0},
+  {scfid: 1, scroll: '4817AB', cfid: 2, splits: [{cfid: 0, seq: 37}]},
+  {scfid: 2, scroll: '4817AB', cfid: 3, splits: [{cfid: 2, seq: 472},
+    {0, 37}]},
+  {scfid: 3, scroll: '4817AB', cfid: 4, splits: [{cfid: 2, seq: 472},
+    {0, 37}], tmp: true},
+];
+branchs = [ // KEYPATH scfid, bdid. INDEX scfid, name
+  {scfid: 0, bid: 0, bseq: '3', name: 'main'},
+  {scfid: 0, bid: 1, bseq: '3._42', name: 'branch-jabil'},
+];
+files = [ // KEYPATH scfid, file, seq
+  {scfid: 0, file: '/arik', seq: 3},
+  {scfid: 1, file: '/derry', seq: 3},
+];
+decls = [ // KEYPATH scfig, seq
+  {scfid: 0, seq: 3, M: M3, m: {0: m0_1, 1: m1}},
+    D: [{sig}, {buf, h}, ...]}
+  {scfid: 1, seq: 3, M: M3b1, m: {0: m0_1, 1: m1}},
+    D: [{sig}, {buf, h}, ...]}
+];
+{scroll: M0, seq: 3, M: {0: M3, 1: M3b1}, m: {0: {0: m0_1, 1: m1},...},
+  D: {0: [{sig}, {buf, h},...]}}
+calculated fields: {bseq}
+primary index: {seq}
+conflicts table: {cfid}
+
+files index: {cfid, file, seq}
+files index: {0, '/arik', 3}
+files index: {1, '/derry', 3}
+{scroll: M0, seq: 3, M: {0: M3, 1: M3b1}, m: {0: {0: m0_1, 1: m1},...},
+  D: {0: [{sig}, {buf, h},...]}}
+dirs index: {cfid, dir, seq}
+index branches: {cfid, bseq}
+CREATE INDEX FROM files FIELDS <calculate cfid>,
+
+SELECT file=/arik.jpg 3.6.34.<bseq<=3.6.34.2 ORDER DESC {file, seq}
+SELECT file=/arik.jpg 3.6.<bseq<=3.6.34 ORDER DESC {file, seq}
+SELECT file=/arik.jpg 3.<bseq<=3.6 ORDER DESC {file, seq}
+SELECT file=/arik.jpg bseq<=3 ORDER DESC {file, seq}
+
+3.6.34.2
+3.6.34.*
+3.6.*
+3.*
+*/
+
+/* TODO
+- cfid -> cleanup merkel branches to cfid
+- check how indexdb indexes work
+- add auto-calc bseq index (cvs-style)
+  - use prefix to ensure 9<10 ('9'<'_10') // :;<=>?@]\]^_`~
+- file retrieval (index on file/dir)
+  - change mv to add 'rm' declaration (so we can find it index)
+- dir ls
+- verify I can generate same sha1 for dir as git
+*/
+
   _t('lif-rnd/test_sync incremental', 'lif-rnd/test_sync',
     [{max_ts: 1663045046, ref: {
       main: 'f2ebe4a9f85961144aa16b9fad4148d712f206f7',

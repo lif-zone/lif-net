@@ -622,3 +622,9 @@ E.strftime = function(fmt, d, opt){
     return replace(fmt);
 };
 
+// XXX: need test
+E.format_tz = function(offset){
+  return (offset<0 ? '+' : '-')+pad(Math.abs(Math.trunc(offset/60)), 2)+
+    pad(offset%60, 2);
+};
+

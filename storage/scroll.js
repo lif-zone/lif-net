@@ -1060,6 +1060,19 @@ class Decl extends EventEmitter {
       return a;
     });
   }
+  get_prev(opt={}){ // XXX: need test
+    if (this.seq==0)
+      return null;
+    return etask({_: this}, function*get_prev(){
+      let _this = this._, header = yield _this.get_json(1);
+      if (Number.isInteger(header.prev))
+        return yield _this.scroll.get_decl(header.prev);
+      if (!opt.group || !header.group)
+        return yield _this.scroll.get_decl(_this.seq-1);
+      return (yield _this.scroll.get_decl(_this.seq-header.group))
+      .get_prev(opt);
+    });
+  }
   copy(bdst, bsrc){
     assert(this.to_b(bdst)!=this.to_b(bsrc), 'copy same b'+bdst+'<- b'+bsrc);
     let M = this.M.get_hash(bsrc);

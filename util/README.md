@@ -2,7 +2,7 @@ LIF - Util
 ==========
 
 ## LIF Task/Bugs
-- Fix etask.js bug [wait_in_generator](https://github.com/lif-zone/server/blob/main/util/test.js#L4057).
+- Fix etask.js bug [wait_in_generator](https://github.com/lif-zone/server/blob/main/util/test.js#L4054).
   The bug is due to etask generator not handling correctly 'light-weight' ``this.wait()`` object.
   The fix required is around 10-20 lines of code in ```etask.js```, probably
   ```in _run()``` and ```_handle_rv()```, and ```maybe _next()```.

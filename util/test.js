@@ -4045,8 +4045,6 @@ describe('etask', function(){
                 wait_et.continue();
             });
             return yield wait_et;
-            // eslint-disable-next-line no-unreachable
-            yield;
         });
         return etask(function*(){
             yield return_wait();
@@ -4062,8 +4060,6 @@ describe('etask', function(){
                 wait_et.continue();
             });
             return wait_et;
-            // eslint-disable-next-line no-unreachable
-            yield;
         });
         return etask(function*(){
             yield return_wait();
@@ -4078,8 +4074,6 @@ describe('etask', function(){
                 wait_et.continue();
             });
             return yield wait_et;
-            // eslint-disable-next-line no-unreachable
-            yield;
         });
         return etask(function*(){
             yield return_wait();

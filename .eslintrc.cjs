@@ -97,7 +97,7 @@ module.exports = {
     'object-curly-spacing': 'warn',
     // ECMAScript 6
     'generator-star-spacing': ['error', {before: false, after: false}],
-    'require-yield': 'warn',
+    'require-yield': 'off',
     'arrow-parens': ['warn', 'as-needed'],
     'no-template-curly-in-string': 'warn',
     // React

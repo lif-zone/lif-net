@@ -259,7 +259,7 @@ function check_set_sig(sketch, errors, seq, m, d, D, sig){
     return push_error(errors, 'missing sig'+seq);
   if (!beq(m, hleaf(d, sig))){
     push_error(errors, 'invalid sig'+seq);
-    return {branch: true};
+    return {conflict: true};
   }
   set_sig(sketch, seq, sig);
   set_d(sketch, seq, d, D);
@@ -365,11 +365,11 @@ export default class Scroll extends EventEmitter {
     assert.deepEqual(this.crypt, Scroll.supported_crypt[0], 'unsupported');
     this.prev_scroll = opt.prev_scroll;
     this.dmap = new Map();
-    this.branch = new Map();
-    this.branch.next_id = 0;
+    this.conflict = new Map();
+    this.conflict.next_id = 0;
     this.merge_queue = new Map;
     this.merge_queue.get_one = Map_get_one;
-    this.create_new_branch();
+    this.create_new_conflict();
   }
   unload(){ // XXX HACK: quick implementation
     let M0 = this.M_hash(0, 0);
@@ -377,46 +377,46 @@ export default class Scroll extends EventEmitter {
     this.dmap = new Map();
     this.merge_queue = new Map;
     this.merge_queue.get_one = Map_get_one;
-    this.branch = new Map();
+    this.conflict = new Map();
     this.top = null;
-    this.branch.next_id = 0;
-    this.create_new_branch();
+    this.conflict.next_id = 0;
+    this.create_new_conflict();
     // XXX HACK: why is needed (for soul?)
     let decl = this.get_decl(0);
     decl.M.set_hash(0, M0);
   }
-  create_new_branch(opt={}){
+  create_new_conflict(opt={}){
     let {b, seq} = opt;
-    let bid = this.branch.next_id++;
+    let bid = this.conflict.next_id++;
     if (b===undefined || seq===undefined){
-      assert(b===undefined && seq===undefined, 'invalid create_new_branch');
+      assert(b===undefined && seq===undefined, 'invalid create_new_conflict');
       assert.equal(bid, 0);
-      this.branch.set(bid, {b: bid, top: null, conflicts: new Map()});
+      this.conflict.set(bid, {b: bid, top: null, conflicts: new Map()});
       return bid;
     }
     let M = this.get_decl(seq).M_hash(b);
     assert(M, 'missing M'+seq);
-    this.branch.set(bid, {b: bid, top: null, parent: {b, seq, type: 'v'},
+    this.conflict.set(bid, {b: bid, top: null, parent: {b, seq, type: 'v'},
       conflicts: new Map()});
     this.notify_M({b: bid, seq: seq, M});
     return bid;
   }
   to_b(b, seq){
     assert(typeof seq=='number' && seq>=0, 'invalid seq '+seq);
-    assert(this.branch.get(b), 'missing branch '+seq+'b'+b);
-    for (let parent; (parent = this.branch.get(b).parent) &&
+    assert(this.conflict.get(b), 'missing conflict '+seq+'b'+b);
+    for (let parent; (parent = this.conflict.get(b).parent) &&
       parent?.b!==undefined && seq<=parent?.seq;
       b = parent.b);
     return b;
   }
-  decl(opt, frames){ // XXX: test decl on branch
+  decl(opt, frames){ // XXX: test decl on conflict
     if (frames===undefined)
       [opt, frames] = [{b: 0}, opt];
     if (typeof opt=='number')
       opt = {b: opt};
     let {b, prev, group, link, branch} = opt;
     b = b||0;
-    let top = this.branch.get(b).top;
+    let top = this.conflict.get(b).top;
     let seq = top ? top.seq+1 : 0, header = {seq, ts: Date.now()};
     if (prev>0 && prev!=seq-1)
       header.prev = prev;
@@ -441,23 +441,23 @@ export default class Scroll extends EventEmitter {
       this.name = b2s(M);
       this.soul.set(M, this);
     }
-    if (!this.branch.get(b).top || this.branch.get(b).top.seq<seq){
-      this.branch.get(b).top = {seq, M};
+    if (!this.conflict.get(b).top || this.conflict.get(b).top.seq<seq){
+      this.conflict.get(b).top = {seq, M};
       if (!this.top || this.top.seq<seq)
         this.top = {b, seq, M};
-      assert.equal(b2s(M), b2s(this.M_hash(b, this.branch.get(b).top.seq)),
+      assert.equal(b2s(M), b2s(this.M_hash(b, this.conflict.get(b).top.seq)),
         'invalid M'+seq+'b'+b);
     }
   }
-  find_best_branch(seq, diff){
+  find_best_conflict(seq, diff){
     let best = {b: 0, seq: 0};
-    if (this.branch.size<=1)
+    if (this.conflict.size<=1)
       return best;
-    for (const [j, branch] of this.branch){
+    for (const [j, conflict] of this.conflict){
       // XXX: optimize. use prev max_common to first check if we can
       // improve and stop checking if max_common is lower the prev
       let max = this.find_max_common_M({b: j, seq, diff});
-      let top = branch.top.seq;
+      let top = conflict.top.seq;
       if (best.seq < max || best.seq==max && best.top<top){
         best = {b: j, seq: max, top};
       }
@@ -472,20 +472,20 @@ export default class Scroll extends EventEmitter {
       let seq = +a[i], errors2={};
       if (seq==0)
         continue;
-      let best = this.find_best_branch(seq, diff), b = best.b;
+      let best = this.find_best_conflict(seq, diff), b = best.b;
       let ret = this.put_single(seq, diff, errors2, {b});
-      if (ret?.branch){
+      if (ret?.conflict){
         let max = best.seq || this.find_max_common_M({b, seq, diff});
         if (max!==undefined){
           errors2 = {};
-          let b2 = this.create_new_branch({b, seq: max});
+          let b2 = this.create_new_conflict({b, seq: max});
           ret = this.put_single(seq, diff, errors, {b: b2});
-          if (ret?.branch || this.branch.get(b2).top.seq<=max){
-            this.branch.delete(b2);
+          if (ret?.conflict || this.conflict.get(b2).top.seq<=max){
+            this.conflict.delete(b2);
             continue;
           }
           b = b2;
-          this.branch_update(b, {init: true});
+          this.conflict_update(b, {init: true});
         }
       }
       this.merge_all(seq, b);
@@ -495,7 +495,7 @@ export default class Scroll extends EventEmitter {
   }
   put_single(seq, diff, errors, opt={}){
     let ret = this._put_single(seq, diff, errors, opt);
-    if (ret?.branch)
+    if (ret?.conflict)
       return ret;
     if (!diff[seq]?.m)
       return;
@@ -523,7 +523,7 @@ export default class Scroll extends EventEmitter {
   }
   _put_single(seq, diff, errors, opt={}){
     let b=opt.b||0;
-    let top = this.branch.get(b).top, sketch = {};
+    let top = this.conflict.get(b).top, sketch = {};
     let decl=this.get_decl(seq), m=get_m_hash(diff, seq);
     let D=get_D(diff, seq);
     let sig=get_sig(diff, seq), d=get_d_hash(diff, seq), dD=calc_D_hash(D);
@@ -543,16 +543,16 @@ export default class Scroll extends EventEmitter {
         d = dD;
     }
     if (vd && vsig){
-      let branch;
+      let conflict;
       if (sig && !beq(sig, vsig)){
         push_error(errors, 'invalid sig'+seq);
-        branch = true;
+        conflict = true;
       }
       if (d && !beq(d, vd))
         push_error(errors, 'invalid d'+seq);
       if (m && !beq(m, vm))
         push_error(errors, 'invalid m'+seq);
-      return seq && branch ? {branch} : undefined;
+      return seq && conflict ? {conflict} : undefined;
     }
     if (d && !sig)
       push_error(errors, 'missing sig'+seq);
@@ -571,10 +571,10 @@ export default class Scroll extends EventEmitter {
       let M = this.sketch_calc_top_M({top, force: {range: [seq, seq], m},
         sketch, diff, errors, b});
       if (!M)
-        return {branch: true};
+        return {conflict: true};
       if (!beq(M, top.M)){
         push_error(errors, 'invalid M'+top.seq);
-        return {branch: true}; // XXX: need test
+        return {conflict: true}; // XXX: need test
       }
       check_set_sig(sketch, errors, seq, m, d, D, sig);
       this.put_verified(sketch, {b});
@@ -593,13 +593,13 @@ export default class Scroll extends EventEmitter {
     let prev_M = this.sketch_calc_top_M({top: {seq: seq-1},
       force: prev_force, sketch, diff, errors, b});
     if (is_null(prev_M, errors, 'missing M'+(seq-1)))
-      return {branch: true};
+      return {conflict: true};
     if (!verify_sig(sig, this.pub, d, prev_M))
       return push_error(errors, 'invalid sig'+seq);
     set_sig(sketch, seq, sig);
     check_set_sig(sketch, errors, seq, m, d, D, sig);
     if (vsig && !vsig.equals(sig))
-      return {branch: true};
+      return {conflict: true};
     this.put_verified(sketch, {b});
     this.M_hash(b, seq); // update new top
   }
@@ -724,39 +724,40 @@ export default class Scroll extends EventEmitter {
     return {range, m: vm};
   }
   merge_all(seq, b){
-    if (this.branch.size<=1)
+    if (this.conflict.size<=1)
       return;
     while (this.merge_queue.size){
-      let bb = this.merge_queue.get_one(), b_o = this.branch.get(bb);
+      let bb = this.merge_queue.get_one(), b_o = this.conflict.get(bb);
       this.merge_single(b_o.minfo.merge_queue.get_one(), bb, seq);
     }
     // XXX: can we improve and avoid traverssing all conflicts
-    for (const [i, b_o] of this.branch){
+    for (const [i, b_o] of this.conflict){
       if (i && b_o.parent?.type!='b' && b_o.minfo.real_map.get(b_o.parent?.b))
         this.merge_single(b_o.parent.b, i, seq);
     }
   }
   merge_single(i1, i2, seq){
-    assert(i1<i2, 'invalid branch merge '+i1+' '+i2);
-    let b1=this.branch.get(i1), b2=this.branch.get(i2), bseq;
+    assert(i1<i2, 'invalid conflict merge '+i1+' '+i2);
+    let b1=this.conflict.get(i1), b2=this.conflict.get(i2), bseq;
     let mergeable = b2.minfo.merge_queue.get(i1);
-    let real_branch = b2.minfo.real_map.get(i1);
+    let real_conflict = b2.minfo.real_map.get(i1);
     if (b2.parent?.seq >= seq)
-      return assert(!mergeable && real_branch);
+      return assert(!mergeable && real_conflict);
     if (b2.parent?.seq >= b1.top.seq)
-      return assert(!mergeable && real_branch);
+      return assert(!mergeable && real_conflict);
     if (!mergeable){
-      if (real_branch && b2.parent?.b==i1)
-        this.branch_update(i2, {type: real_branch ? 'b' : 'v'});
+      if (real_conflict && b2.parent?.b==i1)
+        this.conflict_update(i2, {type: real_conflict ? 'b' : 'v'});
       return;
     }
-    // XXX: to calc common, check also if branch is not direct child
+    // XXX: to calc common, check also if conflict is not direct child
     bseq = this.find_max_common_M({b: i1, diff_b: i2, seq,
       common: b2.parent?.b==b1.parent?.b ? b2.parent?.seq : undefined});
     assert((b1.parent?.b||0)<i2, 'lower b'+i1+' cannot point upper b'+i2);
     if (b2.parent?.seq >= bseq)
       return xerr('need optimize merge');
-    this.branch_update(i2, {b: i1, seq: bseq, type: real_branch ? 'b' : 'v'});
+    this.conflict_update(i2, {b: i1, seq: bseq,
+      type: real_conflict ? 'b' : 'v'});
     if (b2.top.seq!=bseq && b1.top.seq!=bseq)
       return;
     // merge
@@ -768,27 +769,27 @@ export default class Scroll extends EventEmitter {
     }
     if (b2.top.seq > b1.top.seq)
       this.notify_M({b: i1, seq: b2.top.seq, M: b2.top.M});
-    this.branch_remove(i2, i1);
+    this.conflict_remove(i2, i1);
     return {curr: i1, prev: i2};
   }
-  branch_remove(i2, i1){
-    assert(i2, 'cannot remove branch 0');
-    assert(i1>=0, 'must provide new branch');
-    assert(i1<i2, 'new branch must be smaller');
-    let b2 = this.branch.get(i2);
-    this.branch.get(b2.parent.b).conflicts.delete(i2);
+  conflict_remove(i2, i1){
+    assert(i2, 'cannot remove conflict 0');
+    assert(i1>=0, 'must provide new conflict');
+    assert(i1<i2, 'new conflict must be smaller');
+    let b2 = this.conflict.get(i2);
+    this.conflict.get(b2.parent.b).conflicts.delete(i2);
     for (const [i] of b2.conflicts)
-      this.branch_update(i, {b: i1});
-    this.branch.delete(i2);
-    this.emit('branch-removed', {b: i2, b_new: i1});
+      this.conflict_update(i, {b: i1});
+    this.conflict.delete(i2);
+    this.emit('conflict-removed', {b: i2, b_new: i1});
   }
-  branch_update(b, o){
+  conflict_update(b, o){
     // XXX: need to rm uneeded decl now when updating conflicts and update all
-    // relevant places on new branch
-    assert(o.b!=b, 'branch loop '+b);
-    let src = this.branch.get(b);
-    assert.equal(src.b, b, 'branch corruption '+b);
-    assert(src.parent?.type, 'missing branch type');
+    // relevant places on new conflict
+    assert(o.b!=b, 'conflict loop '+b);
+    let src = this.conflict.get(b);
+    assert.equal(src.b, b, 'conflict corruption '+b);
+    assert(src.parent?.type, 'missing conflict type');
     if (o.init){
       assert(o.b===undefined && o.seq===undefined, 'invalid init');
       assert(!src.info, 'invalid init');
@@ -799,26 +800,26 @@ export default class Scroll extends EventEmitter {
       return;
     if (o.b!==undefined){
       assert(src.parent!==o.b || o.type===undefined || src.parent?.type!='b' ||
-        o.type=='b', 'real branch type change b'+src.b);
-      this.branch.get(src.parent?.b).conflicts.delete(src.b);
+        o.type=='b', 'real conflict type change b'+src.b);
+      this.conflict.get(src.parent?.b).conflicts.delete(src.b);
       src.parent.b = o.b;
     }
     if (o.seq!==undefined)
       src.parent.seq = o.seq;
     if (o.type!==undefined){
-      assert(['v', 'b'].includes(o.type), 'invalid branch type '+o.type);
+      assert(['v', 'b'].includes(o.type), 'invalid conflict type '+o.type);
       assert(o.b || src.parent?.type!='b' || o.type=='b',
-        'real branch type change b'+src.b);
+        'real conflict type change b'+src.b);
       src.parent.type = o.type;
     }
     this.update_mergeable(src.b);
   }
   update_mergeable(b){
-    assert(b>0, 'invalid branch');
-    let b_o = this.branch.get(b), p_o = this.branch.get(b_o.parent?.b);
+    assert(b>0, 'invalid conflict');
+    let b_o = this.conflict.get(b), p_o = this.conflict.get(b_o.parent?.b);
     if (!p_o.conflicts.get(b))
       p_o.conflicts.set(b, b_o);
-    assert.equal(p_o.conflicts.get(b), b_o, 'branch corruption '+b);
+    assert.equal(p_o.conflicts.get(b), b_o, 'conflict corruption '+b);
     if (b_o.minfo && b_o.minfo.parent?.b==b_o.parent?.b &&
       b_o.minfo.parent?.seq==b_o.parent?.seq){
       return;
@@ -836,7 +837,7 @@ export default class Scroll extends EventEmitter {
       let any = b_o.minfo.any;
       for (let r, m, i=0; i<any.length&&(r = any[i])&&(m=this.m_get(r)); i++)
         m.off('hash', b_o.minfo.on_hash);
-      this.off('branch-removed', b_o.minfo.cleanup);
+      this.off('conflict-removed', b_o.minfo.cleanup);
       this.merge_queue.delete(b);
     };
     const update_merge_queue = (r, bb)=>{
@@ -856,12 +857,12 @@ export default class Scroll extends EventEmitter {
         update_merge_queue(r, bb);
       if (bb!=b)
         return;
-      for (const [j] of this.branch){ // XXX: can we skip obvious ones
+      for (const [j] of this.conflict){ // XXX: can we skip obvious ones
         if (j<b)
           update_merge_queue(r, j);
       }
     };
-    this.on('branch-removed', b_o.minfo.cleanup);
+    this.on('conflict-removed', b_o.minfo.cleanup);
     for (let i=0; i<any.length; i++){
       let r = any[i], m=this.m_get(r);
       m.on('hash', b_o.minfo.on_hash);
@@ -945,9 +946,9 @@ export default class Scroll extends EventEmitter {
     decl.init();
     return decl;
   }
-  branch_to_static(){
+  conflict_to_static(){
     let o = {};
-    for (const [b, bo] of this.branch){
+    for (const [b, bo] of this.conflict){
       o[b] = {top: {seq: bo.top.seq, M: bo.top.M}};
       if (bo.parent){
         o[b].parent = {b: bo.parent.b, seq: bo.parent.seq,
@@ -956,10 +957,10 @@ export default class Scroll extends EventEmitter {
     }
     return o;
   }
-  branch_from_static(bs){
-    assert(this.branch.size==1 && this.top.seq==0,
-      'cannot update branch info after it was populated');
-    let max_b = this.branch.next_id||0, max_top;
+  conflict_from_static(bs){
+    assert(this.conflict.size==1 && this.top.seq==0,
+      'cannot update conflict info after it was populated');
+    let max_b = this.conflict.next_id||0, max_top;
     for (let b in bs){
       let o = bs[b], M = Buffer.from(o.top.M);
       b = +b;
@@ -969,12 +970,12 @@ export default class Scroll extends EventEmitter {
       let bo = {b, top: {seq: o.top.seq, M: M},
         parent: o.parent ? {b: o.parent.b, seq: o.parent.seq,
           type: o.parent.type} : null, conflicts: new Map()};
-      this.branch.set(b, bo);
+      this.conflict.set(b, bo);
       if (bo.parent)
-        this.branch.get(bo.parent.b).conflicts.set(b, bo);
+        this.conflict.get(bo.parent.b).conflicts.set(b, bo);
     }
-    // NOW: add test to verify branch.next_id and top are updated
-    this.branch.next_id = max_b+1;
+    // NOW: add test to verify conflict.next_id and top are updated
+    this.conflict.next_id = max_b+1;
     this.top = max_top;
   }
 }
@@ -983,7 +984,7 @@ class Decl extends EventEmitter {
   constructor(opt){
     super();
     assert(opt.seq>=0, 'must provide Decl seq');
-    assert(opt.scroll.branch.get(opt.b||0), 'branch '+opt.b+' not found');
+    assert(opt.scroll.conflict.get(opt.b||0), 'conflict '+opt.b+' not found');
     assert(opt.data instanceof Data, 'invalid data '+opt.data);
     this.scroll = opt.scroll;
     this.seq = opt.seq;
@@ -1090,7 +1091,7 @@ class Decl extends EventEmitter {
     let o = {scroll: this.scroll.name, seq: this.seq};
     // XXX: inefficient, don't go over all conflicts, but instead just those
     // with data
-    for (const [b] of this.scroll.branch){
+    for (const [b] of this.scroll.conflict){
       if (b != this.to_b(b))
         continue;
       if (this.sig_get(b)){

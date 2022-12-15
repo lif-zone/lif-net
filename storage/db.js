@@ -121,7 +121,7 @@ export default class DB {
       }
     }
   });
-  get_branch = scroll=>etask({_: this}, function*get_branch(){
+  get_conflict = scroll=>etask({_: this}, function*get_conflict(){
     let _this = this._;
     assert(_this.inited, 'db not inited');
     let M = b2s(scroll.M_hash(0, 0));
@@ -129,14 +129,14 @@ export default class DB {
     // XXX: need to get big data from data store
     let o = yield _this.db_get('scroll', M);
     _this.fix_struct(o);
-    yield scroll.branch_from_static(o.branch);
+    yield scroll.conflict_from_static(o.conflict);
   });
-  put_branch = scroll=>etask({_: this}, function*put_branch(){
+  put_conflict = scroll=>etask({_: this}, function*put_conflict(){
     let _this = this._;
     assert(_this.inited, 'db not inited');
     let s = yield _this.init_scroll(scroll);
     s.update_ts = Date.now();
-    s.branch = scroll.branch_to_static();
+    s.conflict = scroll.conflict_to_static();
     yield _this.db_put('scroll', s);
   });
   put_decl = (scroll, seq)=>etask({_: this}, function*put_decl(){
@@ -158,7 +158,7 @@ export default class DB {
   });
   get_scroll = scroll=>etask({_: this}, function*get_scroll(){
     let _this = this._;
-    yield _this.get_branch(scroll);
+    yield _this.get_conflict(scroll);
     // XXX HACK: need to iterate over all scroll decl data
     for (let i=0; i<=scroll.top.seq; i++)
       yield _this.get_decl(scroll, {seq: i, data: true});
@@ -166,7 +166,7 @@ export default class DB {
   // XXX: need test + only to update dirty data
   put_scroll = scroll=>etask({_: this}, function*put_scroll(){
     let _this = this._;
-    yield _this.put_branch(scroll);
+    yield _this.put_conflict(scroll);
     for (const [seq] of scroll.dmap)
       yield _this.put_decl(scroll, seq);
   });

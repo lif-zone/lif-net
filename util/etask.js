@@ -1495,10 +1495,13 @@ E.interval = function(opt, states){
 };
 E._class = function(cls){
     var proto = cls.prototype, keys = Object.getOwnPropertyNames(proto);
-    for (var i=0; i<keys.length; i++)
-    {
+    for (var i=0; i<keys.length; i++){
         var key = keys[i];
         var p = proto[key];
+        // XXX: fixme \(\<.*\) && \1[.\[]
+        // space 4->2, { } blocks coding conventions, and all other
+        // remove hacks that and stupid APIs
+        // if (p?.constructor?.name=='GeneratorFunction')
         if (p && p.constructor && p.constructor.name=='GeneratorFunction')
             proto[key] = E._fn(p);
     }

@@ -211,9 +211,9 @@ function assert_no_corruption(scroll){
     let curr = scroll.branch.get(i);
     if (!i)
       continue;
-    assert.equal(scroll.branch.get(curr.parent?.b).branches.get(curr.b), curr,
+    assert.equal(scroll.branch.get(curr.parent?.b).conflicts.get(curr.b), curr,
       'branch corruption b'+i);
-    for (const [j] of curr.branches)
+    for (const [j] of curr.conflicts)
       assert.equal(scroll.branch.get(j).parent?.b, i, 'branch corruption b'+i);
   }
 }
@@ -479,10 +479,10 @@ const cmd_clone = (curr, t)=>etask(function*cmd_clone(){
     for (let [bid, bo] of s_src.branch){
       assert(bo.top.seq<=seq, 'cannot clone less than branch top '+bo.top.seq);
       let o = {b: bid, top: {seq: bo.top.seq, M: Buffer.from(bo.top.M)},
-        parent: bo.parent && assign({}, bo.parent), branches: new Map()};
+        parent: bo.parent && assign({}, bo.parent), conflicts: new Map()};
       s_dst.branch.set(bid, o);
       if (o.parent)
-        s_dst.branch.get(o.parent.b).branches.set(bid, o);
+        s_dst.branch.get(o.parent.b).conflicts.set(bid, o);
     }
   }
   for (let [seq2, decl] of s_src.dmap){

@@ -478,10 +478,10 @@ const cmd_clone = (curr, t)=>etask(function*cmd_clone(){
   let seq = m[6] ? +m[7] : s_src.top.seq;
   // XXX: use conflict_to_static/conflict_from_static
   if (Array.from(s_src.conflict.keys()).length>1){ // XXX: rm this if
-    for (let [bid, bo] of s_src.conflict){
-      assert(bo.top.seq<=seq, 'cannot clone < conflict top '+bo.top.seq);
-      let o = {c: bid, top: {seq: bo.top.seq, M: Buffer.from(bo.top.M)},
-        parent: bo.parent && assign({}, bo.parent), conflicts: new Map()};
+    for (let [bid, co] of s_src.conflict){
+      assert(co.top.seq<=seq, 'cannot clone < conflict top '+co.top.seq);
+      let o = {c: bid, top: {seq: co.top.seq, M: Buffer.from(co.top.M)},
+        parent: co.parent && assign({}, co.parent), conflicts: new Map()};
       s_dst.conflict.set(bid, o);
       if (o.parent)
         s_dst.conflict.get(o.parent.c).conflicts.set(bid, o);

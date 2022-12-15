@@ -948,11 +948,11 @@ export default class Scroll extends EventEmitter {
   }
   conflict_to_static(){
     let o = {};
-    for (const [c, bo] of this.conflict){
-      o[c] = {top: {seq: bo.top.seq, M: bo.top.M}};
-      if (bo.parent){
-        o[c].parent = {c: bo.parent.c, seq: bo.parent.seq,
-          type: bo.parent.type};
+    for (const [c, co] of this.conflict){
+      o[c] = {top: {seq: co.top.seq, M: co.top.M}};
+      if (co.parent){
+        o[c].parent = {c: co.parent.c, seq: co.parent.seq,
+          type: co.parent.type};
       }
     }
     return o;
@@ -967,12 +967,12 @@ export default class Scroll extends EventEmitter {
       max_c = Math.max(c, max_c);
       if (!max_top || max_top.seq<o.top.seq)
         max_top = {c, seq: o.top.seq, M};
-      let bo = {c, top: {seq: o.top.seq, M: M},
+      let co = {c, top: {seq: o.top.seq, M: M},
         parent: o.parent ? {c: o.parent.c, seq: o.parent.seq,
           type: o.parent.type} : null, conflicts: new Map()};
-      this.conflict.set(c, bo);
-      if (bo.parent)
-        this.conflict.get(bo.parent.c).conflicts.set(c, bo);
+      this.conflict.set(c, co);
+      if (co.parent)
+        this.conflict.get(co.parent.c).conflicts.set(c, co);
     }
     // NOW: add test to verify conflict.next_id and top are updated
     this.conflict.next_id = max_c+1;

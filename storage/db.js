@@ -9,6 +9,24 @@ import setGlobalVars from 'indexeddbshim';
 const b2s = buf_util.buf_to_str;
 setGlobalVars();
 
+/* XXX: design
+scrolls = [ // KEYPATH scfid. INDEX scroll, cfid
+  {scfid: 0, scroll: '4817AB', cfid: 0},
+  {scfid: 1, scroll: '4817AB', cfid: 2, splits: [{cfid: 0, seq: 37}]},
+  {scfid: 2, scroll: '4817AB', cfid: 3, splits: [{cfid: 2, seq: 472},
+    {0, 37}]},
+  {scfid: 3, scroll: '4817AB', cfid: 4, splits: [{cfid: 2, seq: 472},
+    {0, 37}], tmp: true},
+];
+decls = [ // KEYPATH scfig, seq
+  {scfid: 0, seq: 3, M: M3, m: {0: m0_1, 1: m1}},
+    D: [{sig}, {buf, h}, ...]}
+  {scfid: 1, seq: 3, M: M3b1, m: {0: m0_1, 1: m1}},
+    D: [{sig}, {buf, h}, ...]}
+];
+blob = // XXX: add scfid array so we can purge scroll
+*/
+
 export default class DB {
   init = (opt={})=>etask({_: this}, function*db_init(){
     let _this = this._;

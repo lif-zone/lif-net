@@ -36,26 +36,26 @@ class Data extends EventEmitter {
     this.bmap = new Map();
     let fbuf = new Frame_buffer(opt);
     fbuf.on('hash', this.on_hash);
-    fbuf.map_info = {_: this, b: 0};
+    fbuf.map_info = {_: this, c: 0};
     this.bmap.set(0, fbuf);
   }
-  on_hash(){ this.map_info._.emit('hash', {b: this.map_info.b}); }
-  get(b){
-    assert(b>=0, 'invalid b'+b);
-    let fbuf = this.bmap.get(b);
+  on_hash(){ this.map_info._.emit('hash', {c: this.map_info.c}); }
+  get(c){
+    assert(c>=0, 'invalid c'+c);
+    let fbuf = this.bmap.get(c);
     if (fbuf)
       return fbuf;
     fbuf = new Frame_buffer();
-    fbuf.map_info = {_: this, b};
+    fbuf.map_info = {_: this, c};
     fbuf.on('hash', this.on_hash);
-    this.bmap.set(b, fbuf);
+    this.bmap.set(c, fbuf);
     return fbuf;
   }
   copy(bdst, bsrc){
     let fsrc = this.get(bsrc);
     let fdst = this.get(bdst);
-    assert.equal(fsrc.map_info.b, bsrc);
-    assert.equal(fdst.map_info.b, bdst);
+    assert.equal(fsrc.map_info.c, bsrc);
+    assert.equal(fdst.map_info.c, bdst);
     // XXX: wrap with api in Frame_buffer
     assert(!fdst.h && fdst.frames.length==1, 'already contain data');
     fdst.h = fsrc.h;
@@ -386,37 +386,37 @@ export default class Scroll extends EventEmitter {
     decl.M.set_hash(0, M0);
   }
   create_new_conflict(opt={}){
-    let {b, seq} = opt;
+    let {c, seq} = opt;
     let bid = this.conflict.next_id++;
-    if (b===undefined || seq===undefined){
-      assert(b===undefined && seq===undefined, 'invalid create_new_conflict');
+    if (c===undefined || seq===undefined){
+      assert(c===undefined && seq===undefined, 'invalid create_new_conflict');
       assert.equal(bid, 0);
-      this.conflict.set(bid, {b: bid, top: null, conflicts: new Map()});
+      this.conflict.set(bid, {c: bid, top: null, conflicts: new Map()});
       return bid;
     }
-    let M = this.get_decl(seq).M_hash(b);
+    let M = this.get_decl(seq).M_hash(c);
     assert(M, 'missing M'+seq);
-    this.conflict.set(bid, {b: bid, top: null, parent: {b, seq, type: 'v'},
+    this.conflict.set(bid, {c: bid, top: null, parent: {c, seq, type: 't'},
       conflicts: new Map()});
-    this.notify_M({b: bid, seq: seq, M});
+    this.notify_M({c: bid, seq: seq, M});
     return bid;
   }
-  to_b(b, seq){
+  to_b(c, seq){
     assert(typeof seq=='number' && seq>=0, 'invalid seq '+seq);
-    assert(this.conflict.get(b), 'missing conflict '+seq+'b'+b);
-    for (let parent; (parent = this.conflict.get(b).parent) &&
-      parent?.b!==undefined && seq<=parent?.seq;
-      b = parent.b);
-    return b;
+    assert(this.conflict.get(c), 'missing conflict '+seq+'c'+c);
+    for (let parent; (parent = this.conflict.get(c).parent) &&
+      parent?.c!==undefined && seq<=parent?.seq;
+      c = parent.c);
+    return c;
   }
   decl(opt, frames){ // XXX: test decl on conflict
     if (frames===undefined)
-      [opt, frames] = [{b: 0}, opt];
+      [opt, frames] = [{c: 0}, opt];
     if (typeof opt=='number')
-      opt = {b: opt};
-    let {b, prev, group, link, branch} = opt;
-    b = b||0;
-    let top = this.conflict.get(b).top;
+      opt = {c: opt};
+    let {c, prev, group, link, branch} = opt;
+    c = c||0;
+    let top = this.conflict.get(c).top;
     let seq = top ? top.seq+1 : 0, header = {seq, ts: Date.now()};
     if (prev>0 && prev!=seq-1)
       header.prev = prev;
@@ -430,36 +430,36 @@ export default class Scroll extends EventEmitter {
     let decl = new Decl({scroll: this, seq, data});
     this.dmap.set(seq, decl);
     decl.init();
-    decl.sign(b);
-    decl.M.get_hash(b);
+    decl.sign(c);
+    decl.M.get_hash(c);
     return decl;
   }
   notify_M(opt){
-    let {b, seq, M} = opt;
-    assert(seq!=0 || b==0, 'M0 exists only on b0');
+    let {c, seq, M} = opt;
+    assert(seq!=0 || c==0, 'M0 exists only on b0');
     if (seq==0){
       this.name = b2s(M);
       this.soul.set(M, this);
     }
-    if (!this.conflict.get(b).top || this.conflict.get(b).top.seq<seq){
-      this.conflict.get(b).top = {seq, M};
+    if (!this.conflict.get(c).top || this.conflict.get(c).top.seq<seq){
+      this.conflict.get(c).top = {seq, M};
       if (!this.top || this.top.seq<seq)
-        this.top = {b, seq, M};
-      assert.equal(b2s(M), b2s(this.M_hash(b, this.conflict.get(b).top.seq)),
-        'invalid M'+seq+'b'+b);
+        this.top = {c, seq, M};
+      assert.equal(b2s(M), b2s(this.M_hash(c, this.conflict.get(c).top.seq)),
+        'invalid M'+seq+'c'+c);
     }
   }
   find_best_conflict(seq, diff){
-    let best = {b: 0, seq: 0};
+    let best = {c: 0, seq: 0};
     if (this.conflict.size<=1)
       return best;
     for (const [j, conflict] of this.conflict){
       // XXX: optimize. use prev max_common to first check if we can
       // improve and stop checking if max_common is lower the prev
-      let max = this.find_max_common_M({b: j, seq, diff});
+      let max = this.find_max_common_M({c: j, seq, diff});
       let top = conflict.top.seq;
       if (best.seq < max || best.seq==max && best.top<top){
-        best = {b: j, seq: max, top};
+        best = {c: j, seq: max, top};
       }
     }
     return best;
@@ -472,23 +472,23 @@ export default class Scroll extends EventEmitter {
       let seq = +a[i], errors2={};
       if (seq==0)
         continue;
-      let best = this.find_best_conflict(seq, diff), b = best.b;
-      let ret = this.put_single(seq, diff, errors2, {b});
+      let best = this.find_best_conflict(seq, diff), c = best.c;
+      let ret = this.put_single(seq, diff, errors2, {c});
       if (ret?.conflict){
-        let max = best.seq || this.find_max_common_M({b, seq, diff});
+        let max = best.seq || this.find_max_common_M({c, seq, diff});
         if (max!==undefined){
           errors2 = {};
-          let b2 = this.create_new_conflict({b, seq: max});
-          ret = this.put_single(seq, diff, errors, {b: b2});
-          if (ret?.conflict || this.conflict.get(b2).top.seq<=max){
-            this.conflict.delete(b2);
+          let c2 = this.create_new_conflict({c, seq: max});
+          ret = this.put_single(seq, diff, errors, {c: c2});
+          if (ret?.conflict || this.conflict.get(c2).top.seq<=max){
+            this.conflict.delete(c2);
             continue;
           }
-          b = b2;
-          this.conflict_update(b, {init: true});
+          c = c2;
+          this.conflict_update(c, {init: true});
         }
       }
-      this.merge_all(seq, b);
+      this.merge_all(seq, c);
       copy_errors(errors, errors2);
     }
     return {errors};
@@ -505,36 +505,36 @@ export default class Scroll extends EventEmitter {
       this.copy_extra_m(diff[seq].m[a[i]], [+a[i], seq], max_range, diff, opt);
   }
   copy_extra_m(m, range, max_range, diff, opt){
-    let b=opt.b||0, vm = this.m_hash(b, range);
+    let c=opt.c||0, vm = this.m_hash(c, range);
     if (vm)
       return vm.equals(m);
     if (r_eq(range, max_range))
       return false;
     let po = r_parent(range), sketch={}, errors={}, m2;
     let r2 = r_eq(range, po.left) ? po.right : po.left;
-    if (!(m2 = this.sketch_calc_m({b, range: r2, sketch, diff, errors})))
+    if (!(m2 = this.sketch_calc_m({c, range: r2, sketch, diff, errors})))
       return false;
     let mp = hparent(po.parent[1]-po.parent[0]+1, r_eq(range, po.left) ?
       m : m2, r_eq(range, po.left) ? m2 : m);
     if (!this.copy_extra_m(mp, po.parent, max_range, diff, opt))
       return false;
     set_m_hash(sketch, range, m);
-    this.put_verified(sketch, {b});
+    this.put_verified(sketch, {c});
   }
   _put_single(seq, diff, errors, opt={}){
-    let b=opt.b||0;
-    let top = this.conflict.get(b).top, sketch = {};
+    let c=opt.c||0;
+    let top = this.conflict.get(c).top, sketch = {};
     let decl=this.get_decl(seq), m=get_m_hash(diff, seq);
     let D=get_D(diff, seq);
     let sig=get_sig(diff, seq), d=get_d_hash(diff, seq), dD=calc_D_hash(D);
-    let vm=decl.m_hash(b, seq), vsig=decl.sig_get(b), vd=decl.d_hash(b);
+    let vm=decl.m_hash(c, seq), vsig=decl.sig_get(c), vd=decl.d_hash(c);
     if (dD){
       if (vd){
         if (!beq(dD, vd)){
           push_error(errors, 'invalid D'+seq);
           dD = null;
         } else
-          this.put_verified(set_d({}, seq, null, D), {b});
+          this.put_verified(set_d({}, seq, null, D), {c});
       }
       if (d && !beq(dD, d)){
         push_error(errors, 'invalid D'+seq);
@@ -562,14 +562,14 @@ export default class Scroll extends EventEmitter {
       m = m||hleaf(d, sig);
     if (vm){
       let ret = check_set_sig(sketch, errors, seq, vm, d, D, sig);
-      this.put_verified(sketch, {b});
+      this.put_verified(sketch, {c});
       return ret;
     }
     if (!m)
       return;
     if (seq<=top.seq){ // verify m belongs to existing top.M
       let M = this.sketch_calc_top_M({top, force: {range: [seq, seq], m},
-        sketch, diff, errors, b});
+        sketch, diff, errors, c});
       if (!M)
         return {conflict: true};
       if (!beq(M, top.M)){
@@ -577,7 +577,7 @@ export default class Scroll extends EventEmitter {
         return {conflict: true}; // XXX: need test
       }
       check_set_sig(sketch, errors, seq, m, d, D, sig);
-      this.put_verified(sketch, {b});
+      this.put_verified(sketch, {c});
       return;
     }
     // new top
@@ -587,11 +587,11 @@ export default class Scroll extends EventEmitter {
       return;
     let prev_top = this.get_decl(top.seq);
     let prev_top_r = prev_top.m[prev_top.m.length-1].range;
-    let prev_force = {range: prev_top_r, m: prev_top.m_hash(b, prev_top_r)};
+    let prev_force = {range: prev_top_r, m: prev_top.m_hash(c, prev_top_r)};
     if (is_null(prev_force.m, errors, 'missing m'+r_str(prev_top_r)))
       return;
     let prev_M = this.sketch_calc_top_M({top: {seq: seq-1},
-      force: prev_force, sketch, diff, errors, b});
+      force: prev_force, sketch, diff, errors, c});
     if (is_null(prev_M, errors, 'missing M'+(seq-1)))
       return {conflict: true};
     if (!verify_sig(sig, this.pub, d, prev_M))
@@ -600,17 +600,17 @@ export default class Scroll extends EventEmitter {
     check_set_sig(sketch, errors, seq, m, d, D, sig);
     if (vsig && !vsig.equals(sig))
       return {conflict: true};
-    this.put_verified(sketch, {b});
-    this.M_hash(b, seq); // update new top
+    this.put_verified(sketch, {c});
+    this.M_hash(c, seq); // update new top
   }
   sketch_calc_top_M(opt){
-    let {b, top, force, sketch, diff, errors} = opt, {range} = force;
+    let {c, top, force, sketch, diff, errors} = opt, {range} = force;
     let seq = force.range[1];
     assert(seq<=top.seq, 'top over seq');
     let roots = calc_roots(top.seq+1), a=[ROOT_TYPE];
     for (let i=0; i<roots.length; i++){
       let r = roots[i], mr;
-      mr = this.sketch_calc_m({b, range: r, sketch, diff, errors, force:
+      mr = this.sketch_calc_m({c, range: r, sketch, diff, errors, force:
         r_includes(r, range) ? force : null});
       if (is_null(mr, errors, 'missing m'+r_str(r)))
         return null;
@@ -619,11 +619,11 @@ export default class Scroll extends EventEmitter {
     return hconcat(a);
   }
   sketch_calc_m(opt){
-    let {b, range, sketch, diff, errors, force} = opt;
+    let {c, range, sketch, diff, errors, force} = opt;
     if (force && r_eq(range, force.range))
       return set_m_hash(sketch, range, force.m);
     let seq = range[1], decl = this.get_decl(seq);
-    let m = get_m_hash(diff, range), vm = decl.m_hash(b, range);
+    let m = get_m_hash(diff, range), vm = decl.m_hash(c, range);
     if ((vm||m) && (!force || !r_includes(range, force.range))){
       if (m && !vm)
         set_m_hash(sketch, range, m);
@@ -639,17 +639,17 @@ export default class Scroll extends EventEmitter {
     let [r1, r2] = r_split(range);
     let m1, vm1, m2, vm2, decl1 = this.get_decl(r1[1]), decl2=decl;
     if (force && r_includes(r1, force.range))
-      m1 = this.sketch_calc_m({b, range: r1, sketch, diff, errors, force});
-    else if (vm1 = decl1.m_hash(b, r1));
+      m1 = this.sketch_calc_m({c, range: r1, sketch, diff, errors, force});
+    else if (vm1 = decl1.m_hash(c, r1));
     else if (m1 = get_m_hash(sketch, r1)||get_m_hash(diff, r1));
-    else if (m1 = this.sketch_calc_m({b, range: r1, sketch, diff, errors}));
+    else if (m1 = this.sketch_calc_m({c, range: r1, sketch, diff, errors}));
     if (is_null(m1||vm1, errors, 'missing m'+r_str(r1)))
       return null;
     if (force && r_includes(r2, force.range))
-      m2 = this.sketch_calc_m({b, range: r2, sketch, diff, errors, force});
-    else if (vm2 = decl2.m_hash(b, r2));
+      m2 = this.sketch_calc_m({c, range: r2, sketch, diff, errors, force});
+    else if (vm2 = decl2.m_hash(c, r2));
     else if (m2 = get_m_hash(sketch, r2)||get_m_hash(diff, r2));
-    else if (m2 = this.sketch_calc_m({b, range: r2, sketch, diff, errors}));
+    else if (m2 = this.sketch_calc_m({c, range: r2, sketch, diff, errors}));
     if (is_null(m2||vm2, errors, 'missing m'+r_str(r2)))
       return null;
     if (m1)
@@ -662,11 +662,11 @@ export default class Scroll extends EventEmitter {
   }
   find_max_common_M(opt){
     // XXX: optimization: take into account all from calc_merge_info?
-    let {b, seq, diff, diff_b, common} = opt, roots = calc_roots(seq+1), ret;
+    let {c, seq, diff, diff_b, common} = opt, roots = calc_roots(seq+1), ret;
     for (let i=0; i<roots.length; i++){
       let r = roots[i], max;
       max = r[1]<=common ? {range: r} :
-        this.find_max_common_m({b, range: r, diff, diff_b, common});
+        this.find_max_common_m({c, range: r, diff, diff_b, common});
       if (!max)
         break;
       if (r_eq(r, max.range)){
@@ -674,7 +674,7 @@ export default class Scroll extends EventEmitter {
         continue;
       }
       // XXX: optimize, we now by now that we have max.range[1]
-      let max2 = this.find_max_common_M({b, seq: r[1]-1, diff, diff_b,
+      let max2 = this.find_max_common_M({c, seq: r[1]-1, diff, diff_b,
         common});
       return max2 ? max2 : max.range[1];
     }
@@ -682,9 +682,9 @@ export default class Scroll extends EventEmitter {
   }
   find_max_common_m(opt){
     // XXX: need sketch to cache results
-    let {b, range, diff, diff_b, common} = opt;
+    let {c, range, diff, diff_b, common} = opt;
     let seq = range[1], decl = this.get_decl(seq);
-    let vm = decl.m_hash(b, range);
+    let vm = decl.m_hash(c, range);
     if (vm && seq<=common)
       return {range, m};
     let m = this.calc_m({range, diff, diff_b});
@@ -694,13 +694,13 @@ export default class Scroll extends EventEmitter {
       return null;
     let [r1, r2] = r_split(range);
     let m1, vm1, m2, vm2, decl1 = this.get_decl(r1[1]), decl2=decl;
-    vm1 = decl1.m_hash(b, r1);
-    vm2 = decl2.m_hash(b, r2);
+    vm1 = decl1.m_hash(c, r1);
+    vm2 = decl2.m_hash(c, r2);
     if (!vm1)
-      return this.find_max_common_m({b, range: r1, diff, diff_b});
+      return this.find_max_common_m({c, range: r1, diff, diff_b});
     m1 = this.calc_m({range: r1, diff, diff_b});
     if (!m1 || !vm1.equals(m1)){
-      let max1 = this.find_max_common_m({b, range: r1, diff, diff_b});
+      let max1 = this.find_max_common_m({c, range: r1, diff, diff_b});
       if (!max1)
         return null;
       if (!r_eq(r1, max1.range))
@@ -711,7 +711,7 @@ export default class Scroll extends EventEmitter {
       return {range: r1, m: m1};
     m2 = this.calc_m({range: r2, diff, diff_b});
     if (!m2 || !vm2.equals(m2)){
-      let max2 = this.find_max_common_m({b, range: r2, diff, diff_b});
+      let max2 = this.find_max_common_m({c, range: r2, diff, diff_b});
       if (!max2)
         return {range: r1, m: m1};
       // XXX maybe return r1+max2.range and optimize find_max_common_M
@@ -723,7 +723,7 @@ export default class Scroll extends EventEmitter {
     assert(!m, 'm does not exists');
     return {range, m: vm};
   }
-  merge_all(seq, b){
+  merge_all(seq, c){
     if (this.conflict.size<=1)
       return;
     while (this.merge_queue.size){
@@ -732,43 +732,43 @@ export default class Scroll extends EventEmitter {
     }
     // XXX: can we improve and avoid traverssing all conflicts
     for (const [i, b_o] of this.conflict){
-      if (i && b_o.parent?.type!='b' && b_o.minfo.real_map.get(b_o.parent?.b))
-        this.merge_single(b_o.parent.b, i, seq);
+      if (i && b_o.parent?.type!='c' && b_o.minfo.real_map.get(b_o.parent?.c))
+        this.merge_single(b_o.parent.c, i, seq);
     }
   }
   merge_single(i1, i2, seq){
     assert(i1<i2, 'invalid conflict merge '+i1+' '+i2);
-    let b1=this.conflict.get(i1), b2=this.conflict.get(i2), bseq;
-    let mergeable = b2.minfo.merge_queue.get(i1);
-    let real_conflict = b2.minfo.real_map.get(i1);
-    if (b2.parent?.seq >= seq)
+    let b1=this.conflict.get(i1), c2=this.conflict.get(i2), bseq;
+    let mergeable = c2.minfo.merge_queue.get(i1);
+    let real_conflict = c2.minfo.real_map.get(i1);
+    if (c2.parent?.seq >= seq)
       return assert(!mergeable && real_conflict);
-    if (b2.parent?.seq >= b1.top.seq)
+    if (c2.parent?.seq >= b1.top.seq)
       return assert(!mergeable && real_conflict);
     if (!mergeable){
-      if (real_conflict && b2.parent?.b==i1)
-        this.conflict_update(i2, {type: real_conflict ? 'b' : 'v'});
+      if (real_conflict && c2.parent?.c==i1)
+        this.conflict_update(i2, {type: real_conflict ? 'c' : 't'});
       return;
     }
     // XXX: to calc common, check also if conflict is not direct child
-    bseq = this.find_max_common_M({b: i1, diff_b: i2, seq,
-      common: b2.parent?.b==b1.parent?.b ? b2.parent?.seq : undefined});
-    assert((b1.parent?.b||0)<i2, 'lower b'+i1+' cannot point upper b'+i2);
-    if (b2.parent?.seq >= bseq)
+    bseq = this.find_max_common_M({c: i1, diff_b: i2, seq,
+      common: c2.parent?.c==b1.parent?.c ? c2.parent?.seq : undefined});
+    assert((b1.parent?.c||0)<i2, 'lower c'+i1+' cannot point upper c'+i2);
+    if (c2.parent?.seq >= bseq)
       return xerr('need optimize merge');
-    this.conflict_update(i2, {b: i1, seq: bseq,
-      type: real_conflict ? 'b' : 'v'});
-    if (b2.top.seq!=bseq && b1.top.seq!=bseq)
+    this.conflict_update(i2, {c: i1, seq: bseq,
+      type: real_conflict ? 'c' : 't'});
+    if (c2.top.seq!=bseq && b1.top.seq!=bseq)
       return;
     // merge
     // XXX: need more efficient way (just iterate on decl with data)
-    for (let i=b1.top.seq+1; i<=b2.top.seq; i++){
+    for (let i=b1.top.seq+1; i<=c2.top.seq; i++){
       let src = this.get_decl(i, {create: false});
       if (src)
         src.copy(i1, i2);
     }
-    if (b2.top.seq > b1.top.seq)
-      this.notify_M({b: i1, seq: b2.top.seq, M: b2.top.M});
+    if (c2.top.seq > b1.top.seq)
+      this.notify_M({c: i1, seq: c2.top.seq, M: c2.top.M});
     this.conflict_remove(i2, i1);
     return {curr: i1, prev: i2};
   }
@@ -776,51 +776,51 @@ export default class Scroll extends EventEmitter {
     assert(i2, 'cannot remove conflict 0');
     assert(i1>=0, 'must provide new conflict');
     assert(i1<i2, 'new conflict must be smaller');
-    let b2 = this.conflict.get(i2);
-    this.conflict.get(b2.parent.b).conflicts.delete(i2);
-    for (const [i] of b2.conflicts)
-      this.conflict_update(i, {b: i1});
+    let c2 = this.conflict.get(i2);
+    this.conflict.get(c2.parent.c).conflicts.delete(i2);
+    for (const [i] of c2.conflicts)
+      this.conflict_update(i, {c: i1});
     this.conflict.delete(i2);
-    this.emit('conflict-removed', {b: i2, b_new: i1});
+    this.emit('conflict-removed', {c: i2, b_new: i1});
   }
-  conflict_update(b, o){
+  conflict_update(c, o){
     // XXX: need to rm uneeded decl now when updating conflicts and update all
     // relevant places on new conflict
-    assert(o.b!=b, 'conflict loop '+b);
-    let src = this.conflict.get(b);
-    assert.equal(src.b, b, 'conflict corruption '+b);
+    assert(o.c!=c, 'conflict loop '+c);
+    let src = this.conflict.get(c);
+    assert.equal(src.c, c, 'conflict corruption '+c);
     assert(src.parent?.type, 'missing conflict type');
     if (o.init){
-      assert(o.b===undefined && o.seq===undefined, 'invalid init');
+      assert(o.c===undefined && o.seq===undefined, 'invalid init');
       assert(!src.info, 'invalid init');
-      this.update_mergeable(src.b);
+      this.update_mergeable(src.c);
       return;
     }
-    if (src.b==o.b && src.seq==o.sec)
+    if (src.c==o.c && src.seq==o.sec)
       return;
-    if (o.b!==undefined){
-      assert(src.parent!==o.b || o.type===undefined || src.parent?.type!='b' ||
-        o.type=='b', 'real conflict type change b'+src.b);
-      this.conflict.get(src.parent?.b).conflicts.delete(src.b);
-      src.parent.b = o.b;
+    if (o.c!==undefined){
+      assert(src.parent!==o.c || o.type===undefined || src.parent?.type!='c' ||
+        o.type=='c', 'real conflict type change c'+src.c);
+      this.conflict.get(src.parent?.c).conflicts.delete(src.c);
+      src.parent.c = o.c;
     }
     if (o.seq!==undefined)
       src.parent.seq = o.seq;
     if (o.type!==undefined){
-      assert(['v', 'b'].includes(o.type), 'invalid conflict type '+o.type);
-      assert(o.b || src.parent?.type!='b' || o.type=='b',
-        'real conflict type change b'+src.b);
+      assert(['t', 'c'].includes(o.type), 'invalid conflict type '+o.type);
+      assert(o.c || src.parent?.type!='c' || o.type=='c',
+        'real conflict type change c'+src.c);
       src.parent.type = o.type;
     }
-    this.update_mergeable(src.b);
+    this.update_mergeable(src.c);
   }
-  update_mergeable(b){
-    assert(b>0, 'invalid conflict');
-    let b_o = this.conflict.get(b), p_o = this.conflict.get(b_o.parent?.b);
-    if (!p_o.conflicts.get(b))
-      p_o.conflicts.set(b, b_o);
-    assert.equal(p_o.conflicts.get(b), b_o, 'conflict corruption '+b);
-    if (b_o.minfo && b_o.minfo.parent?.b==b_o.parent?.b &&
+  update_mergeable(c){
+    assert(c>0, 'invalid conflict');
+    let b_o = this.conflict.get(c), p_o = this.conflict.get(b_o.parent?.c);
+    if (!p_o.conflicts.get(c))
+      p_o.conflicts.set(c, b_o);
+    assert.equal(p_o.conflicts.get(c), b_o, 'conflict corruption '+c);
+    if (b_o.minfo && b_o.minfo.parent?.c==b_o.parent?.c &&
       b_o.minfo.parent?.seq==b_o.parent?.seq){
       return;
     }
@@ -829,36 +829,36 @@ export default class Scroll extends EventEmitter {
     let any = calc_merge_info(b_o.parent?.seq).any;
     // XXX: maybe we can reuse some of merge_queue & real_map
     b_o.minfo = {any, merge_queue: new Map, real_map: new Map,
-      parent: {b: b_o.parent?.b, seq: b_o.parent?.seq}};
+      parent: {c: b_o.parent?.c, seq: b_o.parent?.seq}};
     b_o.minfo.merge_queue.get_one = Map_get_one;
     b_o.minfo.cleanup = opt=>{
-      if (opt && opt.b!=b)
+      if (opt && opt.c!=c)
         return;
       let any = b_o.minfo.any;
       for (let r, m, i=0; i<any.length&&(r = any[i])&&(m=this.m_get(r)); i++)
         m.off('hash', b_o.minfo.on_hash);
       this.off('conflict-removed', b_o.minfo.cleanup);
-      this.merge_queue.delete(b);
+      this.merge_queue.delete(c);
     };
     const update_merge_queue = (r, bb)=>{
       if (b_o.minfo.merge_queue.get(bb))
         return;
       let m1, m2;
-      if ((m1=this.m_hash(b, r)) && (m2=this.m_hash(bb, r))){
+      if ((m1=this.m_hash(c, r)) && (m2=this.m_hash(bb, r))){
         if (!m1.equals(m2))
           return b_o.minfo.real_map.set(bb, true);
         b_o.minfo.merge_queue.set(bb, true);
-        this.merge_queue.set(b, true);
+        this.merge_queue.set(c, true);
       }
     };
     b_o.minfo.on_hash = opt=>{
-      let r = opt.range, bb = opt.b;
-      if (bb<b)
+      let r = opt.range, bb = opt.c;
+      if (bb<c)
         update_merge_queue(r, bb);
-      if (bb!=b)
+      if (bb!=c)
         return;
       for (const [j] of this.conflict){ // XXX: can we skip obvious ones
-        if (j<b)
+        if (j<c)
           update_merge_queue(r, j);
       }
     };
@@ -866,7 +866,7 @@ export default class Scroll extends EventEmitter {
     for (let i=0; i<any.length; i++){
       let r = any[i], m=this.m_get(r);
       m.on('hash', b_o.minfo.on_hash);
-      b_o.minfo.on_hash({range: r, b: b});
+      b_o.minfo.on_hash({range: r, c: c});
     }
   }
   calc_m(opt){
@@ -887,22 +887,22 @@ export default class Scroll extends EventEmitter {
     return hparent(range[1]-range[0]+1, m1, m2);
   }
   put_verified(verified, opt={}){
-    let b=0;
-    if (opt.b!==undefined)
-      b = opt.b;
+    let c=0;
+    if (opt.c!==undefined)
+      c = opt.c;
     for (let seq in verified){
       seq = +seq;
       let v = verified[seq], decl = this.get_decl(seq);
       for (let type in v){
         let val = v[type];
         switch (type){
-        case 'sig': decl.sig_set(b, val); break;
-        case 'd': decl.fbuf_get_sync(b).set_hash(val); break;
-        case 'D': decl.fbuf_get_sync(b).set_frames(val); break;
-        case 'M': decl.M.set_hash(b, val); break;
+        case 'sig': decl.sig_set(c, val); break;
+        case 'd': decl.fbuf_get_sync(c).set_hash(val); break;
+        case 'D': decl.fbuf_get_sync(c).set_frames(val); break;
+        case 'M': decl.M.set_hash(c, val); break;
         case 'm':
           for (let s in val)
-            decl.m_get([+s, +seq]).set_hash(b, val[s]);
+            decl.m_get([+s, +seq]).set_hash(c, val[s]);
           break;
         default: assert.fail('invalid verified type '+type);
         }
@@ -912,7 +912,7 @@ export default class Scroll extends EventEmitter {
   calc_root_hash(seq, opt){
     let roots=calc_roots(seq+1), a=[ROOT_TYPE];
     for (let i=0; i<roots.length; i++){
-      let r = roots[i], h = this.m_hash(opt.b, r);
+      let r = roots[i], h = this.m_hash(opt.c, r);
       if (!h)
         return;
       assert(h, 'cannot calc root');
@@ -920,21 +920,21 @@ export default class Scroll extends EventEmitter {
     }
     return hconcat_safe(a);
   }
-  seq_sig(b, seq){ return this.get_decl(seq)?.sig_get(b); }
-  seq_d(b, seq){ return this.get_decl(seq).d_hash(b); }
-  seq_D(b, seq){ return this.get_decl(seq).fbuf_get_sync(b).get_frames(); }
-  m_hash(b, range){
+  seq_sig(c, seq){ return this.get_decl(seq)?.sig_get(c); }
+  seq_d(c, seq){ return this.get_decl(seq).d_hash(c); }
+  seq_D(c, seq){ return this.get_decl(seq).fbuf_get_sync(c).get_frames(); }
+  m_hash(c, range){
     let [, e] = range = r_fix(range), decl = this.get_decl(e);
-    return decl.m_hash(b||0, range);
+    return decl.m_hash(c||0, range);
   }
   m_get(range){
     let [, e] = range = r_fix(range);
     let decl = this.get_decl(e);
     return decl.m_get(range);
   }
-  M_hash(b, seq){
+  M_hash(c, seq){
     let decl = this.get_decl(seq);
-    return decl ? decl.M_hash(b||0) : null;
+    return decl ? decl.M_hash(c||0) : null;
   }
   get_decl(seq, opt={}){
     assert(typeof seq=='number', 'invalid seq '+seq);
@@ -948,10 +948,10 @@ export default class Scroll extends EventEmitter {
   }
   conflict_to_static(){
     let o = {};
-    for (const [b, bo] of this.conflict){
-      o[b] = {top: {seq: bo.top.seq, M: bo.top.M}};
+    for (const [c, bo] of this.conflict){
+      o[c] = {top: {seq: bo.top.seq, M: bo.top.M}};
       if (bo.parent){
-        o[b].parent = {b: bo.parent.b, seq: bo.parent.seq,
+        o[c].parent = {c: bo.parent.c, seq: bo.parent.seq,
           type: bo.parent.type};
       }
     }
@@ -961,18 +961,18 @@ export default class Scroll extends EventEmitter {
     assert(this.conflict.size==1 && this.top.seq==0,
       'cannot update conflict info after it was populated');
     let max_b = this.conflict.next_id||0, max_top;
-    for (let b in bs){
-      let o = bs[b], M = Buffer.from(o.top.M);
-      b = +b;
-      max_b = Math.max(b, max_b);
+    for (let c in bs){
+      let o = bs[c], M = Buffer.from(o.top.M);
+      c = +c;
+      max_b = Math.max(c, max_b);
       if (!max_top || max_top.seq<o.top.seq)
-        max_top = {b, seq: o.top.seq, M};
-      let bo = {b, top: {seq: o.top.seq, M: M},
-        parent: o.parent ? {b: o.parent.b, seq: o.parent.seq,
+        max_top = {c, seq: o.top.seq, M};
+      let bo = {c, top: {seq: o.top.seq, M: M},
+        parent: o.parent ? {c: o.parent.c, seq: o.parent.seq,
           type: o.parent.type} : null, conflicts: new Map()};
-      this.conflict.set(b, bo);
+      this.conflict.set(c, bo);
       if (bo.parent)
-        this.conflict.get(bo.parent.b).conflicts.set(b, bo);
+        this.conflict.get(bo.parent.c).conflicts.set(c, bo);
     }
     // NOW: add test to verify conflict.next_id and top are updated
     this.conflict.next_id = max_b+1;
@@ -984,7 +984,7 @@ class Decl extends EventEmitter {
   constructor(opt){
     super();
     assert(opt.seq>=0, 'must provide Decl seq');
-    assert(opt.scroll.conflict.get(opt.b||0), 'conflict '+opt.b+' not found');
+    assert(opt.scroll.conflict.get(opt.c||0), 'conflict '+opt.c+' not found');
     assert(opt.data instanceof Data, 'invalid data '+opt.data);
     this.scroll = opt.scroll;
     this.seq = opt.seq;
@@ -1003,57 +1003,57 @@ class Decl extends EventEmitter {
       this.m[i].init();
     this.M.init();
   }
-  to_b(b){ return this.scroll.to_b(b, this.seq); }
-  sign(b){
-    let scroll = this.scroll, d = this.fbuf_get_sync(b).get_hash();
+  to_b(c){ return this.scroll.to_b(c, this.seq); }
+  sign(c){
+    let scroll = this.scroll, d = this.fbuf_get_sync(c).get_hash();
     assert(scroll.key, 'cannot sign without key');
-    let buf = this.seq ? Buffer.concat([d, scroll.M_hash(b, this.seq-1)])
+    let buf = this.seq ? Buffer.concat([d, scroll.M_hash(c, this.seq-1)])
       : scroll.prev_scroll ? Buffer.concat([d, scroll.prev_scroll]) : d;
     let sig = crypto.sign(crypto.blake2b(buf), scroll.key);
-    this.sig_set(b, sig);
+    this.sig_set(c, sig);
   }
-  sig_set(b, sig){
-    this.fbuf_get_sync(b).sig_set(sig);
-    this.emit('sig', {b}); // XXX NOW: need to emit also from set_frames
+  sig_set(c, sig){
+    this.fbuf_get_sync(c).sig_set(sig);
+    this.emit('sig', {c}); // XXX NOW: need to emit also from set_frames
     return sig;
   }
-  sig_get(b){ return this.fbuf_get_sync(b).sig_get(); }
-  fbuf_get_sync(b){ return this.data.get(this.to_b(b)); }
+  sig_get(c){ return this.fbuf_get_sync(c).sig_get(); }
+  fbuf_get_sync(c){ return this.data.get(this.to_b(c)); }
   data_get(){ return this.data; }
-  d_hash(b){ return this.fbuf_get_sync(b).get_hash(); }
+  d_hash(c){ return this.fbuf_get_sync(c).get_hash(); }
   m_get(range){
     let i = merkel_array_pos(range);
     assert.deepEqual(this.m[i].range, r_fix(range));
     return this.m[i];
   }
-  m_hash(b, range){ return this.m_get(range).get_hash(b); }
-  M_hash(b){ return this.M.get_hash(b); }
-  fbuf_get(b){
+  m_hash(c, range){ return this.m_get(range).get_hash(c); }
+  M_hash(c){ return this.M.get_hash(c); }
+  fbuf_get(c){
     let _this = this;
     return etask(function(){
       // XXX: load data from db/net
-      return _this.fbuf_get_sync(b);
+      return _this.fbuf_get_sync(c);
     });
   }
   get_buf(opt){
     let _this = this;
     if (Number.isInteger(opt))
-      opt = {b: 0, d: opt};
+      opt = {c: 0, d: opt};
     let d = opt.d;
     return etask(function*(){
-      let fbuf = yield _this.fbuf_get(opt.b);
+      let fbuf = yield _this.fbuf_get(opt.c);
       return fbuf.get(d);
     });
   }
   get_json(opt){
     let _this = this;
     if (opt===undefined)
-      opt = {b: 0, d: [1, 2]}; // header & data section
+      opt = {c: 0, d: [1, 2]}; // header & data section
    else if (Number.isInteger(opt) || Array.isArray(opt))
-      opt = {b: 0, d: opt};
+      opt = {c: 0, d: opt};
     let d = opt.d;
     return etask(function*(){
-      let fbuf = yield _this.fbuf_get(opt.b);
+      let fbuf = yield _this.fbuf_get(opt.c);
       if (!Array.isArray(d))
         return fbuf.get_json(d);
       let a = [];
@@ -1075,7 +1075,7 @@ class Decl extends EventEmitter {
     });
   }
   copy(bdst, bsrc){
-    assert(this.to_b(bdst)!=this.to_b(bsrc), 'copy same b'+bdst+'<- b'+bsrc);
+    assert(this.to_b(bdst)!=this.to_b(bsrc), 'copy same c'+bdst+'<- c'+bsrc);
     let M = this.M.get_hash(bsrc);
     if (M)
       this.M.set_hash(bdst, M);
@@ -1091,20 +1091,20 @@ class Decl extends EventEmitter {
     let o = {scroll: this.scroll.name, seq: this.seq};
     // XXX: inefficient, don't go over all conflicts, but instead just those
     // with data
-    for (const [b] of this.scroll.conflict){
-      if (b != this.to_b(b))
+    for (const [c] of this.scroll.conflict){
+      if (c != this.to_b(c))
         continue;
-      if (this.sig_get(b)){
+      if (this.sig_get(c)){
         o.sig = o.sig||{};
-        assert(!o.sig[b], 'sig already set');
-        o.sig[b] = this.sig_get(b);
+        assert(!o.sig[c], 'sig already set');
+        o.sig[c] = this.sig_get(c);
       }
-      if (this.M_hash(b)){
+      if (this.M_hash(c)){
         o.M = o.M||{};
-        assert(!o.M[b], 'M already set');
-        o.M[b] = this.M_hash(b);
+        assert(!o.M[c], 'M already set');
+        o.M[c] = this.M_hash(c);
       }
-      let frames = this.fbuf_get_sync(b).get_frames();
+      let frames = this.fbuf_get_sync(c).get_frames();
       // XXX: move this logic to Frame_buffer
       if (frames.length>1 || frames[0].sig || frames[0].h_rest){
         let frames2 = [], total=0;
@@ -1125,31 +1125,31 @@ class Decl extends EventEmitter {
           }
         }
         o.D = o.D||{};
-        assert(!o.D[b], 'D already set');
-        o.D[b] = frames2;
+        assert(!o.D[c], 'D already set');
+        o.D[c] = frames2;
       }
       for (let i=0; i<this.m.length; i++){
-        if (!this.m[i].get_hash(b))
+        if (!this.m[i].get_hash(c))
           continue;
         let r = this.m[i].range;
         o.m = o.m||{};
         o.m[r[0]] = o.m[r[0]]||{};
-        assert(!o.m[r[0]][b], 'm already set');
-        o.m[r[0]][b] = this.m[i].get_hash(b);
+        assert(!o.m[r[0]][c], 'm already set');
+        o.m[r[0]][c] = this.m[i].get_hash(c);
       }
     }
     return o;
   }
   from_static(o){
-    for (const b in o.M)
-      this.M.set_hash(+b, o.M[b]);
+    for (const c in o.M)
+      this.M.set_hash(+c, o.M[c]);
     for (const i in o.m){
       let m = o.m[i];
-      for (const b in m) // XXX: need to verify +b is valid
-        this.m_get([+i, this.seq]).set_hash(+b, m[b]);
+      for (const c in m) // XXX: need to verify +c is valid
+        this.m_get([+i, this.seq]).set_hash(+c, m[c]);
     }
-    for (const b in o.D)
-      this.fbuf_get_sync(+b).set_frames(o.D[b]);
+    for (const c in o.D)
+      this.fbuf_get_sync(+c).set_frames(o.D[c]);
   }
 }
 
@@ -1169,9 +1169,9 @@ class Merkel_node extends EventEmitter {
     // XXX test events
     if (s==e){
       const on_hash = opt=>{
-        let b = opt.b, d, sig;
-        if ((d = decl.d_hash(b)) && (sig = decl.sig_get(b)))
-          return this.set_hash(b, hleaf(d, sig));
+        let c = opt.c, d, sig;
+        if ((d = decl.d_hash(c)) && (sig = decl.sig_get(c)))
+          return this.set_hash(c, hleaf(d, sig));
       };
       decl.data.on('hash', on_hash);
       decl.on('sig', on_hash);
@@ -1179,30 +1179,30 @@ class Merkel_node extends EventEmitter {
       let [r1, r2] = r_split(this.range);
       let m1 = scroll.m_get(r1), m2 = scroll.m_get(r2);
       const on_hash_m = opt=>{
-        let b = opt.b, h1, h2;
-        if ((h1 = m1.get_hash(b)) && (h2 = m2.get_hash(b)))
-          this.set_hash(b, hparent_safe(e-s+1, h1, h2));
+        let c = opt.c, h1, h2;
+        if ((h1 = m1.get_hash(c)) && (h2 = m2.get_hash(c)))
+          this.set_hash(c, hparent_safe(e-s+1, h1, h2));
       };
       m1.on('hash', on_hash_m);
       m2.on('hash', on_hash_m);
     }
   }
-  get_hash(b){
+  get_hash(c){
     assert(this.inited, 'Merkel_node not inited');
-    b = this.decl.to_b(b);
-    return this.bmap.get(b);
+    c = this.decl.to_b(c);
+    return this.bmap.get(c);
   }
-  set_hash(b, h){
+  set_hash(c, h){
     assert(this.inited, 'Merkel_node not inited');
-    b = this.decl.to_b(b);
-    let h_curr = this.bmap.get(b);
+    c = this.decl.to_b(c);
+    let h_curr = this.bmap.get(c);
     if (h_curr){
       assert(h_curr.equals(h), 'hash changed');
       return h_curr;
     }
-    this.bmap.set(b, h);
+    this.bmap.set(c, h);
     if (h)
-      this.emit('hash', {b, range: this.range});
+      this.emit('hash', {c, range: this.range});
     return h;
   }
 }
@@ -1218,27 +1218,27 @@ class Merkel_root extends EventEmitter {
   init(){
     assert(!this.inited, 'Merkel_root already inited');
     this.inited = true;
-    this.on('hash', o=>this.scroll.notify_M({b: o.b, seq: o.seq, M: o.h}));
+    this.on('hash', o=>this.scroll.notify_M({c: o.c, seq: o.seq, M: o.h}));
   }
-  get_hash(b){
+  get_hash(c){
     assert(this.inited, 'Merkel_root not inited');
-    b = this.decl.to_b(b);
-    let h = this.bmap.get(b);
+    c = this.decl.to_b(c);
+    let h = this.bmap.get(c);
     if (h)
       return h;
-    return this.set_hash(b, this.scroll.calc_root_hash(this.decl.seq, {b}));
+    return this.set_hash(c, this.scroll.calc_root_hash(this.decl.seq, {c}));
   }
-  set_hash(b, h){
+  set_hash(c, h){
     assert(this.inited, 'Merkel_root not inited');
-    b = this.decl.to_b(b);
-    let h_curr = this.bmap.get(b);
+    c = this.decl.to_b(c);
+    let h_curr = this.bmap.get(c);
     if (h_curr){
       assert(h_curr.equals(h), 'hash changed');
       return h_curr;
     }
-    this.bmap.set(b, h);
+    this.bmap.set(c, h);
     if (h)
-      this.emit('hash', {b, h, seq: this.decl.seq});
+      this.emit('hash', {c, h, seq: this.decl.seq});
     return h;
   }
 }

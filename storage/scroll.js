@@ -401,7 +401,7 @@ export default class Scroll extends EventEmitter {
     this.notify_M({c: bid, seq: seq, M});
     return bid;
   }
-  to_b(c, seq){
+  to_c(c, seq){
     assert(typeof seq=='number' && seq>=0, 'invalid seq '+seq);
     assert(this.conflict.get(c), 'missing conflict '+seq+'c'+c);
     for (let parent; (parent = this.conflict.get(c).parent) &&
@@ -662,11 +662,11 @@ export default class Scroll extends EventEmitter {
   }
   find_max_common_M(opt){
     // XXX: optimization: take into account all from calc_merge_info?
-    let {c, seq, diff, diff_b, common} = opt, roots = calc_roots(seq+1), ret;
+    let {c, seq, diff, diff_c, common} = opt, roots = calc_roots(seq+1), ret;
     for (let i=0; i<roots.length; i++){
       let r = roots[i], max;
       max = r[1]<=common ? {range: r} :
-        this.find_max_common_m({c, range: r, diff, diff_b, common});
+        this.find_max_common_m({c, range: r, diff, diff_c, common});
       if (!max)
         break;
       if (r_eq(r, max.range)){
@@ -674,7 +674,7 @@ export default class Scroll extends EventEmitter {
         continue;
       }
       // XXX: optimize, we now by now that we have max.range[1]
-      let max2 = this.find_max_common_M({c, seq: r[1]-1, diff, diff_b,
+      let max2 = this.find_max_common_M({c, seq: r[1]-1, diff, diff_c,
         common});
       return max2 ? max2 : max.range[1];
     }
@@ -682,12 +682,12 @@ export default class Scroll extends EventEmitter {
   }
   find_max_common_m(opt){
     // XXX: need sketch to cache results
-    let {c, range, diff, diff_b, common} = opt;
+    let {c, range, diff, diff_c, common} = opt;
     let seq = range[1], decl = this.get_decl(seq);
     let vm = decl.m_hash(c, range);
     if (vm && seq<=common)
       return {range, m};
-    let m = this.calc_m({range, diff, diff_b});
+    let m = this.calc_m({range, diff, diff_c});
     if (vm && m && vm.equals(m))
       return {range, m};
     if (range[0]==range[1])
@@ -697,10 +697,10 @@ export default class Scroll extends EventEmitter {
     vm1 = decl1.m_hash(c, r1);
     vm2 = decl2.m_hash(c, r2);
     if (!vm1)
-      return this.find_max_common_m({c, range: r1, diff, diff_b});
-    m1 = this.calc_m({range: r1, diff, diff_b});
+      return this.find_max_common_m({c, range: r1, diff, diff_c});
+    m1 = this.calc_m({range: r1, diff, diff_c});
     if (!m1 || !vm1.equals(m1)){
-      let max1 = this.find_max_common_m({c, range: r1, diff, diff_b});
+      let max1 = this.find_max_common_m({c, range: r1, diff, diff_c});
       if (!max1)
         return null;
       if (!r_eq(r1, max1.range))
@@ -709,9 +709,9 @@ export default class Scroll extends EventEmitter {
     }
     if (!vm2)
       return {range: r1, m: m1};
-    m2 = this.calc_m({range: r2, diff, diff_b});
+    m2 = this.calc_m({range: r2, diff, diff_c});
     if (!m2 || !vm2.equals(m2)){
-      let max2 = this.find_max_common_m({c, range: r2, diff, diff_b});
+      let max2 = this.find_max_common_m({c, range: r2, diff, diff_c});
       if (!max2)
         return {range: r1, m: m1};
       // XXX maybe return r1+max2.range and optimize find_max_common_M
@@ -751,7 +751,7 @@ export default class Scroll extends EventEmitter {
       return;
     }
     // XXX: to calc common, check also if conflict is not direct child
-    bseq = this.find_max_common_M({c: i1, diff_b: i2, seq,
+    bseq = this.find_max_common_M({c: i1, diff_c: i2, seq,
       common: c2.parent?.c==b1.parent?.c ? c2.parent?.seq : undefined});
     assert((b1.parent?.c||0)<i2, 'lower c'+i1+' cannot point upper c'+i2);
     if (c2.parent?.seq >= bseq)
@@ -870,18 +870,18 @@ export default class Scroll extends EventEmitter {
     }
   }
   calc_m(opt){
-    let {range, diff, diff_b} = opt;
+    let {range, diff, diff_c} = opt;
     let m = diff ? get_m_hash(diff, range, true) :
-      this.m_hash(diff_b, range);
+      this.m_hash(diff_c, range);
     if (m)
       return m;
     if (range[0]==range[1])
       return null;
     let [r1, r2] = r_split(range);
-    let m1 = this.calc_m({range: r1, diff, diff_b});
+    let m1 = this.calc_m({range: r1, diff, diff_c});
     if (!m1)
       return null;
-    let m2 = this.calc_m({range: r2, diff, diff_b});
+    let m2 = this.calc_m({range: r2, diff, diff_c});
     if (!m2)
       return null;
     return hparent(range[1]-range[0]+1, m1, m2);
@@ -960,11 +960,11 @@ export default class Scroll extends EventEmitter {
   conflict_from_static(bs){
     assert(this.conflict.size==1 && this.top.seq==0,
       'cannot update conflict info after it was populated');
-    let max_b = this.conflict.next_id||0, max_top;
+    let max_c = this.conflict.next_id||0, max_top;
     for (let c in bs){
       let o = bs[c], M = Buffer.from(o.top.M);
       c = +c;
-      max_b = Math.max(c, max_b);
+      max_c = Math.max(c, max_c);
       if (!max_top || max_top.seq<o.top.seq)
         max_top = {c, seq: o.top.seq, M};
       let bo = {c, top: {seq: o.top.seq, M: M},
@@ -975,7 +975,7 @@ export default class Scroll extends EventEmitter {
         this.conflict.get(bo.parent.c).conflicts.set(c, bo);
     }
     // NOW: add test to verify conflict.next_id and top are updated
-    this.conflict.next_id = max_b+1;
+    this.conflict.next_id = max_c+1;
     this.top = max_top;
   }
 }
@@ -1003,7 +1003,7 @@ class Decl extends EventEmitter {
       this.m[i].init();
     this.M.init();
   }
-  to_b(c){ return this.scroll.to_b(c, this.seq); }
+  to_c(c){ return this.scroll.to_c(c, this.seq); }
   sign(c){
     let scroll = this.scroll, d = this.fbuf_get_sync(c).get_hash();
     assert(scroll.key, 'cannot sign without key');
@@ -1018,7 +1018,7 @@ class Decl extends EventEmitter {
     return sig;
   }
   sig_get(c){ return this.fbuf_get_sync(c).sig_get(); }
-  fbuf_get_sync(c){ return this.data.get(this.to_b(c)); }
+  fbuf_get_sync(c){ return this.data.get(this.to_c(c)); }
   data_get(){ return this.data; }
   d_hash(c){ return this.fbuf_get_sync(c).get_hash(); }
   m_get(range){
@@ -1075,7 +1075,7 @@ class Decl extends EventEmitter {
     });
   }
   copy(bdst, bsrc){
-    assert(this.to_b(bdst)!=this.to_b(bsrc), 'copy same c'+bdst+'<- c'+bsrc);
+    assert(this.to_c(bdst)!=this.to_c(bsrc), 'copy same c'+bdst+'<- c'+bsrc);
     let M = this.M.get_hash(bsrc);
     if (M)
       this.M.set_hash(bdst, M);
@@ -1092,7 +1092,7 @@ class Decl extends EventEmitter {
     // XXX: inefficient, don't go over all conflicts, but instead just those
     // with data
     for (const [c] of this.scroll.conflict){
-      if (c != this.to_b(c))
+      if (c != this.to_c(c))
         continue;
       if (this.sig_get(c)){
         o.sig = o.sig||{};
@@ -1189,12 +1189,12 @@ class Merkel_node extends EventEmitter {
   }
   get_hash(c){
     assert(this.inited, 'Merkel_node not inited');
-    c = this.decl.to_b(c);
+    c = this.decl.to_c(c);
     return this.bmap.get(c);
   }
   set_hash(c, h){
     assert(this.inited, 'Merkel_node not inited');
-    c = this.decl.to_b(c);
+    c = this.decl.to_c(c);
     let h_curr = this.bmap.get(c);
     if (h_curr){
       assert(h_curr.equals(h), 'hash changed');
@@ -1222,7 +1222,7 @@ class Merkel_root extends EventEmitter {
   }
   get_hash(c){
     assert(this.inited, 'Merkel_root not inited');
-    c = this.decl.to_b(c);
+    c = this.decl.to_c(c);
     let h = this.bmap.get(c);
     if (h)
       return h;
@@ -1230,7 +1230,7 @@ class Merkel_root extends EventEmitter {
   }
   set_hash(c, h){
     assert(this.inited, 'Merkel_root not inited');
-    c = this.decl.to_b(c);
+    c = this.decl.to_c(c);
     let h_curr = this.bmap.get(c);
     if (h_curr){
       assert(h_curr.equals(h), 'hash changed');

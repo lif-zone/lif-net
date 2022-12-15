@@ -55,7 +55,7 @@ const build_state = (config, dir, oid, mode, state)=>
     case 'tree':
       yield build_state(config, path, e.oid, e.mode, state);
       break;
-    default: xerr.xexit('unknown type '+e.type);
+    default: throw new Error('unknown type '+e.type);
     }
   }
   return state;
@@ -651,6 +651,11 @@ E.git_hash = function(type, object){
   return b2s(xcrypto.sha1(E.git_wrap({type, object}))); };
 
 export default E;
+
+// XXX: with derry:
+// - change mv to include also rm file
+// - add index by file/dir to locate a file
+// - change dir mv to always add/rm all the files
 
 // XXX: TODO
 // put debugger on packetfileSha on GitPackIndex.js and verify it is 0

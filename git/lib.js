@@ -656,6 +656,7 @@ export default E;
 // - change mv to include also rm file
 // - add index by file/dir to locate a file
 // - change dir mv to always add/rm all the files
+// - fix all XXX in util (and especially in etask)
 
 // XXX: TODO
 // put debugger on packetfileSha on GitPackIndex.js and verify it is 0

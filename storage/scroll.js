@@ -464,35 +464,36 @@ export default class Scroll extends EventEmitter {
     }
     return best;
   }
-  put(diff){
+  put(diff){ return etask({_: this}, function*put(){
+    let _this = this._;
     let errors = {}, a = Object.keys(diff);
     if (diff[0]) // XXX HACK: for case where we have only M0 (missing m0)
-      this.put_single(0, diff, errors);
+      _this.put_single(0, diff, errors);
     for (let i=a.length-1; i>=0 && +a[i]; i--){
       let seq = +a[i], errors2={};
       if (seq==0)
         continue;
-      let best = this.find_best_conflict(seq, diff), c = best.c;
-      let ret = this.put_single(seq, diff, errors2, {c});
+      let best = _this.find_best_conflict(seq, diff), c = best.c;
+      let ret = _this.put_single(seq, diff, errors2, {c});
       if (ret?.conflict){
-        let max = best.seq || this.find_max_common_M({c, seq, diff});
+        let max = best.seq || _this.find_max_common_M({c, seq, diff});
         if (max!==undefined){
           errors2 = {};
-          let c2 = this.create_new_conflict({c, seq: max});
-          ret = this.put_single(seq, diff, errors, {c: c2});
-          if (ret?.conflict || this.conflict.get(c2).top.seq<=max){
-            this.conflict.delete(c2);
+          let c2 = _this.create_new_conflict({c, seq: max});
+          ret = _this.put_single(seq, diff, errors, {c: c2});
+          if (ret?.conflict || _this.conflict.get(c2).top.seq<=max){
+            _this.conflict.delete(c2);
             continue;
           }
           c = c2;
-          this.conflict_update(c, {init: true});
+          yield _this.conflict_update(c, {init: true});
         }
       }
-      this.merge_all(seq, c);
+      yield _this.merge_all(seq, c);
       copy_errors(errors, errors2);
     }
     return {errors};
-  }
+  }); }
   put_single(seq, diff, errors, opt={}){
     let ret = this._put_single(seq, diff, errors, opt);
     if (ret?.conflict)
@@ -723,22 +724,24 @@ export default class Scroll extends EventEmitter {
     assert(!m, 'm does not exists');
     return {range, m: vm};
   }
-  merge_all(seq, c){
-    if (this.conflict.size<=1)
+  merge_all(seq, c){ return etask({_: this}, function*merge_all(){
+    let _this = this._;
+    if (_this.conflict.size<=1)
       return;
-    while (this.merge_queue.size){
-      let bb = this.merge_queue.get_one(), b_o = this.conflict.get(bb);
-      this.merge_single(b_o.minfo.merge_queue.get_one(), bb, seq);
+    while (_this.merge_queue.size){
+      let bb = _this.merge_queue.get_one(), b_o = _this.conflict.get(bb);
+      yield _this.merge_single(b_o.minfo.merge_queue.get_one(), bb, seq);
     }
     // XXX: can we improve and avoid traverssing all conflicts
-    for (const [i, b_o] of this.conflict){
+    for (const [i, b_o] of _this.conflict){
       if (i && b_o.parent?.type!='c' && b_o.minfo.real_map.get(b_o.parent?.c))
-        this.merge_single(b_o.parent.c, i, seq);
+        yield _this.merge_single(b_o.parent.c, i, seq);
     }
-  }
-  merge_single(i1, i2, seq){
+  }); }
+  merge_single(i1, i2, seq){ return etask({_: this}, function*merge_single(){
+    let _this = this._;
     assert(i1<i2, 'invalid conflict merge '+i1+' '+i2);
-    let b1=this.conflict.get(i1), c2=this.conflict.get(i2), bseq;
+    let b1=_this.conflict.get(i1), c2=_this.conflict.get(i2), bseq;
     let mergeable = c2.minfo.merge_queue.get(i1);
     let real_conflict = c2.minfo.real_map.get(i1);
     if (c2.parent?.seq >= seq)
@@ -747,53 +750,55 @@ export default class Scroll extends EventEmitter {
       return assert(!mergeable && real_conflict);
     if (!mergeable){
       if (real_conflict && c2.parent?.c==i1)
-        this.conflict_update(i2, {type: real_conflict ? 'c' : 't'});
+        yield _this.conflict_update(i2, {type: real_conflict ? 'c' : 't'});
       return;
     }
     // XXX: to calc common, check also if conflict is not direct child
-    bseq = this.find_max_common_M({c: i1, diff_c: i2, seq,
+    bseq = _this.find_max_common_M({c: i1, diff_c: i2, seq,
       common: c2.parent?.c==b1.parent?.c ? c2.parent?.seq : undefined});
     assert((b1.parent?.c||0)<i2, 'lower c'+i1+' cannot point upper c'+i2);
     if (c2.parent?.seq >= bseq)
       return xerr('need optimize merge');
-    this.conflict_update(i2, {c: i1, seq: bseq,
+    yield _this.conflict_update(i2, {c: i1, seq: bseq,
       type: real_conflict ? 'c' : 't'});
     if (c2.top.seq!=bseq && b1.top.seq!=bseq)
       return;
     // merge
     // XXX: need more efficient way (just iterate on decl with data)
     for (let i=b1.top.seq+1; i<=c2.top.seq; i++){
-      let src = this.get_decl(i, {create: false});
+      let src = _this.get_decl(i, {create: false});
       if (src)
         src.copy(i1, i2);
     }
     if (c2.top.seq > b1.top.seq)
-      this.notify_M({c: i1, seq: c2.top.seq, M: c2.top.M});
-    this.conflict_remove(i2, i1);
+      _this.notify_M({c: i1, seq: c2.top.seq, M: c2.top.M});
+    yield _this.conflict_remove(i2, i1);
     return {curr: i1, prev: i2};
-  }
-  conflict_remove(i2, i1){
+  }); }
+  conflict_remove(i2, i1){ return etask({_: this}, function*conflict_remove(){
+    let _this = this._;
     assert(i2, 'cannot remove conflict 0');
     assert(i1>=0, 'must provide new conflict');
     assert(i1<i2, 'new conflict must be smaller');
-    let c2 = this.conflict.get(i2);
-    this.conflict.get(c2.parent.c).conflicts.delete(i2);
+    let c2 = _this.conflict.get(i2);
+    _this.conflict.get(c2.parent.c).conflicts.delete(i2);
     for (const [i] of c2.conflicts)
-      this.conflict_update(i, {c: i1});
-    this.conflict.delete(i2);
-    this.emit('conflict-removed', {c: i2, b_new: i1});
-  }
-  conflict_update(c, o){
+      yield _this.conflict_update(i, {c: i1});
+    _this.conflict.delete(i2);
+    _this.emit('conflict-removed', {c: i2, b_new: i1});
+  }); }
+  conflict_update(c, o){ return etask({_: this}, function*conflict_update(){
+    let _this = this._;
     // XXX: need to rm uneeded decl now when updating conflicts and update all
     // relevant places on new conflict
     assert(o.c!=c, 'conflict loop '+c);
-    let src = this.conflict.get(c);
+    let src = _this.conflict.get(c);
     assert.equal(src.c, c, 'conflict corruption '+c);
     assert(src.parent?.type, 'missing conflict type');
     if (o.init){
       assert(o.c===undefined && o.seq===undefined, 'invalid init');
       assert(!src.info, 'invalid init');
-      this.update_mergeable(src.c);
+      _this.update_mergeable(src.c);
       return;
     }
     if (src.c==o.c && src.seq==o.sec)
@@ -801,7 +806,7 @@ export default class Scroll extends EventEmitter {
     if (o.c!==undefined){
       assert(src.parent!==o.c || o.type===undefined || src.parent?.type!='c' ||
         o.type=='c', 'real conflict type change c'+src.c);
-      this.conflict.get(src.parent?.c).conflicts.delete(src.c);
+      _this.conflict.get(src.parent?.c).conflicts.delete(src.c);
       src.parent.c = o.c;
     }
     if (o.seq!==undefined)
@@ -812,8 +817,8 @@ export default class Scroll extends EventEmitter {
         'real conflict type change c'+src.c);
       src.parent.type = o.type;
     }
-    this.update_mergeable(src.c);
-  }
+    _this.update_mergeable(src.c);
+  }); }
   update_mergeable(c){
     assert(c>0, 'invalid conflict');
     let b_o = this.conflict.get(c), p_o = this.conflict.get(b_o.parent?.c);

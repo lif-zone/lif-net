@@ -646,7 +646,7 @@ const cmd_put = (curr, t)=>etask(function*cmd_put(){
     } else
       seq_o[type] = val;
   }
-  let ret = scroll.put(diff);
+  let ret = yield scroll.put(diff);
   assert.deepEqual(Object.keys(ret.errors), err ?
     string.split_trim(err, /,\s*/) : []);
   assert_no_corruption(scroll);

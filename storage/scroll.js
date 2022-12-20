@@ -361,6 +361,7 @@ export default class Scroll extends EventEmitter {
     this.soul = opt.soul||Scroll.soul;
     this.pub = opt.pub;
     this.key = opt.key;
+    this.storage = opt.storage;
     this.crypt = opt.crypt||Scroll.supported_crypt[0];
     assert.deepEqual(this.crypt, Scroll.supported_crypt[0], 'unsupported');
     this.prev_scroll = opt.prev_scroll;
@@ -371,6 +372,11 @@ export default class Scroll extends EventEmitter {
     this.merge_queue.get_one = Map_get_one;
     this.create_new_conflict();
   }
+  init(){ return etask({_: this}, function*scroll_init(){
+    let _this = this._;
+    if (_this.storage)
+      yield _this.storage.init({scroll: this});
+  }); }
   unload(){ // XXX HACK: quick implementation
     let M0 = this.M_hash(0, 0);
     this.soul.delete(M0);
@@ -467,6 +473,8 @@ export default class Scroll extends EventEmitter {
   put(diff){ return etask({_: this}, function*put(){
     let _this = this._;
     let errors = {}, a = Object.keys(diff);
+    if (_this.storage)
+      yield _this.storage.begin_update();
     if (diff[0]) // XXX HACK: for case where we have only M0 (missing m0)
       _this.put_single(0, diff, errors);
     for (let i=a.length-1; i>=0 && +a[i]; i--){
@@ -492,6 +500,8 @@ export default class Scroll extends EventEmitter {
       yield _this.merge_all(seq, c);
       copy_errors(errors, errors2);
     }
+    if (_this.storage)
+      yield _this.storage.end_update();
     return {errors};
   }); }
   put_single(seq, diff, errors, opt={}){
@@ -1248,14 +1258,15 @@ class Merkel_root extends EventEmitter {
   }
 }
 
-Scroll.create = function(opt, d){
+Scroll.create = (opt, d)=>etask(function*scroll_create(){
   let scroll = new Scroll(opt);
+  yield scroll.init();
   scroll.decl([{scroll: {crypt: Scroll.supported_crypt,
     pub: b2s(opt.pub), ...d}}]);
   return scroll;
-};
+});
 
-Scroll.open = function(opt){
+Scroll.open = opt=>etask(function*scroll_open(){
   assert(util.is_mocha()||!opt.soul, 'producion must use global soul');
   let seq, h;
   if (typeof opt.M=='string')
@@ -1268,11 +1279,12 @@ Scroll.open = function(opt){
   if (scroll)
     return scroll;
   scroll = new Scroll(opt);
+  yield scroll.init();
   assert(/^\d+$/.test(seq) && h, 'scroll.open missing M');
   let decl = scroll.get_decl(seq);
   decl.M.set_hash(0, h);
   return scroll;
-};
+});
 
 Scroll.supported_crypt = [{sig: 'ed25519', hash: 'blake2b', lif: 'lif1'}];
 Scroll.parse_buf_ref = parse_buf_ref;

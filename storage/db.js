@@ -228,6 +228,24 @@ export default class DB {
       return;
     yield idb.deleteDB('lif_db'+_this.postfix);
   });
+  new_storage_handler(){ return new Storage_handler({db: this}); }
+}
+
+class Storage_handler {
+  constructor(opt){
+    let {db} = opt;
+    if (0) // XXX TODO
+    assert(db.inited, 'db not inited');
+    this.db = db;
+  }
+  init(opt){ return etask({_: this}, function*init(){
+    let _this = this._;
+    if (_this.inited)
+      return xerr('store_handler already inited');
+    _this.inited = true;
+  }); }
+  begin_update(){}
+  end_update(){}
 }
 
 function fix_error(e){

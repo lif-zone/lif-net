@@ -414,13 +414,14 @@ const new_scroll = (name, M, prev_scroll, sname)=>etask(
     soul = t_soul[sname] = t_soul[sname] || new Soul({name: sname});
   } else
     assert.fail('invalid sould mode '+t_soul_mode);
+  let storage = soul.db.new_storage_handler();
   if (M){
-   scroll = yield Scroll.open({soul, key: t_keypair.key,
-     pub: t_keypair.pub, M});
+    scroll = yield Scroll.open({soul, key: t_keypair.key,
+      pub: t_keypair.pub, M, storage});
   }
   else {
     scroll = yield Scroll.create({soul, key: t_keypair.key,
-      pub: t_keypair.pub, prev_scroll}, {topic: 'test'});
+      pub: t_keypair.pub, prev_scroll, storage}, {topic: 'test'});
   }
   t_scroll[name] = scroll;
   scroll.t = {name};

@@ -41,7 +41,10 @@ export default class DB {
     _this.db = yield idb.openDB('lif_db'+_this.postfix, undefined, {
       upgrade(db, oldVersion, newVersion, transaction, event){
         // XXX how to wait for creation of table and verify both are created
+        // XXX: rm obsolete scroll and rename scroll2->scroll
         db.createObjectStore('scroll', {keyPath: 'M'});
+        let scroll2 = db.createObjectStore('scroll2', {keyPath: 'scfid'});
+        scroll2.createIndex('scroll-cfid', ['scroll', 'cfid'], {unique: true});
         // XXX: use scroll id from scroll table instead of M for keyPath
         db.createObjectStore('decl', {keyPath: ['scroll', 'seq']});
         db.createObjectStore('data', {keyPath: 'h'});
@@ -54,6 +57,7 @@ export default class DB {
     {
       _this.scrolls.set(cursor.key, cursor.value);
     }
+    _this.scfid_next = 0; // XXX: need to load from db
   });
   uninit = (opt={})=>etask({_: this}, function*db_uninit(){
     let _this = this._;
@@ -74,6 +78,11 @@ export default class DB {
     let tx = this.db.transaction(store, 'readwrite');
     store = tx.objectStore(store);
     return store_put(store, val);
+  }
+  db_add(store, val){
+    let tx = this.db.transaction(store, 'readwrite');
+    store = tx.objectStore(store);
+    return store_add(store, val);
   }
   cursor_open(store){
     let wait = etask.wait();
@@ -221,12 +230,28 @@ export default class DB {
   });
 }
 
+function fix_error(e){
+  // XXX: indexeddbshim use ShimDOMException on node. need to check browser
+  if (e.debug instanceof global.ShimDOMException)
+    return e.debug;
+  return e;
+}
+
+function store_add(store, val){
+  store = idb.unwrap(store);
+  let wait = etask.wait();
+  let req = store.add(val);
+  req.onsuccess = e=>wait.continue();
+  req.onerror = e=>wait.throw(fix_error(e));
+  return wait;
+}
+
 function store_put(store, val){
   store = idb.unwrap(store);
   let wait = etask.wait();
   let req = store.put(val);
   req.onsuccess = e=>wait.continue();
-  req.onerror = e=>wait.throw(e);
+  req.onerror = e=>wait.throw(fix_error(e));
   return wait;
 }
 
@@ -235,7 +260,7 @@ function store_get(store, val){
   let wait = etask.wait();
   let req = store.get(val);
   req.onsuccess = e=>wait.continue(req.result);
-  req.onerror = e=>wait.throw(e);
+  req.onerror = e=>wait.throw(fix_error(e));
   return wait;
 }
 

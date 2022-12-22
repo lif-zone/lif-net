@@ -1,0 +1,13 @@
+[user]
+	name = lif-rnd
+	email = lif.zone.main@gmail.com
+[credential]
+	helper = store
+[diff]
+	tool = "diff"
+	context = 0
+[merge]
+	tool = "diff"
+	context = 0
+[core]
+	pager = cat

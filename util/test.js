@@ -1,6 +1,5 @@
 // author: derry. coder: arik.
 'use strict'; /*jslint node:true*/ /*global describe,it,beforeEach,afterEach*/
-// XXX: need jslint mocha: true
 import etask from './etask.js';
 import date from './date.js';
 import xutil from './util.js';

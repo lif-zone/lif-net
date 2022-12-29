@@ -240,6 +240,8 @@ class Storage_handler {
       throw new Error('db not inited');
     this.db = db;
     this.db_queue = [];
+    // XXX: derry
+    this.sp = etask(function*Storage_handler_sp(){ return this.wait(); });
   }
   init(opt){ return etask({_: this}, function*init(){
     let _this = this._;
@@ -254,6 +256,15 @@ class Storage_handler {
       _this.queue_del = _this.queue_del||[];
       _this.queue_del.push({scfid: e.o.db.data.scfid});
     });
+    _this.sp.spawn(etask(function*db_updater(){
+      while (true){
+        if (!_this.db_queue.length)
+          yield (_this.db_wakeup = this.wait());
+        _this.db_wakeup = null;
+        let o = _this.db_queue.shift();
+        yield etask.sleep(0);
+      }
+    }));
   }); }
   begin_update(){ return etask({_: this}, function*end_update(){
     let _this = this._;
@@ -303,6 +314,8 @@ class Storage_handler {
   schedule_db_update(o){
     assert(this.inited, 'storage_handler not inited');
     this.db_queue.push(o);
+    if (this.db_wakeup)
+      this.db_wakeup.continue();
   }
 }
 
@@ -361,3 +374,4 @@ DB.init = function(opt){ global.shimIndexedDB.__setConfig(opt.shim_conf); };
 //    review _this.wait
 // 2. begin_update/end_update for scroll.decl and verify if other places we
 //    update data
+// 3. this.sp

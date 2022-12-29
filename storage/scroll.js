@@ -739,13 +739,13 @@ export default class Scroll extends EventEmitter {
     if (_this.conflict.size<=1)
       return;
     while (_this.merge_queue.size){
-      let bb = _this.merge_queue.get_one(), b_o = _this.conflict.get(bb);
-      yield _this.merge_single(b_o.minfo.merge_queue.get_one(), bb, seq);
+      let bb = _this.merge_queue.get_one(), c_o = _this.conflict.get(bb);
+      yield _this.merge_single(c_o.minfo.merge_queue.get_one(), bb, seq);
     }
     // XXX: can we improve and avoid traverssing all conflicts
-    for (const [i, b_o] of _this.conflict){
-      if (i && b_o.parent?.type!='c' && b_o.minfo.real_map.get(b_o.parent?.c))
-        yield _this.merge_single(b_o.parent.c, i, seq);
+    for (const [i, c_o] of _this.conflict){
+      if (i && c_o.parent?.type!='c' && c_o.minfo.real_map.get(c_o.parent?.c))
+        yield _this.merge_single(c_o.parent.c, i, seq);
     }
   }); }
   merge_single(i1, i2, seq){ return etask({_: this}, function*merge_single(){
@@ -831,42 +831,42 @@ export default class Scroll extends EventEmitter {
   }); }
   update_mergeable(c){
     assert(c>0, 'invalid conflict');
-    let b_o = this.conflict.get(c), p_o = this.conflict.get(b_o.parent?.c);
+    let c_o = this.conflict.get(c), p_o = this.conflict.get(c_o.parent?.c);
     if (!p_o.conflicts.get(c))
-      p_o.conflicts.set(c, b_o);
-    assert.equal(p_o.conflicts.get(c), b_o, 'conflict corruption '+c);
-    if (b_o.minfo && b_o.minfo.parent?.c==b_o.parent?.c &&
-      b_o.minfo.parent?.seq==b_o.parent?.seq){
+      p_o.conflicts.set(c, c_o);
+    assert.equal(p_o.conflicts.get(c), c_o, 'conflict corruption '+c);
+    if (c_o.minfo && c_o.minfo.parent?.c==c_o.parent?.c &&
+      c_o.minfo.parent?.seq==c_o.parent?.seq){
       return;
     }
-    if (b_o.minfo)
-      b_o.minfo.cleanup();
-    let any = calc_merge_info(b_o.parent?.seq).any;
+    if (c_o.minfo)
+      c_o.minfo.cleanup();
+    let any = calc_merge_info(c_o.parent?.seq).any;
     // XXX: maybe we can reuse some of merge_queue & real_map
-    b_o.minfo = {any, merge_queue: new Map, real_map: new Map,
-      parent: {c: b_o.parent?.c, seq: b_o.parent?.seq}};
-    b_o.minfo.merge_queue.get_one = Map_get_one;
-    b_o.minfo.cleanup = opt=>{
+    c_o.minfo = {any, merge_queue: new Map, real_map: new Map,
+      parent: {c: c_o.parent?.c, seq: c_o.parent?.seq}};
+    c_o.minfo.merge_queue.get_one = Map_get_one;
+    c_o.minfo.cleanup = opt=>{
       if (opt && opt.c!=c)
         return;
-      let any = b_o.minfo.any;
+      let any = c_o.minfo.any;
       for (let r, m, i=0; i<any.length&&(r = any[i])&&(m=this.m_get(r)); i++)
-        m.off('hash', b_o.minfo.on_hash);
-      this.off('conflict-removed', b_o.minfo.cleanup);
+        m.off('hash', c_o.minfo.on_hash);
+      this.off('conflict-removed', c_o.minfo.cleanup);
       this.merge_queue.delete(c);
     };
     const update_merge_queue = (r, bb)=>{
-      if (b_o.minfo.merge_queue.get(bb))
+      if (c_o.minfo.merge_queue.get(bb))
         return;
       let m1, m2;
       if ((m1=this.m_hash(c, r)) && (m2=this.m_hash(bb, r))){
         if (!m1.equals(m2))
-          return b_o.minfo.real_map.set(bb, true);
-        b_o.minfo.merge_queue.set(bb, true);
+          return c_o.minfo.real_map.set(bb, true);
+        c_o.minfo.merge_queue.set(bb, true);
         this.merge_queue.set(c, true);
       }
     };
-    b_o.minfo.on_hash = opt=>{
+    c_o.minfo.on_hash = opt=>{
       let r = opt.range, bb = opt.c;
       if (bb<c)
         update_merge_queue(r, bb);
@@ -877,11 +877,11 @@ export default class Scroll extends EventEmitter {
           update_merge_queue(r, j);
       }
     };
-    this.on('conflict-removed', b_o.minfo.cleanup);
+    this.on('conflict-removed', c_o.minfo.cleanup);
     for (let i=0; i<any.length; i++){
       let r = any[i], m=this.m_get(r);
-      m.on('hash', b_o.minfo.on_hash);
-      b_o.minfo.on_hash({range: r, c: c});
+      m.on('hash', c_o.minfo.on_hash);
+      c_o.minfo.on_hash({range: r, c: c});
     }
   }
   calc_m(opt){

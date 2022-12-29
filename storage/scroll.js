@@ -407,13 +407,13 @@ export default class Scroll extends EventEmitter {
     this.notify_M({c: cfid2, seq: seq, M});
     return cfid2;
   }
-  to_c(c, seq){
+  to_c(cfid, seq){
     assert(typeof seq=='number' && seq>=0, 'invalid seq '+seq);
-    assert(this.conflict.get(c), 'missing conflict '+seq+'c'+c);
-    for (let parent; (parent = this.conflict.get(c).parent) &&
+    assert(this.conflict.get(cfid), 'missing conflict '+seq+'c'+cfid);
+    for (let parent; (parent = this.conflict.get(cfid).parent) &&
       parent?.c!==undefined && seq<=parent?.seq;
-      c = parent.c);
-    return c;
+      cfid = parent.c);
+    return cfid;
   }
   decl(opt, frames){ // XXX: test decl on conflict
     if (frames===undefined)

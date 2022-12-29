@@ -843,7 +843,8 @@ export default class Scroll extends EventEmitter {
       p_o.conflicts.set(cfid, c_o);
     assert.equal(p_o.conflicts.get(cfid), c_o, 'conflict corruption '+cfid);
     if (c_o.minfo && c_o.minfo.parent?.cfid==c_o.parent?.cfid &&
-      c_o.minfo.parent?.seq==c_o.parent?.seq){
+      c_o.minfo.parent?.seq==c_o.parent?.seq)
+    {
       return;
     }
     if (c_o.minfo)

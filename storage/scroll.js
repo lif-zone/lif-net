@@ -393,19 +393,19 @@ export default class Scroll extends EventEmitter {
   }
   create_new_conflict(opt={}){
     let {c, seq} = opt;
-    let bid = this.conflict.next_id++;
+    let cfid = this.conflict.next_id++;
     if (c===undefined || seq===undefined){
       assert(c===undefined && seq===undefined, 'invalid create_new_conflict');
-      assert.equal(bid, 0);
-      this.conflict.set(bid, {c: bid, top: null, conflicts: new Map()});
-      return bid;
+      assert.equal(cfid, 0);
+      this.conflict.set(cfid, {c: cfid, top: null, conflicts: new Map()});
+      return cfid;
     }
     let M = this.get_decl(seq).M_hash(c);
     assert(M, 'missing M'+seq);
-    this.conflict.set(bid, {c: bid, top: null, parent: {c, seq, type: 't'},
+    this.conflict.set(cfid, {c: cfid, top: null, parent: {c, seq, type: 't'},
       conflicts: new Map()});
-    this.notify_M({c: bid, seq: seq, M});
-    return bid;
+    this.notify_M({c: cfid, seq: seq, M});
+    return cfid;
   }
   to_c(c, seq){
     assert(typeof seq=='number' && seq>=0, 'invalid seq '+seq);

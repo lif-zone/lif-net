@@ -234,17 +234,38 @@ export default class DB {
 class Storage_handler {
   constructor(opt){
     let {db} = opt;
-    assert(db.inited, 'db not inited');
+    if (!db.inited)
+      throw new Error('db not inited');
     this.db = db;
   }
   init(opt){ return etask({_: this}, function*init(){
     let _this = this._;
     if (_this.inited)
-      return xerr('store_handler already inited');
+      throw new Error('storage_handler already inited');
     _this.inited = true;
+    _this.scroll = opt.scroll;
   }); }
-  begin_update(){}
-  end_update(){}
+  begin_update(){ return etask({_: this}, function*end_update(){
+    let _this = this._;
+    if (!_this.inited)
+      throw new Error('storage_handler not inited');
+  }); }
+  end_update(){ return etask({_: this}, function*end_update(){
+    let _this = this._;
+    if (!_this.inited)
+      throw new Error('storage_handler not inited');
+    assert(_this.inited, 'db not inited');
+    /*
+    scroll = [ // KEYPATH scfid. INDEX scroll, cfid
+      {scfid: 0, scroll: '4817AB', cfid: 0},
+      {scfid: 1, scroll: '4817AB', cfid: 2, splits: [{cfid: 0, seq: 37}]},
+      {scfid: 2, scroll: '4817AB', cfid: 3, splits: [{cfid: 2, seq: 472},
+        {0, 37}]},
+      {scfid: 3, scroll: '4817AB', cfid: 4, splits: [{cfid: 2, seq: 472},
+        {0, 37}], tmp: true},
+    ];
+    */
+  }); }
 }
 
 function fix_error(e){

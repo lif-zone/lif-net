@@ -4051,21 +4051,20 @@ describe('etask', function(){
         });
     }]));
     if (0) // XXX: etask bug?
-    it('wait_continue_wait', ()=>xetask(5, [function(){
+    it('wait_continue_wait', ()=>xetask(4, [function(){
         let wait = this.wait();
         let wait2 = this.wait();
-        setTimeout(()=>seq(1), 1);
+        setTimeout(()=>{
+          seq(1);
+          wait.continue(wait2);
+        }, 1);
         setTimeout(()=>{
           seq(2);
-          wait.continue(wait2);
-        }, 2);
-        setTimeout(()=>{
-          seq(3);
           wait2.continue();
-        }, 3);
+        }, 2);
         return wait;
     }, function(res){
-        seq(4);
+        seq(3);
         assert.strictEqual(res, undefined);
     }]));
     it('wait_in_generator', ()=>xetask({seq: 3}, [function(){

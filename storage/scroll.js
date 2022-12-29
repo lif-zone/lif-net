@@ -40,15 +40,15 @@ class Data extends EventEmitter {
     this.cmap.set(0, fbuf);
   }
   on_hash(){ this.map_info._.emit('hash', {c: this.map_info.c}); }
-  get(c){
-    assert(c>=0, 'invalid c'+c);
-    let fbuf = this.cmap.get(c);
+  get(cfid){
+    assert(cfid>=0, 'invalid cfid'+cfid);
+    let fbuf = this.cmap.get(cfid);
     if (fbuf)
       return fbuf;
     fbuf = new Frame_buffer();
-    fbuf.map_info = {_: this, c};
+    fbuf.map_info = {_: this, c: cfid};
     fbuf.on('hash', this.on_hash);
-    this.cmap.set(c, fbuf);
+    this.cmap.set(cfid, fbuf);
     return fbuf;
   }
   copy(bdst, bsrc){
@@ -393,19 +393,19 @@ export default class Scroll extends EventEmitter {
   }
   create_new_conflict(opt={}){
     let {c, seq} = opt;
-    let cfid = this.conflict.next_id++;
+    let cfid2 = this.conflict.next_id++;
     if (c===undefined || seq===undefined){
       assert(c===undefined && seq===undefined, 'invalid create_new_conflict');
-      assert.equal(cfid, 0);
-      this.conflict.set(cfid, {c: cfid, top: null, conflicts: new Map()});
-      return cfid;
+      assert.equal(cfid2, 0);
+      this.conflict.set(cfid2, {c: cfid2, top: null, conflicts: new Map()});
+      return cfid2;
     }
     let M = this.get_decl(seq).M_hash(c);
     assert(M, 'missing M'+seq);
-    this.conflict.set(cfid, {c: cfid, top: null, parent: {c, seq, type: 't'},
+    this.conflict.set(cfid2, {c: cfid2, top: null, parent: {c, seq, type: 't'},
       conflicts: new Map()});
-    this.notify_M({c: cfid, seq: seq, M});
-    return cfid;
+    this.notify_M({c: cfid2, seq: seq, M});
+    return cfid2;
   }
   to_c(c, seq){
     assert(typeof seq=='number' && seq>=0, 'invalid seq '+seq);

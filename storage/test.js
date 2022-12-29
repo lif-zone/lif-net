@@ -381,9 +381,7 @@ function cmd_conf(t){
     t_soul_mode = soul;
 }
 
-const cmd_db_init = t=>etask(function*cmd_db_init(){
-  let name = t.ctx||get_def('left'), scroll = get_scroll(name);
-  assert(!scroll.soul.db.inited, 'DB already inited');
+function parse_db_init(t){
   let max_decl, max_frame;
   for (let curr=t.r, i=0; curr = tparser.parse_get_next(curr); i++){
     let tt = tparser.parse_exp_arg(curr.exp);
@@ -393,11 +391,18 @@ const cmd_db_init = t=>etask(function*cmd_db_init(){
     default: assert.fail('invalid arg '+tt.cmd+' in '+t.meta.s);
     }
   }
+  return {need_init: true, max_decl, max_frame};
+}
+
+const cmd_db_init = t=>etask(function*cmd_db_init(){
+  let name = t.ctx||get_def('left'), scroll = get_scroll(name);
+  assert(!scroll.soul.db.inited, 'DB already inited');
+  let {max_decl, max_frame} = parse_db_init(t);
   yield scroll.soul.db.init({max_decl, max_frame, delete: true,
     postfix: scroll.soul.name});
 });
 
-const new_scroll = (name, M, prev_scroll, sname)=>etask(
+const new_scroll = (name, M, prev_scroll, sname, db_opt)=>etask(
   function*new_scroll(){
   let soul, scroll;
   if (t_soul_mode=='differnt'){
@@ -414,7 +419,12 @@ const new_scroll = (name, M, prev_scroll, sname)=>etask(
     soul = t_soul[sname] = t_soul[sname] || new Soul({name: sname});
   } else
     assert.fail('invalid sould mode '+t_soul_mode);
-  let storage = soul.db.new_storage_handler();
+  let storage;
+  if (db_opt?.need_init){
+    yield soul.db.init({max_decl: db_opt.max_decl, max_frame: db_opt.max_frame,
+      delete: true, postfix: soul.name});
+    storage = soul.db.new_storage_handler();
+  }
   if (M){
     scroll = yield Scroll.open({soul, key: t_keypair.key,
       pub: t_keypair.pub, M, storage});
@@ -429,13 +439,14 @@ const new_scroll = (name, M, prev_scroll, sname)=>etask(
 });
 
 const cmd_scroll = t=>etask(function*cmd_scroll(){
-  let prev_scroll = yield t_prev_scroll.M_hash(0, 1);
+  let prev_scroll = yield t_prev_scroll.M_hash(0, 1), db_opt;
   let name = t.ctx||get_def('left'), M, a, scroll, d;
   assert(!t.l, 'invalid arg '+t.meta.s);
   assert(!t_scroll[name], 'scroll already exist '+name);
   for (let curr=t.r, i=0; curr = tparser.parse_get_next(curr); i++){
     let tt = tparser.parse_exp_arg(curr.exp), t2;
     switch (tt.cmd){
+    case 'db': db_opt = parse_db_init(tt); break;
     case '!':
       if ('prev_scroll'==tt.r)
         prev_scroll = null;
@@ -458,7 +469,7 @@ const cmd_scroll = t=>etask(function*cmd_scroll(){
       assert.fail('invalid arg '+tt.cmd+' in '+t.meta.s);
     }
   }
-  scroll = yield new_scroll(name, M, prev_scroll, t.prev?.ctx);
+  scroll = yield new_scroll(name, M, prev_scroll, t.prev?.ctx, db_opt);
   if (d!==undefined){
     for (let j=d[0]; j<=d[1]; j++)
       yield test_decl(scroll, ''+j);
@@ -466,16 +477,24 @@ const cmd_scroll = t=>etask(function*cmd_scroll(){
 });
 
 const cmd_clone = (curr, t)=>etask(function*cmd_clone(){
-  let dst = t.ctx||get_def('left');
+  let dst = t.ctx||get_def('left'), m, db_opt;
   assert(!t_scroll[dst], 'scroll already exist '+dst);
   assert(!t.l, 'invalid arg '+t.meta.s);
-  let m = t.r.match(/^([a-z0-9-]+)(()||(\.)|(\.\.))(M(\d+))?$/);
-  assert(m, 'invalid clone '+t.meta.s);
+  for (let curr=t.r, i=0; curr = tparser.parse_get_next(curr); i++){
+    let tt = tparser.parse_exp_arg(curr.exp);
+    switch (tt.cmd){
+    case 'db': db_opt = parse_db_init(tt); break;
+    default:
+      m = tt.meta.s.match(/^([a-z0-9-]+)(()||(\.)|(\.\.))(M(\d+))?$/);
+      assert(m, 'invalid clone '+t.meta.s);
+    }
+  }
   let src = m[1];
   if (m[2]=='..')
     set_def('right', src);
   let s_src = get_scroll(src);
-  let s_dst = yield new_scroll(dst, s_src.M_hash(0, 0), null, t.prev?.ctx);
+  let s_dst = yield new_scroll(dst, s_src.M_hash(0, 0), null, t.prev?.ctx,
+    db_opt);
   let seq = m[6] ? +m[7] : s_src.top.seq;
   // XXX: use conflict_to_static/conflict_from_static
   if (Array.from(s_src.conflict.keys()).length>1){ // XXX: rm this if
@@ -1997,19 +2016,19 @@ describe('scroll', ()=>{
           mem.unload #(mem0={M0} !mem1 mem_c=0:M0)`);
       });
       describe('db_put', ()=>{
-        t('one_soul', `s.scroll S..clone(s..) db_init #
+        t('one_soul', `s.scroll S..clone(s.. db) #
           db.put_decl(seq0) #db0={M0 sig0 D0 m0}
           db.put_conflict #db_c=0:M0
           mem.unload #mem0={M0}
           db.get_decl(seq0) #mem0={M0 sig0 D0 m0}`);
-        t('two_soul', `conf(soul:manual) soul_s.s.scroll
-          soul_S.S.clone(s..) S.db_init s.db_init S.# s.#
+        t('two_soul', `conf(soul:manual) soul_s.s.scroll(db)
+          soul_S.S.clone(s.. db) S.# s.#
           S.db.put_decl(seq0) S.#db0={M0 sig0 D0 m0} s.#
           S.db.put_conflict S.#db_c=0:M0 s.#
           s.db.put_conflict S.# s.#db_c=0:M0
           S.mem.unload S.#mem0={M0} s.#
           S.db.get_decl(seq0) S.#mem0={M0 sig0 D0 m0} s.#`);
-        t('b0_seq1_normal', `s.scroll(d:1) S..clone(s..) db_init #
+        t('b0_seq1_normal', `s.scroll(d:1) S..clone(s.. db) #
           db.put_decl(seq0) #db0={M0 sig0 D0 m0}
           db.put_decl(seq1) #db1={M1 sig1 D1 m1 m0_1}
           db.put_conflict #db_c=0:M1
@@ -2017,7 +2036,7 @@ describe('scroll', ()=>{
           db.get_conflict #mem_c=0:M1
           db.get_decl(seq0) #mem0={M0 sig0 D0 m0}
           db.get_decl(seq1) #mem1={M1 sig1 D1 m1 m0_1}`);
-        t('b0_seq1_rev', `s.scroll(d:1) S..clone(s..) db_init #
+        t('b0_seq1_rev', `s.scroll(d:1) S..clone(s.. db) #
           db.put_decl(seq0) #db0={M0 sig0 D0 m0}
           db.put_decl(seq1) #db1={M1 sig1 D1 m1 m0_1}
           db.put_conflict #db_c=0:M1
@@ -2025,7 +2044,7 @@ describe('scroll', ()=>{
           db.get_conflict #mem_c=0:M1
           db.get_decl(seq1) #mem1={M1 sig1 D1 m1 m0_1}
           db.get_decl(seq0) #mem0={M0 sig0 D0 m0}`);
-        t('b0_seq4', `s.scroll(d:1-4) S..clone(s..) db_init #
+        t('b0_seq4', `s.scroll(d:1-4) S..clone(s.. db) #
           db.put_decl(seq0) #db0={M0 sig0 D0 m0}
           db.put_decl(seq1) #db1={M1 sig1 D1 m1 m0_1}
           db.put_decl(seq2) #db2={M2 sig2 D2 m2}
@@ -2039,7 +2058,7 @@ describe('scroll', ()=>{
           db.get_decl(seq2) #mem2={M2 sig2 D2 m2}
           db.get_decl(seq3) #mem3={M3 sig3 D3 m3 m2_3 m0_3}
           db.get_decl(seq4) #mem4={M4 sig4 D4 m4}`);
-        t('b0_seq4_rev', `s.scroll(d:1-4) S..clone(s..) db_init #
+        t('b0_seq4_rev', `s.scroll(d:1-4) S..clone(s.. db) #
           db.put_decl(seq0) #db0={M0 sig0 D0 m0}
           db.put_decl(seq1) #db1={M1 sig1 D1 m1 m0_1}
           db.put_decl(seq2) #db2={M2 sig2 D2 m2}
@@ -2057,7 +2076,7 @@ describe('scroll', ()=>{
           tput(0 1 2 3 4    )
           tput(0_1_2_3 4_5 6)
           s1.c(M4=s0.M4 3t0.M6=s0.M6)
-          S..clone(s1..)
+          S..clone(s1.. db)
           s1.c(M4=s1.M4 3t0.M6=s0.M6)
           S.c(M4=s1.M4 3t0.M6=s0.M6)
           // XXX: mv to clone test. need tests for clone with conflict and
@@ -2068,7 +2087,7 @@ describe('scroll', ()=>{
           mem3={M3 m3 m2_3 m0_3}
           mem4={M4 m4 sig4 D4}
           mem5={M5c1 m4_5c1}
-          mem6={M6c1 m6c1 sig6c1 D6c1} db_init #
+          mem6={M6c1 m6c1 sig6c1 D6c1} #
           db.put_conflict #db_c={0:M4=s1.M4 1:3t0.M6=s0.M6}
           db_c(0:M4=s1.M4 1:3t0.M6=s0.M6)
           db.put_decl(seq0) #db0={M0 m0}
@@ -2095,15 +2114,15 @@ describe('scroll', ()=>{
 // the db corrupted if there was a merge)
       });
       describe('db_data', ()=>{
-        t('no_split', `s.scroll s.decl(data:32KB) S..clone(s..)
-          db_init(max_decl:60KB max_frame:32KB) #
+        t('no_split', `s.scroll s.decl(data:32KB)
+          S..clone(s.. db(max_decl:60KB max_frame:32KB)) #
           db.put_decl(seq1) #db1={M1 sig1 D1 m1 m0_1}
           mem.unload #(mem0={M0} !mem1 mem_c=0:M0)
           db.get_decl(seq1) #(mem1={M1 sig1 D1 m1 m0_1} mem_c=0:M1)
           db.get_decl(seq1 data) #mem1={M1 sig1 D1 m1 m0_1}
         `);
-        t('split', `s.scroll s.decl(data:33KB) S..clone(s..)
-          db_init(max_decl:60KB max_frame:32KB) #
+        t('split', `s.scroll s.decl(data:33KB)
+          S..clone(s.. db(max_decl:60KB max_frame:32KB)) #
           db.put_decl(seq1) #(db1={M1 sig1 D1:[D1F0 D1F1 D1f2] m1 m0_1}
             db_data=D1F2)
           mem.unload #(mem0={M0} !mem1 mem_c=0:M0)
@@ -2112,7 +2131,7 @@ describe('scroll', ()=>{
           db.get_decl(seq1 data) #mem1={M1 sig1 D1 m1 m0_1}
         `);
         t('split_max_decl_1', `s.scroll s.decl(data(33KB 28KB))
-          S..clone(s..) db_init(max_decl:60KB max_frame:32KB) #
+          S..clone(s.. db(max_decl:60KB max_frame:32KB)) #
           db.put_decl(seq1) #(db1={M1 sig1 D1:[D1F0 D1F1 D1f2 D1F3] m1 m0_1}
             db_data=D1F2)
           mem.unload #(mem0={M0} !mem1 mem_c=0:M0)
@@ -2120,7 +2139,7 @@ describe('scroll', ()=>{
             mem_c=0:M1)
           db.get_decl(seq1 data) #mem1={M1 sig1 D1 m1 m0_1}`);
         t('split_max_decl_2', `s.scroll s.decl(data(32KB 29KB))
-          S..clone(s..) db_init(max_decl:60KB max_frame:32KB) #
+          S..clone(s.. db(max_decl:60KB max_frame:32KB)) #
           db.put_decl(seq1) #(db1={M1 sig1 D1:[D1F0 D1F1 D1F2 D1f3] m1 m0_1}
             db_data=D1F3)
           mem.unload #(mem0={M0} !mem1 mem_c=0:M0)
@@ -2128,7 +2147,7 @@ describe('scroll', ()=>{
             mem_c=0:M1)
           db.get_decl(seq1 data) #mem1={M1 sig1 D1 m1 m0_1}`);
         t('split_max_decl_3', `s.scroll s.decl(data(33KB 33KB))
-          S..clone(s..) db_init(max_decl:60KB max_frame:32KB) #
+          S..clone(s.. db(max_decl:60KB max_frame:32KB)) #
           db.put_decl(seq1) #(db1={M1 sig1 D1:[D1F0 D1F1 D1f2 D1f3] m1 m0_1}
             db_data={D1F2 D1F3})
           mem.unload #(mem0={M0} !mem1 mem_c=0:M0)
@@ -2136,7 +2155,7 @@ describe('scroll', ()=>{
             mem_c=0:M1)
           db.get_decl(seq1 data) #mem1={M1 sig1 D1 m1 m0_1}`);
         t('split_multi', `s.scroll s.decl(data:33KB) s.decl(data:33KB)
-          S..clone(s..) db_init(max_decl:60KB max_frame:32KB) #
+          S..clone(s.. db(max_decl:60KB max_frame:32KB)) #
           db.put_decl(seq1) #(db1={M1 sig1 D1:[D1F0 D1F1 D1f2] m1 m0_1}
             db_data=D1F2)
           db.put_decl(seq2) #(db2={M2 sig2 D2:[D2F0 D2F1 D2f2] m2}

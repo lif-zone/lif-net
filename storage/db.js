@@ -234,7 +234,6 @@ export default class DB {
 class Storage_handler {
   constructor(opt){
     let {db} = opt;
-    if (0) // XXX TODO
     assert(db.inited, 'db not inited');
     this.db = db;
   }

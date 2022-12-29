@@ -251,8 +251,8 @@ function c_pos2id(scroll, pos){
   assert(id>=0, 'conflict not found at pos '+pos);
   return id;
 }
-function c_id2pos(scroll, cid){
-  return Array.from(scroll.conflict.keys()).indexOf(cid); }
+function c_id2pos(scroll, cfid){
+  return Array.from(scroll.conflict.keys()).indexOf(cfid); }
 
 const get_val = (exp, def_type='right')=>etask(function*_get_val(){
   let m;
@@ -498,13 +498,13 @@ const cmd_clone = (curr, t)=>etask(function*cmd_clone(){
   let seq = m[6] ? +m[7] : s_src.top.seq;
   // XXX: use conflict_to_static/conflict_from_static
   if (Array.from(s_src.conflict.keys()).length>1){ // XXX: rm this if
-    for (let [cid, co] of s_src.conflict){
+    for (let [cfid, co] of s_src.conflict){
       assert(co.top.seq<=seq, 'cannot clone < conflict top '+co.top.seq);
-      let o = {cfid: cid, top: {seq: co.top.seq, M: Buffer.from(co.top.M)},
+      let o = {cfid: cfid, top: {seq: co.top.seq, M: Buffer.from(co.top.M)},
         parent: co.parent && assign({}, co.parent), conflicts: new Map()};
-      s_dst.conflict.set(cid, o);
+      s_dst.conflict.set(cfid, o);
       if (o.parent)
-        s_dst.conflict.get(o.parent.cfid).conflicts.set(cid, o);
+        s_dst.conflict.get(o.parent.cfid).conflicts.set(cfid, o);
     }
   }
   for (let [seq2, decl] of s_src.dmap){

@@ -740,8 +740,8 @@ export default class Scroll extends EventEmitter {
     if (_this.conflict.size<=1)
       return;
     while (_this.merge_queue.size){
-      let bb = _this.merge_queue.get_one(), c_o = _this.conflict.get(bb);
-      yield _this.merge_single(c_o.minfo.merge_queue.get_one(), bb, seq);
+      let cfid2 = _this.merge_queue.get_one(), c_o = _this.conflict.get(cfid2);
+      yield _this.merge_single(c_o.minfo.merge_queue.get_one(), cfid2, seq);
     }
     // XXX: can we improve and avoid traverssing all conflicts
     for (const [i, c_o] of _this.conflict){
@@ -862,22 +862,22 @@ export default class Scroll extends EventEmitter {
       this.off('conflict-removed', c_o.minfo.cleanup);
       this.merge_queue.delete(cfid);
     };
-    const update_merge_queue = (r, bb)=>{
-      if (c_o.minfo.merge_queue.get(bb))
+    const update_merge_queue = (r, cfid2)=>{
+      if (c_o.minfo.merge_queue.get(cfid2))
         return;
       let m1, m2;
-      if ((m1=this.m_hash(cfid, r)) && (m2=this.m_hash(bb, r))){
+      if ((m1=this.m_hash(cfid, r)) && (m2=this.m_hash(cfid2, r))){
         if (!m1.equals(m2))
-          return c_o.minfo.real_map.set(bb, true);
-        c_o.minfo.merge_queue.set(bb, true);
+          return c_o.minfo.real_map.set(cfid2, true);
+        c_o.minfo.merge_queue.set(cfid2, true);
         this.merge_queue.set(cfid, true);
       }
     };
     c_o.minfo.on_hash = opt=>{
-      let r = opt.range, bb = opt.cfid;
-      if (bb<cfid)
-        update_merge_queue(r, bb);
-      if (bb!=cfid)
+      let r = opt.range, cfid2 = opt.cfid;
+      if (cfid2<cfid)
+        update_merge_queue(r, cfid2);
+      if (cfid2!=cfid)
         return;
       for (const [j] of this.conflict){ // XXX: can we skip obvious ones
         if (j<cfid)

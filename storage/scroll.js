@@ -51,16 +51,16 @@ class Data extends EventEmitter {
     this.cmap.set(cfid, fbuf);
     return fbuf;
   }
-  copy(bdst, bsrc){
-    let fsrc = this.get(bsrc);
-    let fdst = this.get(bdst);
-    assert.equal(fsrc.map_info.cfid, bsrc);
-    assert.equal(fdst.map_info.cfid, bdst);
+  copy(cdst, csrc){
+    let fsrc = this.get(csrc);
+    let fdst = this.get(cdst);
+    assert.equal(fsrc.map_info.cfid, csrc);
+    assert.equal(fdst.map_info.cfid, cdst);
     // XXX: wrap with api in Frame_buffer
     assert(!fdst.h && fdst.frames.length==1, 'already contain data');
     fdst.h = fsrc.h;
     fdst.frames = fsrc.frames;
-    this.cmap.delete(bsrc);
+    this.cmap.delete(csrc);
   }
 }
 
@@ -1098,17 +1098,17 @@ class Decl extends EventEmitter {
       .get_prev(opt);
     });
   }
-  copy(bdst, bsrc){
-    assert(this.to_c(bdst)!=this.to_c(bsrc), 'copy same c'+bdst+'<- c'+bsrc);
-    let M = this.M.get_hash(bsrc);
+  copy(cdst, csrc){
+    assert(this.to_c(cdst)!=this.to_c(csrc), 'copy same c'+cdst+'<- c'+csrc);
+    let M = this.M.get_hash(csrc);
     if (M)
-      this.M.set_hash(bdst, M);
+      this.M.set_hash(cdst, M);
     for (let i=0; i<this.m.length; i++){
-      let m = this.m[i].get_hash(bsrc);
+      let m = this.m[i].get_hash(csrc);
       if (m)
-        this.m[i].set_hash(bdst, m);
+        this.m[i].set_hash(cdst, m);
     }
-    this.data.copy(bdst, bsrc);
+    this.data.copy(cdst, csrc);
   }
   to_static(opt={}){
     let {max_decl, max_frame, blob} = opt;

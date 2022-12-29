@@ -90,7 +90,7 @@ const struct_from_str = exp=>etask(function*struct_from_str(){
     a.push(curr.exp);
   for (let i=0; i<a.length; i++){
     let t = tparser.parse_exp_arg_pair(a[i]);
-    let ol = parse_var(t.l), type = ol.type, c = ol.c||0, r = ol.range;
+    let ol = parse_var(t.l), type = ol.type, cfid = ol.cfid||0, r = ol.range;
     let val = yield get_val(t.r);
     assert(seq===undefined || seq==ol.seq, 'multiple seq in struct');
     assert(!ol.ctx, 'cannot have ctx for left strcut');
@@ -101,10 +101,10 @@ const struct_from_str = exp=>etask(function*struct_from_str(){
     if (type=='m'){
       o.m = o.m||{};
       o.m[r[0]] = o.m[r[0]]||{};
-      o.m[r[0]][c] = val;
+      o.m[r[0]][cfid] = val;
     } else {
       o[type] = o[type]||{};
-      o[type][c] = val;
+      o[type][cfid] = val;
     }
   }
   return o;
@@ -144,14 +144,14 @@ function parse_var(v){
     return {type: v, ctx, def};
   if (m = v.match(/^(sig|m|M|d|D|mem|db)((\d+)|((\d+)_(\d+)))(c(\d+))?$/)){
     let type = m[1], range = r_from_str(m[2]), seq = range[1];
-    let c = m[8] ? +m[8] : 0;
+    let cfid = m[8] ? +m[8] : 0;
     assert(type=='m' || range[0]==range[1], 'invalid range '+v);
-    return {seq, type, range, c, ctx, def};
+    return {seq, type, range, cfid, ctx, def};
   }
   if (m = v.match(/^D(\d+)(f|F)(\d+)(c(\d+))?$/)){
-    let c = m[5] ? +m[5] : 0;
+    let cfid = m[5] ? +m[5] : 0;
     let seq = +m[1], range = [seq, seq], type = 'D'+m[2], i = +m[3];
-    return {seq, type, range, i, c, ctx, def};
+    return {seq, type, range, i, cfid, ctx, def};
   }
   assert.fail('invalid var '+v);
 }
@@ -211,10 +211,10 @@ function assert_no_corruption(scroll){
     let curr = scroll.conflict.get(i);
     if (!i)
       continue;
-    assert.equal(scroll.conflict.get(curr.parent?.c).conflicts.get(curr.c),
-      curr, 'conflict corruption c'+i);
+    assert.equal(scroll.conflict.get(curr.parent?.cfid).conflicts.
+      get(curr.cfid), curr, 'conflict corruption c'+i);
     for (const [j] of curr.conflicts){
-      assert.equal(scroll.conflict.get(j).parent?.c, i,
+      assert.equal(scroll.conflict.get(j).parent?.cfid, i,
         'conflict corruption c'+i);
     }
   }
@@ -294,24 +294,24 @@ const get_val = (exp, def_type='right')=>etask(function*_get_val(){
   }
   if (m = exp.match(/^sign\((.*)\)$/)) // sign(d10)
     return crypto.sign(crypto.blake2b(yield get_val(m[1])), t_keypair.key);
-  let o = parse_var(exp), {type, seq, c} = o, r0 = o.range&&o.range[0];
+  let o = parse_var(exp), {type, seq, cfid} = o, r0 = o.range&&o.range[0];
   if (o.def)
     set_def(def_type, o.ctx);
   let name = o.ctx||get_def(def_type||'right'), scroll = get_scroll(name);
-  if (c)
-    c = c_pos2id(scroll, c);
+  if (cfid)
+    cfid = c_pos2id(scroll, cfid);
   switch (type){
-  case 'sig': return scroll.seq_sig(c, seq);
-  case 'M': return scroll.M_hash(c, seq);
-  case 'd': return scroll.seq_d(c, seq);
-  case 'D': return scroll.seq_D(c, seq);
-  case 'Df': return scroll.seq_D(c, seq)[o.i]?.h ?
-    {h: scroll.seq_D(c, seq)[o.i]?.h} : null;
-  case 'DF': return scroll.seq_D(c, seq)[o.i]?.sig ||
-    scroll.seq_D(c, seq)[o.i]?.buf ? scroll.seq_D(c, seq)[o.i] : null;
+  case 'sig': return scroll.seq_sig(cfid, seq);
+  case 'M': return scroll.M_hash(cfid, seq);
+  case 'd': return scroll.seq_d(cfid, seq);
+  case 'D': return scroll.seq_D(cfid, seq);
+  case 'Df': return scroll.seq_D(cfid, seq)[o.i]?.h ?
+    {h: scroll.seq_D(cfid, seq)[o.i]?.h} : null;
+  case 'DF': return scroll.seq_D(cfid, seq)[o.i]?.sig ||
+    scroll.seq_D(cfid, seq)[o.i]?.buf ? scroll.seq_D(cfid, seq)[o.i] : null;
   // XXX: do we need calc_m?
-  case 'm': return r0==seq ? scroll.m_hash(c, seq) :
-    c ? scroll.m_hash(c, o.range) : calc_m(scroll, o.range);
+  case 'm': return r0==seq ? scroll.m_hash(cfid, seq) :
+    cfid ? scroll.m_hash(cfid, o.range) : calc_m(scroll, o.range);
   case 'db': return yield struct_from_db(scroll, seq);
   case 'mem':
     return yield struct_from_decl(scroll.get_decl(seq, {create: false}));
@@ -500,11 +500,11 @@ const cmd_clone = (curr, t)=>etask(function*cmd_clone(){
   if (Array.from(s_src.conflict.keys()).length>1){ // XXX: rm this if
     for (let [cid, co] of s_src.conflict){
       assert(co.top.seq<=seq, 'cannot clone < conflict top '+co.top.seq);
-      let o = {c: cid, top: {seq: co.top.seq, M: Buffer.from(co.top.M)},
+      let o = {cfid: cid, top: {seq: co.top.seq, M: Buffer.from(co.top.M)},
         parent: co.parent && assign({}, co.parent), conflicts: new Map()};
       s_dst.conflict.set(cid, o);
       if (o.parent)
-        s_dst.conflict.get(o.parent.c).conflicts.set(cid, o);
+        s_dst.conflict.get(o.parent.cfid).conflicts.set(cid, o);
     }
   }
   for (let [seq2, decl] of s_src.dmap){
@@ -543,14 +543,14 @@ const cmd_decl = t=>etask(function*cmd_decl(){
 });
 
 function state_split_var(v, def){
-  let o = parse_var(v), {type, seq, c} = o;
+  let o = parse_var(v), {type, seq, cfid} = o;
   if (o.def)
     set_def('left', o.ctx);
   let name = o.ctx||def||get_def('left');
   if (['db_c', 'db_data', 'mem_c'].includes(type))
     return {name, type};
   assert(['mem', 'db'].includes(type), 'invalid type '+type);
-  assert.equal(c, '0', 'invalid conflict usage');
+  assert.equal(cfid, '0', 'invalid conflict usage');
   return {name, type, seq};
 }
 
@@ -740,20 +740,20 @@ const cmd_test = t=>etask(function*cmd_test(){
   let tested = {};
   for (let curr=t.r; curr = tparser.parse_get_next(curr);){
     let t2 = tparser.parse_exp_arg_pair(curr.exp);
-    let l=name+'.'+t2.l, r=t2.r, o=parse_var(t2.l), c=o.c;
-    tested[c] = tested[c]||{};
-    tested[c][o.seq] = tested[c][o.seq]||{M: false, sig: false, d: false,
+    let l=name+'.'+t2.l, r=t2.r, o=parse_var(t2.l), cfid=o.cfid;
+    tested[cfid] = tested[cfid]||{};
+    tested[cfid][o.seq] = tested[cfid][o.seq]||{M: false, sig: false, d: false,
       m: {}};
     if (o.type=='m')
-      tested[c][o.seq].m[o.range[0]] = true;
+      tested[cfid][o.seq].m[o.range[0]] = true;
     else
-      tested[c][o.seq][o.type] = true;
+      tested[cfid][o.seq][o.type] = true;
     let val = yield get_val(l);
     let exp = yield get_val(r);
     assert_buffer(val, exp, curr.exp);
   }
-  for (const [c] of scroll.conflict){
-    for (let seq=0; seq<=scroll.conflict.get(c).top.seq; seq++){
+  for (const [cfid] of scroll.conflict){
+    for (let seq=0; seq<=scroll.conflict.get(cfid).top.seq; seq++){
       seq = +seq;
       let decl = yield scroll.get_decl(seq, {create: false});
       ['sig', 'd', 'M', 'm'].forEach(type=>{
@@ -761,28 +761,28 @@ const cmd_test = t=>etask(function*cmd_test(){
           let a = Scroll.merkel_ranges(seq);
           for (let i=0; i<a.length; i++){
             let s = a[i][0];
-            if (tested[c] && tested[c][seq]?.m[s])
+            if (tested[cfid] && tested[cfid][seq]?.m[s])
               continue;
-            assert(!decl || !decl.m_get([s, seq]).h, 'm'+r_str([s, seq])+'c'+c+
-              ' exists '+t.meta.s);
+            assert(!decl || !decl.m_get([s, seq]).h, 'm'+r_str([s, seq])+
+              'c'+cfid+' exists '+t.meta.s);
           }
           return;
         }
-        if (tested[c] && tested[c][seq] && tested[c][seq][type])
+        if (tested[cfid] && tested[cfid][seq] && tested[cfid][seq][type])
           return;
         switch (type){
         case 'sig':
-          assert(!decl || !decl.sig_get(0), 'sig'+seq+'c'+c+
+          assert(!decl || !decl.sig_get(0), 'sig'+seq+'c'+cfid+
             ' exists '+t.meta.s);
           break;
         case 'd':
-          assert(!decl || !decl.fbuf_get_sync(c).h, 'd'+seq+'c'+c+' exists '+
-            t.meta.s);
+          assert(!decl || !decl.fbuf_get_sync(cfid).h, 'd'+seq+'c'+cfid+
+            ' exists '+t.meta.s);
           break;
         case 'M':
-          assert(!decl || !decl.M.h, 'M'+seq+'c'+c+' exists '+t.meta.s);
+          assert(!decl || !decl.M.h, 'M'+seq+'c'+cfid+' exists '+t.meta.s);
           break;
-        default: assert.fail('invalid type '+type+'c'+c);
+        default: assert.fail('invalid type '+type+'c'+cfid);
         }
       });
     }
@@ -796,7 +796,8 @@ function parse_conflict(s){
   assert(m, 'invalid conflict '+s);
   r = r||'M'+m[6];
   let top = {seq: +m[6], M: r};
-  let parent = m[2] ? {seq: +m[2], c: +m[5]||0, type: m[4]||'t'} : undefined;
+  let parent = m[2] ? {seq: +m[2], cfid: +m[5]||0, type: m[4]||'t'} :
+    undefined;
   return parent ? {top, parent} : {top};
 }
 
@@ -808,8 +809,8 @@ const cmd_c = t=>etask(function*cmd_c(){
   assert.equal(scroll.conflict.size, i, 'conflict count mismatch '+t.r);
   for (const [i, o] of scroll.conflict){
     let ii = c_id2pos(scroll, i);
-    assert.deepEqual(o.parent?.c!==undefined ?
-      {seq: o.parent.seq, c: c_id2pos(scroll, o.parent.c),
+    assert.deepEqual(o.parent?.cfid!==undefined ?
+      {seq: o.parent.seq, cfid: c_id2pos(scroll, o.parent.cfid),
       type: o.parent?.type} :
       undefined, tested[ii].parent, 'conflict '+i+' mismatch '+t.r);
     assert.equal(o.top.seq, tested[ii].top.seq, 'top seq mismatch c'+i+
@@ -865,23 +866,27 @@ const get_static_c = exp=>etask(function*get_static_c(){
 const db_get_c = (db, M)=>etask(function*db_get_c(){
   let db_o = yield db.db_get('scroll', b2s(M));
   let db_c = db_o?.conflict, ret;
-  for (let c in db_c){
+  for (let cfid in db_c){
     ret = ret||{};
-    let o = db_c[c];
-    ret[c] = {top: {seq: o.top.seq, M: Buffer.from(o.top.M)}};
-    if (o.parent?.c!==undefined)
-      ret[c].parent = {seq: o.parent.seq, c: o.parent.c, type: o.parent.type};
+    let o = db_c[cfid];
+    ret[cfid] = {top: {seq: o.top.seq, M: Buffer.from(o.top.M)}};
+    if (o.parent?.cfid!==undefined){
+      ret[cfid].parent = {seq: o.parent.seq, cfid: o.parent.cfid,
+        type: o.parent.type};
+    }
   }
   return ret;
 });
 
 const mem_get_c = scroll=>etask(function mem_get_c(){
   let ret;
-  for (const [c, o] of scroll.conflict){
+  for (const [cfid, o] of scroll.conflict){
     ret = ret||{};
-    ret[c] = {top: {seq: o.top.seq, M: o.top.M}};
-    if (o.parent)
-      ret[c].parent = {seq: o.parent.seq, c: o.parent.c, type: o.parent.type};
+    ret[cfid] = {top: {seq: o.top.seq, M: o.top.M}};
+    if (o.parent){
+      ret[cfid].parent = {seq: o.parent.seq, cfid: o.parent.cfid,
+        type: o.parent.type};
+    }
   }
   assert_no_corruption(scroll);
   return ret;
@@ -895,14 +900,15 @@ const cmd_db_c = t=>etask(function*cmd_db_c(){
   let db_c = db_o?.conflict;
   assert.equal(Object.keys(db_c||{}).length, Object.keys(tested).length,
     'conflict count mismatch '+t.r);
-  for (let c in db_c){
-    let o = db_c[c];
-    assert.deepEqual(o.parent?.c!==undefined ?
-      {seq: o.parent.seq, c: o.parent.c, type: o.parent.type} :
-      undefined, tested[c]?.parent, 'conflict '+c+' mismatch '+t.r);
-    assert.equal(o.top.seq, tested[c]?.top.seq, 'top seq mismatch c'+c+
+  for (let cfid in db_c){
+    let o = db_c[cfid];
+    assert.deepEqual(o.parent?.cfid!==undefined ?
+      {seq: o.parent.seq, cfid: o.parent.cfid, type: o.parent.type} :
+      undefined, tested[cfid]?.parent, 'conflict '+cfid+' mismatch '+t.r);
+    assert.equal(o.top.seq, tested[cfid]?.top.seq, 'top seq mismatch c'+cfid+
       ' '+t.r);
-    assert.equal(b2s(o.top.M), tested[c]?.top.M, 'top M mismatch c'+c+' '+t.r);
+    assert.equal(b2s(o.top.M), tested[cfid]?.top.M,
+      'top M mismatch c'+cfid+' '+t.r);
   }
 });
 
@@ -1027,8 +1033,8 @@ describe('test_util', ()=>{
   it('parse_var', ()=>{
     const t = (v, exp)=>{
       let a = exp.split(' '), range = r_from_str(a[1]);
-      let c = a[2] ? +a[2] : 0, ctx = a[3]||'', def = a[4]=='def'||false;
-      let exp2 = {type: a[0], seq: range[1], range, c, ctx, def};
+      let cfid = a[2] ? +a[2] : 0, ctx = a[3]||'', def = a[4]=='def'||false;
+      let exp2 = {type: a[0], seq: range[1], range, cfid, ctx, def};
       assert.deepEqual(parse_var(v), exp2);
     };
     t('d0', 'd 0');
@@ -1057,15 +1063,17 @@ describe('test_util', ()=>{
     const t = (val, exp)=>assert.deepEqual(parse_conflict(val), exp);
     t('M9=s.M9', {top: {seq: 9, M: 's.M9'}});
     t('3.M9=s.M9', {top: {seq: 9, M: 's.M9'},
-      parent: {seq: 3, c: 0, type: 't'}});
+      parent: {seq: 3, cfid: 0, type: 't'}});
     t('3c1.M9=s.M9', {top: {seq: 9, M: 's.M9'},
-      parent: {seq: 3, c: 1, type: 'c'}});
+      parent: {seq: 3, cfid: 1, type: 'c'}});
     t('3t1.M9=s.M9', {top: {seq: 9, M: 's.M9'},
-      parent: {seq: 3, c: 1, type: 't'}});
+      parent: {seq: 3, cfid: 1, type: 't'}});
     t('M9', {top: {seq: 9, M: 'M9'}});
-    t('3.M9', {top: {seq: 9, M: 'M9'}, parent: {seq: 3, c: 0, type: 't'}});
-    t('3c1.M9', {top: {seq: 9, M: 'M9'}, parent: {seq: 3, c: 1, type: 'c'}});
-    t('3t1.M9', {top: {seq: 9, M: 'M9'}, parent: {seq: 3, c: 1, type: 't'}});
+    t('3.M9', {top: {seq: 9, M: 'M9'}, parent: {seq: 3, cfid: 0, type: 't'}});
+    t('3c1.M9', {top: {seq: 9, M: 'M9'},
+      parent: {seq: 3, cfid: 1, type: 'c'}});
+    t('3t1.M9', {top: {seq: 9, M: 'M9'},
+      parent: {seq: 3, cfid: 1, type: 't'}});
   });
 });
 

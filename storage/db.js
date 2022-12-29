@@ -291,7 +291,7 @@ class Storage_handler {
 // XXX: need test
 function conflict_to_data(db, name, o){
   let data = {scroll: name, scfid: o.db?.data?.scfid||db.get_new_scfid(),
-    cfid: o.c, top: {seq: o.top.seq, M: b2s(o.top.M)}};
+    cfid: o.cfid, top: {seq: o.top.seq, M: b2s(o.top.M)}};
   return data;
 }
 

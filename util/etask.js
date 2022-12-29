@@ -359,6 +359,7 @@ E.prototype._run = function(){
         this.child_guess.pop().parent_guess = undefined);
     if (rv.ret instanceof Etask_wait){
       var wait_completed = false, wait = rv.ret;
+      // if (called_continue_outside_evloop && still_need_to_wait)
       if (!this.at_continue && !wait.ready){
         this.wait_retval = wait;
         if (wait.op=='wait_child')
@@ -368,6 +369,13 @@ E.prototype._run = function(){
         if (!wait_completed)
           return;
         this.wait_retval = undefined;
+      }
+      // called continue inside evloop, but still need to wait,
+      // and the continue value itself is Etask_wait: so must wait!
+      // if (called_continue_inside_evloop && still_need_to_wait)
+      if (this.at_continue?.ret===rv.ret && !wait.ready){
+         this.wait_retval = wait;
+         return;
       }
       rv.ret = this.at_continue ? this.at_continue.ret :
         wait.ready && !wait.completed ? wait.ready.ret : undefined;

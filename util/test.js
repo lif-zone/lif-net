@@ -4050,7 +4050,24 @@ describe('etask', function(){
             seq(2);
         });
     }]));
-    if (0) // XXX arik: BUG
+    if (0) // XXX: etask bug?
+    it('wait_continue_wait', ()=>xetask(5, [function(){
+        let wait = this.wait();
+        let wait2 = this.wait();
+        setTimeout(()=>seq(1), 1);
+        setTimeout(()=>{
+          seq(2);
+          wait.continue(wait2);
+        }, 2);
+        setTimeout(()=>{
+          seq(3);
+          wait2.continue();
+        }, 3);
+        return wait;
+    }, function(res){
+        seq(4);
+        assert.strictEqual(res, undefined);
+    }]));
     it('wait_in_generator', ()=>xetask({seq: 3}, [function(){
         const return_wait = ()=>etask(function*(){
             let wait_et = this.wait();

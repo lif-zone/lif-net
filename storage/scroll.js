@@ -795,7 +795,7 @@ export default class Scroll extends EventEmitter {
     for (const [i] of c2.conflicts)
       yield _this.conflict_update(i, {c: i1});
     _this.conflict.delete(i2);
-    _this.emit('conflict-removed', {c: i2, b_new: i1});
+    _this.emit('conflict-removed', {c: i2, cfid_new: i1});
   }); }
   conflict_update(c, o){ return etask({_: this}, function*conflict_update(){
     let _this = this._;

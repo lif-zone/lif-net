@@ -755,12 +755,12 @@ export default class Scroll extends EventEmitter {
   merge_single(i1, i2, seq){ return etask({_: this}, function*merge_single(){
     let _this = this._;
     assert(i1<i2, 'invalid conflict merge '+i1+' '+i2);
-    let b1=_this.conflict.get(i1), c2=_this.conflict.get(i2), bseq;
+    let c1=_this.conflict.get(i1), c2=_this.conflict.get(i2), bseq;
     let mergeable = c2.minfo.merge_queue.get(i1);
     let real_conflict = c2.minfo.real_map.get(i1);
     if (c2.parent?.seq >= seq)
       return assert(!mergeable && real_conflict);
-    if (c2.parent?.seq >= b1.top.seq)
+    if (c2.parent?.seq >= c1.top.seq)
       return assert(!mergeable && real_conflict);
     if (!mergeable){
       if (real_conflict && c2.parent?.cfid==i1)
@@ -769,23 +769,23 @@ export default class Scroll extends EventEmitter {
     }
     // XXX: to calc common, check also if conflict is not direct child
     bseq = _this.find_max_common_M({cfid: i1, diff_c: i2, seq,
-      common: c2.parent?.cfid==b1.parent?.cfid ? c2.parent?.seq : undefined});
-    assert((b1.parent?.cfid||0)<i2,
+      common: c2.parent?.cfid==c1.parent?.cfid ? c2.parent?.seq : undefined});
+    assert((c1.parent?.cfid||0)<i2,
       'lower cfid'+i1+' cannot point upper cfid'+i2);
     if (c2.parent?.seq >= bseq)
       return xerr('need optimize merge');
     yield _this.conflict_update(i2, {cfid: i1, seq: bseq,
       type: real_conflict ? 'c' : 't'});
-    if (c2.top.seq!=bseq && b1.top.seq!=bseq)
+    if (c2.top.seq!=bseq && c1.top.seq!=bseq)
       return;
     // merge
     // XXX: need more efficient way (just iterate on decl with data)
-    for (let i=b1.top.seq+1; i<=c2.top.seq; i++){
+    for (let i=c1.top.seq+1; i<=c2.top.seq; i++){
       let src = _this.get_decl(i, {create: false});
       if (src)
         src.copy(i1, i2);
     }
-    if (c2.top.seq > b1.top.seq)
+    if (c2.top.seq > c1.top.seq)
       _this.notify_M({cfid: i1, seq: c2.top.seq, M: c2.top.M});
     yield _this.conflict_remove(i2, i1);
     return {curr: i1, prev: i2};

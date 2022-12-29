@@ -259,9 +259,10 @@ class Storage_handler {
     _this.sp.spawn(etask(function*db_updater(){
       while (true){
         if (!_this.db_queue.length)
-          yield (_this.db_wakeup = this.wait());
+          yield _this.db_wakeup = this.wait();
         _this.db_wakeup = null;
         let o = _this.db_queue.shift();
+        xerr.notice('XXX push to db %O', o);
         yield etask.sleep(0);
       }
     }));
@@ -282,11 +283,10 @@ class Storage_handler {
     let queue = [];
     for (const [, o] of scroll.conflict){
       if (!o.db){
-        // XXX: missing split/tmp
-        o.db = {data: conflict_to_data(db, scroll.name, o)};
+        o.db = {data: conflict_to_data(db, scroll, o)};
         queue.push({new: true, data: xutil.clone_deep(o.db.data)});
       } else {
-        let data = conflict_to_data(db, scroll.name, o);
+        let data = conflict_to_data(db, scroll, o);
         if (conflict_eq(o.db.data, data)) // XXX: optimize, avoid cmp
           continue;
         o.db.data = data;
@@ -320,10 +320,19 @@ class Storage_handler {
 }
 
 // XXX: need test
-function conflict_to_data(db, name, o){
+function conflict_to_data(db, scroll, o){
   let scfid = o.db ? o.db.data.scfid : db.get_new_scfid();
-  let data = {scroll: name, scfid, cfid: o.cfid,
-    top: {seq: o.top.seq, M: b2s(o.top.M)}};
+  let cfid = o.cfid, top = {seq: o.top.seq, M: b2s(o.top.M)};
+  let data = {scroll: scroll.name, scfid, cfid, top};
+  if (!o.parent)
+    return data;
+  let parent = o.parent;
+  data.split = [];
+  data.type = parent.type;
+  while (parent){
+    data.split.push({cfid: parent.cfid, seq: parent.seq, type: parent.type});
+    parent = scroll.conflict.get(parent.cfid).parent;
+  }
   return data;
 }
 
@@ -375,3 +384,5 @@ DB.init = function(opt){ global.shimIndexedDB.__setConfig(opt.shim_conf); };
 // 2. begin_update/end_update for scroll.decl and verify if other places we
 //    update data
 // 3. this.sp
+// 4. verify we rebuild minfo/conflicts on scroll.conflict when loading scroll
+//    from db

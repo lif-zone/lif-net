@@ -375,7 +375,7 @@ export default class Scroll extends EventEmitter {
   init(){ return etask({_: this}, function*scroll_init(){
     let _this = this._;
     if (_this.storage)
-      yield _this.storage.init({scroll: this});
+      yield _this.storage.init({scroll: _this});
   }); }
   unload(){ // XXX HACK: quick implementation
     let M0 = this.M_hash(0, 0);

@@ -4,6 +4,7 @@ import assert from 'assert';
 import etask from '../util/etask.js';
 import * as idb from 'idb';
 import xerr from '../util/xerr.js';
+import xutil from '../util/util.js';
 import buf_util from '../peer-relay/buf_util.js';
 import setGlobalVars from 'indexeddbshim';
 const b2s = buf_util.buf_to_str;
@@ -59,6 +60,7 @@ export default class DB {
     }
     _this.scfid_next = 0; // XXX: need to load from db
   });
+  get_new_scfid(){ return this.scfid_next++; }
   uninit = (opt={})=>etask({_: this}, function*db_uninit(){
     let _this = this._;
     if (!_this.inited)
@@ -244,6 +246,9 @@ class Storage_handler {
       throw new Error('storage_handler already inited');
     _this.inited = true;
     _this.scroll = opt.scroll;
+    _this.scroll.on('conflict-removed', o=>{
+      xerr.notice('XXX conflict-removed %O', o);
+    });
   }); }
   begin_update(){ return etask({_: this}, function*end_update(){
     let _this = this._;
@@ -251,10 +256,25 @@ class Storage_handler {
       throw new Error('storage_handler not inited');
   }); }
   end_update(){ return etask({_: this}, function*end_update(){
-    let _this = this._;
+    let _this = this._, db = _this.db, scroll = _this.scroll;
     if (!_this.inited)
       throw new Error('storage_handler not inited');
     assert(_this.inited, 'db not inited');
+    let queue = [];
+    for (const [, o] of scroll.conflict){
+      if (!o.db){
+        // XXX: missing split/tmp
+        o.db = {data: conflict_to_data(db, scroll.name, o)};
+        queue.push({new: true, data: xutil.clone_deep(o.db.data)});
+      } else {
+        let data = conflict_to_data(db, scroll.name, o);
+        if (conflict_eq(o.db.data, data)) // XXX: optimize, avoid cmp
+          continue;
+        o.db.data = data;
+        queue.push({data: xutil.clone_deep(o.db.data)});
+      }
+    }
+    xerr.notice('XXX queue %s', JSON.stringify(queue, null, '\t'));
     /*
     scroll = [ // KEYPATH scfid. INDEX scroll, cfid
       {scfid: 0, scroll: '4817AB', cfid: 0},
@@ -268,7 +288,17 @@ class Storage_handler {
   }); }
 }
 
-function fix_error(e){
+// XXX: need test
+function conflict_to_data(db, name, o){
+  let data = {scroll: name, scfid: o.db?.data?.scfid||db.get_new_scfid(),
+    cfid: o.c, top: {seq: o.top.seq, M: b2s(o.top.M)}};
+  return data;
+}
+
+// XXX: need test (and fix to avoid equal_deep)
+function conflict_eq(data, data2){ return xutil.equal_deep(data, data2); }
+
+function normalize_error(e){
   // XXX: indexeddbshim use ShimDOMException on node. need to check browser
   if (e.debug instanceof global.ShimDOMException)
     return e.debug;
@@ -280,7 +310,7 @@ function store_add(store, val){
   let wait = etask.wait();
   let req = store.add(val);
   req.onsuccess = e=>wait.continue();
-  req.onerror = e=>wait.throw(fix_error(e));
+  req.onerror = e=>wait.throw(normalize_error(e));
   return wait;
 }
 
@@ -289,7 +319,7 @@ function store_put(store, val){
   let wait = etask.wait();
   let req = store.put(val);
   req.onsuccess = e=>wait.continue();
-  req.onerror = e=>wait.throw(fix_error(e));
+  req.onerror = e=>wait.throw(normalize_error(e));
   return wait;
 }
 
@@ -298,10 +328,14 @@ function store_get(store, val){
   let wait = etask.wait();
   let req = store.get(val);
   req.onsuccess = e=>wait.continue(req.result);
-  req.onerror = e=>wait.throw(fix_error(e));
+  req.onerror = e=>wait.throw(normalize_error(e));
   return wait;
 }
 
 DB.MAX_DECL = 64*1024;
 DB.MAX_FRAME = 64*1024;
 DB.init = function(opt){ global.shimIndexedDB.__setConfig(opt.shim_conf); };
+
+// XXX TODO:
+// 1. need to lock scroll/db so only one is doing changes at the same time
+//    (and decide when need to lock read during update operations)

@@ -2168,6 +2168,14 @@ describe('scroll', ()=>{
           db.get_decl(seq2 data) #mem2={M2 sig2 D2 m2}
         `);
       });
+      describe('db_conflict', ()=>{
+        let s = 's..scroll(!prev_scroll d:1-10)';
+        t('t4_a', `${s} S..scroll(s..M0 db)
+          tput(0 1 2 3 4          ) c(M4)
+          tput(0_1_2_3 4_5 6_7 8 9) c(M4 3t0.M9)
+          tput(0_1_2_3 4 5 6      ) c(M9 5t0.M6)
+          tput(0_1_2_3 4_5 6 7    ) c(M9)`);
+      });
     });
   });
 });

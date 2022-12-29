@@ -4067,6 +4067,24 @@ describe('etask', function(){
         seq(3);
         assert.strictEqual(res, undefined);
     }]));
+    it('wait_continue_wait_in_generator', ()=>xetask(4, [function(){
+        let wait = this.wait(), wait2;
+        setTimeout(()=>{
+          seq(1);
+          wait.continue(etask(function*(){
+            wait2 = this.wait();
+            return wait2;
+          }));
+        }, 1);
+        setTimeout(()=>{
+          seq(2);
+          wait2.continue();
+        }, 2);
+        return wait;
+    }, function(res){
+        seq(3);
+        assert.strictEqual(res, undefined);
+    }]));
     it('wait_in_generator', ()=>xetask({seq: 3}, [function(){
         const return_wait = ()=>etask(function*(){
             let wait_et = this.wait();

@@ -33,22 +33,22 @@ function to_frame(o){ // XXX: need test
 class Data extends EventEmitter {
   constructor(opt={}){
     super();
-    this.bmap = new Map();
+    this.cmap = new Map();
     let fbuf = new Frame_buffer(opt);
     fbuf.on('hash', this.on_hash);
     fbuf.map_info = {_: this, c: 0};
-    this.bmap.set(0, fbuf);
+    this.cmap.set(0, fbuf);
   }
   on_hash(){ this.map_info._.emit('hash', {c: this.map_info.c}); }
   get(c){
     assert(c>=0, 'invalid c'+c);
-    let fbuf = this.bmap.get(c);
+    let fbuf = this.cmap.get(c);
     if (fbuf)
       return fbuf;
     fbuf = new Frame_buffer();
     fbuf.map_info = {_: this, c};
     fbuf.on('hash', this.on_hash);
-    this.bmap.set(c, fbuf);
+    this.cmap.set(c, fbuf);
     return fbuf;
   }
   copy(bdst, bsrc){
@@ -60,7 +60,7 @@ class Data extends EventEmitter {
     assert(!fdst.h && fdst.frames.length==1, 'already contain data');
     fdst.h = fsrc.h;
     fdst.frames = fsrc.frames;
-    this.bmap.delete(bsrc);
+    this.cmap.delete(bsrc);
   }
 }
 
@@ -1174,7 +1174,7 @@ class Merkel_node extends EventEmitter {
     this.inited = false;
     this.range = r_fix(opt.range);
     this.decl = opt.decl;
-    this.bmap = new Map();
+    this.cmap = new Map();
   }
   init(){
     let decl = this.decl, scroll = decl.scroll;
@@ -1205,17 +1205,17 @@ class Merkel_node extends EventEmitter {
   get_hash(c){
     assert(this.inited, 'Merkel_node not inited');
     c = this.decl.to_c(c);
-    return this.bmap.get(c);
+    return this.cmap.get(c);
   }
   set_hash(c, h){
     assert(this.inited, 'Merkel_node not inited');
     c = this.decl.to_c(c);
-    let h_curr = this.bmap.get(c);
+    let h_curr = this.cmap.get(c);
     if (h_curr){
       assert(h_curr.equals(h), 'hash changed');
       return h_curr;
     }
-    this.bmap.set(c, h);
+    this.cmap.set(c, h);
     if (h)
       this.emit('hash', {c, range: this.range});
     return h;
@@ -1228,7 +1228,7 @@ class Merkel_root extends EventEmitter {
     this.inited = false;
     this.decl = opt.decl;
     this.scroll = opt.decl.scroll;
-    this.bmap = new Map();
+    this.cmap = new Map();
   }
   init(){
     assert(!this.inited, 'Merkel_root already inited');
@@ -1238,7 +1238,7 @@ class Merkel_root extends EventEmitter {
   get_hash(c){
     assert(this.inited, 'Merkel_root not inited');
     c = this.decl.to_c(c);
-    let h = this.bmap.get(c);
+    let h = this.cmap.get(c);
     if (h)
       return h;
     return this.set_hash(c, this.scroll.calc_root_hash(this.decl.seq, {c}));
@@ -1246,12 +1246,12 @@ class Merkel_root extends EventEmitter {
   set_hash(c, h){
     assert(this.inited, 'Merkel_root not inited');
     c = this.decl.to_c(c);
-    let h_curr = this.bmap.get(c);
+    let h_curr = this.cmap.get(c);
     if (h_curr){
       assert(h_curr.equals(h), 'hash changed');
       return h_curr;
     }
-    this.bmap.set(c, h);
+    this.cmap.set(c, h);
     if (h)
       this.emit('hash', {c, h, seq: this.decl.seq});
     return h;

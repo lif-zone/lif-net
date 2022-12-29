@@ -138,7 +138,7 @@ export default class DB {
   get_decl_data = (decl, seq)=>etask({_: this}, function*get_decl_data(){
     let _this = this._;
     let data = decl.data_get();
-    for (const [, fbuf] of data.bmap){
+    for (const [, fbuf] of data.cmap){
       let frames = fbuf.get_frames();
       for (let i=0; i<frames.length; i++){
         let f = frames[i];

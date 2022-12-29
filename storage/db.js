@@ -239,6 +239,7 @@ class Storage_handler {
     if (!db.inited)
       throw new Error('db not inited');
     this.db = db;
+    this.db_queue = [];
   }
   init(opt){ return etask({_: this}, function*init(){
     let _this = this._;
@@ -246,20 +247,27 @@ class Storage_handler {
       throw new Error('storage_handler already inited');
     _this.inited = true;
     _this.scroll = opt.scroll;
-    _this.scroll.on('conflict-removed', o=>{
-      xerr.notice('XXX conflict-removed %O', o);
+    _this.scroll.on('conflict-removed', e=>{
+      assert(_this.wait, 'conflict-removed while not in update');
+      if (!e.o.db)
+        return;
+      _this.queue_del = _this.queue_del||[];
+      _this.queue_del.push({scfid: e.o.db.data.scfid});
     });
   }); }
   begin_update(){ return etask({_: this}, function*end_update(){
     let _this = this._;
-    if (!_this.inited)
-      throw new Error('storage_handler not inited');
+    assert(_this.inited, 'storage_handler not inited');
+    assert(!_this.queue_del, 'pending quere_del');
+    // XXX: review with derry and wrap it
+    while (_this.wait)
+      this.wait_ext(_this.wait);
+    _this.wait = this.wait();
   }); }
   end_update(){ return etask({_: this}, function*end_update(){
     let _this = this._, db = _this.db, scroll = _this.scroll;
-    if (!_this.inited)
-      throw new Error('storage_handler not inited');
-    assert(_this.inited, 'db not inited');
+    assert(_this.inited, 'storage_handler not inited');
+    assert(_this.wait, 'end_update while not in update');
     let queue = [];
     for (const [, o] of scroll.conflict){
       if (!o.db){
@@ -275,6 +283,12 @@ class Storage_handler {
       }
     }
     xerr.notice('XXX queue %s', JSON.stringify(queue, null, '\t'));
+    xerr.notice('XXX queue_del %O', _this.queue_del);
+    _this.schedule_db_update({queue, queue_del: _this.queue_del});
+    _this.queue_del = null;
+    let wait = _this.wait;
+    _this.wait = null;
+    wait.continue();
     /*
     scroll = [ // KEYPATH scfid. INDEX scroll, cfid
       {scfid: 0, scroll: '4817AB', cfid: 0},
@@ -286,12 +300,17 @@ class Storage_handler {
     ];
     */
   }); }
+  schedule_db_update(o){
+    assert(this.inited, 'storage_handler not inited');
+    this.db_queue.push(o);
+  }
 }
 
 // XXX: need test
 function conflict_to_data(db, name, o){
-  let data = {scroll: name, scfid: o.db?.data?.scfid||db.get_new_scfid(),
-    cfid: o.cfid, top: {seq: o.top.seq, M: b2s(o.top.M)}};
+  let scfid = o.db ? o.db.data.scfid : db.get_new_scfid();
+  let data = {scroll: name, scfid, cfid: o.cfid,
+    top: {seq: o.top.seq, M: b2s(o.top.M)}};
   return data;
 }
 
@@ -339,3 +358,6 @@ DB.init = function(opt){ global.shimIndexedDB.__setConfig(opt.shim_conf); };
 // XXX TODO:
 // 1. need to lock scroll/db so only one is doing changes at the same time
 //    (and decide when need to lock read during update operations)
+//    review _this.wait
+// 2. begin_update/end_update for scroll.decl and verify if other places we
+//    update data

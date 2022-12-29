@@ -46,7 +46,7 @@ class Data extends EventEmitter {
     if (fbuf)
       return fbuf;
     fbuf = new Frame_buffer();
-    fbuf.map_info = {_: this, cfid: cfid};
+    fbuf.map_info = {_: this, cfid};
     fbuf.on('hash', this.on_hash);
     this.cmap.set(cfid, fbuf);
     return fbuf;
@@ -888,7 +888,7 @@ export default class Scroll extends EventEmitter {
     for (let i=0; i<any.length; i++){
       let r = any[i], m=this.m_get(r);
       m.on('hash', c_o.minfo.on_hash);
-      c_o.minfo.on_hash({range: r, cfid: cfid});
+      c_o.minfo.on_hash({range: r, cfid});
     }
   }
   calc_m(opt){

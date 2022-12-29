@@ -246,12 +246,12 @@ const calc_m = (scroll, range)=>etask(function*calc_m(){
   return scroll_m||test_m;
 });
 
-function b_pos2id(scroll, pos){
+function c_pos2id(scroll, pos){
   let id = Array.from(scroll.conflict.keys())[pos];
   assert(id>=0, 'conflict not found at pos '+pos);
   return id;
 }
-function b_id2pos(scroll, cid){
+function c_id2pos(scroll, cid){
   return Array.from(scroll.conflict.keys()).indexOf(cid); }
 
 const get_val = (exp, def_type='right')=>etask(function*_get_val(){
@@ -299,7 +299,7 @@ const get_val = (exp, def_type='right')=>etask(function*_get_val(){
     set_def(def_type, o.ctx);
   let name = o.ctx||get_def(def_type||'right'), scroll = get_scroll(name);
   if (c)
-    c = b_pos2id(scroll, c);
+    c = c_pos2id(scroll, c);
   switch (type){
   case 'sig': return scroll.seq_sig(c, seq);
   case 'M': return scroll.M_hash(c, seq);
@@ -807,9 +807,9 @@ const cmd_c = t=>etask(function*cmd_c(){
     tested[i] = parse_conflict(curr.exp);
   assert.equal(scroll.conflict.size, i, 'conflict count mismatch '+t.r);
   for (const [i, o] of scroll.conflict){
-    let ii = b_id2pos(scroll, i);
+    let ii = c_id2pos(scroll, i);
     assert.deepEqual(o.parent?.c!==undefined ?
-      {seq: o.parent.seq, c: b_id2pos(scroll, o.parent.c),
+      {seq: o.parent.seq, c: c_id2pos(scroll, o.parent.c),
       type: o.parent?.type} :
       undefined, tested[ii].parent, 'conflict '+i+' mismatch '+t.r);
     assert.equal(o.top.seq, tested[ii].top.seq, 'top seq mismatch c'+i+
@@ -1917,7 +1917,7 @@ describe('scroll', ()=>{
           tput(0_1 2 3 4 5 6 7) c(M8)`);
         s = `s..scroll(!prev_scroll d:1-10)
           s1..clone(s.M4) decl(5-10) S..scroll(s..M0)`;
-        t('b_not_final', `${s}
+        t('c_not_final', `${s}
           tput(0 1 2            ) c(M2)
           tput(0_1 2_3 4        ) c(M2 1t0.M4)
           tput(0_1_2_3 4_5 6    ) c(M2 1t0.M4 3t1.M6)
@@ -1926,7 +1926,7 @@ describe('scroll', ()=>{
           // XXX: support 3_4c0 for non-final brnaching point
           tput(0_1 2 3 4 5 6 7  ) c(M8 3c0.M6=s1.M6)
           tput(0_1 2_3 4 f      ) c(M8 4c0.M6=s1.M6)`);
-        t('b_conflict_vconflict', `${s}
+        t('c_conflict_vconflict', `${s}
           tput(0 1 2            ) c(M2)
           tput(0_1 2_3 4        ) c(M2 1t0.M4)
           tput(0_1_2_3 4_5 6    ) c(M2 1t0.M4 3t1.M6)
@@ -1938,7 +1938,7 @@ describe('scroll', ()=>{
           tput(0_1 2_3 4 f      ) c(M8 4c0.M6=s1.M6 5t1.M8=s1.M8)
           tput(0_1 2_3 4 f g h  ) c(M8 4c0.M8=s1.M8)
         `);
-        t('b_conflict_vconflict_b', `${s}
+        t('c_conflict_vconflict_b', `${s}
           tput(0 1 2            ) c(M2)
           tput(0_1 2_3 4        ) c(M2 1t0.M4)
           tput(0_1_2_3 4_5 6    ) c(M2 1t0.M4 3t1.M6)
@@ -1949,13 +1949,13 @@ describe('scroll', ()=>{
           tput(0_1_2_3 4 f      ) c(M6 4c0.M6=s1.M6 5t1.M8=s1.M8)
           tput(0_1_2_3 4 f g h  ) c(M6 4c0.M8=s1.M8)
         `);
-        t('b_select_longest_a', `${s}
+        t('c_select_longest_a', `${s}
           tput(0 1 2            ) c(M2)
           tput(0_1 2_3 4        ) c(M2 1t0.M4)
           tput(0_1_2_3 4_5 6    ) c(M2 1t0.M4 3t1.M6)
           tput(0_1_2_3 4_f g    ) c(M2 1t0.M4 3t1.M6 3c2.M6=s1.M6)
         `);
-        t('b_select_longest_b', `${s}
+        t('c_select_longest_b', `${s}
           tput(0 1 2            ) c(M2)
           tput(0_1 2_3 4_5_6_7 8) c(M2 1t0.M8)
           tput(0_1_2_3 4_5 6    ) c(M2 1t0.M8 3t1.M6)

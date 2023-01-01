@@ -263,7 +263,7 @@ class Storage_handler {
     _this.sp.spawn(etask(function*db_updater(){
       while (true){
         if (!_this.db_queue.length)
-          yield _this.db_wakeup = this.wait();
+          yield _this.db_wakeup = etask.wait();
         _this.db_wakeup = null;
         let {queue, queue_del} = _this.db_queue.shift();
         let tx = db.create_transaction('scroll2', 'readwrite');

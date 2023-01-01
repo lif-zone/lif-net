@@ -256,23 +256,25 @@ class Storage_handler {
       _this.queue_del = _this.queue_del||[];
       _this.queue_del.push({scfid: e.o.db.data.scfid});
     });
+    // XXX: run in a worker
     _this.sp.spawn(etask(function*db_updater(){
       while (true){
         if (!_this.db_queue.length)
           yield _this.db_wakeup = this.wait();
         _this.db_wakeup = null;
-        let curr = _this.db_queue.shift();
-        // XXX: listen on tx success
-        let tx = db.db.transaction('scroll2', 'readwrite');
-        let store = tx.objectStore('scroll2');
-        for (let i=0; i<curr.queue.length; i++){
-          let o = curr.queue[i];
+        let {queue, queue_del} = _this.db_queue.shift();
+        let tx = create_transaction(db.db, 'scroll2', 'readwrite');
+        let store = tx.tx.objectStore('scroll2');
+        for (let i=0; i<queue.length; i++){
+          let o = queue[i];
           if (o.new)
             yield store_add(store, o.data);
           else
             yield store_put(store, o.data);
         }
-        // XXX: run delete queue
+        for (let i=0; i<queue_del?.length; i++)
+          yield store_delete(store, queue_del[i].scfid);
+        yield tx;
         yield etask.sleep(0);
       }
     }));
@@ -385,6 +387,23 @@ function store_get(store, val){
   return wait;
 }
 
+function store_delete(store, key){
+  store = idb.unwrap(store);
+  let wait = etask.wait();
+  let req = store.delete(key);
+  req.onsuccess = e=>wait.continue(req.result);
+  req.onerror = e=>wait.throw(normalize_error(e));
+  return wait;
+}
+
+function create_transaction(db, store_names, mode, options){
+  let wait = etask.wait();
+  wait.tx = db.transaction(store_names, mode, options);
+  wait.tx.oncomplete = e=>wait.continue(e);
+  wait.tx.onerror = e=>wait.throw(normalize_error(e));
+  return wait;
+}
+
 DB.MAX_DECL = 64*1024;
 DB.MAX_FRAME = 64*1024;
 DB.init = function(opt){ global.shimIndexedDB.__setConfig(opt.shim_conf); };
@@ -399,3 +418,4 @@ DB.init = function(opt){ global.shimIndexedDB.__setConfig(opt.shim_conf); };
 // 4. verify we rebuild minfo/conflicts on scroll.conflict when loading scroll
 //    from db
 // 5. handle db.uninit (need to notify Storage_handler to write to db)
+// 6. run db operations in a worker

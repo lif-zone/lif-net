@@ -423,3 +423,4 @@ DB.init = function(opt){ global.shimIndexedDB.__setConfig(opt.shim_conf); };
 // 6. run db operations in a worker
 // 7. rm db_c and rename db2_c to db_c
 // 8. rewrite old db tests and rm old api
+// 9. calc scfid_next from db

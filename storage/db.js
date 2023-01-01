@@ -44,11 +44,12 @@ export default class DB {
         // XXX how to wait for creation of table and verify both are created
         // XXX: rm obsolete scroll and rename scroll2->scroll
         db.createObjectStore('scroll', {keyPath: 'M'});
-        let scroll2 = db.createObjectStore('scroll2', {keyPath: 'scfid'});
-        scroll2.createIndex('scroll-cfid', ['scroll', 'cfid'], {unique: true});
         // XXX: use scroll id from scroll table instead of M for keyPath
         db.createObjectStore('decl', {keyPath: ['scroll', 'seq']});
         db.createObjectStore('data', {keyPath: 'h'});
+        let scroll2 = db.createObjectStore('scroll2', {keyPath: 'scfid'});
+        scroll2.createIndex('scroll-cfid', ['scroll', 'cfid'], {unique: true});
+        db.createObjectStore('decl2', {keyPath: ['scfid', 'seq']});
     }});
     _this.scrolls = new Map();
     let tx = _this.db.transaction('scroll', 'readonly');
@@ -251,9 +252,9 @@ class Storage_handler {
     if (_this.inited)
       throw new Error('storage_handler already inited');
     _this.inited = true;
-    _this.scroll = opt.scroll;
-    _this.scroll.on('conflict-removed', _this.on_conflict_removed);
-    _this.scroll.on('decl', decl=>{
+    let scroll = _this.scroll = opt.scroll;
+    scroll.on('conflict-removed', _this.on_conflict_removed);
+    scroll.on('decl', decl=>{
       decl.M.on('hash', _this.on_decl_update);
       for (let i=0; i<decl.m.length; i++)
         decl.m[i].on('hash', _this.on_decl_update);
@@ -266,18 +267,31 @@ class Storage_handler {
         if (!_this.db_queue.length)
           yield _this.db_wakeup = etask.wait();
         _this.db_wakeup = null;
-        let {queue, queue_del} = _this.db_queue.shift();
-        let tx = db.create_transaction('scroll2', 'readwrite');
+        let blob = {};
+        let {queue, queue_del, queue_decl} = _this.db_queue.shift();
+        let tx = db.create_transaction(['scroll2', 'decl2'], 'readwrite');
         let store = tx.tx.objectStore('scroll2');
-        for (let i=0; i<queue.length; i++){
-          let o = queue[i];
-          if (o.new)
-            yield store_add(store, o.data);
-          else
-            yield store_put(store, o.data);
-        }
+        for (let i=0; i<queue.length; i++)
+          yield store_put(store, queue[i].data);
         for (let i=0; i<queue_del?.length; i++)
           yield store_delete(store, queue_del[i].scfid);
+        store = tx.tx.objectStore('decl2');
+        for (let seq in queue_decl){
+          seq = +seq;
+          for (let cfid in queue_decl[seq]){
+            cfid = +cfid;
+            // XXX: WIP
+            if (!scroll.conflict.get(cfid)) // XXX: TODO (branch deleted)
+              continue;
+            if (!scroll.conflict.get(cfid).db) // XXX: TODO
+              continue;
+            let decl = yield scroll.get_decl(seq);
+            let o = decl.to_static_cfid(cfid, {max_decl: _this.max_decl,
+              max_frame: _this.max_frame, blob});
+            yield store_put(store, o);
+          }
+        }
+        // XXX: save blob
         yield tx;
         yield etask.sleep(0);
       }
@@ -299,6 +313,9 @@ class Storage_handler {
   on_decl_update = e=>{
     assert(e.cfid!==undefined, 'missing cfid in event');
     assert(e.seq>=0, 'invalid seq in event');
+    this.queue_decl = this.queue_decl||{};
+    this.queue_decl[e.seq] = this.queue_decl[e.seq]||{};
+    this.queue_decl[e.seq][e.cfid] = true;
   };
   flush(){ return etask({_: this}, function*flush(){
     let _this = this._;
@@ -332,10 +349,10 @@ class Storage_handler {
         queue.push({data: xutil.clone_deep(o.db.data)});
       }
     }
-    _this.schedule_db_update({queue, queue_del: _this.queue_del});
-    _this.queue_del = null;
+    _this.schedule_db_update({queue, queue_del: _this.queue_del,
+      queue_decl: _this.queue_decl});
     let wait = _this.busy;
-    _this.busy = null;
+    _this.busy = _this.queue_del = _this.queue_decl = null;
     wait.continue();
   }); }
   schedule_db_update(o){
@@ -439,3 +456,7 @@ DB.init = function(opt){ global.shimIndexedDB.__setConfig(opt.shim_conf); };
 // 10. _this -> this_
 // 11. move storage part to storage.js
 // 12. check what to do when Data.copy is called (this.cmap.delete(csrc))
+// 13. rm obsolete scroll/decl stores
+// 14. cleanup db api (eg. rm tx.tx)
+// 15. rm obsolete to_static/from_static etc
+// 16. save blob

@@ -67,6 +67,10 @@ class Data extends EventEmitter {
     fdst.h = fsrc.h;
     fdst.frames = fsrc.frames;
     this.cmap.delete(csrc);
+    if (fdst.h){
+      this.emit('hash', {seq: this.seq, cfid: cdst});
+      this.emit('data', {seq: this.seq, cfid: cdst});
+    }
   }
 }
 
@@ -1127,6 +1131,52 @@ class Decl extends EventEmitter {
         this.m[i].set_hash(cdst, m);
     }
     this.data.copy(cdst, csrc);
+  }
+  to_static_cfid(cfid, opt={}){
+    let {max_decl, max_frame, blob} = opt;
+    let scfid = this.scroll.conflict.get(cfid).db.data.scfid;
+    let o = {scfid, seq: this.seq};
+    assert.equal(cfid, this.to_c(cfid), 'cfid is not real');
+    if (this.sig_get(cfid)){
+      o.sig = o.sig||{};
+      o.sig = this.sig_get(cfid);
+    }
+    if (this.M_hash(cfid)){
+      o.M = o.M||{};
+      o.M = this.M_hash(cfid);
+    }
+    let frames = this.fbuf_get_sync(cfid).get_frames();
+    // XXX: move this logic to Frame_buffer
+    if (frames.length>1 || frames[0].sig || frames[0].h_rest){
+      let frames2 = [], total=0;
+      for (let i=0; i<frames.length; i++){
+        let f = frames[i], len = f.buf?.length||0;
+        if (len && (len>max_frame || total+len>max_decl)){
+          assert(f.h, 'missing hash');
+          if (blob)
+            blob[b2s(f.h)] = f.buf;
+          let ff = {h: f.h};
+          if (f.sz)
+            ff.sz = f.sz;
+          frames2.push(ff);
+        }
+        else {
+          frames2.push(assign({}, f));
+          total += len;
+        }
+      }
+      o.D = o.D||{};
+      o.D = frames2;
+    }
+    for (let i=0; i<this.m.length; i++){
+      if (!this.m[i].get_hash(cfid))
+        continue;
+      let r = this.m[i].range;
+      o.m = o.m||{};
+      o.m[r[0]] = o.m[r[0]]||{};
+      o.m[r[0]] = this.m[i].get_hash(cfid);
+    }
+    return o;
   }
   to_static(opt={}){
     let {max_decl, max_frame, blob} = opt;

@@ -587,16 +587,28 @@ const state_split = (exp, def)=>etask(function*state_split(){
 function state_apply(state, o){
   let {type, seq, val} = o;
   if (['db2_c', 'db_c', 'db_data', 'mem_c'].includes(type)){
-    if (val){
+    if (val)
       state[type] = val;
-    } else
+    else
       delete state[type];
     return;
   }
-  if (val){
+  if (val)
     state[type][seq] = val;
-  } else
+  else
     delete state[type][seq];
+}
+
+function get_filter(s){
+  let a = s.split(' ');
+  for (let i=0; i<a.length; i++){
+    switch (a[i]){
+    case 'db2': break;
+    case 'db2_c': break;
+    default: return;
+    }
+  }
+  return a;
 }
 
 const cmd_state = (curr, t)=>etask(function*cmd_state(){
@@ -634,8 +646,8 @@ const cmd_state = (curr, t)=>etask(function*cmd_state(){
   }
   state = fix_buf(state);
   if (!t_state[name]){
-    if (t.r=='db2_c') // XXX: support multiple configurations
-      t_state.filter = 'db2_c';
+    if (get_filter(t.r))
+      t_state.filter = get_filter(t.r);
     else
       assert(!t.r, 'first # must be empty to set reference state');
     t_state[name] = state;

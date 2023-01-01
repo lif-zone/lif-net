@@ -244,7 +244,7 @@ class Storage_handler {
     this.sp = etask(function*Storage_handler_sp(){ return this.wait(); });
   }
   init(opt){ return etask({_: this}, function*init(){
-    let _this = this._;
+    let _this = this._, db = _this.db;
     if (_this.inited)
       throw new Error('storage_handler already inited');
     _this.inited = true;
@@ -261,11 +261,33 @@ class Storage_handler {
         if (!_this.db_queue.length)
           yield _this.db_wakeup = this.wait();
         _this.db_wakeup = null;
-        let o = _this.db_queue.shift();
-        xerr.notice('XXX push to db %O', o);
+        let curr = _this.db_queue.shift();
+        // XXX: listen on tx success
+        let tx = db.db.transaction('scroll2', 'readwrite');
+        let store = tx.objectStore('scroll2');
+        for (let i=0; i<curr.queue.length; i++){
+          let o = curr.queue[i];
+          if (o.new)
+            yield store_add(store, o.data);
+          else
+            yield store_put(store, o.data);
+        }
+        // XXX: run delete queue
         yield etask.sleep(0);
       }
     }));
+  }); }
+  uninit(){ return etask({_: this}, function*uninit(){
+    let _this = this._;
+    yield _this.flush();
+  }); }
+  flush(){ return etask({_: this}, function*flush(){
+    let _this = this._;
+    // XXX: need to do it event based
+    while (_this.db_queue.length){
+      yield etask.sleep(1);
+    }
+    _this.sp.return();
   }); }
   begin_update(){ return etask({_: this}, function*end_update(){
     let _this = this._;
@@ -300,16 +322,6 @@ class Storage_handler {
     let wait = _this.wait;
     _this.wait = null;
     wait.continue();
-    /*
-    scroll = [ // KEYPATH scfid. INDEX scroll, cfid
-      {scfid: 0, scroll: '4817AB', cfid: 0},
-      {scfid: 1, scroll: '4817AB', cfid: 2, splits: [{cfid: 0, seq: 37}]},
-      {scfid: 2, scroll: '4817AB', cfid: 3, splits: [{cfid: 2, seq: 472},
-        {0, 37}]},
-      {scfid: 3, scroll: '4817AB', cfid: 4, splits: [{cfid: 2, seq: 472},
-        {0, 37}], tmp: true},
-    ];
-    */
   }); }
   schedule_db_update(o){
     assert(this.inited, 'storage_handler not inited');
@@ -386,3 +398,4 @@ DB.init = function(opt){ global.shimIndexedDB.__setConfig(opt.shim_conf); };
 // 3. this.sp
 // 4. verify we rebuild minfo/conflicts on scroll.conflict when loading scroll
 //    from db
+// 5. handle db.uninit (need to notify Storage_handler to write to db)

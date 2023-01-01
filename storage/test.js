@@ -356,8 +356,11 @@ const test_start = ()=>etask(function*test_start(){
 });
 
 const test_end = ()=>etask(function*test_end(){
+  yield xsinon.wait();
   for (let name in t_scroll){
     let scroll = t_scroll[name];
+    if (scroll.storage)
+      yield scroll.storage.uninit();
     if (scroll.soul?.db.inited)
       yield scroll.soul.db.uninit({delete: true});
   }
@@ -436,6 +439,14 @@ const new_scroll = (name, M, prev_scroll, sname, db_opt)=>etask(
   t_scroll[name] = scroll;
   scroll.t = {name};
   return scroll;
+});
+
+const cmd_flush = t=>etask(function*cmd_flush(){
+  for (let name in t_scroll){
+    let scroll = t_scroll[name];
+    if (scroll.storage)
+      yield scroll.storage.flush();
+  }
 });
 
 const cmd_scroll = t=>etask(function*cmd_scroll(){
@@ -938,6 +949,7 @@ const test_run_single = (curr, o)=>etask(function*_test_run_single(){
   switch (o.cmd){
   case 'conf': yield cmd_conf(o); break;
   case 'db_init': yield cmd_db_init(o); break;
+  case 'flush': yield cmd_flush(o); break;
   case 'scroll': yield cmd_scroll(o); break;
   case 'clone': yield cmd_clone(curr, o); break;
   case 'decl': yield cmd_decl(o); break;
@@ -2182,7 +2194,9 @@ describe('scroll', ()=>{
           tput(0 1 2 3 4          ) c(M4)
           tput(0_1_2_3 4_5 6_7 8 9) c(M4 3t0.M9)
           tput(0_1_2_3 4 5 6      ) c(M9 5t0.M6)
-          tput(0_1_2_3 4_5 6 7    ) c(M9)`);
+          tput(0_1_2_3 4_5 6 7    ) c(M9)
+          flush
+        `);
       });
     });
   });

@@ -86,6 +86,9 @@ export default class DB {
     store = tx.objectStore(store);
     return store_add(store, val);
   }
+  create_transaction(store_names, mode, options){
+    return create_transaction(this.db, store_names, mode, options);
+  }
   cursor_open(store){
     let wait = etask.wait();
     store = idb.unwrap(store);
@@ -256,14 +259,14 @@ class Storage_handler {
       _this.queue_del = _this.queue_del||[];
       _this.queue_del.push({scfid: e.o.db.data.scfid});
     });
-    // XXX: run in a worker
+    // XXX: 1. run in a worker 2. abort transcation on error
     _this.sp.spawn(etask(function*db_updater(){
       while (true){
         if (!_this.db_queue.length)
           yield _this.db_wakeup = this.wait();
         _this.db_wakeup = null;
         let {queue, queue_del} = _this.db_queue.shift();
-        let tx = create_transaction(db.db, 'scroll2', 'readwrite');
+        let tx = db.create_transaction('scroll2', 'readwrite');
         let store = tx.tx.objectStore('scroll2');
         for (let i=0; i<queue.length; i++){
           let o = queue[i];
@@ -282,14 +285,13 @@ class Storage_handler {
   uninit(){ return etask({_: this}, function*uninit(){
     let _this = this._;
     yield _this.flush();
+    _this.sp.return();
   }); }
   flush(){ return etask({_: this}, function*flush(){
     let _this = this._;
     // XXX: need to do it event based
-    while (_this.db_queue.length){
+    while (_this.db_queue.length)
       yield etask.sleep(1);
-    }
-    _this.sp.return();
   }); }
   begin_update(){ return etask({_: this}, function*end_update(){
     let _this = this._;
@@ -337,7 +339,7 @@ class Storage_handler {
 function conflict_to_data(db, scroll, o){
   let scfid = o.db ? o.db.data.scfid : db.get_new_scfid();
   let cfid = o.cfid, top = {seq: o.top.seq, M: b2s(o.top.M)};
-  let data = {scroll: scroll.name, scfid, cfid, top};
+  let data = {scfid, scroll: scroll.name, cfid, top};
   if (!o.parent)
     return data;
   let parent = o.parent;
@@ -419,3 +421,5 @@ DB.init = function(opt){ global.shimIndexedDB.__setConfig(opt.shim_conf); };
 //    from db
 // 5. handle db.uninit (need to notify Storage_handler to write to db)
 // 6. run db operations in a worker
+// 7. rm db_c and rename db2_c to db_c
+// 8. rewrite old db tests and rm old api

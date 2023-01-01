@@ -140,7 +140,7 @@ function parse_var(v){
   m = v.match(/^([a-zA-Z]\d*)(\.|\.\.)([^.]*)$/);
   let ctx = m ? m[1] : '', def = m ? m[2]=='..' : false;
   v = m ? m[3] : v;
-  if (['db_c', 'db_data', 'mem_c'].includes(v))
+  if (['db2_c', 'db_c', 'db_data', 'mem_c'].includes(v))
     return {type: v, ctx, def};
   if (m = v.match(/^(sig|m|M|d|D|mem|db)((\d+)|((\d+)_(\d+)))(c(\d+))?$/)){
     let type = m[1], range = r_from_str(m[2]), seq = range[1];
@@ -558,7 +558,7 @@ function state_split_var(v, def){
   if (o.def)
     set_def('left', o.ctx);
   let name = o.ctx||def||get_def('left');
-  if (['db_c', 'db_data', 'mem_c'].includes(type))
+  if (['db2_c', 'db_c', 'db_data', 'mem_c'].includes(type))
     return {name, type};
   assert(['mem', 'db'].includes(type), 'invalid type '+type);
   assert.equal(cfid, '0', 'invalid conflict usage');
@@ -574,7 +574,7 @@ const state_split = (exp, def)=>etask(function*state_split(){
       return assign(state_split_var(o.l, def),
         {val: yield get_static_db_data(o.r)});
     }
-    if (['db_c', 'mem_c'].includes(o.l)){
+    if (['db2_c', 'db_c', 'mem_c'].includes(o.l)){
       return assign(state_split_var(o.l, def),
         {val: yield get_static_c(o.r)});
     }
@@ -586,7 +586,7 @@ const state_split = (exp, def)=>etask(function*state_split(){
 
 function state_apply(state, o){
   let {type, seq, val} = o;
-  if (['db_c', 'db_data', 'mem_c'].includes(type)){
+  if (['db2_c', 'db_c', 'db_data', 'mem_c'].includes(type)){
     if (val){
       state[type] = val;
     } else
@@ -629,26 +629,43 @@ const cmd_state = (curr, t)=>etask(function*cmd_state(){
       state.db[o.seq] = o;
     }
     state.db_c = yield db_get_c(scroll.soul.db, scroll.M_hash(0, 0));
+    state.db2_c = yield db2_get_c(scroll.soul.db, scroll.M_hash(0, 0));
     state.db_data = yield db_get_db_data(scroll.soul.db);
   }
   state = fix_buf(state);
   if (!t_state[name]){
-    assert(!t.r, 'first # must be empty to set reference state');
+    if (t.r=='db2_c') // XXX: support multiple configurations
+      t_state.filter = 'db2_c';
+    else
+      assert(!t.r, 'first # must be empty to set reference state');
     t_state[name] = state;
     return;
   }
   for (let curr=t.r; curr = tparser.parse_get_next(curr);)
     state_apply(t_state[name], yield state_split(curr.exp, name));
   // XXX: need assert_state
-  assert.deepEqual(state.mem_c, t_state[name].mem_c,
-    'mem conflict state mismach '+t.meta.s);
-  assert.deepEqual(state.mem, t_state[name].mem,
-    'mem state mismach '+t.meta.s);
-  assert.deepEqual(state.db_c, t_state[name].db_c,
-    'db conflict state mismach '+t.meta.s);
-  assert.deepEqual(state.db, t_state[name].db, 'db state mismach '+t.meta.s);
-  assert.deepEqual(state.db_data, t_state[name].db_data,
-    'db_data state mismach '+t.meta.s);
+  if (!t_state.filter || t_state.filter.includes('mem_c')){
+    assert.deepEqual(state.mem_c, t_state[name].mem_c,
+      'mem conflict state mismach '+t.meta.s);
+  }
+  if (!t_state.filter || t_state.filter.includes('mem')){
+    assert.deepEqual(state.mem, t_state[name].mem,
+      'mem state mismach '+t.meta.s);
+  }
+  if (!t_state.filter || t_state.filter.includes('db_c')){
+    assert.deepEqual(state.db_c, t_state[name].db_c,
+      'db conflict state mismach '+t.meta.s);
+  }
+  if (!t_state.filter || t_state.filter.includes('db2_c')){
+    assert.deepEqual(state.db2_c, t_state[name].db2_c,
+      'db2 conflict state mismach '+t.meta.s);
+  }
+  if (!t_state.filter || t_state.filter.includes('db'))
+    assert.deepEqual(state.db, t_state[name].db, 'db state mismach '+t.meta.s);
+  if (!t_state.filter || t_state.filter.includes('db_data')){
+    assert.deepEqual(state.db_data, t_state[name].db_data,
+      'db_data state mismach '+t.meta.s);
+  }
   t_state[name] = state;
 });
 
@@ -803,13 +820,20 @@ const cmd_test = t=>etask(function*cmd_test(){
 function parse_conflict(s){
   let m = s.match(/^([^=]+)=([^=]+)$/);
   let l= m ? m[1] : s, r = m&&m[2];
-  m = l.match(/^((\d+)(([c|t])(\d+))?\.)?M(\d+)$/);
+  m = l.match(/^((\d+):)?((\d+)(([c|t])(\d+))?\.)?M(\d+)$/);
   assert(m, 'invalid conflict '+s);
-  r = r||'M'+m[6];
-  let top = {seq: +m[6], M: r};
-  let parent = m[2] ? {seq: +m[2], cfid: +m[5]||0, type: m[4]||'t'} :
+  r = r||'M'+m[8];
+  let cfid = m[2];
+  let top = {seq: +m[8], M: r};
+  let parent = m[4] ? {seq: +m[4], cfid: +m[7]||0, type: m[6]||'t'} :
     undefined;
-  return parent ? {top, parent} : {top};
+  let ret = {};
+  if (cfid!==undefined)
+    ret.cfid = +cfid;
+  ret.top = top;
+  if (parent!==undefined)
+    ret.parent = parent;
+  return ret;
 }
 
 const cmd_c = t=>etask(function*cmd_c(){
@@ -884,6 +908,26 @@ const db_get_c = (db, M)=>etask(function*db_get_c(){
     if (o.parent?.cfid!==undefined){
       ret[cfid].parent = {seq: o.parent.seq, cfid: o.parent.cfid,
         type: o.parent.type};
+    }
+  }
+  return ret;
+});
+
+const db2_get_c = (db, M)=>etask(function*db2_get_c(){
+  let tx = db.create_transaction('scroll2', 'readonly'), ret;
+  let store = tx.tx.objectStore('scroll2');
+  let cursor = yield db.cursor_open(store);
+  // XXX: optimize, just get data of scroll from DB
+  for (; cursor; cursor = yield db.cursor_continue(cursor)){
+    let o = cursor.value;
+    if (o.scroll!=b2s(M))
+      continue;
+    ret = ret||{};
+    ret[o.scfid] = {cfid: o.cfid, top: {seq: o.top.seq, M: s2b(o.top.M)}};
+    // XXX: need assert to check ret of split array is correct
+    if (o.split){
+      ret[o.scfid].parent = o.split[0];
+      assert.equal(o.type, o.split[0].type, 'invalid type');
     }
   }
   return ret;
@@ -964,7 +1008,7 @@ const test_run_single = (curr, o)=>etask(function*_test_run_single(){
   case '=': yield cmd_eq(o); break;
   case '==': yield cmd_test(o); break;
   case 'c': yield cmd_c(o); break;
-  case 'db_c': yield cmd_db_c(o); break;
+  case 'db_c': yield cmd_db_c(o); break; // XXX: obsolete, rm
   // XXX need db_data api
   case '//': break;
   case 'dbg': debugger; break; // eslint-disable-line no-debugger
@@ -1081,6 +1125,7 @@ describe('test_util', ()=>{
     t('3t1.M9=s.M9', {top: {seq: 9, M: 's.M9'},
       parent: {seq: 3, cfid: 1, type: 't'}});
     t('M9', {top: {seq: 9, M: 'M9'}});
+    t('1:M9', {cfid: 1, top: {seq: 9, M: 'M9'}});
     t('3.M9', {top: {seq: 9, M: 'M9'}, parent: {seq: 3, cfid: 0, type: 't'}});
     t('3c1.M9', {top: {seq: 9, M: 'M9'},
       parent: {seq: 3, cfid: 1, type: 'c'}});
@@ -2190,12 +2235,13 @@ describe('scroll', ()=>{
       });
       describe('db_conflict', ()=>{
         let s = 's..scroll(!prev_scroll d:1-10)';
-        t('t4_a', `${s} S..scroll(s..M0 db)
-          tput(0 1 2 3 4          ) c(M4)
+        t('t4_a', `${s} S..scroll(s..M0 db) #(db2_c)
+          tput(0 1 2 3 4          ) c(M4) flush #db2_c={0:0:M4}
           tput(0_1_2_3 4_5 6_7 8 9) c(M4 3t0.M9)
+            flush #db2_c={0:0:M4 1:1:3t0.M9}
           tput(0_1_2_3 4 5 6      ) c(M9 5t0.M6)
-          tput(0_1_2_3 4_5 6 7    ) c(M9)
-          flush
+            flush #db2_c={0:0:M9 2:2:5t0.M6}
+          tput(0_1_2_3 4_5 6 7    ) c(M9) flush #db2_c={0:0:M9}
         `);
       });
     });

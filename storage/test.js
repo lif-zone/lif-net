@@ -2234,8 +2234,10 @@ describe('scroll', ()=>{
         `);
       });
       describe('db_conflict', ()=>{
-        let s = 's..scroll(!prev_scroll d:1-10)';
-        t('t4_a', `${s} S..scroll(s..M0 db) #(db2_c)
+        t('decl', `s..scroll(db) #(db2_c)
+          decl(1) c(M1=s..M1) flush #db2_c={0:0:M1}
+          decl(2) c(M2=s..M2) flush #db2_c={0:0:M2}`);
+        t('put', `s..scroll(d:1-10) S..scroll(s..M0 db) #(db2_c)
           tput(0 1 2 3 4          ) c(M4) flush #db2_c={0:0:M4}
           tput(0_1_2_3 4_5 6_7 8 9) c(M4 3t0.M9)
             flush #db2_c={0:0:M4 1:1:3t0.M9}

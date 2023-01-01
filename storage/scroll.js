@@ -415,14 +415,17 @@ export default class Scroll extends EventEmitter {
       cfid = parent.cfid);
     return cfid;
   }
-  decl(opt, frames){ // XXX: test decl on conflict
+  decl(opt, frames){ return etask({_: this}, function*decl(){
+    let _this = this._;
+    if (_this.storage)
+      yield _this.storage.begin_update();
     if (frames===undefined)
       [opt, frames] = [{cfid: 0}, opt];
     if (typeof opt=='number')
       opt = {cfid: opt};
     let {cfid, prev, group, link, branch} = opt;
     cfid = cfid||0;
-    let top = this.conflict.get(cfid).top;
+    let top = _this.conflict.get(cfid).top;
     let seq = top ? top.seq+1 : 0, header = {seq, ts: Date.now()};
     if (prev>0 && prev!=seq-1)
       header.prev = prev;
@@ -433,13 +436,15 @@ export default class Scroll extends EventEmitter {
     if (branch)
       header.branch = branch;
     let data = new Data({frames: [header].concat(frames)});
-    let decl = new Decl({scroll: this, seq, data});
-    this.dmap.set(seq, decl);
+    let decl = new Decl({scroll: _this, seq, data});
+    _this.dmap.set(seq, decl);
     decl.init();
     decl.sign(cfid);
     decl.M.get_hash(cfid);
+    if (_this.storage)
+      yield _this.storage.end_update();
     return decl;
-  }
+  }); }
   notify_M(opt){
     let {cfid, seq, M} = opt;
     assert(seq!=0 || cfid==0, 'M0 exists only on b0');

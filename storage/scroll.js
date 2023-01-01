@@ -31,16 +31,20 @@ function to_frame(o){ // XXX: need test
 }
 
 class Data extends EventEmitter {
-  constructor(opt={}){
+  constructor(opt){
     super();
+    assert(opt?.seq>=0, 'invalid seq '+opt?.seq);
+    this.seq = opt.seq;
     this.cmap = new Map();
     let fbuf = new Frame_buffer(opt);
     fbuf.on('hash', this.on_hash);
     fbuf.map_info = {_: this, cfid: 0};
     this.cmap.set(0, fbuf);
   }
-  on_hash(){ this.map_info._.emit('hash', {cfid: this.map_info.cfid}); }
-  on_data(){ this.map_info._.emit('data', {cfid: this.map_info.cfid}); }
+  on_hash(){ this.map_info._.emit('hash', {seq: this.map_info._.seq,
+    cfid: this.map_info.cfid}); }
+  on_data(){ this.map_info._.emit('data', {seq: this.map_info._.seq,
+    cfid: this.map_info.cfid}); }
   get(cfid){
     assert(cfid>=0, 'invalid cfid'+cfid);
     let fbuf = this.cmap.get(cfid);
@@ -440,11 +444,11 @@ export default class Scroll extends EventEmitter {
       header.link = link;
     if (branch)
       header.branch = branch;
-    let data = new Data({frames: [header].concat(frames)});
+    let data = new Data({seq, frames: [header].concat(frames)});
     let decl = new Decl({scroll: _this, seq, data});
     _this.dmap.set(seq, decl);
     _this.emit('decl', decl);
-    decl.data.emit('data', {cfid: 0}); // XXX HACK
+    decl.data.emit('data', {seq, cfid: 0}); // XXX HACK
     decl.init();
     decl.sign(cfid);
     decl.M.get_hash(cfid);
@@ -977,7 +981,7 @@ export default class Scroll extends EventEmitter {
     let decl = this.dmap.get(seq);
     if (decl || opt.create===false)
       return decl;
-    decl = new Decl({scroll: this, seq, data: new Data});
+    decl = new Decl({scroll: this, seq, data: new Data({seq})});
     this.dmap.set(seq, decl);
     this.emit('decl', decl);
     decl.init();
@@ -1240,7 +1244,7 @@ class Merkel_node extends EventEmitter {
     }
     this.cmap.set(cfid, h);
     if (h)
-      this.emit('hash', {cfid, range: this.range});
+      this.emit('hash', {seq: this.decl.seq, cfid, range: this.range});
     return h;
   }
 }
@@ -1278,7 +1282,7 @@ class Merkel_root extends EventEmitter {
     }
     this.cmap.set(cfid, h);
     if (h)
-      this.emit('hash', {cfid, h, seq: this.decl.seq});
+      this.emit('hash', {seq: this.decl.seq, cfid, h});
     return h;
   }
 }

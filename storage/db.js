@@ -297,9 +297,8 @@ class Storage_handler {
     this.queue_del.push({scfid: e.o.db.data.scfid});
   };
   on_decl_update = e=>{
-    assert(e.cfid!==undefined, 'XXX cfid');
-    if (0) // XXX WIP
-      assert(e.seq!==undefined, 'XXX seq');
+    assert(e.cfid!==undefined, 'missing cfid in event');
+    assert(e.seq>=0, 'invalid seq in event');
   };
   flush(){ return etask({_: this}, function*flush(){
     let _this = this._;

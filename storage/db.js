@@ -252,12 +252,13 @@ class Storage_handler {
       throw new Error('storage_handler already inited');
     _this.inited = true;
     _this.scroll = opt.scroll;
-    _this.scroll.on('conflict-removed', e=>{
-      assert(_this.busy, 'conflict-removed while not in update');
-      if (!e.o.db)
-        return;
-      _this.queue_del = _this.queue_del||[];
-      _this.queue_del.push({scfid: e.o.db.data.scfid});
+    _this.scroll.on('conflict-removed', _this.on_conflict_removed);
+    _this.scroll.on('decl', decl=>{
+      decl.M.on('hash', _this.on_decl_update);
+      for (let i=0; i<decl.m.length; i++)
+        decl.m[i].on('hash', _this.on_decl_update);
+      decl.data.on('hash', _this.on_decl_update);
+      decl.data.on('data', _this.on_decl_update);
     });
     // XXX: 1. run in a worker 2. abort transcation on error
     _this.sp.spawn(etask(function*db_updater(){
@@ -286,7 +287,20 @@ class Storage_handler {
     let _this = this._;
     yield _this.flush();
     _this.sp.return();
+    // XXX: need to unregister all cb
   }); }
+  on_conflict_removed = e=>{
+    assert(this.busy, 'conflict-removed while not in update');
+    if (!e.o.db)
+      return;
+    this.queue_del = this.queue_del||[];
+    this.queue_del.push({scfid: e.o.db.data.scfid});
+  };
+  on_decl_update = e=>{
+    assert(e.cfid!==undefined, 'XXX cfid');
+    if (0) // XXX WIP
+      assert(e.seq!==undefined, 'XXX seq');
+  };
   flush(){ return etask({_: this}, function*flush(){
     let _this = this._;
     // XXX: need to do it event based
@@ -424,3 +438,5 @@ DB.init = function(opt){ global.shimIndexedDB.__setConfig(opt.shim_conf); };
 // 8. rewrite old db tests and rm old api
 // 9. calc scfid_next from db
 // 10. _this -> this_
+// 11. move storage part to storage.js
+// 12. check what to do when Data.copy is called (this.cmap.delete(csrc))

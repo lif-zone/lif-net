@@ -40,6 +40,7 @@ class Data extends EventEmitter {
     this.cmap.set(0, fbuf);
   }
   on_hash(){ this.map_info._.emit('hash', {cfid: this.map_info.cfid}); }
+  on_data(){ this.map_info._.emit('data', {cfid: this.map_info.cfid}); }
   get(cfid){
     assert(cfid>=0, 'invalid cfid'+cfid);
     let fbuf = this.cmap.get(cfid);
@@ -48,6 +49,7 @@ class Data extends EventEmitter {
     fbuf = new Frame_buffer();
     fbuf.map_info = {_: this, cfid};
     fbuf.on('hash', this.on_hash);
+    fbuf.on('data', this.on_data);
     this.cmap.set(cfid, fbuf);
     return fbuf;
   }
@@ -104,6 +106,7 @@ class Frame_buffer extends EventEmitter {
     }
     if (!h_rest && this.frames[0].h_rest)
       this.emit('hash');
+    this.emit('data');
     this.get_hash();
   }
   set_frame_buf(i, buf){
@@ -116,6 +119,7 @@ class Frame_buffer extends EventEmitter {
     else
       f.h = h;
     f.buf = buf;
+    this.emit('data');
   }
   get_hash(opt={}){
     let h_rest = this.frames[0].h_rest;
@@ -139,6 +143,7 @@ class Frame_buffer extends EventEmitter {
     assert(!this.frames[0].sig || this.frames[0].sig.equals(sig),
       'sig changed');
     this.frames[0].sig = sig;
+    this.emit('data');
   }
   get(i){ return this.frames[i]?.buf; }
   get_json(i){ // XXX: need better implemenation + add caching of result
@@ -438,6 +443,8 @@ export default class Scroll extends EventEmitter {
     let data = new Data({frames: [header].concat(frames)});
     let decl = new Decl({scroll: _this, seq, data});
     _this.dmap.set(seq, decl);
+    _this.emit('decl', decl);
+    decl.data.emit('data', {cfid: 0}); // XXX HACK
     decl.init();
     decl.sign(cfid);
     decl.M.get_hash(cfid);
@@ -972,6 +979,7 @@ export default class Scroll extends EventEmitter {
       return decl;
     decl = new Decl({scroll: this, seq, data: new Data});
     this.dmap.set(seq, decl);
+    this.emit('decl', decl);
     decl.init();
     return decl;
   }
@@ -1299,7 +1307,12 @@ Scroll.open = opt=>etask(function*scroll_open(){
   yield scroll.init();
   assert(/^\d+$/.test(seq) && h, 'scroll.open missing M');
   let decl = scroll.get_decl(seq);
+  // XXX HACK: rm
+  if (scroll.storage)
+    yield scroll.storage.begin_update();
   decl.M.set_hash(0, h);
+  if (scroll.storage)
+    yield scroll.storage.end_update();
   return scroll;
 });
 

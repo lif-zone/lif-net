@@ -253,7 +253,7 @@ class Storage_handler {
     _this.inited = true;
     _this.scroll = opt.scroll;
     _this.scroll.on('conflict-removed', e=>{
-      assert(_this.wait, 'conflict-removed while not in update');
+      assert(_this.busy, 'conflict-removed while not in update');
       if (!e.o.db)
         return;
       _this.queue_del = _this.queue_del||[];
@@ -298,14 +298,14 @@ class Storage_handler {
     assert(_this.inited, 'storage_handler not inited');
     assert(!_this.queue_del, 'pending quere_del');
     // XXX: review with derry and wrap it
-    while (_this.wait)
-      this.wait_ext(_this.wait);
-    _this.wait = this.wait();
+    while (_this.busy)
+      this.wait_ext(_this.busy);
+    _this.busy = etask.wait();
   }); }
   end_update(){ return etask({_: this}, function*end_update(){
     let _this = this._, db = _this.db, scroll = _this.scroll;
     assert(_this.inited, 'storage_handler not inited');
-    assert(_this.wait, 'end_update while not in update');
+    assert(_this.busy, 'end_update while not in update');
     let queue = [];
     for (const [, o] of scroll.conflict){
       if (!o.db){
@@ -319,17 +319,16 @@ class Storage_handler {
         queue.push({data: xutil.clone_deep(o.db.data)});
       }
     }
-    xerr.notice('XXX queue %s', JSON.stringify(queue, null, '\t'));
-    xerr.notice('XXX queue_del %O', _this.queue_del);
     _this.schedule_db_update({queue, queue_del: _this.queue_del});
     _this.queue_del = null;
-    let wait = _this.wait;
-    _this.wait = null;
+    let wait = _this.busy;
+    _this.busy = null;
     wait.continue();
   }); }
   schedule_db_update(o){
     assert(this.inited, 'storage_handler not inited');
-    this.db_queue.push(o);
+    if (o)
+      this.db_queue.push(o);
     if (this.db_wakeup)
       this.db_wakeup.continue();
   }

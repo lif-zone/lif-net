@@ -2355,7 +2355,7 @@ describe('scroll', ()=>{
           db.get_decl(seq2 data) #mem2={M2 sig2 D2 m2}
         `);
       });
-      describe('db_conflict', ()=>{
+      describe('write', ()=>{
         t('decl', `s..scroll(db) #(db2_c DB)
           decl(1) c(M1=s..M1) flush #(db2_c={0:0:M1} DB1={M1 sig1 D1 m1 m0_1})
           decl(2) c(M2=s..M2) flush #(db2_c={0:0:M2} DB2={M2 sig2 D2 m2})
@@ -2376,6 +2376,12 @@ describe('scroll', ()=>{
           tput(0_1_2_3 4_5 6 7    ) c(M9) flush #(db2_c={0:0:M9}
             DB6={S.m6 S.M6 S.D6 S.sig6}
             DB7={S.m7 S.m6_7 S.m4_7 S.m0_7 S.M7 S.D7 S.sig7})`);
+      });
+      describe('read', ()=>{
+        t('decl', `s..scroll(db) decl(1-2) c(M2=s..M2) flush
+          S.scroll(M0 db)
+          // XXX WIP S.c(M2)
+        `);
       });
     });
   });

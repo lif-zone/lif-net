@@ -4,7 +4,6 @@ import assert from 'assert';
 import etask from '../util/etask.js';
 import * as idb from 'idb';
 import xerr from '../util/xerr.js';
-import xutil from '../util/util.js';
 import buf_util from '../peer-relay/buf_util.js';
 import setGlobalVars from 'indexeddbshim';
 const b2s = buf_util.buf_to_str;
@@ -72,24 +71,28 @@ export default class DB {
       yield _this.delete_db();
     _this.inited = false;
   });
-  db_get(store, key){
-    let tx = this.db.transaction(store, 'readonly');
-    store = tx.objectStore(store);
+  db_get(name, key){
+    let tx = this.db.transaction(name, 'readonly');
+    let store = tx.objectStore(name);
     return store_get(store, key);
   }
-  db_put(store, val){
-    let tx = this.db.transaction(store, 'readwrite');
-    store = tx.objectStore(store);
+  db_put(name, val){
+    let tx = this.db.transaction(name, 'readwrite');
+    let store = tx.objectStore(name);
     return store_put(store, val);
   }
-  db_add(store, val){
-    let tx = this.db.transaction(store, 'readwrite');
-    store = tx.objectStore(store);
+  db_add(name, val){
+    let tx = this.db.transaction(name, 'readwrite');
+    let store = tx.objectStore(name);
     return store_add(store, val);
   }
   create_transaction(store_names, mode, options){
     return create_transaction(this.db, store_names, mode, options);
   }
+  store_delete(store, key){ return store_delete(store, key); }
+  store_add(store, val){ return store_add(store, val); }
+  store_put(store, val){ return store_put(store, val); }
+  store_get(store, val){ return store_get(store, val); }
   cursor_open(store){
     let wait = etask.wait();
     store = idb.unwrap(store);
@@ -234,155 +237,7 @@ export default class DB {
       return;
     yield idb.deleteDB('lif_db'+_this.postfix);
   });
-  new_storage_handler(){ return new Storage_handler({db: this}); }
 }
-
-class Storage_handler {
-  constructor(opt){
-    let {db} = opt;
-    if (!db.inited)
-      throw new Error('db not inited');
-    this.db = db;
-    this.db_queue = [];
-    // XXX: derry
-    this.sp = etask(function*Storage_handler_sp(){ return this.wait(); });
-  }
-  init(opt){ return etask({_: this}, function*init(){
-    let _this = this._, db = _this.db;
-    if (_this.inited)
-      throw new Error('storage_handler already inited');
-    _this.inited = true;
-    let scroll = _this.scroll = opt.scroll;
-    scroll.on('conflict-removed', _this.on_conflict_removed);
-    scroll.on('decl', decl=>{
-      decl.M.on('hash', _this.on_decl_update);
-      for (let i=0; i<decl.m.length; i++)
-        decl.m[i].on('hash', _this.on_decl_update);
-      decl.data.on('hash', _this.on_decl_update);
-      decl.data.on('data', _this.on_decl_update);
-    });
-    // XXX: 1. run in a worker 2. abort transcation on error
-    _this.sp.spawn(etask(function*db_updater(){
-      while (true){
-        if (!_this.db_queue.length)
-          yield _this.db_wakeup = etask.wait();
-        _this.db_wakeup = null;
-        let blob = {};
-        let {queue, queue_del, queue_decl} = _this.db_queue.shift();
-        let tx = db.create_transaction(['scroll2', 'decl2'], 'readwrite');
-        let store = tx.tx.objectStore('scroll2');
-        for (let i=0; i<queue.length; i++)
-          yield store_put(store, queue[i].data);
-        for (let i=0; i<queue_del?.length; i++)
-          yield store_delete(store, queue_del[i].scfid);
-        store = tx.tx.objectStore('decl2');
-        for (let seq in queue_decl){
-          seq = +seq;
-          for (let cfid in queue_decl[seq]){
-            cfid = +cfid;
-            // XXX: WIP
-            if (!scroll.conflict.get(cfid)) // XXX: TODO (branch deleted)
-              continue;
-            if (!scroll.conflict.get(cfid).db) // XXX: TODO
-              continue;
-            let decl = yield scroll.get_decl(seq);
-            let o = decl.to_static_cfid(cfid, {max_decl: _this.max_decl,
-              max_frame: _this.max_frame, blob});
-            yield store_put(store, o);
-          }
-        }
-        // XXX: save blob
-        yield tx;
-        yield etask.sleep(0);
-      }
-    }));
-  }); }
-  uninit(){ return etask({_: this}, function*uninit(){
-    let _this = this._;
-    yield _this.flush();
-    _this.sp.return();
-    // XXX: need to unregister all cb
-  }); }
-  on_conflict_removed = e=>{
-    assert(this.busy, 'conflict-removed while not in update');
-    if (!e.o.db)
-      return;
-    this.queue_del = this.queue_del||[];
-    this.queue_del.push({scfid: e.o.db.data.scfid});
-  };
-  on_decl_update = e=>{
-    assert(e.cfid!==undefined, 'missing cfid in event');
-    assert(e.seq>=0, 'invalid seq in event');
-    this.queue_decl = this.queue_decl||{};
-    this.queue_decl[e.seq] = this.queue_decl[e.seq]||{};
-    this.queue_decl[e.seq][e.cfid] = true;
-  };
-  flush(){ return etask({_: this}, function*flush(){
-    let _this = this._;
-    // XXX: need to do it event based
-    while (_this.db_queue.length)
-      yield etask.sleep(1);
-  }); }
-  begin_update(){ return etask({_: this}, function*end_update(){
-    let _this = this._;
-    assert(_this.inited, 'storage_handler not inited');
-    assert(!_this.queue_del, 'pending quere_del');
-    // XXX: review with derry and wrap it
-    while (_this.busy)
-      this.wait_ext(_this.busy);
-    _this.busy = etask.wait();
-  }); }
-  end_update(){ return etask({_: this}, function*end_update(){
-    let _this = this._, db = _this.db, scroll = _this.scroll;
-    assert(_this.inited, 'storage_handler not inited');
-    assert(_this.busy, 'end_update while not in update');
-    let queue = [];
-    for (const [, o] of scroll.conflict){
-      if (!o.db){
-        o.db = {data: conflict_to_data(db, scroll, o)};
-        queue.push({new: true, data: xutil.clone_deep(o.db.data)});
-      } else {
-        let data = conflict_to_data(db, scroll, o);
-        if (conflict_eq(o.db.data, data)) // XXX: optimize, avoid cmp
-          continue;
-        o.db.data = data;
-        queue.push({data: xutil.clone_deep(o.db.data)});
-      }
-    }
-    _this.schedule_db_update({queue, queue_del: _this.queue_del,
-      queue_decl: _this.queue_decl});
-    let wait = _this.busy;
-    _this.busy = _this.queue_del = _this.queue_decl = null;
-    wait.continue();
-  }); }
-  schedule_db_update(o){
-    assert(this.inited, 'storage_handler not inited');
-    if (o)
-      this.db_queue.push(o);
-    if (this.db_wakeup)
-      this.db_wakeup.continue();
-  }
-}
-
-// XXX: need test
-function conflict_to_data(db, scroll, o){
-  let scfid = o.db ? o.db.data.scfid : db.get_new_scfid();
-  let cfid = o.cfid, top = {seq: o.top.seq, M: b2s(o.top.M)};
-  let data = {scfid, scroll: scroll.name, cfid, top};
-  if (!o.parent)
-    return data;
-  let parent = o.parent;
-  data.split = [];
-  data.type = parent.type;
-  while (parent){
-    data.split.push({cfid: parent.cfid, seq: parent.seq, type: parent.type});
-    parent = scroll.conflict.get(parent.cfid).parent;
-  }
-  return data;
-}
-
-// XXX: need test (and fix to avoid equal_deep)
-function conflict_eq(data, data2){ return xutil.equal_deep(data, data2); }
 
 function normalize_error(e){
   // XXX: indexeddbshim use ShimDOMException on node. need to check browser
@@ -438,25 +293,3 @@ function create_transaction(db, store_names, mode, options){
 DB.MAX_DECL = 64*1024;
 DB.MAX_FRAME = 64*1024;
 DB.init = function(opt){ global.shimIndexedDB.__setConfig(opt.shim_conf); };
-
-// XXX TODO:
-// 1. need to lock scroll/db so only one is doing changes at the same time
-//    (and decide when need to lock read during update operations)
-//    review _this.wait
-// 2. begin_update/end_update for scroll.decl and verify if other places we
-//    update data
-// 3. this.sp
-// 4. verify we rebuild minfo/conflicts on scroll.conflict when loading scroll
-//    from db
-// 5. handle db.uninit (need to notify Storage_handler to write to db)
-// 6. run db operations in a worker
-// 7. rm db_c and rename db2_c to db_c
-// 8. rewrite old db tests and rm old api
-// 9. calc scfid_next from db
-// 10. _this -> this_
-// 11. move storage part to storage.js
-// 12. check what to do when Data.copy is called (this.cmap.delete(csrc))
-// 13. rm obsolete scroll/decl stores
-// 14. cleanup db api (eg. rm tx.tx)
-// 15. rm obsolete to_static/from_static etc
-// 16. save blob

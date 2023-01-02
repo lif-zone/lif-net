@@ -8,6 +8,7 @@ import xtest from '../util/test_lib.js'; // eslint-disable-line no-unused-vars
 import etask from '../util/etask.js';
 import crypto from '../util/crypto.js';
 import string from '../util/string.js';
+import Storage_handler from './storage.js';
 import xsinon from '../util/sinon.js';
 import Scroll from './scroll.js';
 import Soul from './soul.js';
@@ -426,7 +427,7 @@ const new_scroll = (name, M, prev_scroll, sname, db_opt)=>etask(
   if (db_opt?.need_init){
     yield soul.db.init({max_decl: db_opt.max_decl, max_frame: db_opt.max_frame,
       delete: true, postfix: soul.name});
-    storage = soul.db.new_storage_handler();
+    storage = new Storage_handler({db: soul.db});
   }
   if (M){
     scroll = yield Scroll.open({soul, key: t_keypair.key,

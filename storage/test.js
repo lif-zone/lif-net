@@ -997,6 +997,14 @@ const db_get_scroll_decl = (db, scroll)=>etask(function*db_get_scroll_decl(){
       ret[o.seq][cfid] = o;
     }
   }
+  let scfids = {}, store = tx.tx.objectStore('decl2');
+  for (let cursor = yield db.cursor_open(store); cursor;
+    cursor = yield db.cursor_continue(cursor))
+  {
+    scfids[cursor.value.scfid] = true;
+  }
+  for (let scfid in scfids)
+    assert(yield db.db_get('scroll2', +scfid), 'scfid '+scfid+' not found');
   return ret;
 });
 
@@ -2365,13 +2373,9 @@ describe('scroll', ()=>{
             DB6={S.m6c2 S.M6c2 S.D6c2 S.sig6c2}
             DB7={S.m6_7 S.m4_7 S.m0_7 S.M7} DB8={S.m8 S.M8}
             DB9={S.m9 S.m8_9 S.M9 S.D9 S.sig9})
-          s.sig6=S.sig6c2
           tput(0_1_2_3 4_5 6 7    ) c(M9) flush #(db2_c={0:0:M9}
             DB6={S.m6 S.M6 S.D6 S.sig6}
-            DB7={S.m7 S.m6_7 S.m4_7 S.m0_7 S.M7 S.D7 S.sig7}
-          )
-        // XXX: verify we delete entries from db for deleted conflict
-        `);
+            DB7={S.m7 S.m6_7 S.m4_7 S.m0_7 S.M7 S.D7 S.sig7})`);
       });
     });
   });

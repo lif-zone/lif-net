@@ -60,11 +60,21 @@ export default class Storage_handler {
         let {queue, queue_del, queue_decl} = _this.db_queue.shift();
         let tx = db.create_transaction(['scroll2', 'decl2'], 'readwrite');
         let store = tx.tx.objectStore('scroll2');
+        let store2 = tx.tx.objectStore('decl2');
+        let index2 = store2.index('scfid');
         for (let i=0; i<queue.length; i++)
           yield db.store_put(store, queue[i].data);
-        for (let i=0; i<queue_del?.length; i++)
-          yield db.store_delete(store, queue_del[i].scfid);
-        store = tx.tx.objectStore('decl2');
+        for (let i=0; i<queue_del?.length; i++){
+          let scfid = queue_del[i].scfid;
+          yield db.store_delete(store, scfid);
+          // XXX: wrap in api
+          let query = IDBKeyRange.only(scfid);
+          for (let cursor = yield db.cursor_open(index2, query); cursor;
+            cursor = yield db.cursor_continue(cursor))
+          {
+            cursor.delete();
+          }
+        }
         for (let seq in queue_decl){
           seq = +seq;
           for (let cfid in queue_decl[seq]){
@@ -77,7 +87,7 @@ export default class Storage_handler {
             let decl = yield scroll.get_decl(seq);
             let o = decl.to_static_cfid(cfid, {max_decl: _this.max_decl,
               max_frame: _this.max_frame, blob});
-            yield db.store_put(store, o);
+            yield db.store_put(store2, o);
           }
         }
         // XXX: save blob
@@ -197,3 +207,5 @@ function conflict_eq(data, data2){ return xutil.equal_deep(data, data2); }
 // 17. rename DB - > db and remove old db
 // 18. rename struct_from_db2 -> struct_from_db and rm struct_from_db
 // 19. rm xxx_db_old_to_new
+// 20. change decl table to include also scroll name
+//     (for easy delete of scorll)

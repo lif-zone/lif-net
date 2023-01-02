@@ -245,6 +245,9 @@ function assert_buffer(a, b, desc){
     assert.equal(a, b, 'not equal '+desc);
 }
 
+function assert_b2s_obj(a, b, desc){
+  assert.deepEqual(b2s_obj(a), b2s_obj(b), desc); }
+
 function assert_no_corruption(scroll){
   for (const [i] of scroll.conflict){
     let curr = scroll.conflict.get(i);
@@ -285,11 +288,6 @@ const calc_m = (scroll, range)=>etask(function*calc_m(){
   return scroll_m||test_m;
 });
 
-function c_pos2id(scroll, pos){
-  let id = Array.from(scroll.conflict.keys())[pos];
-  assert(id>=0, 'conflict not found at pos '+pos);
-  return id;
-}
 function c_id2pos(scroll, cfid){
   return Array.from(scroll.conflict.keys()).indexOf(cfid); }
 
@@ -337,8 +335,6 @@ const get_val = (exp, def_type='right')=>etask(function*_get_val(){
   if (o.def)
     set_def(def_type, o.ctx);
   let name = o.ctx||get_def(def_type||'right'), scroll = get_scroll(name);
-  if (cfid)
-    cfid = c_pos2id(scroll, cfid);
   switch (type){
   case 'sig': return scroll.seq_sig(cfid, seq);
   case 'M': return scroll.M_hash(cfid, seq);
@@ -643,7 +639,7 @@ function get_filter(s){
   let a = s.split(' ');
   for (let i=0; i<a.length; i++){
     switch (a[i]){
-    case 'db2': break;
+    case 'DB': break;
     case 'db2_c': break;
     default: return;
     }
@@ -698,7 +694,7 @@ const cmd_state = (curr, t)=>etask(function*cmd_state(){
   if (db?.inited){
     let tx = db.db.transaction('decl', 'readonly');
     let store = tx.objectStore('decl');
-    // XXX: optimize, just get data of scroll from DB
+    // XXX: remove
     for (let cursor = yield db.cursor_open(store); cursor;
       cursor = yield db.cursor_continue(cursor))
     {
@@ -709,6 +705,7 @@ const cmd_state = (curr, t)=>etask(function*cmd_state(){
       state.db = state.db||{};
       state.db[o.seq] = xxx_db_old_to_new(o);
     }
+    state.DB = yield db_get_scroll_decl(scroll.soul.db, scroll);
     state.db_c = yield db_get_c(scroll.soul.db, scroll.M_hash(0, 0));
     state.db2_c = yield db2_get_c(scroll.soul.db, scroll.M_hash(0, 0));
     state.db_data = yield db_get_db_data(scroll.soul.db);
@@ -718,7 +715,7 @@ const cmd_state = (curr, t)=>etask(function*cmd_state(){
     if (get_filter(t.r))
       t_state.filter = get_filter(t.r);
     else
-      assert(!t.r, 'first # must be empty to set reference state');
+      assert(!t.r, 'first # must be empty or list of types');
     t_state[name] = state;
     return;
   }
@@ -726,25 +723,27 @@ const cmd_state = (curr, t)=>etask(function*cmd_state(){
     state_apply(t_state[name], yield state_split(curr.exp, name));
   // XXX: need assert_state
   if (!t_state.filter || t_state.filter.includes('mem_c')){
-    assert.deepEqual(state.mem_c, t_state[name].mem_c,
+    assert_b2s_obj(state.mem_c, t_state[name].mem_c,
       'mem conflict state mismach '+t.meta.s);
   }
   if (!t_state.filter || t_state.filter.includes('mem')){
-    assert.deepEqual(state.mem, t_state[name].mem,
+    assert_b2s_obj(state.mem, t_state[name].mem,
       'mem state mismach '+t.meta.s);
   }
   if (!t_state.filter || t_state.filter.includes('db_c')){
-    assert.deepEqual(state.db_c, t_state[name].db_c,
+    assert_b2s_obj(state.db_c, t_state[name].db_c,
       'db conflict state mismach '+t.meta.s);
   }
   if (!t_state.filter || t_state.filter.includes('db2_c')){
-    assert.deepEqual(state.db2_c, t_state[name].db2_c,
+    assert_b2s_obj(state.db2_c, t_state[name].db2_c,
       'db2 conflict state mismach '+t.meta.s);
   }
   if (!t_state.filter || t_state.filter.includes('db'))
-    assert.deepEqual(state.db, t_state[name].db, 'db state mismach '+t.meta.s);
+    assert_b2s_obj(state.db, t_state[name].db, 'db state mismach '+t.meta.s);
+  if (!t_state.filter || t_state.filter.includes('DB'))
+    assert_b2s_obj(state.DB, t_state[name].DB, 'DB state mismach '+t.meta.s);
   if (!t_state.filter || t_state.filter.includes('db_data')){
-    assert.deepEqual(state.db_data, t_state[name].db_data,
+    assert_b2s_obj(state.db_data, t_state[name].db_data,
       'db_data state mismach '+t.meta.s);
   }
   t_state[name] = state;
@@ -972,11 +971,32 @@ const get_static_c = exp=>etask(function*get_static_c(){
   let o = {};
   for (let curr=exp; curr = tparser.parse_get_next(curr);){
     m = curr.exp.match(/^(\d+):(.*)$/);
-    assert(m.length==3, 'invalid db_c '+curr.exp);
+    assert(m?.length==3, 'invalid db_c '+curr.exp);
     o[m[1]] = parse_conflict(m[2]);
     o[m[1]].top.M = b2s(yield get_val(o[m[1]].top.M));
   }
   return o;
+});
+
+const db_get_scroll_decl = (db, scroll)=>etask(function*db_get_scroll_decl(){
+  let db_c = yield db2_get_c(db, scroll.M_hash(0, 0)), ret={};
+  let tx = db.create_transaction('decl2', 'readonly');
+  for (let scfid in db_c){
+    scfid = +scfid;
+    let cfid = db_c[scfid].cfid;
+    let index = tx.tx.objectStore('decl2').index('scfid');
+    let query = IDBKeyRange.only(scfid);
+    for (let cursor = yield db.cursor_open(index, query); cursor;
+      cursor = yield db.cursor_continue(cursor))
+    {
+      let o = db.fix_struct(cursor.value);
+      assert.equal(o.scfid, scfid, 'missing scfid seq'+o.seq);
+      delete o.scfid;
+      ret[o.seq] = ret[o.seq]||{};
+      ret[o.seq][cfid] = o;
+    }
+  }
+  return ret;
 });
 
 const db_get_c = (db, M)=>etask(function*db_get_c(){
@@ -1000,7 +1020,7 @@ const db2_get_c = (db, M)=>etask(function*db2_get_c(){
   let cursor = yield db.cursor_open(store);
   // XXX: optimize, use index to get scroll records
   for (; cursor; cursor = yield db.cursor_continue(cursor)){
-    let o = cursor.value;
+    let o = db.fix_struct(cursor.value);
     if (o.scroll!=b2s(M))
       continue;
     ret = ret||{};
@@ -2315,20 +2335,29 @@ describe('scroll', ()=>{
         `);
       });
       describe('db_conflict', ()=>{
-        t('decl', `s..scroll(db) #(db2_c)
-          decl(1) c(M1=s..M1) flush #db2_c={0:0:M1}
-          mem0={M0 sig0 D0 m0}
-          DB0={M0 sig0 D0 m0}
-          decl(2) c(M2=s..M2) flush #db2_c={0:0:M2}
-          DB1={M1 sig1 D1 m1 m0_1}
+        t('decl', `s..scroll(db) #(db2_c DB)
+          decl(1) c(M1=s..M1) flush #(db2_c={0:0:M1} DB1={M1 sig1 D1 m1 m0_1})
+          decl(2) c(M2=s..M2) flush #(db2_c={0:0:M2} DB2={M2 sig2 D2 m2})
         `);
-        t('put', `s..scroll(d:1-10) S..scroll(s..M0 db) #(db2_c)
-          tput(0 1 2 3 4          ) c(M4) flush #db2_c={0:0:M4}
+        t('put', `s..scroll(d:1-10) S..scroll(s..M0 db) #(db2_c DB)
+          tput(0 1 2 3 4          ) c(M4) flush #(db2_c={0:0:M4}
+            DB0={m0 M0} DB1={m1 m0_1 M1} DB2={m2 M2} DB3={m3 m2_3 m0_3 M3}
+            DB4={m4 M4 sig4 D4})
           tput(0_1_2_3 4_5 6_7 8 9) c(M4 3t0.M9)
-            flush #db2_c={0:0:M4 1:1:3t0.M9}
+            flush #(db2_c={0:0:M4 1:1:3t0.M9} DB5={S.m4_5c1 S.M5c1}
+            DB7={S.m6_7c1 S.m4_7c1 S.m0_7c1 S.M7c1} DB8={S.m8c1 S.M8c1}
+            DB9={S.m9c1 S.m8_9c1 S.M9c1 S.D9c1 S.sig9c1})
           tput(0_1_2_3 4 5 6      ) c(M9 5t0.M6)
-            flush #db2_c={0:0:M9 2:2:5t0.M6}
-          tput(0_1_2_3 4_5 6 7    ) c(M9) flush #db2_c={0:0:M9}
+            flush #(db2_c={0:0:M9 2:2:5t0.M6} DB5={m5 M5 m4_5}
+            DB6={S.m6c2 S.M6c2 S.D6c2 S.sig6c2}
+            DB7={S.m6_7 S.m4_7 S.m0_7 S.M7} DB8={S.m8 S.M8}
+            DB9={S.m9 S.m8_9 S.M9 S.D9 S.sig9})
+          tput(0_1_2_3 4_5 6 7    ) c(M9) flush #(db2_c={0:0:M9}
+            DB6={S.m6 S.M6}
+            DB7={S.m7 S.m6_7 S.m4_7 S.m0_7 S.M7 S.D7 S.sig7}
+          )
+        // XXX            DB6={S.m6 S.M6 S.D6 S.sig6}
+        // XXX: verify we delete entries from db for deleted conflict
         `);
       });
     });

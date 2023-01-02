@@ -48,7 +48,8 @@ export default class DB {
         db.createObjectStore('data', {keyPath: 'h'});
         let scroll2 = db.createObjectStore('scroll2', {keyPath: 'scfid'});
         scroll2.createIndex('scroll-cfid', ['scroll', 'cfid'], {unique: true});
-        db.createObjectStore('decl2', {keyPath: ['scfid', 'seq']});
+        let decl2 = db.createObjectStore('decl2', {keyPath: ['scfid', 'seq']});
+        decl2.createIndex('scfid', 'scfid');
     }});
     _this.scrolls = new Map();
     let tx = _this.db.transaction('scroll', 'readonly');
@@ -93,10 +94,10 @@ export default class DB {
   store_add(store, val){ return store_add(store, val); }
   store_put(store, val){ return store_put(store, val); }
   store_get(store, val){ return store_get(store, val); }
-  cursor_open(store){
+  cursor_open(store, query, dir){
     let wait = etask.wait();
     store = idb.unwrap(store);
-    let req = store.openCursor();
+    let req = store.openCursor(query, dir);
     req.onerror = e=>wait.throw(e);
     req.onsuccess = e=>{
       let cursor = e.target.result;

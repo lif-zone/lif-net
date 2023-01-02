@@ -1134,7 +1134,7 @@ class Decl extends EventEmitter {
   }
   to_static_cfid(cfid, opt={}){
     let {max_decl, max_frame, blob} = opt;
-    let scfid = this.scroll.conflict.get(cfid).db.data.scfid;
+    let scfid = this.scroll.conflict.get(cfid).db?.data.scfid;
     let o = {scfid, seq: this.seq};
     assert.equal(cfid, this.to_c(cfid), 'cfid is not real');
     if (this.sig_get(cfid)){
@@ -1177,6 +1177,15 @@ class Decl extends EventEmitter {
       o.m[r[0]] = this.m[i].get_hash(cfid);
     }
     return o;
+  }
+  to_static2(opt={}){
+    let ret;
+    for (const [cfid] of this.scroll.conflict){
+      ret = ret||{};
+      if (cfid==this.to_c(cfid))
+        ret[cfid] = this.to_static_cfid(cfid, opt);
+    }
+    return ret;
   }
   to_static(opt={}){
     let {max_decl, max_frame, blob} = opt;

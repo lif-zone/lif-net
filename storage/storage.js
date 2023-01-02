@@ -192,5 +192,8 @@ function conflict_eq(data, data2){ return xutil.equal_deep(data, data2); }
 // 12. check what to do when Data.copy is called (this.cmap.delete(csrc))
 // 13. rm obsolete scroll/decl stores
 // 14. cleanup db api (eg. rm tx.tx)
-// 15. rm obsolete to_static/from_static etc
+// 15. rename to_static2 and rm obsolete to_static/from_static etc
 // 16. save blob
+// 17. rename DB - > db and remove old db
+// 18. rename struct_from_db2 -> struct_from_db and rm struct_from_db
+// 19. rm xxx_db_old_to_new

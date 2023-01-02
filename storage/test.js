@@ -21,6 +21,26 @@ function enc_u64(v){ return enc.encode(enc.uint64, v); }
 let t_soul, t_soul_id, t_soul_mode, t_state;
 let t_scroll, t_genesis_scroll, t_prev_scroll, t_def, t_keypair;
 
+// XXX: need test and move to buf_util.js
+function b2s_obj(o, ret){
+  if (!o || !(o instanceof Object))
+    return o;
+  ret = ret||{};
+  for (let name in o){
+    let v = o[name];
+    if (v instanceof Uint8Array)
+      ret[name] = b2s(Buffer.from(v));
+    else if (Buffer.isBuffer(v))
+      ret[name] = b2s(v);
+    else if (v instanceof Object){
+      ret[name] = {};
+      b2s_obj(v, ret[name]);
+    } else
+      ret[name] = v;
+  }
+  return ret;
+}
+
 // XXX: use memoryDatabase: ':memory:'
 DB.init({shim_conf: {checkOrigin: false, databaseBasePath: '/tmp',
   deleteDatabaseFiles: true, useSQLiteIndexes: true}});
@@ -86,7 +106,7 @@ const array_from_str = exp=>etask(function*array_from_str(){
 });
 
 const struct_from_str = exp=>etask(function*struct_from_str(){
-  let a=[], seq, o;
+  let a=[], seq, ret;
   for (let curr=exp, i=0; curr = tparser.parse_get_next(curr); i++)
     a.push(curr.exp);
   for (let i=0; i<a.length; i++){
@@ -98,19 +118,18 @@ const struct_from_str = exp=>etask(function*struct_from_str(){
     assert(!ol.def, 'XXX support set def');
     assert(['sig', 'd', 'm', 'M', 'D'].includes(type), 'invalid type '+type);
     seq = ol.seq;
-    o = o||{seq};
+    ret = ret||{};
+    ret[cfid] = ret[cfid]||{seq};
     if (type=='m'){
-      o.m = o.m||{};
-      o.m[r[0]] = o.m[r[0]]||{};
-      o.m[r[0]][cfid] = val;
-    } else {
-      o[type] = o[type]||{};
-      o[type][cfid] = val;
-    }
+      ret[cfid].m = ret[cfid].m||{};
+      ret[cfid].m[r[0]] = val;
+    } else
+      ret[cfid][type] = val;
   }
-  return o;
+  return ret;
 });
 
+// XXX obsolete, rm
 const struct_from_db = (scroll, seq)=>etask(function*struct_from_db(){
   let o = yield scroll.soul.db.get_decl_static(scroll, seq);
   if (!o)
@@ -120,14 +139,33 @@ const struct_from_db = (scroll, seq)=>etask(function*struct_from_db(){
   return o;
 });
 
+const struct_from_db2 = (scroll, seq)=>etask(function*struct_from_db2(){
+  let db_c = yield db2_get_c(scroll.soul.db, scroll.name);
+  let db = scroll.soul.db, tx = db.create_transaction('decl2', 'readonly');
+  let store = tx.tx.objectStore('decl2');
+  let ret = {};
+  for (let scfid in db_c){
+    scfid = +scfid;
+    let cfid = db_c[scfid].cfid;
+    let o = yield db.store_get(store, [scfid, seq]);
+    if (o)
+      ret[cfid] = o;
+    assert.equal(o.scfid, scfid, 'missing scfid seq'+seq);
+    delete o.scfid;
+  }
+  return ret;
+});
+
 function struct_from_decl(decl){
   if (!decl)
     return null;
-  let o = decl.to_static();
-  assert.equal(o.scroll, decl.scroll.name, 'scroll name mismatch');
-  delete o.scroll; // XXX HACK: test it as well
-  let keys = Object.keys(o);
-  if (keys.length==1 && keys[0]=='seq')
+  let o = decl.to_static2();
+  for (let cfid in o){
+    delete o[cfid].scfid;
+    if (Object.keys(o[cfid]).length==1 && Object.keys(o[cfid])[0]=='seq')
+      delete o[cfid];
+  }
+  if (!Object.keys(o).length)
     return null;
   return o;
 }
@@ -143,7 +181,7 @@ function parse_var(v){
   v = m ? m[3] : v;
   if (['db2_c', 'db_c', 'db_data', 'mem_c'].includes(v))
     return {type: v, ctx, def};
-  if (m = v.match(/^(sig|m|M|d|D|mem|db)((\d+)|((\d+)_(\d+)))(c(\d+))?$/)){
+  if (m = v.match(/^(sig|m|M|d|D|mem|db|DB)((\d+)|((\d+)_(\d+)))(c(\d+))?$/)){
     let type = m[1], range = r_from_str(m[2]), seq = range[1];
     let cfid = m[8] ? +m[8] : 0;
     assert(type=='m' || range[0]==range[1], 'invalid range '+v);
@@ -314,6 +352,7 @@ const get_val = (exp, def_type='right')=>etask(function*_get_val(){
   case 'm': return r0==seq ? scroll.m_hash(cfid, seq) :
     cfid ? scroll.m_hash(cfid, o.range) : calc_m(scroll, o.range);
   case 'db': return yield struct_from_db(scroll, seq);
+  case 'DB': return yield struct_from_db2(scroll, seq);
   case 'mem':
     return yield struct_from_decl(scroll.get_decl(seq, {create: false}));
   case 'struct': return yield struct_from_str(o.val);
@@ -561,7 +600,7 @@ function state_split_var(v, def){
   let name = o.ctx||def||get_def('left');
   if (['db2_c', 'db_c', 'db_data', 'mem_c'].includes(type))
     return {name, type};
-  assert(['mem', 'db'].includes(type), 'invalid type '+type);
+  assert(['mem', 'db', 'DB'].includes(type), 'invalid type '+type);
   assert.equal(cfid, '0', 'invalid conflict usage');
   return {name, type, seq};
 }
@@ -612,6 +651,35 @@ function get_filter(s){
   return a;
 }
 
+// XXX: rm
+function xxx_db_old_to_new(o){
+  if (!o)
+    return o;
+  let ret = {};
+  let seq = o.seq;
+  ret = {};
+  for (let cfid in o.sig||{}){
+    ret[cfid] = ret[cfid]||{seq};
+    ret[cfid].sig = o.sig[cfid];
+  }
+  for (let cfid in o.M||{}){
+    ret[cfid] = ret[cfid]||{seq};
+    ret[cfid].M = o.M[cfid];
+  }
+  for (let cfid in o.D||{}){
+    ret[cfid] = ret[cfid]||{seq};
+    ret[cfid].D = o.D[cfid];
+  }
+  for (let r in o.m||{}){
+    for (let cfid in o.m[r]){
+      ret[cfid] = ret[cfid]||{seq};
+      ret[cfid].m = ret[cfid].m||{};
+      ret[cfid].m[r] = o.m[r][cfid];
+    }
+  }
+  return ret;
+}
+
 const cmd_state = (curr, t)=>etask(function*cmd_state(){
   let state = {mem: {}, db: {}};
   let name = t.ctx||get_def('left');
@@ -639,7 +707,7 @@ const cmd_state = (curr, t)=>etask(function*cmd_state(){
         continue;
       delete o.scroll;
       state.db = state.db||{};
-      state.db[o.seq] = o;
+      state.db[o.seq] = xxx_db_old_to_new(o);
     }
     state.db_c = yield db_get_c(scroll.soul.db, scroll.M_hash(0, 0));
     state.db2_c = yield db2_get_c(scroll.soul.db, scroll.M_hash(0, 0));
@@ -930,7 +998,7 @@ const db2_get_c = (db, M)=>etask(function*db2_get_c(){
   let tx = db.create_transaction('scroll2', 'readonly'), ret;
   let store = tx.tx.objectStore('scroll2');
   let cursor = yield db.cursor_open(store);
-  // XXX: optimize, just get data of scroll from DB
+  // XXX: optimize, use index to get scroll records
   for (; cursor; cursor = yield db.cursor_continue(cursor)){
     let o = cursor.value;
     if (o.scroll!=b2s(M))
@@ -998,7 +1066,7 @@ const cmd_eq = o=>etask(function*cmd_eq(){
   else if (Array.isArray(l) || Array.isArray(r))
     assert.deepEqual(l||[{}], r||[{}]);
   else
-    assert.deepEqual(l, r);
+    assert.deepEqual(b2s_obj(l), b2s_obj(r));
 });
 
 const test_run_single = (curr, o)=>etask(function*_test_run_single(){
@@ -2249,7 +2317,11 @@ describe('scroll', ()=>{
       describe('db_conflict', ()=>{
         t('decl', `s..scroll(db) #(db2_c)
           decl(1) c(M1=s..M1) flush #db2_c={0:0:M1}
-          decl(2) c(M2=s..M2) flush #db2_c={0:0:M2}`);
+          mem0={M0 sig0 D0 m0}
+          DB0={M0 sig0 D0 m0}
+          decl(2) c(M2=s..M2) flush #db2_c={0:0:M2}
+          DB1={M1 sig1 D1 m1 m0_1}
+        `);
         t('put', `s..scroll(d:1-10) S..scroll(s..M0 db) #(db2_c)
           tput(0 1 2 3 4          ) c(M4) flush #db2_c={0:0:M4}
           tput(0_1_2_3 4_5 6_7 8 9) c(M4 3t0.M9)

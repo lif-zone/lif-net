@@ -381,6 +381,7 @@ export default class Scroll extends EventEmitter {
     this.crypt = opt.crypt||Scroll.supported_crypt[0];
     assert.deepEqual(this.crypt, Scroll.supported_crypt[0], 'unsupported');
     this.prev_scroll = opt.prev_scroll;
+    this.top = null;
     this.dmap = new Map();
     this.conflict = new Map();
     this.conflict.next_id = 0;
@@ -388,10 +389,11 @@ export default class Scroll extends EventEmitter {
     this.merge_queue.get_one = Map_get_one;
     this.create_new_conflict();
   }
-  init(){ return etask({_: this}, function*scroll_init(){
+  init(opt={}){ return etask({_: this}, function*scroll_init(){
     let _this = this._;
-    if (_this.storage)
-      yield _this.storage.init({scroll: _this});
+    if (!_this.storage)
+      return;
+    yield _this.storage.init({scroll: _this, M: opt.M});
   }); }
   unload(){ // XXX HACK: quick implementation
     let M0 = this.M_hash(0, 0);
@@ -1370,14 +1372,14 @@ Scroll.open = opt=>etask(function*scroll_open(){
     [seq, h] = [0, s2b(opt.M)];
   else // XXX: support Uint8Array
     [seq, h] = Buffer.isBuffer(opt.M) ? [0, opt.M] : [opt.M.seq, opt.M.h];
+  assert(seq==0 || !opt.storage, 'open with seq>0 cannot use storage');
   assert(util.is_mocha() || seq==0, 'producion scroll must have M0');
-  let soul = opt.soul||Scroll.soul;
-  let scroll = seq==0 && soul.get(h);
+  assert(/^\d+$/.test(seq) && h, 'scroll.open missing M');
+  let soul = opt.soul||Scroll.soul, scroll = seq==0 && soul.get(h);
   if (scroll)
     return scroll;
   scroll = new Scroll(opt);
-  yield scroll.init();
-  assert(/^\d+$/.test(seq) && h, 'scroll.open missing M');
+  yield scroll.init({M: h});
   let decl = scroll.get_decl(seq);
   // XXX HACK: rm
   if (scroll.storage)

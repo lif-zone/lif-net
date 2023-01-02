@@ -3,6 +3,7 @@
 import assert from 'assert';
 import etask from '../util/etask.js';
 import xutil from '../util/util.js';
+import xerr from '../util/xerr.js';
 import buf_util from '../peer-relay/buf_util.js';
 import setGlobalVars from 'indexeddbshim';
 const b2s = buf_util.buf_to_str;
@@ -37,11 +38,16 @@ export default class Storage_handler {
     this.sp = etask(function*Storage_handler_sp(){ return this.wait(); });
   }
   init(opt){ return etask({_: this}, function*init(){
-    let _this = this._, db = _this.db;
+    let _this = this._, db = _this.db, M = opt.M;
     if (_this.inited)
       throw new Error('storage_handler already inited');
     _this.inited = true;
     let scroll = _this.scroll = opt.scroll;
+    assert.equal(scroll.top, null, 'scroll must be empty');
+    assert.equal(scroll.conflict.get(0).top, null, 'scroll must be empty');
+    if (M){
+      xerr.notice('XXX stub load M %s', b2s(M));
+    }
     scroll.on('conflict-removed', _this.on_conflict_removed);
     scroll.on('decl', decl=>{
       decl.M.on('hash', _this.on_decl_update);

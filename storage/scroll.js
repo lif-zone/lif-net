@@ -59,11 +59,14 @@ class Data extends EventEmitter {
   }
   copy(cdst, csrc){
     let fsrc = this.get(csrc);
+    if (fsrc.frames.length==1 && !fsrc.frames[0].h_rest)
+      return;
     let fdst = this.get(cdst);
     assert.equal(fsrc.map_info.cfid, csrc);
     assert.equal(fdst.map_info.cfid, cdst);
     // XXX: wrap with api in Frame_buffer
-    assert(!fdst.h && fdst.frames.length==1, 'already contain data');
+    assert(!fdst.h && fdst.frames.length==1 && !fdst.frames[0].h_rest,
+      'already contain data');
     fdst.h = fsrc.h;
     fdst.frames = fsrc.frames;
     this.cmap.delete(csrc);
@@ -798,9 +801,8 @@ export default class Scroll extends EventEmitter {
       type: real_conflict ? 'c' : 't'});
     if (c2.top.seq!=bseq && c1.top.seq!=bseq)
       return;
-    // merge
     // XXX: need more efficient way (just iterate on decl with data)
-    for (let i=c1.top.seq+1; i<=c2.top.seq; i++){
+    for (let i=c2.parent.seq+1; i<=c2.top.seq; i++){
       let src = _this.get_decl(i, {create: false});
       if (src)
         src.copy(i1, i2);
@@ -845,8 +847,15 @@ export default class Scroll extends EventEmitter {
       _this.conflict.get(src.parent?.cfid).conflicts.delete(src.cfid);
       src.parent.cfid = o.cfid;
     }
-    if (o.seq!==undefined)
+    if (o.seq!==undefined){
+      // XXX: need more efficient way (just iterate on decl with data)
+      for (let i=src.parent.seq+1; i<=o.seq; i++){
+        let decl = _this.get_decl(i, {create: false});
+        if (decl)
+          decl.copy(src.parent.cfid, src.cfid);
+      }
       src.parent.seq = o.seq;
+    }
     if (o.type!==undefined){
       assert(['t', 'c'].includes(o.type), 'invalid conflict type '+o.type);
       assert(o.cfid || src.parent?.type!='c' || o.type=='c',

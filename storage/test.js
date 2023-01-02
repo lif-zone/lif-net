@@ -641,6 +641,7 @@ function get_filter(s){
     switch (a[i]){
     case 'DB': break;
     case 'db2_c': break;
+    case 'mem': break;
     default: return;
     }
   }
@@ -2075,7 +2076,19 @@ describe('scroll', ()=>{
           tput(0_1_2_3 4_5 6    ) c(M2 1t0.M4 3t1.M6)
           tput(0_1_2_3 4_5_6_7 8) c(M2 1t0.M4 3t1.M6 3t2.M8)
           tput(0_1 2 3 4 5 6 7) c(M8)`);
-        t('v_d', `${s} S..scroll(s..M0)
+       t('t4_a_full', `${s} S..scroll(s..M0) #(mem)
+          tput(0 1 2 3 4          ) c(M4) #(mem0={m0 M0} mem1={m1 m0_1 M1}
+            mem2={m2 M2} mem3={m3 m2_3 m0_3 M3} mem4={m4 M4 sig4 D4})
+          tput(0_1_2_3 4_5 6_7 8 9) c(M4 3t0.M9) #(mem5={S.m4_5c1 S.M5c1}
+            mem7={S.m6_7c1 S.m4_7c1 S.m0_7c1 S.M7c1} mem8={S.m8c1 S.M8c1}
+            mem9={S.m9c1 S.m8_9c1 S.M9c1 S.D9c1 S.sig9c1})
+          tput(0_1_2_3 4 5 6      ) c(M9 5t0.M6) #(mem5={m5 M5 m4_5}
+            mem6={S.m6c2 S.M6c2 S.D6c2 S.sig6c2}
+            mem7={S.m6_7 S.m4_7 S.m0_7 S.M7} mem8={S.m8 S.M8}
+            mem9={S.m9 S.m8_9 S.M9 S.D9 S.sig9})
+          tput(0_1_2_3 4_5 6 7    ) c(M9) #(mem6={S.m6 S.M6 S.D6 S.sig6}
+            mem7={S.m7 S.m6_7 S.m4_7 S.m0_7 S.M7 S.D7 S.sig7})`);
+       t('v_d', `${s} S..scroll(s..M0)
           tput(0 1 2            ) c(M2)
           tput(0_1 2_3 4        ) c(M2 1t0.M4)
           tput(0_1_2_3 4_5 6    ) c(M2 1t0.M4 3t1.M6)
@@ -2352,11 +2365,11 @@ describe('scroll', ()=>{
             DB6={S.m6c2 S.M6c2 S.D6c2 S.sig6c2}
             DB7={S.m6_7 S.m4_7 S.m0_7 S.M7} DB8={S.m8 S.M8}
             DB9={S.m9 S.m8_9 S.M9 S.D9 S.sig9})
+          s.sig6=S.sig6c2
           tput(0_1_2_3 4_5 6 7    ) c(M9) flush #(db2_c={0:0:M9}
-            DB6={S.m6 S.M6}
+            DB6={S.m6 S.M6 S.D6 S.sig6}
             DB7={S.m7 S.m6_7 S.m4_7 S.m0_7 S.M7 S.D7 S.sig7}
           )
-        // XXX            DB6={S.m6 S.M6 S.D6 S.sig6}
         // XXX: verify we delete entries from db for deleted conflict
         `);
       });

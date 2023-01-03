@@ -1121,13 +1121,11 @@ class Decl extends EventEmitter {
   }
   m_hash(cfid, range){ return this.m_get(range).get_hash(cfid); }
   M_hash(cfid){ return this.M.get_hash(cfid); }
-  fbuf_get(cfid){
-    let _this = this;
-    return etask(function(){
-      // XXX: load data from db/net
-      return _this.fbuf_get_sync(cfid);
-    });
-  }
+  fbuf_get(cfid){ return etask({_: this}, function*fbuf_get(){
+    let _this = this._;
+    // XXX: load data from db/net
+    return _this.fbuf_get_sync(cfid);
+  }); }
   get_buf(opt){
     let _this = this;
     if (Number.isInteger(opt))

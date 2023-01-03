@@ -2387,7 +2387,8 @@ describe('scroll', ()=>{
         `);
       });
       describe('write', ()=>{
-        t('simple', `s..scroll(db) #(db2_c DB)
+        t('simple', `s..scroll(db) #(db2_c DB) c(M0=s..M0)
+          flush DB0={m0 M0 sig0 D0}
           decl(1) c(M1=s..M1) flush #(db2_c={0:0:M1} DB1={M1 sig1 D1 m1 m0_1})
           decl(2) c(M2=s..M2) flush #(db2_c={0:0:M2} DB2={M2 sig2 D2 m2})
         `);
@@ -2412,8 +2413,8 @@ describe('scroll', ()=>{
         t('simple', `conf(soul:manual)
           soul.s..scroll(db) decl(1-2) c(M2=s..M2) flush
           Soul.db_copy(soul) Soul.S..scroll(M0 db) S.c(M2) #(db2_c mem)
-          mem0={M0} !S.mem1 !S.mem2
-          S.load_c(0) # // XXX BUG: seq0 not loaded
+          mem0={m0 M0 sig0 D0} !S.mem1 !S.mem2
+          S.load_c(0) #
           load_c(1) #mem1={m1 m0_1 sig1 M1 D1}
           load_c(2) #mem2={m2 sig2 M2 D2}
           decl(3) flush #(mem3={m3:S..m3 m2_3 m0_3 sig3 M3 D3} db2_c={0:0:M3})

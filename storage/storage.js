@@ -44,8 +44,10 @@ export default class Storage_handler {
     let scroll = _this.scroll = opt.scroll;
     assert.equal(scroll.top, null, 'scroll must be empty');
     assert.equal(scroll.conflict.get(0).top, null, 'scroll must be empty');
-    if (M)
+    if (M){
       yield _this.load_conflict(M);
+      yield _this.load_cfid(scroll.get_decl(0), 0);
+    }
     scroll.on('conflict-removed', _this.on_conflict_removed);
     scroll.on('decl', decl=>{
       decl.M.on('hash', _this.on_decl_update);

@@ -37,7 +37,7 @@ export default class DB {
     _this.max_frame = opt.max_frame||DB.MAX_FRAME;
     _this.max_decl = opt.max_decl||DB.MAX_DECL;
     if (opt.delete)
-      _this.delete_db();
+      yield _this.delete_db();
     _this.db = yield idb.openDB('lif_db'+_this.postfix, undefined, {
       upgrade(db, oldVersion, newVersion, transaction, event){
         // XXX how to wait for creation of table and verify both are created
@@ -73,6 +73,50 @@ export default class DB {
     if (opt.delete)
       yield _this.delete_db();
     _this.inited = false;
+  });
+  copy = src=>etask({_: this}, function*copy(){
+    // XXX HACK: write it properly
+    let _this = this._;
+    assert(src.inited, 'src db not inited');
+    assert(_this.inited, 'db not inited');
+    let tx = _this.create_transaction(['scroll2', 'decl2'], 'readwrite');
+    let store = tx.tx.objectStore('scroll2');
+    for (let cursor = yield _this.cursor_open(store); cursor;
+      cursor = yield _this.cursor_continue(cursor))
+    {
+      cursor.delete();
+    }
+    store = tx.tx.objectStore('decl2');
+    for (let cursor = yield _this.cursor_open(store); cursor;
+      cursor = yield _this.cursor_continue(cursor))
+    {
+      cursor.delete();
+    }
+    yield tx;
+    let data_scroll = [], data_decl = [];
+    let tx2 = src.create_transaction(['scroll2', 'decl2'], 'readonly');
+    let store2 = tx2.tx.objectStore('scroll2');
+    for (let cursor = yield src.cursor_open(store2); cursor;
+      cursor = yield src.cursor_continue(cursor))
+    {
+      data_scroll.push(cursor.value);
+    }
+    tx2 = src.create_transaction(['scroll2', 'decl2'], 'readonly');
+    store2 = tx2.tx.objectStore('decl2');
+    for (let cursor = yield src.cursor_open(store2); cursor;
+      cursor = yield src.cursor_continue(cursor))
+    {
+      data_decl.push(cursor.value);
+    }
+    tx = _this.create_transaction(['scroll2', 'decl2'], 'readwrite');
+    store = tx.tx.objectStore('scroll2');
+    for (let i=0; i<data_scroll.length; i++)
+      yield _this.store_put(store, data_scroll[i]);
+    tx = _this.create_transaction(['scroll2', 'decl2'], 'readwrite');
+    store = tx.tx.objectStore('decl2');
+    for (let i=0; i<data_decl.length; i++)
+      yield _this.store_put(store, data_decl[i]);
+    yield tx;
   });
   db_get(name, key){
     let tx = this.db.transaction(name, 'readonly');

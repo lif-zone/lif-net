@@ -393,7 +393,7 @@ export default class Scroll extends EventEmitter {
     let _this = this._, {M, seq} = opt;
     assert(!M || seq==0 || !_this.storage, 'cannot use sotage if seq>0');
     if (_this.storage)
-      yield _this.storage.init({scroll: _this, M: opt.M});
+      yield _this.storage.init({scroll: _this, M: b2s(M)});
     if (!M)
       return;
     let decl = _this.get_decl(seq);
@@ -1022,12 +1022,12 @@ export default class Scroll extends EventEmitter {
     }
     return o;
   }
-  conflict_from_static(bs){
+  conflict_from_static(cs){
     assert(this.conflict.size==1 && this.top.seq==0,
       'cannot update conflict info after it was populated');
     let max_c = this.conflict.next_id||0, max_top;
-    for (let cfid in bs){
-      let o = bs[cfid], M = Buffer.from(o.top.M);
+    for (let cfid in cs){
+      let o = cs[cfid], M = Buffer.from(o.top.M);
       cfid = +cfid;
       max_c = Math.max(cfid, max_c);
       if (!max_top || max_top.seq<o.top.seq)
@@ -1042,6 +1042,33 @@ export default class Scroll extends EventEmitter {
     // NOW: add test to verify conflict.next_id and top are updated
     this.conflict.next_id = max_c+1;
     this.top = max_top;
+  }
+  conflict_from_static2(cs){
+    assert(this.conflict.size==1 && !this.top,
+      'cannot update conflict info after it was populated');
+    let max_c = this.conflict.next_id||0, max_top;
+    for (let cfid in cs){
+      let o = cs[cfid], M = Buffer.from(o.top.M);
+      cfid = +cfid;
+      max_c = Math.max(cfid, max_c);
+      if (!max_top || max_top.seq<o.top.seq)
+        max_top = {cfid, seq: o.top.seq, M};
+      let co = {cfid, top: {seq: o.top.seq, M: M},
+        parent: o.parent ? {cfid: o.parent.cfid, seq: o.parent.seq,
+          type: o.parent.type} : null, conflicts: new Map()};
+      this.conflict.set(cfid, co);
+
+    }
+    for (let cfid in cs){
+      cfid = +cfid;
+      let co = this.conflict.get(cfid);
+      if (co.parent) // XXX: do it after pupolate all
+        this.conflict.get(co.parent.cfid).conflicts.set(cfid, co);
+    }
+    // XXX add test to verify conflict.next_id and top are updated
+    this.conflict.next_id = max_c+1;
+    this.top = max_top;
+    // XXX: what about mergable etc.
   }
 }
 

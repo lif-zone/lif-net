@@ -441,6 +441,15 @@ const cmd_db_init = t=>etask(function*cmd_db_init(){
     postfix: scroll.soul.name});
 });
 
+const cmd_db_copy = t=>etask(function*cmd_db_copy(){
+  let d_sname = t.ctx, s_soul = t_soul[t.r];
+  assert(s_soul, 'src soul not found '+t.r);
+  let soul = t_soul[d_sname] = t_soul[d_sname] || new Soul({name: d_sname});
+  if (!soul.db.inited)
+    yield soul.db.init({delete: true, postfix: soul.name});
+  yield soul.db.copy(s_soul.db);
+});
+
 const new_scroll = (name, M, prev_scroll, sname, db_opt)=>etask(
   function*new_scroll(){
   let soul, scroll;
@@ -457,11 +466,13 @@ const new_scroll = (name, M, prev_scroll, sname, db_opt)=>etask(
     sname = 'same';
     soul = t_soul[sname] = t_soul[sname] || new Soul({name: sname});
   } else
-    assert.fail('invalid sould mode '+t_soul_mode);
+    assert.fail('invalid soul mode '+t_soul_mode);
   let storage;
   if (db_opt?.need_init){
-    yield soul.db.init({max_decl: db_opt.max_decl, max_frame: db_opt.max_frame,
-      delete: true, postfix: soul.name});
+    if (!soul.db.inited){
+      yield soul.db.init({max_decl: db_opt.max_decl,
+        max_frame: db_opt.max_frame, delete: true, postfix: soul.name});
+    }
     storage = new Storage_handler({db: soul.db});
   }
   if (M){
@@ -1101,6 +1112,7 @@ const test_run_single = (curr, o)=>etask(function*_test_run_single(){
   switch (o.cmd){
   case 'conf': yield cmd_conf(o); break;
   case 'db_init': yield cmd_db_init(o); break;
+  case 'db_copy': yield cmd_db_copy(o); break;
   case 'flush': yield cmd_flush(o); break;
   case 'scroll': yield cmd_scroll(o); break;
   case 'clone': yield cmd_clone(curr, o); break;
@@ -2354,11 +2366,11 @@ describe('scroll', ()=>{
         `);
       });
       describe('write', ()=>{
-        t('decl', `s..scroll(db) #(db2_c DB)
+        t('simple', `s..scroll(db) #(db2_c DB)
           decl(1) c(M1=s..M1) flush #(db2_c={0:0:M1} DB1={M1 sig1 D1 m1 m0_1})
           decl(2) c(M2=s..M2) flush #(db2_c={0:0:M2} DB2={M2 sig2 D2 m2})
         `);
-        t('put', `s..scroll(d:1-10) S..scroll(s..M0 db) #(db2_c DB)
+        t('conflict', `s..scroll(d:1-10) S..scroll(s..M0 db) #(db2_c DB)
           tput(0 1 2 3 4          ) c(M4) flush #(db2_c={0:0:M4}
             DB0={m0 M0} DB1={m1 m0_1 M1} DB2={m2 M2} DB3={m3 m2_3 m0_3 M3}
             DB4={m4 M4 sig4 D4})
@@ -2376,9 +2388,18 @@ describe('scroll', ()=>{
             DB7={S.m7 S.m6_7 S.m4_7 S.m0_7 S.M7 S.D7 S.sig7})`);
       });
       describe('read', ()=>{
-        t('decl', `s..scroll(db) decl(1-2) c(M2=s..M2) flush
-          S.scroll(M0 db)
-          // XXX WIP S.c(M2)
+        t('simple', `conf(soul:manual)
+          soul.s..scroll(db) decl(1-2) c(M2=s..M2) flush
+          Soul.db_copy(soul) Soul.S..scroll(M0 db) S.c(M2) #(db2_c)
+// XXX TODO          decl(3) #
+        `);
+        t('conflict', `conf(soul:manual)
+          soul.s..scroll(d:1-10) Soul.S..scroll(s..M0 db) #(db2_c)
+          tput(0 1 2 3 4          ) c(M4)
+          tput(0_1_2_3 4_5 6_7 8 9) c(M4 3t0.M9)
+          flush #(db2_c={0:0:M4 1:1:3t0.M9})
+          Soul2.db_copy(Soul) Soul2.S2..scroll(M0 db) S2.c(M4 3t0.M9)
+// XXX TODO: finish test
         `);
       });
     });

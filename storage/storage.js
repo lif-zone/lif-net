@@ -3,10 +3,9 @@
 import assert from 'assert';
 import etask from '../util/etask.js';
 import xutil from '../util/util.js';
-import xerr from '../util/xerr.js';
 import buf_util from '../peer-relay/buf_util.js';
 import setGlobalVars from 'indexeddbshim';
-const b2s = buf_util.buf_to_str;
+const b2s = buf_util.buf_to_str, s2b = buf_util.buf_from_str;
 setGlobalVars();
 
 /* XXX: design
@@ -45,9 +44,8 @@ export default class Storage_handler {
     let scroll = _this.scroll = opt.scroll;
     assert.equal(scroll.top, null, 'scroll must be empty');
     assert.equal(scroll.conflict.get(0).top, null, 'scroll must be empty');
-    if (M){
-      xerr.notice('XXX stub load M %s', b2s(M));
-    }
+    if (M)
+      yield _this.load_conflict(M);
     scroll.on('conflict-removed', _this.on_conflict_removed);
     scroll.on('decl', decl=>{
       decl.M.on('hash', _this.on_decl_update);
@@ -167,6 +165,39 @@ export default class Storage_handler {
     if (this.db_wakeup)
       this.db_wakeup.continue();
   }
+  load_conflict(M){ return etask({_: this}, function*load_conflict(){
+    let _this = this._, scroll = _this.scroll;
+    assert.equal(scroll.top, null, 'scroll must be empty');
+    assert.equal(scroll.conflict.get(0).top, null, 'scroll must be empty');
+    let c = yield _this.load_conflict_static(M);
+    if (!c)
+      return;
+    yield scroll.conflict_from_static2(c);
+    for (let cfid in c){ // XXX: verify test fails without this part
+      cfid = +cfid;
+      scroll.conflict.get(cfid).db = c[cfid].db;
+    }
+  }); }
+  load_conflict_static(M){ return etask({_: this},
+    function*load_conflict_static()
+  {
+    let _this = this._, db = _this.db, ret;
+    let tx = db.create_transaction('scroll2', 'readonly');
+    let index = tx.tx.objectStore('scroll2').index('scroll');
+    let query = IDBKeyRange.only(M);
+    let cursor = yield db.cursor_open(index, query);
+    for (; cursor; cursor = yield db.cursor_continue(cursor)){
+      ret = ret||{};
+      let data = db.fix_struct(cursor.value);
+      let {cfid, top, split} = data;
+      // XXX: do some sanity on valeus, throw error is invalid
+      ret[cfid] = {cfid, top: {seq: top.seq, M: s2b(top.M)},
+        db: {data}};
+      if (split)
+        ret[cfid].parent = split[0];
+    }
+    return ret;
+  }); }
 }
 
 // XXX: need test
@@ -193,6 +224,8 @@ function conflict_eq(data, data2){ return xutil.equal_deep(data, data2); }
 // 1. need to lock scroll/db so only one is doing changes at the same time
 //    (and decide when need to lock read during update operations)
 //    review _this.wait
+//    and make sure that when we read data from db, it's only after
+//    flush/no-lock
 // 2. begin_update/end_update for scroll.decl and verify if other places we
 //    update data
 // 3. this.sp
@@ -216,3 +249,7 @@ function conflict_eq(data, data2){ return xutil.equal_deep(data, data2); }
 // 20. change decl table to include also scroll name
 //     (for easy delete of scorll)
 // 21. review all possible errors and handle properly
+// 22. fix cursor api so no need to use db.cursor_continue
+// 23. wait for success on db.init
+// 24. conflict_from_static2 -> conflict_from_static
+// 25. conflict_from_static --> update mergable and friends

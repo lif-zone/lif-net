@@ -215,3 +215,4 @@ function conflict_eq(data, data2){ return xutil.equal_deep(data, data2); }
 // 19. rm xxx_db_old_to_new
 // 20. change decl table to include also scroll name
 //     (for easy delete of scorll)
+// 21. review all possible errors and handle properly

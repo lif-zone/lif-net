@@ -1025,13 +1025,11 @@ const db_get_c = (db, M)=>etask(function*db_get_c(){
 
 const db2_get_c = (db, M)=>etask(function*db2_get_c(){
   let tx = db.create_transaction('scroll2', 'readonly'), ret;
-  let store = tx.tx.objectStore('scroll2');
-  let cursor = yield db.cursor_open(store);
-  // XXX: optimize, use index to get scroll records
+  let index = tx.tx.objectStore('scroll2').index('scroll');
+  let query = IDBKeyRange.only(b2s(M));
+  let cursor = yield db.cursor_open(index, query);
   for (; cursor; cursor = yield db.cursor_continue(cursor)){
     let o = db.fix_struct(cursor.value);
-    if (o.scroll!=b2s(M))
-      continue;
     ret = ret||{};
     ret[o.scfid] = {cfid: o.cfid, top: {seq: o.top.seq, M: s2b(o.top.M)}};
     // XXX: need assert to check ret of split array is correct

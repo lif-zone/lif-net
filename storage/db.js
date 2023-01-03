@@ -47,6 +47,8 @@ export default class DB {
         db.createObjectStore('decl', {keyPath: ['scroll', 'seq']});
         db.createObjectStore('data', {keyPath: 'h'});
         let scroll2 = db.createObjectStore('scroll2', {keyPath: 'scfid'});
+        // XXX: do we need both 'scroll' and 'scroll-scfid' indexes?
+        scroll2.createIndex('scroll', 'scroll');
         scroll2.createIndex('scroll-cfid', ['scroll', 'cfid'], {unique: true});
         let decl2 = db.createObjectStore('decl2', {keyPath: ['scfid', 'seq']});
         decl2.createIndex('scfid', 'scfid');

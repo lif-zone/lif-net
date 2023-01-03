@@ -390,10 +390,19 @@ export default class Scroll extends EventEmitter {
     this.create_new_conflict();
   }
   init(opt={}){ return etask({_: this}, function*scroll_init(){
-    let _this = this._;
-    if (!_this.storage)
+    let _this = this._, {M, seq} = opt;
+    assert(!M || seq==0 || !_this.storage, 'cannot use sotage if seq>0');
+    if (_this.storage)
+      yield _this.storage.init({scroll: _this, M: opt.M});
+    if (!M)
       return;
-    yield _this.storage.init({scroll: _this, M: opt.M});
+    let decl = _this.get_decl(seq);
+    // XXX: do the below only if storage (if there is storage, we load it)
+    if (_this.storage)
+      yield _this.storage.begin_update();
+    decl.M.set_hash(0, M);
+    if (_this.storage)
+      yield _this.storage.end_update();
   }); }
   unload(){ // XXX HACK: quick implementation
     let M0 = this.M_hash(0, 0);
@@ -1379,14 +1388,7 @@ Scroll.open = opt=>etask(function*scroll_open(){
   if (scroll)
     return scroll;
   scroll = new Scroll(opt);
-  yield scroll.init({M: h});
-  let decl = scroll.get_decl(seq);
-  // XXX HACK: rm
-  if (scroll.storage)
-    yield scroll.storage.begin_update();
-  decl.M.set_hash(0, h);
-  if (scroll.storage)
-    yield scroll.storage.end_update();
+  yield scroll.init({M: h, seq});
   return scroll;
 });
 

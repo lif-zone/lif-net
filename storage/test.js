@@ -655,6 +655,7 @@ function get_filter(s){
     case 'DB': break;
     case 'db2_c': break;
     case 'mem': break;
+    case 'mem_c': break;
     default: return;
     }
   }
@@ -723,6 +724,11 @@ const cmd_state = (curr, t)=>etask(function*cmd_state(){
     state.db_c = yield db_get_c(scroll.soul.db, scroll.M_hash(0, 0));
     state.db2_c = yield db2_get_c(scroll.soul.db, scroll.M_hash(0, 0));
     state.db_data = yield db_get_db_data(scroll.soul.db);
+  } else {
+    state.DB = {};
+    state.db_c = {};
+    state.db2_c = {};
+    state.db_data = {};
   }
   state = fix_buf(state);
   if (!t_state[name]){
@@ -2235,19 +2241,13 @@ describe('scroll', ()=>{
           #(mem0={M0 sig0 D0 m0} mem1={M1 sig1 D1 m1 m0_1} mem_c=0:M1)
           mem.unload #(mem0={M0} !mem1 mem_c=0:M0)`);
       });
-      describe('db_put', ()=>{
-        t('one_soul', `s.scroll S..clone(s.. db) #
-          db.put_decl(seq0) #db0={M0 sig0 D0 m0}
-          db.put_conflict #db_c=0:M0
-          mem.unload #mem0={M0}
-          db.get_decl(seq0) #mem0={M0 sig0 D0 m0}`);
-        t('two_soul', `conf(soul:manual) soul_s.s.scroll(db)
-          soul_S.S.clone(s.. db) S.# s.#
-          S.db.put_decl(seq0) S.#db0={M0 sig0 D0 m0} s.#
-          S.db.put_conflict S.#db_c=0:M0 s.#
-          s.db.put_conflict S.# s.#db_c=0:M0
-          S.mem.unload S.#mem0={M0} s.#
-          S.db.get_decl(seq0) S.#mem0={M0 sig0 D0 m0} s.#`);
+      describe('db_put', ()=>{ // XXX: rename
+        t('one_soul', `s.#(db2_c DB) s..scroll(db) c(M0=s..M0)
+          flush #(db2_c={0:0:M0} DB0={M0 sig0 D0 m0})`);
+        t('two_soul', `conf(soul:manual) soul.s.scroll(db) S.#(db2_c DB)
+          Soul.S.clone(s.. db) S.flush S.#(db2_c={0:0:M0} DB0={M0 sig0 D0 m0})
+          Soul2.db_copy(Soul) S2.#(mem mem_c)
+          Soul2.S2..scroll(M0 db) #(mem_c={0:M0} mem0={M0 sig0 D0 m0})`);
         t('b0_seq1_normal', `s.scroll(d:1) S..clone(s.. db) #
           db.put_decl(seq0) #db0={M0 sig0 D0 m0}
           db.put_decl(seq1) #db1={M1 sig1 D1 m1 m0_1}

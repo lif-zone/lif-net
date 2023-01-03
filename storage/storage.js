@@ -198,6 +198,35 @@ export default class Storage_handler {
     }
     return ret;
   }); }
+  load_cfid(decl, cfid){
+    assert.equal(decl.scroll, this.scroll, 'differnt decl scroll');
+    let scfid = this.scroll.conflict.get(cfid).db?.data.scfid;
+    if (!Number.isInteger(scfid))
+      return;
+    if (decl.db?.cfid[cfid]){
+      if (!decl.db.cfid[cfid].busy)
+        return;
+      return etask(function*load_cfid_wait(){ // XXX: is there better way
+        yield this.wait_ext(decl.db.cfid[cfid].busy); });
+    }
+    decl.db = decl.db||{cfid: {}};
+    decl.db.cfid[cfid] = {};
+    decl.db.cfid[cfid].busy = etask({_: this}, function*load_cfid(){
+      let _this = this._, db = _this.db;
+      this.on('finally', ()=>decl.db.cfid[cfid].busy = null);
+      let tx = db.create_transaction('decl2', 'readonly');
+      let data = yield db.store_get(tx.tx.objectStore('decl2'),
+        [scfid, decl.seq]);
+      if (!data)
+        return;
+      assert.equal(scfid, _this.scroll.conflict.get(cfid).db?.data.scfid,
+        'scfid was already deleted'); // XXX: make sure this can never happen
+      // XXX: need to handle emits on data change
+      data = db.fix_struct(data);
+      decl.from_static_cfid(cfid, data);
+    });
+    return decl.db.cfid[cfid].busy;
+  }
 }
 
 // XXX: need test
@@ -253,3 +282,4 @@ function conflict_eq(data, data2){ return xutil.equal_deep(data, data2); }
 // 23. wait for success on db.init
 // 24. conflict_from_static2 -> conflict_from_static
 // 25. conflict_from_static --> update mergable and friends
+// 26. review fbuf_load_async/regular usage

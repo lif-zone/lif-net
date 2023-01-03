@@ -855,6 +855,13 @@ const cmd_unload = (curr, t)=>etask(function cmd_unload(){
   scroll.unload();
 });
 
+const cmd_load_c = t=>etask(function*cmd_load_c(){
+  let name = t.ctx||get_def('left'), scroll = get_scroll(name);
+  let {seq, cfid} = parse_cfid_seq(t.r);
+  let decl = yield scroll.get_decl(seq);
+  yield decl.load(cfid);
+});
+
 const cmd_test = t=>etask(function*cmd_test(){
   let name = t.ctx||get_def('left'), scroll = get_scroll(name);
   let tested = {};
@@ -908,6 +915,14 @@ const cmd_test = t=>etask(function*cmd_test(){
     }
   }
 });
+
+function parse_cfid_seq(s){
+  let m = s.match(/^(\d+)(([c])(\d+))?$/);
+  assert(m, 'invalid cfid_seq');
+  let seq = +m[1];
+  let cfid = +m[4]||0;
+  return {seq, cfid};
+}
 
 function parse_conflict(s){
   let m = s.match(/^([^=]+)=([^=]+)$/);
@@ -1123,6 +1138,7 @@ const test_run_single = (curr, o)=>etask(function*_test_run_single(){
   case 'put_decl': yield cmd_put_decl(curr, o); break;
   case 'get_decl': yield cmd_get_decl(curr, o); break;
   case 'unload': yield cmd_unload(curr, o); break;
+  case 'load_c': yield cmd_load_c(o); break;
   case 'tput': yield cmd_tput(curr, o); break;
   case '#': yield cmd_state(curr, o); break;
   case '=': yield cmd_eq(o); break;
@@ -1234,6 +1250,11 @@ describe('test_util', ()=>{
     t('s2..d0', 'd 0 0 s2 def');
     t('s2..m0_1c10', 'm 0_1 10 s2 def');
     // XXX: test db_c, db_data
+  });
+  it('parse_cfid_seq', ()=>{
+    const t = (val, exp)=>assert.deepEqual(parse_cfid_seq(val), exp);
+    t('1', {seq: 1, cfid: 0});
+    t('1c2', {seq: 1, cfid: 2});
   });
   it('parse_conflict', ()=>{
     const t = (val, exp)=>assert.deepEqual(parse_conflict(val), exp);
@@ -2390,8 +2411,12 @@ describe('scroll', ()=>{
       describe('read', ()=>{
         t('simple', `conf(soul:manual)
           soul.s..scroll(db) decl(1-2) c(M2=s..M2) flush
-          Soul.db_copy(soul) Soul.S..scroll(M0 db) S.c(M2) #(db2_c)
-// XXX TODO          decl(3) #
+          Soul.db_copy(soul) Soul.S..scroll(M0 db) S.c(M2) #(db2_c mem)
+          mem0={M0} !S.mem1 !S.mem2
+          S.load_c(0) # // XXX BUG: seq0 not loaded
+          load_c(1) #mem1={m1 m0_1 sig1 M1 D1}
+          load_c(2) #mem2={m2 sig2 M2 D2}
+          decl(3) flush #(mem3={m3:S..m3 m2_3 m0_3 sig3 M3 D3} db2_c={0:0:M3})
         `);
         t('conflict', `conf(soul:manual)
           soul.s..scroll(d:1-10) Soul.S..scroll(s..M0 db) #(db2_c)

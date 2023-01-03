@@ -1297,6 +1297,21 @@ class Decl extends EventEmitter {
     for (const cfid in o.D)
       this.fbuf_get_sync(+cfid).set_frames(o.D[cfid]);
   }
+  from_static_cfid(cfid, o){
+    this.M.set_hash(cfid, o.M);
+    for (const i in o.m){
+      let m = o.m[i];
+      this.m_get([+i, this.seq]).set_hash(cfid, m);
+    }
+    if (o.D)
+      this.fbuf_get_sync(cfid).set_frames(o.D);
+  }
+  load(cfid){ return etask({_: this}, function*load(){
+    let _this = this._;
+    if (!_this.scroll.storage)
+      return;
+    return yield _this.scroll.storage.load_cfid(_this, cfid);
+  }); }
 }
 
 class Merkel_node extends EventEmitter {

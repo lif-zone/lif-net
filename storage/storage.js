@@ -48,14 +48,9 @@ export default class Storage_handler {
       yield _this.load_conflict(M);
       yield _this.load_cfid(scroll.get_decl(0), 0);
     }
+    _this.on_decl(scroll.get_decl(0));
     scroll.on('conflict-removed', _this.on_conflict_removed);
-    scroll.on('decl', decl=>{
-      decl.M.on('hash', _this.on_decl_update);
-      for (let i=0; i<decl.m.length; i++)
-        decl.m[i].on('hash', _this.on_decl_update);
-      decl.data.on('hash', _this.on_decl_update);
-      decl.data.on('data', _this.on_decl_update);
-    });
+    scroll.on('decl', _this.on_decl);
     // XXX: 1. run in a worker 2. abort transcation on error
     _this.sp.spawn(etask(function*db_updater(){
       while (true){
@@ -114,6 +109,13 @@ export default class Storage_handler {
       return;
     this.queue_del = this.queue_del||[];
     this.queue_del.push({scfid: e.o.db.data.scfid});
+  };
+  on_decl = decl=>{
+    decl.M.on('hash', this.on_decl_update);
+    for (let i=0; i<decl.m.length; i++)
+      decl.m[i].on('hash', this.on_decl_update);
+    decl.data.on('hash', this.on_decl_update);
+    decl.data.on('data', this.on_decl_update);
   };
   on_decl_update = e=>{
     assert(e.cfid!==undefined, 'missing cfid in event');
@@ -202,7 +204,7 @@ export default class Storage_handler {
   }); }
   load_cfid(decl, cfid){
     assert.equal(decl.scroll, this.scroll, 'differnt decl scroll');
-    let scfid = this.scroll.conflict.get(cfid).db?.data.scfid;
+    let scfid = this.scroll.conflict.get(cfid)?.db?.data.scfid;
     if (!Number.isInteger(scfid))
       return;
     if (decl.db?.cfid[cfid]){

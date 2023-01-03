@@ -150,8 +150,10 @@ const struct_from_db2 = (scroll, seq)=>etask(function*struct_from_db2(){
     let o = yield db.store_get(store, [scfid, seq]);
     if (o)
       ret[cfid] = o;
-    assert.equal(o.scfid, scfid, 'missing scfid seq'+seq);
-    delete o.scfid;
+    if (o){
+      assert.equal(o?.scfid, scfid, 'missing scfid seq'+seq);
+      delete o.scfid;
+    }
   }
   return ret;
 });
@@ -2393,8 +2395,8 @@ describe('scroll', ()=>{
           decl(2) c(M2=s..M2) flush #(db2_c={0:0:M2} DB2={M2 sig2 D2 m2})
         `);
         t('conflict', `s..scroll(d:1-10) S..scroll(s..M0 db) #(db2_c DB)
-          tput(0 1 2 3 4          ) c(M4) flush #(db2_c={0:0:M4}
-            DB0={m0 M0} DB1={m1 m0_1 M1} DB2={m2 M2} DB3={m3 m2_3 m0_3 M3}
+          tput(0 1 2 3 4          ) c(M4) flush #(db2_c={0:0:M4} DB0={m0 M0}
+            DB1={m1 m0_1 M1} DB2={m2 M2} DB3={m3 m2_3 m0_3 M3}
             DB4={m4 M4 sig4 D4})
           tput(0_1_2_3 4_5 6_7 8 9) c(M4 3t0.M9)
             flush #(db2_c={0:0:M4 1:1:3t0.M9} DB5={S.m4_5c1 S.M5c1}
@@ -2413,7 +2415,7 @@ describe('scroll', ()=>{
         t('simple', `conf(soul:manual)
           soul.s..scroll(db) decl(1-2) c(M2=s..M2) flush
           Soul.db_copy(soul) Soul.S..scroll(M0 db) S.c(M2) #(db2_c mem)
-          mem0={m0 M0 sig0 D0} !S.mem1 !S.mem2
+          mem0={m0 M0 sig0 D0} !mem1 !mem2
           S.load_c(0) #
           load_c(1) #mem1={m1 m0_1 sig1 M1 D1}
           load_c(2) #mem2={m2 sig2 M2 D2}
@@ -2424,7 +2426,11 @@ describe('scroll', ()=>{
           tput(0 1 2 3 4          ) c(M4)
           tput(0_1_2_3 4_5 6_7 8 9) c(M4 3t0.M9)
           flush #(db2_c={0:0:M4 1:1:3t0.M9})
-          Soul2.db_copy(Soul) Soul2.S2..scroll(M0 db) S2.c(M4 3t0.M9)
+          Soul2.db_copy(Soul) Soul2.S2..scroll(M0 db) c(M4 3t0.M9)
+          #(db2_c mem)
+          mem0={M0 m0} !mem1 !mem2 !mem3 !mem4 !mem5 !mem6 !mem7 !mem8 !mem9
+          load_c(4) #mem4={m4 M4 sig4 D4}
+          load_c(5c1) #mem5={S.m4_5c1 S.M5c1}
 // XXX TODO: finish test
         `);
       });

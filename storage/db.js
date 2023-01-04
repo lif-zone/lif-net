@@ -294,13 +294,6 @@ export default class DB {
   });
 }
 
-function normalize_error(e){
-  // XXX: indexeddbshim use ShimDOMException on node. need to check browser
-  if (e.debug instanceof global.ShimDOMException)
-    return e.debug;
-  return e;
-}
-
 function store_add(store, val){
   store = idb.unwrap(store);
   let wait = etask.wait();
@@ -341,7 +334,7 @@ function create_transaction(db, store_names, mode, options){
   let wait = etask.wait();
   wait.tx = db.transaction(store_names, mode, options);
   wait.tx.oncomplete = wrap_cb(e=>wait.continue(e));
-  wait.tx.onerror = wrap_cb(e=>wait.throw(normalize_error(e)));
+  wait.tx.onerror = wrap_cb(e=>wait.throw('create_transaction '+e));
   return wait;
 }
 

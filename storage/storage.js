@@ -2,6 +2,7 @@
 'use strict';
 import assert from 'assert';
 import etask from '../util/etask.js';
+import xerr from '../util/xerr.js';
 import xutil from '../util/util.js';
 import buf_util from '../peer-relay/buf_util.js';
 import setGlobalVars from 'indexeddbshim';
@@ -54,46 +55,54 @@ export default class Storage_handler {
     // XXX: 1. run in a worker 2. abort transcation on error
     _this.sp.spawn(etask(function*db_updater(){
       while (true){
-        if (!_this.db_queue.length)
-          yield _this.db_wakeup = etask.wait();
-        _this.db_wakeup = null;
-        let blob = {};
-        let {queue, queue_del, queue_decl} = _this.db_queue.shift();
-        let tx = db.create_transaction(['scroll2', 'decl2'], 'readwrite');
-        let store = tx.tx.objectStore('scroll2');
-        let store2 = tx.tx.objectStore('decl2');
-        let index2 = store2.index('scfid');
-        for (let i=0; i<queue.length; i++)
-          yield db.store_put(store, queue[i].data);
-        for (let i=0; i<queue_del?.length; i++){
-          let scfid = queue_del[i].scfid;
-          yield db.store_delete(store, scfid);
-          // XXX: wrap in api
-          let query = IDBKeyRange.only(scfid);
-          for (let cursor = yield db.cursor_open(index2, query); cursor;
-            cursor = yield db.cursor_continue(cursor))
-          {
-            cursor.delete();
+        try {
+          if (!_this.db_queue.length)
+            yield _this.db_wakeup = etask.wait();
+          _this.db_wakeup = null;
+          let blob = {};
+          let {queue, queue_del, queue_decl} = _this.db_queue[0];
+          let tx = db.create_transaction(['scroll2', 'decl2'], 'readwrite');
+          let store = tx.tx.objectStore('scroll2');
+          let store2 = tx.tx.objectStore('decl2');
+          let index2 = store2.index('scfid');
+          for (let i=0; i<queue.length; i++)
+            yield db.store_put(store, queue[i].data);
+          // XXX: this should be first
+          for (let i=0; i<queue_del?.length; i++){
+            let scfid = queue_del[i].scfid;
+            yield db.store_delete(store, scfid);
+            // XXX: wrap in api
+            let query = IDBKeyRange.only(scfid);
+            for (let cursor = yield db.cursor_open(index2, query); cursor;
+              cursor = yield db.cursor_continue(cursor))
+            {
+              cursor.delete();
+            }
           }
-        }
-        for (let seq in queue_decl){
-          seq = +seq;
-          for (let cfid in queue_decl[seq]){
-            cfid = +cfid;
-            // XXX: WIP
-            if (!scroll.conflict.get(cfid)) // XXX: TODO (branch deleted)
-              continue;
-            if (!scroll.conflict.get(cfid).db) // XXX: TODO
-              continue;
-            let decl = yield scroll.get_decl(seq);
-            let o = decl.to_static_cfid(cfid, {max_decl: _this.max_decl,
-              max_frame: _this.max_frame, blob});
-            yield db.store_put(store2, o);
+          for (let seq in queue_decl){
+            seq = +seq;
+            for (let cfid in queue_decl[seq]){
+              cfid = +cfid;
+              // XXX: WIP
+              if (!scroll.conflict.get(cfid)) // XXX: TODO (branch deleted)
+                continue;
+              if (!scroll.conflict.get(cfid).db) // XXX: TODO
+                continue;
+              let decl = yield scroll.get_decl(seq);
+              let o = decl.to_static_cfid(cfid, {max_decl: _this.max_decl,
+                max_frame: _this.max_frame, blob});
+              yield db.store_put(store2, o);
+            }
           }
+          // XXX: save blob
+          yield tx;
+          _this.db_queue.shift();
+          yield etask.sleep(0);
         }
-        // XXX: save blob
-        yield tx;
-        yield etask.sleep(0);
+        catch(err){ // XXX: decide how to handle
+          assert.fail('error '+(err?.message||err));
+          // throw err;
+        }
       }
     }));
   }); }
@@ -118,11 +127,14 @@ export default class Storage_handler {
     decl.data.on('data', this.on_decl_update);
   };
   on_decl_update = e=>{
+    // XXX: enable once old db code is removed
+    // assert(this.busy, 'on_decl_update while not in update');
     assert(e.cfid!==undefined, 'missing cfid in event');
     assert(e.seq>=0, 'invalid seq in event');
     this.queue_decl = this.queue_decl||{};
     this.queue_decl[e.seq] = this.queue_decl[e.seq]||{};
     this.queue_decl[e.seq][e.cfid] = true;
+    xerr.notice('XXX queue_decl %s', e.seq);
   };
   flush(){ return etask({_: this}, function*flush(){
     let _this = this._;

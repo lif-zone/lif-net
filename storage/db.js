@@ -9,6 +9,13 @@ import setGlobalVars from 'indexeddbshim';
 const b2s = buf_util.buf_to_str;
 setGlobalVars();
 
+function wrap_cb(cb){
+  return function(){
+    try { return cb.apply(this, arguments); }
+    catch(err){ xerr.xexit(err); }
+  };
+}
+
 /* XXX: design
 scrolls = [ // KEYPATH scfid. INDEX scroll, cfid
   {scfid: 0, scroll: '4817AB', cfid: 0},
@@ -144,17 +151,18 @@ export default class DB {
     let wait = etask.wait();
     store = idb.unwrap(store);
     let req = store.openCursor(query, dir);
-    req.onerror = e=>wait.throw(e);
-    req.onsuccess = e=>{
+    req.onerror = wrap_cb(e=>wait.throw(new Error('cursor_open '+e)));
+    req.onsuccess = wrap_cb(e=>{
       let cursor = e.target.result;
       wait.continue(cursor);
-    };
+    });
     return wait;
   }
   cursor_continue(cursor){
     let wait = etask.wait();
-    cursor.request.onsuccess = e=>wait.continue(e.target.result);
-    cursor.request.onerror = e=>wait.throw(e);
+    cursor.request.onsuccess = wrap_cb(e=>wait.continue(e.target.result));
+    cursor.request.onerror = wrap_cb(
+      e=>wait.throw(new Error('cursor_continue '+e)));
     cursor.continue();
     return wait;
   }
@@ -297,8 +305,8 @@ function store_add(store, val){
   store = idb.unwrap(store);
   let wait = etask.wait();
   let req = store.add(val);
-  req.onsuccess = e=>wait.continue();
-  req.onerror = e=>wait.throw(normalize_error(e));
+  req.onsuccess = wrap_cb(e=>wait.continue());
+  req.onerror = wrap_cb(e=>wait.throw(new Error(store.__name+': '+req.error)));
   return wait;
 }
 
@@ -306,8 +314,8 @@ function store_put(store, val){
   store = idb.unwrap(store);
   let wait = etask.wait();
   let req = store.put(val);
-  req.onsuccess = e=>wait.continue();
-  req.onerror = e=>wait.throw(normalize_error(e));
+  req.onsuccess = wrap_cb(e=>wait.continue());
+  req.onerror = wrap_cb(e=>wait.throw(new Error(req.error)));
   return wait;
 }
 
@@ -315,8 +323,8 @@ function store_get(store, val){
   store = idb.unwrap(store);
   let wait = etask.wait();
   let req = store.get(val);
-  req.onsuccess = e=>wait.continue(req.result);
-  req.onerror = e=>wait.throw(normalize_error(e));
+  req.onsuccess = wrap_cb(e=>wait.continue(req.result));
+  req.onerror = wrap_cb(e=>wait.throw(new Error(store.__name+': '+req.error)));
   return wait;
 }
 
@@ -324,16 +332,16 @@ function store_delete(store, key){
   store = idb.unwrap(store);
   let wait = etask.wait();
   let req = store.delete(key);
-  req.onsuccess = e=>wait.continue(req.result);
-  req.onerror = e=>wait.throw(normalize_error(e));
+  req.onsuccess = wrap_cb(e=>wait.continue(req.result));
+  req.onerror = wrap_cb(e=>wait.throw(new Error(store.__name+': '+req.error)));
   return wait;
 }
 
 function create_transaction(db, store_names, mode, options){
   let wait = etask.wait();
   wait.tx = db.transaction(store_names, mode, options);
-  wait.tx.oncomplete = e=>wait.continue(e);
-  wait.tx.onerror = e=>wait.throw(normalize_error(e));
+  wait.tx.oncomplete = wrap_cb(e=>wait.continue(e));
+  wait.tx.onerror = wrap_cb(e=>wait.throw(normalize_error(e)));
   return wait;
 }
 

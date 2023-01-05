@@ -1075,8 +1075,11 @@ class Decl extends EventEmitter {
   sign(cfid){
     let scroll = this.scroll, d = this.fbuf_get_sync(cfid).get_hash();
     assert(scroll.key, 'cannot sign without key');
-    let buf = this.seq ? Buffer.concat([d, scroll.M_hash(cfid, this.seq-1)])
-      : scroll.prev_scroll ? Buffer.concat([d, scroll.prev_scroll]) : d;
+    let M_prev = this.seq ? scroll.M_hash(cfid, this.seq-1) :
+      scroll.prev_scroll;
+    if (this.seq && !M_prev)
+      throw new Error('cannot decl without prev M'+(this.seq-1));
+    let buf = M_prev ? Buffer.concat([d, M_prev]) : d;
     let sig = crypto.sign(crypto.blake2b(buf), scroll.key);
     this.sig_set(cfid, sig);
   }

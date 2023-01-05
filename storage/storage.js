@@ -2,7 +2,6 @@
 'use strict';
 import assert from 'assert';
 import etask from '../util/etask.js';
-import xerr from '../util/xerr.js';
 import xutil from '../util/util.js';
 import buf_util from '../peer-relay/buf_util.js';
 const b2s = buf_util.buf_to_str, s2b = buf_util.buf_from_str;
@@ -63,9 +62,6 @@ export default class Storage_handler {
           let store = tx.tx.objectStore('scroll2');
           let store2 = tx.tx.objectStore('decl2');
           let index2 = store2.index('scfid');
-          for (let i=0; i<queue.length; i++)
-            yield db.store_put(store, queue[i].data);
-          // XXX: this should be first
           for (let i=0; i<queue_del?.length; i++){
             let scfid = queue_del[i].scfid;
             yield db.store_delete(store, scfid);
@@ -77,6 +73,8 @@ export default class Storage_handler {
               cursor.delete();
             }
           }
+          for (let i=0; i<queue.length; i++)
+            yield db.store_put(store, queue[i].data);
           for (let seq in queue_decl){
             seq = +seq;
             for (let cfid in queue_decl[seq]){
@@ -130,7 +128,6 @@ export default class Storage_handler {
     this.queue_decl = this.queue_decl||{};
     this.queue_decl[e.seq] = this.queue_decl[e.seq]||{};
     this.queue_decl[e.seq][e.cfid] = true;
-    xerr.notice('XXX queue_decl %s', e.seq);
   };
   flush(){ return etask({_: this}, function*flush(){
     let _this = this._;

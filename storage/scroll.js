@@ -397,12 +397,8 @@ export default class Scroll extends EventEmitter {
     if (!M)
       return;
     let decl = _this.get_decl(seq);
-    // XXX: do the below only if storage (if there is storage, we load it)
-    if (_this.storage)
-      yield _this.storage.begin_update();
-    decl.M.set_hash(0, M);
-    if (_this.storage)
-      yield _this.storage.end_update();
+    if (!decl.M.get_hash(0))
+      decl.M.set_hash(0, M);
   }); }
   unload(){ // XXX HACK: quick implementation
     let M0 = this.M_hash(0, 0);

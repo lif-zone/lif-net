@@ -2285,44 +2285,20 @@ describe('scroll', ()=>{
           load_c(3) #mem3={M3 sig3 D3 m3 m2_3 m0_3}
           load_c(2) #mem2={M2 sig2 D2 m2}
           load_c(1) #mem1={M1 sig1 D1 m1 m0_1}`);
-        if (0) // XXX WIP
-        t('c1', `s0.scroll(d:1-6) s1..scroll(s0..M0)
-          tput(0 1 2 3 4    )
-          tput(0_1_2_3 4_5 6)
-          flush
-          s1.c(M4=s0.M4 3t0.M6=s0.M6)
-          S..clone(s1.. db)
-          s1.c(M4=s1.M4 3t0.M6=s0.M6)
-          S.c(M4=s1.M4 3t0.M6=s0.M6)
-          // XXX: mv to clone test. need tests for clone with conflict and
-          // verify clone is correct
-          mem0={M0 m0}
-          mem1={M1 m1 m0_1}
-          mem2={M2 m2}
-          mem3={M3 m3 m2_3 m0_3}
-          mem4={M4 m4 sig4 D4}
-          mem5={M5c1 m4_5c1}
-          mem6={M6c1 m6c1 sig6c1 D6c1} #
-          db.put_conflict #db_c={0:M4=s1.M4 1:3t0.M6=s0.M6}
-          db_c(0:M4=s1.M4 1:3t0.M6=s0.M6)
-          db.put_decl(seq0) #db0={M0 m0}
-          db.put_decl(seq1) #db1={M1 m1 m0_1}
-          db.put_decl(seq2) #db2={M2 m2}
-          db.put_decl(seq3) #db3={M3 m3 m2_3 m0_3}
-          db.put_decl(seq4) #db4={M4 m4 sig4 D4}
-          db.put_decl(seq5) #db5={M5c1 m4_5c1}
-          db.put_decl(seq6) #db6={M6c1 m6c1 sig6c1 D6c1}
-          mem.unload #(mem0={M0} !mem1 !mem2 !mem3 !mem4 !mem5 !mem6
-            mem_c=0:M0)
-          db.get_conflict #mem_c={0:M4 1:3t0.M6=s0.M6}
-          db.get_decl(seq0) #mem0={M0 m0}
-          db.get_decl(seq1) #mem1={M1 m1 m0_1}
-          db.get_decl(seq2) #mem2={M2 m2}
-          db.get_decl(seq3) #mem3={M3 m3 m2_3 m0_3}
-          db.get_decl(seq4) #mem4={M4 m4 sig4 D4}
-          db.get_decl(seq5) #mem5={M5c1 m4_5c1}
-          db.get_decl(seq6) #mem6={M6c1 m6c1 sig6c1 D6c1}
-          c(M4=s1.M4 3t0.M6=s0.M6)`);
+        t('c1', `s0.scroll(d:1-6) s1..scroll(s0..M0) tput(0 1 2 3 4    )
+          tput(0_1_2_3 4_5 6) S.#(db2_c DB)
+          S..clone(s1.. db) flush #(db2_c={0:0:M4 1:1:3t0.M6=s0.M6}
+            DB0={M0 m0} DB1={M1 m1 m0_1} DB2={M2 m2} DB3={M3 m3 m2_3 m0_3}
+            DB4={M4 sig4 D4 m4} DB5={M5c1 m4_5c1} DB6={M6c1 sig6c1 D6c1 m6c1})
+          Soul2.db_copy(S.soul) S2.#(mem mem_c)
+          Soul2.S2..scroll(M0 db) #(mem_c={0:M4 1:3t0.M6=s0.M6} mem0={M0 m0})
+          load_c(1) #mem1={M1 m1 m0_1} load_c(1c1) #
+          load_c(2) #mem2={M2 m2} load_c(2c1) #
+          load_c(3) #mem3={M3 m3 m2_3 m0_3} load_c(3c1) #
+          load_c(4) #mem4={M4 sig4 D4 m4} load_c(4c1) #
+          load_c(5) # load_c(5c1) #mem5={M5c1 m4_5c1}
+          load_c(6) # load_c(6c1) #mem6={M6c1 sig6c1 D6c1 m6c1}
+          load_c(7) # load_c(7c1) #`);
 // XXX NOW how to handle conflict merge (c in db is wrong now) + add tests
 // XXX NOW need dirty flag to know what needs to be saved to db; also for blob
 // XXX NOW: need transaction support for put_decl (otherwise we may leave

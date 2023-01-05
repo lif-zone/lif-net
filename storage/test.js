@@ -172,7 +172,7 @@ function parse_var(v){
   v = m ? m[3] : v;
   if (['db2_c', 'db_data', 'mem_c'].includes(v))
     return {type: v, ctx, def};
-  if (m = v.match(/^(sig|m|M|d|D|mem|db|DB)((\d+)|((\d+)_(\d+)))(c(\d+))?$/)){
+  if (m = v.match(/^(sig|m|M|d|D|mem|DB)((\d+)|((\d+)_(\d+)))(c(\d+))?$/)){
     let type = m[1], range = r_from_str(m[2]), seq = range[1];
     let cfid = m[8] ? +m[8] : 0;
     assert(type=='m' || range[0]==range[1], 'invalid range '+v);
@@ -604,7 +604,7 @@ function state_split_var(v, def){
   let name = o.ctx||def||get_def('left');
   if (['db2_c', 'db_data', 'mem_c'].includes(type))
     return {name, type};
-  assert(['mem', 'db', 'DB'].includes(type), 'invalid type '+type);
+  assert(['mem', 'DB'].includes(type), 'invalid type '+type);
   assert.equal(cfid, '0', 'invalid conflict usage');
   return {name, type, seq};
 }
@@ -708,8 +708,6 @@ const cmd_state = (curr, t)=>etask(function*cmd_state(){
     assert_b2s_obj(state.db2_c, t_state[name].db2_c,
       'db2 conflict state mismach '+t.meta.s);
   }
-  if (!t_state.filter || t_state.filter.includes('db'))
-    assert_b2s_obj(state.db, t_state[name].db, 'db state mismach '+t.meta.s);
   // XXX: fix to use the below if once old db code is removed
   // if (!t_state.filter || t_state.filter.includes('DB'))
   if (t_state.filter && t_state.filter.includes('DB'))

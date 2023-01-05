@@ -693,7 +693,6 @@ const cmd_state = (curr, t)=>etask(function*cmd_state(){
   }
   for (let curr=t.r; curr = tparser.parse_get_next(curr);)
     state_apply(t_state[name], yield state_split(curr.exp, name));
-  // XXX: need assert_state
   if (!t_state.filter || t_state.filter.includes('mem_c')){
     assert_b2s_obj(state.mem_c, t_state[name].mem_c,
       'mem conflict state mismach '+t.meta.s);
@@ -702,15 +701,11 @@ const cmd_state = (curr, t)=>etask(function*cmd_state(){
     assert_b2s_obj(state.mem, t_state[name].mem,
       'mem state mismach '+t.meta.s);
   }
-  // XXX: fix to use the below if once old db code is removed
-  // if (!t_state.filter || t_state.filter.includes('db2_c')){
-  if (t_state.filter && t_state.filter.includes('db2_c')){
+  if (!t_state.filter || t_state.filter.includes('db2_c')){
     assert_b2s_obj(state.db2_c, t_state[name].db2_c,
       'db2 conflict state mismach '+t.meta.s);
   }
-  // XXX: fix to use the below if once old db code is removed
-  // if (!t_state.filter || t_state.filter.includes('DB'))
-  if (t_state.filter && t_state.filter.includes('DB'))
+  if (!t_state.filter || t_state.filter.includes('DB'))
     assert_b2s_obj(state.DB, t_state[name].DB, 'DB state mismach '+t.meta.s);
   if (!t_state.filter || t_state.filter.includes('db_data')){
     assert_b2s_obj(state.db_data, t_state[name].db_data,

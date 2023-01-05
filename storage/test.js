@@ -2262,35 +2262,29 @@ describe('scroll', ()=>{
           flush #(db2_c={0:0:M1} DB0={M0 sig0 D0 m0} DB1={M1 sig1 D1 m1 m0_1})
           Soul2.db_copy(S.soul) S2.#(mem mem_c)
           Soul2.S2..scroll(M0 db) #(mem_c={0:M1} mem0={M0 sig0 D0 m0})
-          load_c(1) #mem1={m1 m0_1 sig1 M1 D1} load_c(2) #`);
-        t('b0_seq4_normal', `s.scroll(d:1-4) S..clone(s.. db) #
-          db.put_decl(seq0) #db0={M0 sig0 D0 m0}
-          db.put_decl(seq1) #db1={M1 sig1 D1 m1 m0_1}
-          db.put_decl(seq2) #db2={M2 sig2 D2 m2}
-          db.put_decl(seq3) #db3={M3 sig3 D3 m3 m2_3 m0_3}
-          db.put_decl(seq4) #db4={M4 sig4 D4 m4}
-          db.put_conflict #db_c=0:M4
-          mem.unload #(mem0={M0} !mem1 !mem2 !mem3 !mem4 mem_c=0:M0)
-          db.get_conflict #mem_c=0:M4
-          db.get_decl(seq0) #mem0={M0 sig0 D0 m0}
-          db.get_decl(seq1) #mem1={M1 sig1 D1 m1 m0_1}
-          db.get_decl(seq2) #mem2={M2 sig2 D2 m2}
-          db.get_decl(seq3) #mem3={M3 sig3 D3 m3 m2_3 m0_3}
-          db.get_decl(seq4) #mem4={M4 sig4 D4 m4}`);
-        t('b0_seq4_rev', `s.scroll(d:1-4) S..clone(s.. db) #
-          db.put_decl(seq0) #db0={M0 sig0 D0 m0}
-          db.put_decl(seq1) #db1={M1 sig1 D1 m1 m0_1}
-          db.put_decl(seq2) #db2={M2 sig2 D2 m2}
-          db.put_decl(seq3) #db3={M3 sig3 D3 m3 m2_3 m0_3}
-          db.put_decl(seq4) #db4={M4 sig4 D4 m4}
-          db.put_conflict #db_c=0:M4
-          mem.unload #(mem0={M0} !mem1 !mem2 !mem3 !mem4 mem_c=0:M0)
-          db.get_conflict #mem_c=0:M4
-          db.get_decl(seq4) #mem4={M4 sig4 D4 m4}
-          db.get_decl(seq3) #mem3={M3 sig3 D3 m3 m2_3 m0_3}
-          db.get_decl(seq2) #mem2={M2 sig2 D2 m2}
-          db.get_decl(seq1) #mem1={M1 sig1 D1 m1 m0_1}
-          db.get_decl(seq0) #mem0={M0 sig0 D0 m0}`);
+          load_c(1) #mem1={M1 sig1 D1 m1 m0_1} load_c(2) #`);
+        t('b0_seq4_normal', `s.scroll(d:1-4) S.#(db2_c DB) S..clone(s.. db)
+          flush #(db2_c={0:0:M4} DB0={M0 sig0 D0 m0} DB1={M1 sig1 D1 m1 m0_1}
+            DB2={M2 sig2 D2 m2} DB3={M3 sig3 D3 m3 m2_3 m0_3}
+            DB4={M4 sig4 D4 m4})
+          Soul2.db_copy(S.soul) S2.#(mem mem_c)
+          Soul2.S2..scroll(M0 db) #(mem_c={0:M4} mem0={M0 sig0 D0 m0})
+          load_c(1) #mem1={M1 sig1 D1 m1 m0_1}
+          load_c(2) #mem2={M2 sig2 D2 m2}
+          load_c(3) #mem3={M3 sig3 D3 m3 m2_3 m0_3}
+          load_c(4) #mem4={M4 sig4 D4 m4}
+          load_c(5) #`);
+        t('b0_seq4_rev', `s.scroll(d:1-4) S.#(db2_c DB) S..clone(s.. db)
+          flush #(db2_c={0:0:M4} DB0={M0 sig0 D0 m0} DB1={M1 sig1 D1 m1 m0_1}
+            DB2={M2 sig2 D2 m2} DB3={M3 sig3 D3 m3 m2_3 m0_3}
+            DB4={M4 sig4 D4 m4})
+          Soul2.db_copy(S.soul) S2.#(mem mem_c)
+          Soul2.S2..scroll(M0 db) #(mem_c={0:M4} mem0={M0 sig0 D0 m0})
+          load_c(5) #
+          load_c(4) #mem4={M4 sig4 D4 m4}
+          load_c(3) #mem3={M3 sig3 D3 m3 m2_3 m0_3}
+          load_c(2) #mem2={M2 sig2 D2 m2}
+          load_c(1) #mem1={M1 sig1 D1 m1 m0_1}`);
         if (0) // XXX WIP
         t('c1', `s0.scroll(d:1-6) s1..scroll(s0..M0)
           tput(0 1 2 3 4    )

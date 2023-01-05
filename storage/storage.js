@@ -21,7 +21,9 @@ decls = [ // KEYPATH scfig, seq
   {scfid: 1, seq: 3, M: M3b1, m: {0: m0_1, 1: m1}},
     D: [{sig}, {buf, h}, ...]}
 ];
-blob = // XXX: add scfid array so we can purge scroll
+blob = [ // KEYPATH h
+  {h, buf, scfid: [1]},
+];
 */
 
 export default class Storage_handler {

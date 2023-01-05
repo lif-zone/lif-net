@@ -2217,7 +2217,7 @@ describe('scroll', ()=>{
         t('simple', `s..scroll(db) #(db2_c db) c(M0=s..M0)
           flush #db0={m0 M0 sig0 D0}
           decl(1) c(M1=s..M1) flush #(db2_c={0:0:M1} db1={M1 sig1 D1 m1 m0_1})
-//          decl(2) c(M2=s..M2) flush #(db2_c={0:0:M2} db2={M2 sig2 D2 m2})`);
+          decl(2) c(M2=s..M2) flush #(db2_c={0:0:M2} db2={M2 sig2 D2 m2})`);
         t('conflict', `s..scroll(d:1-10) S..scroll(s..M0 db) #(db2_c db)
           tput(0 1 2 3 4          ) c(M4) flush #(db2_c={0:0:M4} db0={m0 M0}
             db1={m1 m0_1 M1} db2={m2 M2} db3={m3 m2_3 m0_3 M3}

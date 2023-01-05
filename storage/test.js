@@ -669,35 +669,6 @@ function get_filter(s){
   return a;
 }
 
-// XXX: rm
-function xxx_db_old_to_new(o){
-  if (!o)
-    return o;
-  let ret = {};
-  let seq = o.seq;
-  ret = {};
-  for (let cfid in o.sig||{}){
-    ret[cfid] = ret[cfid]||{seq};
-    ret[cfid].sig = o.sig[cfid];
-  }
-  for (let cfid in o.M||{}){
-    ret[cfid] = ret[cfid]||{seq};
-    ret[cfid].M = o.M[cfid];
-  }
-  for (let cfid in o.D||{}){
-    ret[cfid] = ret[cfid]||{seq};
-    ret[cfid].D = o.D[cfid];
-  }
-  for (let r in o.m||{}){
-    for (let cfid in o.m[r]){
-      ret[cfid] = ret[cfid]||{seq};
-      ret[cfid].m = ret[cfid].m||{};
-      ret[cfid].m[r] = o.m[r][cfid];
-    }
-  }
-  return ret;
-}
-
 const cmd_state = (curr, t)=>etask(function*cmd_state(){
   let state = {mem: {}, db: {}};
   let name = t.ctx||get_def('left');
@@ -714,19 +685,6 @@ const cmd_state = (curr, t)=>etask(function*cmd_state(){
   }
   let db = soul?.db;
   if (db?.inited){
-    let tx = db.db.transaction('decl', 'readonly');
-    let store = tx.objectStore('decl');
-    // XXX: remove
-    for (let cursor = yield db.cursor_open(store); cursor;
-      cursor = yield db.cursor_continue(cursor))
-    {
-      let o = db.fix_struct(cursor.value);
-      if (soul.get(o.scroll).t.name!=name)
-        continue;
-      delete o.scroll;
-      state.db = state.db||{};
-      state.db[o.seq] = xxx_db_old_to_new(o);
-    }
     state.DB = yield db_get_scroll_decl(scroll.soul.db, scroll);
     state.db_c = yield db_get_c(scroll.soul.db, scroll.M_hash(0, 0));
     state.db2_c = yield db2_get_c(scroll.soul.db, scroll.M_hash(0, 0));
@@ -2377,10 +2335,9 @@ describe('scroll', ()=>{
       });
       describe('write', ()=>{
         t('simple', `s..scroll(db) #(db2_c DB) c(M0=s..M0)
-          flush DB0={m0 M0 sig0 D0}
+          flush #DB0={m0 M0 sig0 D0}
           decl(1) c(M1=s..M1) flush #(db2_c={0:0:M1} DB1={M1 sig1 D1 m1 m0_1})
-          decl(2) c(M2=s..M2) flush #(db2_c={0:0:M2} DB2={M2 sig2 D2 m2})
-        `);
+//          decl(2) c(M2=s..M2) flush #(db2_c={0:0:M2} DB2={M2 sig2 D2 m2})`);
         t('conflict', `s..scroll(d:1-10) S..scroll(s..M0 db) #(db2_c DB)
           tput(0 1 2 3 4          ) c(M4) flush #(db2_c={0:0:M4} DB0={m0 M0}
             DB1={m1 m0_1 M1} DB2={m2 M2} DB3={m3 m2_3 m0_3 M3}

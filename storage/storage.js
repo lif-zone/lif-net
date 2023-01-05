@@ -331,3 +331,5 @@ function conflict_eq(data, data2){ return xutil.equal_deep(data, data2); }
 // 27. verify behavior of loading data that was declared in memory and not yet
 //     flushed
 // 28. verify we don't queue stuff during load from db
+// 29. test read/write with multiple tables and verify no scfid confusion and
+//     scfid_next is loaded correctly

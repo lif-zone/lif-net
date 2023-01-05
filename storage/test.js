@@ -877,7 +877,8 @@ const cmd_unload = (curr, t)=>etask(function cmd_unload(){
 const cmd_load_c = t=>etask(function*cmd_load_c(){
   let name = t.ctx||get_def('left'), scroll = get_scroll(name), o, data;
   for (let curr=t.r; curr = tparser.parse_get_next(curr);){
-    switch (curr.exp){
+    switch (curr.exp)
+    {
     case 'data': data = true; break;
     default: o = parse_cfid_seq(curr.exp);
     }
@@ -1001,14 +1002,13 @@ const get_static_db_data = exp=>etask(function*get_static_db_data(){
 });
 
 const db_get_db_data = db=>etask(function*db_get_db_data(){
-  let ret;
+  let ret = {};
   let tx = db.db.transaction('data', 'readonly');
   let store = tx.objectStore('data');
   // XXX: optimize, just get data of scroll from DB
   for (let cursor = yield db.cursor_open(store); cursor;
     cursor = yield db.cursor_continue(cursor))
   {
-    ret = ret ||{};
     assert.equal(cursor.key, b2s(cursor.value.h));
     ret[cursor.key] = b2s(Buffer.from(cursor.value.buf));
   }
@@ -2280,7 +2280,7 @@ describe('scroll', ()=>{
           load_c(3) #mem3={M3 sig3 D3 m3 m2_3 m0_3}
           load_c(4) #mem4={M4 sig4 D4 m4}
           load_c(5) #`);
-        t('b0_seq4_rev', `s.scroll(d:1-4) S.#(db2_c DB) S..clone(s.. db)
+        t('b0_seq4_rev', `s.scroll(d:1-4) S..#(db2_c DB) clone(s.. db)
           flush #(db2_c={0:0:M4} DB0={M0 sig0 D0 m0} DB1={M1 sig1 D1 m1 m0_1}
             DB2={M2 sig2 D2 m2} DB3={M3 sig3 D3 m3 m2_3 m0_3}
             DB4={M4 sig4 D4 m4})
@@ -2292,8 +2292,8 @@ describe('scroll', ()=>{
           load_c(2) #mem2={M2 sig2 D2 m2}
           load_c(1) #mem1={M1 sig1 D1 m1 m0_1}`);
         t('c1', `s0.scroll(d:1-6) s1..scroll(s0..M0) tput(0 1 2 3 4    )
-          tput(0_1_2_3 4_5 6) S.#(db2_c DB)
-          S..clone(s1.. db) flush #(db2_c={0:0:M4 1:1:3t0.M6=s0.M6}
+          tput(0_1_2_3 4_5 6) S..#(db2_c DB)
+          clone(s1.. db) flush #(db2_c={0:0:M4 1:1:3t0.M6=s0.M6}
             DB0={M0 m0} DB1={M1 m1 m0_1} DB2={M2 m2} DB3={M3 m3 m2_3 m0_3}
             DB4={M4 sig4 D4 m4} DB5={M5c1 m4_5c1} DB6={M6c1 sig6c1 D6c1 m6c1})
           Soul2.db_copy(S.soul) S2.#(mem mem_c)
@@ -2311,58 +2311,68 @@ describe('scroll', ()=>{
 // the db corrupted if there was a merge)
       });
       describe('db_data', ()=>{
-        t('no_split', `s.scroll s.decl(data:32KB)
-          S..clone(s.. db(max_decl:60KB max_frame:32KB)) #
-          db.put_decl(seq1) #db1={M1 sig1 D1 m1 m0_1}
-          mem.unload #(mem0={M0} !mem1 mem_c=0:M0)
-          db.get_decl(seq1) #(mem1={M1 sig1 D1 m1 m0_1} mem_c=0:M1)
-          db.get_decl(seq1 data) #mem1={M1 sig1 D1 m1 m0_1}
-        `);
-        t('split', `s.scroll s.decl(data:33KB) S.#(DB db_data)
-          S..clone(s.. db(max_decl:60KB max_frame:32KB)) flush
+        t('no_split', `s.scroll s.decl(data:32KB) S..#(DB db_data)
+          clone(s.. db(max_decl:60KB max_frame:32KB)) flush
+          #(DB0={M0 sig0 D0 m0} DB1={M1 sig1 D1 m1 m0_1})
+          Soul2.db_copy(S.soul) S2.#(mem mem_c)
+          Soul2.S2..scroll(M0 db) #(mem_c={0:M1} mem0={M0 sig0 D0 m0})
+          load_c(1) #mem1={M1 sig1 D1 m1 m0_1}
+          load_c(1 data) #`);
+        t('split_load_first', `s.scroll s.decl(data:33KB) S..#(DB db_data)
+          clone(s.. db(max_decl:60KB max_frame:32KB)) flush
+          #(DB0={M0 sig0 D0 m0} DB1={M1 sig1 D1:[D1F0 D1F1 D1f2] m1 m0_1}
+            db_data=D1F2)
+          Soul2.db_copy(S.soul) S2.#(mem mem_c)
+          Soul2.S2..scroll(M0 db) #(mem_c={0:M1} mem0={M0 sig0 D0 m0})
+          load_c(1 data) #mem1={M1 sig1 D1 m1 m0_1}
+          load_c(1) # load_c(1 data) #`);
+        t('split_load_late', `s.scroll s.decl(data:33KB) S..#(DB db_data)
+          clone(s.. db(max_decl:60KB max_frame:32KB)) flush
           #(DB0={M0 sig0 D0 m0} DB1={M1 sig1 D1:[D1F0 D1F1 D1f2] m1 m0_1}
             db_data=D1F2)
           Soul2.db_copy(S.soul) S2.#(mem mem_c)
           Soul2.S2..scroll(M0 db) #(mem_c={0:M1} mem0={M0 sig0 D0 m0})
           load_c(1) #mem1={M1 sig1 D1:[D1F0 D1F1 D1f2] m1 m0_1}
-          load_c(1 data) #mem1={M1 sig1 D1 m1 m0_1}`);
-        return; // XXX WIP
+          load_c(1 data) #mem1={M1 sig1 D1 m1 m0_1}
+          load_c(1 data) #`);
         t('split_max_decl_1', `s.scroll s.decl(data(33KB 28KB))
-          S..clone(s.. db(max_decl:60KB max_frame:32KB)) #
-          db.put_decl(seq1) #(db1={M1 sig1 D1:[D1F0 D1F1 D1f2 D1F3] m1 m0_1}
+          S..#(DB db_data)
+          clone(s.. db(max_decl:60KB max_frame:32KB)) flush
+          #(DB0={M0 sig0 D0 m0} DB1={M1 sig1 D1:[D1F0 D1F1 D1f2 D1F3] m1 m0_1}
             db_data=D1F2)
-          mem.unload #(mem0={M0} !mem1 mem_c=0:M0)
-          db.get_decl(seq1) #(mem1={M1 sig1 D1:[D1F0 D1F1 D1f2 D1F3] m1 m0_1}
-            mem_c=0:M1)
-          db.get_decl(seq1 data) #mem1={M1 sig1 D1 m1 m0_1}`);
+          Soul2.db_copy(S.soul) S2.#(mem mem_c)
+          Soul2.S2..scroll(M0 db) #(mem_c={0:M1} mem0={M0 sig0 D0 m0})
+          load_c(1) #mem1={M1 sig1 D1:[D1F0 D1F1 D1f2 D1F3] m1 m0_1}
+          load_c(1 data) #mem1={M1 sig1 D1 m1 m0_1}
+          load_c(1 data) #`);
         t('split_max_decl_2', `s.scroll s.decl(data(32KB 29KB))
-          S..clone(s.. db(max_decl:60KB max_frame:32KB)) #
-          db.put_decl(seq1) #(db1={M1 sig1 D1:[D1F0 D1F1 D1F2 D1f3] m1 m0_1}
+          S..#(DB db_data) clone(s.. db(max_decl:60KB max_frame:32KB)) flush
+          #(DB0={M0 sig0 D0 m0} DB1={M1 sig1 D1:[D1F0 D1F1 D1F2 D1f3] m1 m0_1}
             db_data=D1F3)
-          mem.unload #(mem0={M0} !mem1 mem_c=0:M0)
-          db.get_decl(seq1) #(mem1={M1 sig1 D1:[D1F0 D1F1 D1F2 D1f3] m1 m0_1}
-            mem_c=0:M1)
-          db.get_decl(seq1 data) #mem1={M1 sig1 D1 m1 m0_1}`);
+          Soul2.db_copy(S.soul) S2.#(mem mem_c)
+          Soul2.S2..scroll(M0 db) #(mem_c={0:M1} mem0={M0 sig0 D0 m0})
+          load_c(1) #mem1={M1 sig1 D1:[D1F0 D1F1 D1F2 D1f3] m1 m0_1}
+          load_c(1 data) #mem1={M1 sig1 D1 m1 m0_1}
+          load_c(1 data) #`);
         t('split_max_decl_3', `s.scroll s.decl(data(33KB 33KB))
-          S..clone(s.. db(max_decl:60KB max_frame:32KB)) #
-          db.put_decl(seq1) #(db1={M1 sig1 D1:[D1F0 D1F1 D1f2 D1f3] m1 m0_1}
+          S..#(DB db_data) clone(s.. db(max_decl:60KB max_frame:32KB)) flush
+          #(DB0={M0 sig0 D0 m0} DB1={M1 sig1 D1:[D1F0 D1F1 D1f2 D1f3] m1 m0_1}
             db_data={D1F2 D1F3})
-          mem.unload #(mem0={M0} !mem1 mem_c=0:M0)
-          db.get_decl(seq1) #(mem1={M1 sig1 D1:[D1F0 D1F1 D1f2 D1f3] m1 m0_1}
-            mem_c=0:M1)
-          db.get_decl(seq1 data) #mem1={M1 sig1 D1 m1 m0_1}`);
+          Soul2.db_copy(S.soul) S2.#(mem mem_c)
+          Soul2.S2..scroll(M0 db) #(mem_c={0:M1} mem0={M0 sig0 D0 m0})
+          load_c(1) #mem1={M1 sig1 D1:[D1F0 D1F1 D1f2 D1f3] m1 m0_1}
+          load_c(1 data) #mem1={M1 sig1 D1 m1 m0_1}
+          load_c(1 data) #`);
         t('split_multi', `s.scroll s.decl(data:33KB) s.decl(data:33KB)
-          S..clone(s.. db(max_decl:60KB max_frame:32KB)) #
-          db.put_decl(seq1) #(db1={M1 sig1 D1:[D1F0 D1F1 D1f2] m1 m0_1}
-            db_data=D1F2)
-          db.put_decl(seq2) #(db2={M2 sig2 D2:[D2F0 D2F1 D2f2] m2}
-            db_data={D1F2 D2F2})
-          mem.unload #(mem0={M0} !mem1 !mem2 mem_c=0:M0)
-          db.get_decl(seq1) #(mem1={M1 sig1 D1:[D1F0 D1F1 D1f2] m1 m0_1}
-            mem_c=0:M1)
-          db.get_decl(seq2) #(mem2={M2 sig2 D2:[D2F0 D2F1 D2f2] m2} mem_c=0:M2)
-          db.get_decl(seq1 data) #mem1={M1 sig1 D1 m1 m0_1}
-          db.get_decl(seq2 data) #mem2={M2 sig2 D2 m2}
+          S..#(DB db_data) clone(s.. db(max_decl:60KB max_frame:32KB)) flush
+          #(DB0={M0 sig0 D0 m0} DB1={M1 sig1 D1:[D1F0 D1F1 D1f2] m1 m0_1}
+            DB2={M2 sig2 D2:[D2F0 D2F1 D2f2] m2} db_data={D1F2 D2F2})
+          Soul2.db_copy(S.soul) S2.#(mem mem_c)
+          Soul2.S2..scroll(M0 db) #(mem_c={0:M2} mem0={M0 sig0 D0 m0})
+          load_c(1) #mem1={M1 sig1 D1:[D1F0 D1F1 D1f2] m1 m0_1}
+          load_c(1 data) #mem1={M1 sig1 D1 m1 m0_1}
+          load_c(2) #mem2={M2 sig2 D2:[D2F0 D2F1 D2f2] m2}
+          load_c(2 data) #mem2={M2 sig2 D2 m2}
         `);
       });
       describe('write', ()=>{
@@ -2408,8 +2418,9 @@ describe('scroll', ()=>{
           mem0={M0 m0} !mem1 !mem2 !mem3 !mem4 !mem5 !mem6 !mem7 !mem8 !mem9
           load_c(4) #mem4={m4 M4 sig4 D4}
           load_c(5c1) #mem5={S.m4_5c1 S.M5c1}
-// XXX TODO: finish test
         `);
+        // XXX: add more complex tests (multiple scrolls with multiple scfids
+        // and decl/put to scorll after loading from db
       });
     });
   });

@@ -128,16 +128,6 @@ const struct_from_str = exp=>etask(function*struct_from_str(){
   return ret;
 });
 
-// XXX obsolete, rm
-const struct_from_db = (scroll, seq)=>etask(function*struct_from_db(){
-  let o = yield scroll.soul.db.get_decl_static(scroll, seq);
-  if (!o)
-    return null;
-  assert.equal(o.scroll, scroll.name, 'scroll name mismatch');
-  delete o.scroll; // XXX HACK: test it as well
-  return o;
-});
-
 const struct_from_db2 = (scroll, seq)=>etask(function*struct_from_db2(){
   let db_c = yield db2_get_c(scroll.soul.db, scroll.name);
   let db = scroll.soul.db, tx = db.create_transaction('decl2', 'readonly');
@@ -348,7 +338,6 @@ const get_val = (exp, def_type='right')=>etask(function*_get_val(){
   // XXX: do we need calc_m?
   case 'm': return r0==seq ? scroll.m_hash(cfid, seq) :
     cfid ? scroll.m_hash(cfid, o.range) : calc_m(scroll, o.range);
-  case 'db': return yield struct_from_db(scroll, seq);
   case 'DB': return yield struct_from_db2(scroll, seq);
   case 'mem':
     return yield struct_from_decl(scroll.get_decl(seq, {create: false}));
@@ -769,46 +758,6 @@ const cmd_put = (curr, t)=>etask(function*cmd_put(){
   assert_no_corruption(scroll);
 });
 
-const cmd_put_decl = (curr, t)=>etask(function*cmd_put_decl(){
-  assert(t.ctx=='db', 'missing db prefix');
-  let name = t.prev?.ctx||get_def('left'), scroll = get_scroll(name), seq;
-  for (let curr=t.r; curr = tparser.parse_get_next(curr);){
-    let tt = tparser.parse_exp_arg(curr.exp), m;
-    switch (tt.cmd){
-    default:
-      if (m = tt.cmd.match(/^seq(\d+)$/)){
-        assert.equal(seq, undefined, 'XXX TODO');
-        seq = +m[1];
-        break;
-      }
-      assert.fail('invalid arg '+tt.cmd+' in '+t.meta.s);
-    }
-  }
-  assert(seq>=0, 'invalid seq '+seq);
-  yield scroll.soul.db.put_decl(scroll, seq);
-});
-
-const cmd_get_decl = (curr, t)=>etask(function*cmd_get_decl(){
-  assert(t.ctx=='db', 'missing db prefix');
-  let name = t.prev?.ctx||get_def('left'), scroll = get_scroll(name), seq;
-  let data;
-  for (let curr=t.r; curr = tparser.parse_get_next(curr);){
-    let tt = tparser.parse_exp_arg(curr.exp), m;
-    switch (tt.cmd){
-    case 'data': data = true; break;
-    default:
-      if (m = tt.cmd.match(/^seq(\d+)$/)){
-        assert.equal(seq, undefined, 'XXX TODO');
-        seq = +m[1];
-        break;
-      }
-      assert.fail('invalid arg '+tt.cmd+' in '+t.meta.s);
-    }
-  }
-  assert(seq>=0, 'invalid seq '+seq);
-  yield scroll.soul.db.get_decl(scroll, {seq, data});
-});
-
 // XXX: rm api
 const cmd_unload = (curr, t)=>etask(function cmd_unload(){
   assert(t.ctx=='mem', 'missing mem prefix');
@@ -1101,8 +1050,6 @@ const test_run_single = (curr, o)=>etask(function*_test_run_single(){
   case 'clone': yield cmd_clone(curr, o); break;
   case 'decl': yield cmd_decl(o); break;
   case 'put': yield cmd_put(curr, o); break;
-  case 'put_decl': yield cmd_put_decl(curr, o); break;
-  case 'get_decl': yield cmd_get_decl(curr, o); break;
   case 'unload': yield cmd_unload(curr, o); break;
   case 'load_c': yield cmd_load_c(o); break;
   case 'tput': yield cmd_tput(curr, o); break;
@@ -2249,8 +2196,6 @@ describe('scroll', ()=>{
           load_c(7) # load_c(7c1) #`);
 // XXX NOW how to handle conflict merge (c in db is wrong now) + add tests
 // XXX NOW need dirty flag to know what needs to be saved to db; also for blob
-// XXX NOW: need transaction support for put_decl (otherwise we may leave
-// the db corrupted if there was a merge)
       });
       describe('db_data', ()=>{
         t('no_split', `s.scroll s.decl(data:32KB) S..#(DB db_data)

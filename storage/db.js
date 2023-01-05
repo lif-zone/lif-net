@@ -179,84 +179,6 @@ export default class DB {
     cursor.continue();
     return wait;
   }
-  init_scroll = scroll=>etask({_: this}, function*init_scroll(){
-    let _this = this._;
-    assert(_this.inited, 'db not inited');
-    let M = b2s(scroll.M_hash(0, 0));
-    let o = _this.scrolls.get(M);
-    if (o)
-      return o;
-    // XXX: handle errors and make sure db is always consistent
-    let db_ver = _this.db.version+1, ts = Date.now();
-    o = {M, create_ts: ts, update_ts: ts, db_ver};
-    yield _this.db_put('scroll', o);
-    _this.scrolls.set(M, o);
-    return o;
-  });
-  get_decl = (scroll, opt)=>etask({_: this}, function*get_decl(){
-    let _this = this._;
-    let {seq, data} = opt;
-    assert(_this.inited, 'db not inited');
-    let M = b2s(scroll.M_hash(0, 0));
-    yield _this.init_scroll(scroll);
-    // XXX: need to get big data from data store
-    let o = yield _this.db_get('decl', [M, seq]);
-    if (!o)
-      return scroll.get_decl(seq, {create: false});
-    _this.fix_struct(o);
-    let decl = scroll.get_decl(seq);
-    decl.from_static(o);
-    if (data)
-      yield _this.get_decl_data(decl, seq);
-    return decl;
-  });
-  get_decl_data = (decl, seq)=>etask({_: this}, function*get_decl_data(){
-    let _this = this._;
-    let data = decl.data_get();
-    for (const [, fbuf] of data.cmap){
-      let frames = fbuf.get_frames();
-      for (let i=0; i<frames.length; i++){
-        let f = frames[i];
-        if (f.h && !f.buf){
-          let o = yield _this.db_get('data', b2s(f.h));
-          if (o.buf)
-            fbuf.set_frame_buf(i, Buffer.from(o.buf));
-        }
-      }
-    }
-  });
-  put_decl = (scroll, seq)=>etask({_: this}, function*put_decl(){
-    let _this = this._;
-    assert(_this.inited, 'db not inited');
-    yield _this.init_scroll(scroll);
-    let decl = scroll.get_decl(seq, {create: false});
-    if (!decl)
-      return;
-    // XXX: do all in transcation
-    // XXX: need to save big data in data store
-    let blob = {};
-    yield _this.db_put('decl', decl.to_static({max_decl: _this.max_decl,
-      max_frame: _this.max_frame, blob}));
-    // XXX NOW: need blob cache (and to do it only if blob was not
-    // before in db)
-    for (let h in blob)
-      yield _this.db_put('data', {h, buf: blob[h]});
-  });
-  get_scroll = scroll=>etask({_: this}, function*get_scroll(){
-    let _this = this._;
-    yield _this.get_conflict(scroll);
-    // XXX HACK: need to iterate over all scroll decl data
-    for (let i=0; i<=scroll.top.seq; i++)
-      yield _this.get_decl(scroll, {seq: i, data: true});
-  });
-  // XXX: need test + only to update dirty data
-  put_scroll = scroll=>etask({_: this}, function*put_scroll(){
-    let _this = this._;
-    yield _this.put_conflict(scroll);
-    for (const [seq] of scroll.dmap)
-      yield _this.put_decl(scroll, seq);
-  });
-  // XXX: decide on better way to handle buffers
   fix_struct(o){
     if (!o)
       return;
@@ -269,17 +191,6 @@ export default class DB {
     }
     return o;
   }
-  get_decl_static = (scroll, seq)=>etask({_: this}, function*get_decl_static(){
-    let _this = this._;
-    assert(_this.inited, 'db not inited');
-    let M = b2s(scroll.M_hash(0, 0));
-    if (!_this.scrolls.get(M))
-      return null;
-    // XXX: decide on better way to handle buffers
-    let o = yield _this.db_get('decl', [M, seq]);
-    _this.fix_struct(o);
-    return o;
-  });
   delete_db = ()=>etask({_: this}, function*delete_db(){
     let _this = this._;
     assert(!_this.db, 'db is opened');

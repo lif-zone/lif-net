@@ -769,20 +769,6 @@ const cmd_put = (curr, t)=>etask(function*cmd_put(){
   assert_no_corruption(scroll);
 });
 
-const cmd_get_conflict = (curr, t)=>etask(function*cmd_get_conflict(){
-  assert(t.ctx=='db', 'missing db prefix');
-  let name = t.prev?.ctx||get_def('left'), scroll = get_scroll(name);
-  assert(!t.r, 'invalid args');
-  yield scroll.soul.db.get_conflict(scroll);
-});
-
-const cmd_put_conflict = (curr, t)=>etask(function*cmd_put_conflict(){
-  assert(t.ctx=='db', 'missing db prefix');
-  let name = t.prev?.ctx||get_def('left'), scroll = get_scroll(name);
-  assert(!t.r, 'invalid args');
-  yield scroll.soul.db.put_conflict(scroll);
-});
-
 const cmd_put_decl = (curr, t)=>etask(function*cmd_put_decl(){
   assert(t.ctx=='db', 'missing db prefix');
   let name = t.prev?.ctx||get_def('left'), scroll = get_scroll(name), seq;
@@ -1115,8 +1101,6 @@ const test_run_single = (curr, o)=>etask(function*_test_run_single(){
   case 'clone': yield cmd_clone(curr, o); break;
   case 'decl': yield cmd_decl(o); break;
   case 'put': yield cmd_put(curr, o); break;
-  case 'put_conflict': yield cmd_put_conflict(curr, o); break;
-  case 'get_conflict': yield cmd_get_conflict(curr, o); break;
   case 'put_decl': yield cmd_put_decl(curr, o); break;
   case 'get_decl': yield cmd_get_decl(curr, o); break;
   case 'unload': yield cmd_unload(curr, o); break;

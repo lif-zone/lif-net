@@ -1018,27 +1018,6 @@ export default class Scroll extends EventEmitter {
     }
     return o;
   }
-  conflict_from_static(cs){
-    assert(this.conflict.size==1 && this.top.seq==0,
-      'cannot update conflict info after it was populated');
-    let max_c = this.conflict.next_id||0, max_top;
-    for (let cfid in cs){
-      let o = cs[cfid], M = Buffer.from(o.top.M);
-      cfid = +cfid;
-      max_c = Math.max(cfid, max_c);
-      if (!max_top || max_top.seq<o.top.seq)
-        max_top = {cfid, seq: o.top.seq, M};
-      let co = {cfid, top: {seq: o.top.seq, M: M},
-        parent: o.parent ? {cfid: o.parent.cfid, seq: o.parent.seq,
-          type: o.parent.type} : null, conflicts: new Map()};
-      this.conflict.set(cfid, co);
-      if (co.parent)
-        this.conflict.get(co.parent.cfid).conflicts.set(cfid, co);
-    }
-    // NOW: add test to verify conflict.next_id and top are updated
-    this.conflict.next_id = max_c+1;
-    this.top = max_top;
-  }
   conflict_from_static2(cs){
     assert(this.conflict.size==1 && !this.top,
       'cannot update conflict info after it was populated');

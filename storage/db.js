@@ -225,24 +225,6 @@ export default class DB {
       }
     }
   });
-  get_conflict = scroll=>etask({_: this}, function*get_conflict(){
-    let _this = this._;
-    assert(_this.inited, 'db not inited');
-    let M = b2s(scroll.M_hash(0, 0));
-    yield _this.init_scroll(scroll);
-    // XXX: need to get big data from data store
-    let o = yield _this.db_get('scroll', M);
-    _this.fix_struct(o);
-    yield scroll.conflict_from_static(o.conflict);
-  });
-  put_conflict = scroll=>etask({_: this}, function*put_conflict(){
-    let _this = this._;
-    assert(_this.inited, 'db not inited');
-    let s = yield _this.init_scroll(scroll);
-    s.update_ts = Date.now();
-    s.conflict = scroll.conflict_to_static();
-    yield _this.db_put('scroll', s);
-  });
   put_decl = (scroll, seq)=>etask({_: this}, function*put_decl(){
     let _this = this._;
     assert(_this.inited, 'db not inited');

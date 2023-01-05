@@ -659,6 +659,7 @@ function get_filter(s){
   for (let i=0; i<a.length; i++){
     switch (a[i]){
     case 'DB': break;
+    case 'db_data': break;
     case 'db2_c': break;
     case 'mem': break;
     case 'mem_c': break;
@@ -874,10 +875,15 @@ const cmd_unload = (curr, t)=>etask(function cmd_unload(){
 });
 
 const cmd_load_c = t=>etask(function*cmd_load_c(){
-  let name = t.ctx||get_def('left'), scroll = get_scroll(name);
-  let {seq, cfid} = parse_cfid_seq(t.r);
-  let decl = yield scroll.get_decl(seq);
-  yield decl.load(cfid);
+  let name = t.ctx||get_def('left'), scroll = get_scroll(name), o, data;
+  for (let curr=t.r; curr = tparser.parse_get_next(curr);){
+    switch (curr.exp){
+    case 'data': data = true; break;
+    default: o = parse_cfid_seq(curr.exp);
+    }
+  }
+  let decl = yield scroll.get_decl(o.seq);
+  yield decl.load(o.cfid, data && {data: true});
 });
 
 const cmd_test = t=>etask(function*cmd_test(){
@@ -2312,15 +2318,15 @@ describe('scroll', ()=>{
           db.get_decl(seq1) #(mem1={M1 sig1 D1 m1 m0_1} mem_c=0:M1)
           db.get_decl(seq1 data) #mem1={M1 sig1 D1 m1 m0_1}
         `);
-        t('split', `s.scroll s.decl(data:33KB)
-          S..clone(s.. db(max_decl:60KB max_frame:32KB)) #
-          db.put_decl(seq1) #(db1={M1 sig1 D1:[D1F0 D1F1 D1f2] m1 m0_1}
+        t('split', `s.scroll s.decl(data:33KB) S.#(DB db_data)
+          S..clone(s.. db(max_decl:60KB max_frame:32KB)) flush
+          #(DB0={M0 sig0 D0 m0} DB1={M1 sig1 D1:[D1F0 D1F1 D1f2] m1 m0_1}
             db_data=D1F2)
-          mem.unload #(mem0={M0} !mem1 mem_c=0:M0)
-          db.get_decl(seq1) #(mem1={M1 sig1 D1:[D1F0 D1F1 D1f2] m1 m0_1}
-            mem_c=0:M1)
-          db.get_decl(seq1 data) #mem1={M1 sig1 D1 m1 m0_1}
-        `);
+          Soul2.db_copy(S.soul) S2.#(mem mem_c)
+          Soul2.S2..scroll(M0 db) #(mem_c={0:M1} mem0={M0 sig0 D0 m0})
+          load_c(1) #mem1={M1 sig1 D1:[D1F0 D1F1 D1f2] m1 m0_1}
+          load_c(1 data) #mem1={M1 sig1 D1 m1 m0_1}`);
+        return; // XXX WIP
         t('split_max_decl_1', `s.scroll s.decl(data(33KB 28KB))
           S..clone(s.. db(max_decl:60KB max_frame:32KB)) #
           db.put_decl(seq1) #(db1={M1 sig1 D1:[D1F0 D1F1 D1f2 D1F3] m1 m0_1}

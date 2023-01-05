@@ -85,13 +85,16 @@ export default class Storage_handler {
               if (!scroll.conflict.get(cfid).db) // XXX: TODO
                 continue;
               let decl = yield scroll.get_decl(seq);
-              let o = decl.to_static_cfid(cfid, {max_decl: _this.max_decl,
-                max_frame: _this.max_frame, blob});
+              let o = decl.to_static_cfid(cfid, {max_decl: db.max_decl,
+                max_frame: db.max_frame, blob});
               yield db.store_put(store2, o);
             }
           }
-          // XXX: save blob
           yield tx;
+          // XXX NOW: need blob cache (and to do it only if blob was not
+          // before in db)
+          for (let h in blob) // XXX: save scfid in array
+            yield db.db_put('data', {h, buf: blob[h]});
           _this.db_queue.shift();
           yield etask.sleep(0);
         }
@@ -207,19 +210,29 @@ export default class Storage_handler {
     }
     return ret;
   }); }
-  load_cfid(decl, cfid){
+  load_cfid(decl, cfid, opt={}){
     assert.equal(decl.scroll, this.scroll, 'differnt decl scroll');
     let scfid = this.scroll.conflict.get(cfid)?.db?.data.scfid;
     if (!Number.isInteger(scfid))
       return;
     if (decl.db?.cfid[cfid]){
-      if (!decl.db.cfid[cfid].busy)
+      if (!decl.db.cfid[cfid].busy && (!opt.data || decl.db.cfid[cfid].data))
         return;
-      return etask(function*load_cfid_wait(){ // XXX: is there better way
-        yield this.wait_ext(decl.db.cfid[cfid].busy); });
+      // XXX: is there better way
+      return etask({_: this}, function*load_cfid_wait(){
+        let _this = this._;
+        this.on('finally', ()=>decl.db.cfid[cfid].busy = null);
+        while (this.wait_ext(decl.db.cfid[cfid].busy))
+          yield this.wait_ext(decl.db.cfid[cfid].busy);
+        if (!opt.data || decl.db?.cfid[cfid].data)
+          return;
+        decl.db.cfid[cfid].busy = this;
+        yield _this.load_cfid_data(decl, cfid);
+      });
     }
     decl.db = decl.db||{cfid: {}};
     decl.db.cfid[cfid] = {};
+    // XXX: handle errors
     decl.db.cfid[cfid].busy = etask({_: this}, function*load_cfid(){
       let _this = this._, db = _this.db;
       this.on('finally', ()=>decl.db.cfid[cfid].busy = null);
@@ -233,9 +246,30 @@ export default class Storage_handler {
       // XXX: need to handle emits on data change
       data = db.fix_struct(data);
       decl.from_static_cfid(cfid, data);
+      if (!opt.data)
+        return;
+      yield _this.load_cfid_data(decl, cfid);
     });
     return decl.db.cfid[cfid].busy;
   }
+  load_cfid_data(decl, cfid){ return etask({_: this}, function*load_cfid_data()
+  {
+    let _this = this._, db = _this.db;
+    let data = decl.data_get();
+    let fbuf = data.cmap.get(cfid);
+    if (!fbuf)
+      return;
+    let frames = fbuf.get_frames();
+    for (let i=0; i<frames.length; i++){
+      let f = frames[i];
+      if (f.h && !f.buf){
+        let o = yield db.db_get('data', b2s(f.h));
+        if (o?.buf)
+          fbuf.set_frame_buf(i, Buffer.from(o.buf));
+      }
+    }
+    decl.db.cfid[cfid].data = true;
+  }); }
 }
 
 // XXX: need test
@@ -292,3 +326,6 @@ function conflict_eq(data, data2){ return xutil.equal_deep(data, data2); }
 // 24. conflict_from_static2 -> conflict_from_static
 // 25. conflict_from_static --> update mergable and friends
 // 26. review fbuf_load_async/regular usage
+// 27. verify behavior of loading data that was declared in memory and not yet
+//     flushed
+// 28. verify we don't queue stuff during load from db

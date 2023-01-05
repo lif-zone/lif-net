@@ -1302,11 +1302,11 @@ class Decl extends EventEmitter {
     if (o.D)
       this.fbuf_get_sync(cfid).set_frames(o.D);
   }
-  load(cfid){ return etask({_: this}, function*load(){
+  load(cfid, opt={}){ return etask({_: this}, function*load(){
     let _this = this._;
     if (!_this.scroll.storage)
       return;
-    return yield _this.scroll.storage.load_cfid(_this, cfid);
+    return yield _this.scroll.storage.load_cfid(_this, cfid, opt);
   }); }
 }
 

@@ -103,7 +103,7 @@ export default class DB {
       cursor.delete();
     }
     yield tx;
-    let data_scroll = [], data_decl = [];
+    let data_scroll = [], data_decl = [], data_blob = [];
     let tx2 = src.create_transaction(['scroll2', 'decl2'], 'readonly');
     let store2 = tx2.tx.objectStore('scroll2');
     for (let cursor = yield src.cursor_open(store2); cursor;
@@ -118,14 +118,24 @@ export default class DB {
     {
       data_decl.push(cursor.value);
     }
-    tx = _this.create_transaction(['scroll2', 'decl2'], 'readwrite');
+    tx2 = src.create_transaction(['data'], 'readonly');
+    store2 = tx2.tx.objectStore('data');
+    for (let cursor = yield src.cursor_open(store2); cursor;
+      cursor = yield src.cursor_continue(cursor))
+    {
+      data_blob.push(cursor.value);
+    }
+    tx = _this.create_transaction(['scroll2', 'decl2', 'data'], 'readwrite');
     store = tx.tx.objectStore('scroll2');
     for (let i=0; i<data_scroll.length; i++)
       yield _this.store_put(store, data_scroll[i]);
-    tx = _this.create_transaction(['scroll2', 'decl2'], 'readwrite');
+    tx = _this.create_transaction(['scroll2', 'decl2', 'data'], 'readwrite');
     store = tx.tx.objectStore('decl2');
     for (let i=0; i<data_decl.length; i++)
       yield _this.store_put(store, data_decl[i]);
+    store = tx.tx.objectStore('data');
+    for (let i=0; i<data_blob.length; i++)
+      yield _this.store_put(store, data_blob[i]);
     yield tx;
   });
   db_get(name, key){

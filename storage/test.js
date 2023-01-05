@@ -2306,6 +2306,7 @@ describe('scroll', ()=>{
         t('c1', `s0.scroll(d:1-6) s1..scroll(s0..M0)
           tput(0 1 2 3 4    )
           tput(0_1_2_3 4_5 6)
+          flush
           s1.c(M4=s0.M4 3t0.M6=s0.M6)
           S..clone(s1.. db)
           s1.c(M4=s1.M4 3t0.M6=s0.M6)

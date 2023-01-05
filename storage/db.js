@@ -7,7 +7,10 @@ import xerr from '../util/xerr.js';
 import buf_util from '../peer-relay/buf_util.js';
 import setGlobalVars from 'indexeddbshim';
 const b2s = buf_util.buf_to_str;
-setGlobalVars();
+setGlobalVars(null, {addNonIDBGlobals: true});
+global.ShimEventTarget.prototype.triggerErrorEvent =
+  (err, evt)=>xerr.xexit(err);
+global.DOMException = global.ShimDOMException;
 
 function wrap_cb(cb){
   return function(){

@@ -5,9 +5,7 @@ import etask from '../util/etask.js';
 import xerr from '../util/xerr.js';
 import xutil from '../util/util.js';
 import buf_util from '../peer-relay/buf_util.js';
-import setGlobalVars from 'indexeddbshim';
 const b2s = buf_util.buf_to_str, s2b = buf_util.buf_from_str;
-setGlobalVars();
 
 /* XXX: design
 scrolls = [ // KEYPATH scfid. INDEX scroll, cfid
@@ -99,10 +97,8 @@ export default class Storage_handler {
           _this.db_queue.shift();
           yield etask.sleep(0);
         }
-        catch(err){ // XXX: decide how to handle
-          assert.fail('error '+(err?.message||err));
-          // throw err;
-        }
+        // XXX: decide how to handle errors
+        catch(err){ assert.fail('error '+(err?.message||err)); }
       }
     }));
   }); }

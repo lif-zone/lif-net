@@ -170,7 +170,7 @@ function parse_var(v){
   m = v.match(/^([a-zA-Z]\d*)(\.|\.\.)([^.]*)$/);
   let ctx = m ? m[1] : '', def = m ? m[2]=='..' : false;
   v = m ? m[3] : v;
-  if (['db2_c', 'db_c', 'db_data', 'mem_c'].includes(v))
+  if (['db2_c', 'db_data', 'mem_c'].includes(v))
     return {type: v, ctx, def};
   if (m = v.match(/^(sig|m|M|d|D|mem|db|DB)((\d+)|((\d+)_(\d+)))(c(\d+))?$/)){
     let type = m[1], range = r_from_str(m[2]), seq = range[1];
@@ -602,7 +602,7 @@ function state_split_var(v, def){
   if (o.def)
     set_def('left', o.ctx);
   let name = o.ctx||def||get_def('left');
-  if (['db2_c', 'db_c', 'db_data', 'mem_c'].includes(type))
+  if (['db2_c', 'db_data', 'mem_c'].includes(type))
     return {name, type};
   assert(['mem', 'db', 'DB'].includes(type), 'invalid type '+type);
   assert.equal(cfid, '0', 'invalid conflict usage');
@@ -618,7 +618,7 @@ const state_split = (exp, def)=>etask(function*state_split(){
       return assign(state_split_var(o.l, def),
         {val: yield get_static_db_data(o.r)});
     }
-    if (['db2_c', 'db_c', 'mem_c'].includes(o.l)){
+    if (['db2_c', 'mem_c'].includes(o.l)){
       return assign(state_split_var(o.l, def),
         {val: yield get_static_c(o.r)});
     }
@@ -630,7 +630,7 @@ const state_split = (exp, def)=>etask(function*state_split(){
 
 function state_apply(state, o){
   let {type, seq, val} = o;
-  if (['db2_c', 'db_c', 'db_data', 'mem_c'].includes(type)){
+  if (['db2_c', 'db_data', 'mem_c'].includes(type)){
     if (val)
       state[type] = val;
     else
@@ -701,10 +701,6 @@ const cmd_state = (curr, t)=>etask(function*cmd_state(){
   if (!t_state.filter || t_state.filter.includes('mem')){
     assert_b2s_obj(state.mem, t_state[name].mem,
       'mem state mismach '+t.meta.s);
-  }
-  if (!t_state.filter || t_state.filter.includes('db_c')){
-    assert_b2s_obj(state.db_c, t_state[name].db_c,
-      'db conflict state mismach '+t.meta.s);
   }
   // XXX: fix to use the below if once old db code is removed
   // if (!t_state.filter || t_state.filter.includes('db2_c')){

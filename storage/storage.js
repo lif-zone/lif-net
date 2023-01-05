@@ -333,3 +333,4 @@ function conflict_eq(data, data2){ return xutil.equal_deep(data, data2); }
 // 28. verify we don't queue stuff during load from db
 // 29. test read/write with multiple tables and verify no scfid confusion and
 //     scfid_next is loaded correctly
+// 30. write scfid to blob data table so we can do purge

@@ -443,7 +443,11 @@ const cmd_db_init = t=>etask(function*cmd_db_init(){
 });
 
 const cmd_db_copy = t=>etask(function*cmd_db_copy(){
-  let d_sname = t.ctx, s_soul = t_soul[t.r];
+  let d_sname = t.ctx, s_soul, m = t.r.match(/(^[^.]*)\.soul$/);
+  if (m?.[1])
+    s_soul = get_scroll(m[1]).soul;
+  else
+    s_soul = t_soul[t.r];
   assert(s_soul, 'src soul not found '+t.r);
   let soul = t_soul[d_sname] = t_soul[d_sname] || new Soul({name: d_sname});
   if (!soul.db.inited)
@@ -455,8 +459,7 @@ const new_scroll = (name, M, prev_scroll, sname, db_opt)=>etask(
   function*new_scroll(){
   let soul, scroll;
   if (t_soul_mode=='differnt'){
-    assert(!sname, 'no soul name in differnt mode');
-    sname = 'auto_soul'+t_soul_id++;
+    sname = sname || 'auto_soul'+t_soul_id++;
     soul = t_soul[sname] = t_soul[sname] || new Soul({name: sname});
   }
   else if (t_soul_mode=='manual'){
@@ -2255,26 +2258,12 @@ describe('scroll', ()=>{
           Soul.S.clone(s.. db) S.flush S.#(db2_c={0:0:M0} DB0={M0 sig0 D0 m0})
           Soul2.db_copy(Soul) S2.#(mem mem_c)
           Soul2.S2..scroll(M0 db) #(mem_c={0:M0} mem0={M0 sig0 D0 m0})`);
-        t('b0_seq1_normal', `s.scroll(d:1) S.#(db2_c DB) S..clone(s.. db)
-          flush
-          #(db2_c={0:0:M1} DB0={M0 sig0 D0 m0} DB1={M1 sig1 D1 m1 m0_1})`);
-// XXX WIP
-//          db.put_decl(seq0) #db0={M0 sig0 D0 m0}
-//          db.put_decl(seq1) #db1={M1 sig1 D1 m1 m0_1}
-//          db.put_conflict #db_c=0:M1
-//          mem.unload #(mem0={M0} !mem1 mem_c=0:M0)
-//          db.get_conflict #mem_c=0:M1
-//          db.get_decl(seq0) #mem0={M0 sig0 D0 m0}
-//          db.get_decl(seq1) #mem1={M1 sig1 D1 m1 m0_1}`);
-        t('b0_seq1_rev', `s.scroll(d:1) S..clone(s.. db) #
-          db.put_decl(seq0) #db0={M0 sig0 D0 m0}
-          db.put_decl(seq1) #db1={M1 sig1 D1 m1 m0_1}
-          db.put_conflict #db_c=0:M1
-          mem.unload #(mem0={M0} !mem1 mem_c=0:M0)
-          db.get_conflict #mem_c=0:M1
-          db.get_decl(seq1) #mem1={M1 sig1 D1 m1 m0_1}
-          db.get_decl(seq0) #mem0={M0 sig0 D0 m0}`);
-        t('b0_seq4', `s.scroll(d:1-4) S..clone(s.. db) #
+        t('b0_seq1', `s.scroll(d:1) S.#(db2_c DB) S..clone(s.. db)
+          flush #(db2_c={0:0:M1} DB0={M0 sig0 D0 m0} DB1={M1 sig1 D1 m1 m0_1})
+          Soul2.db_copy(S.soul) S2.#(mem mem_c)
+          Soul2.S2..scroll(M0 db) #(mem_c={0:M1} mem0={M0 sig0 D0 m0})
+          load_c(1) #mem1={m1 m0_1 sig1 M1 D1} load_c(2) #`);
+        t('b0_seq4_normal', `s.scroll(d:1-4) S..clone(s.. db) #
           db.put_decl(seq0) #db0={M0 sig0 D0 m0}
           db.put_decl(seq1) #db1={M1 sig1 D1 m1 m0_1}
           db.put_decl(seq2) #db2={M2 sig2 D2 m2}

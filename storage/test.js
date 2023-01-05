@@ -675,12 +675,10 @@ const cmd_state = (curr, t)=>etask(function*cmd_state(){
   let db = soul?.db;
   if (db?.inited){
     state.DB = yield db_get_scroll_decl(scroll.soul.db, scroll);
-    state.db_c = yield db_get_c(scroll.soul.db, scroll.M_hash(0, 0));
     state.db2_c = yield db2_get_c(scroll.soul.db, scroll.M_hash(0, 0));
     state.db_data = yield db_get_db_data(scroll.soul.db);
   } else {
     state.DB = {};
-    state.db_c = {};
     state.db2_c = {};
     state.db_data = {};
   }
@@ -951,21 +949,6 @@ const db_get_scroll_decl = (db, scroll)=>etask(function*db_get_scroll_decl(){
   return ret;
 });
 
-const db_get_c = (db, M)=>etask(function*db_get_c(){
-  let db_o = yield db.db_get('scroll', b2s(M));
-  let db_c = db_o?.conflict, ret;
-  for (let cfid in db_c){
-    ret = ret||{};
-    let o = db_c[cfid];
-    ret[cfid] = {top: {seq: o.top.seq, M: Buffer.from(o.top.M)}};
-    if (o.parent?.cfid!==undefined){
-      ret[cfid].parent = {seq: o.parent.seq, cfid: o.parent.cfid,
-        type: o.parent.type};
-    }
-  }
-  return ret;
-});
-
 const db2_get_c = (db, M)=>etask(function*db2_get_c(){
   let tx = db.create_transaction('scroll2', 'readonly'), ret;
   let index = tx.tx.objectStore('scroll2').index('scroll');
@@ -996,26 +979,6 @@ const mem_get_c = scroll=>etask(function mem_get_c(){
   }
   assert_no_corruption(scroll);
   return ret;
-});
-
-const cmd_db_c = t=>etask(function*cmd_db_c(){
-  let name = t.ctx||get_def('left'), scroll = get_scroll(name);
-  let tested = yield get_static_c(t.r);
-  let db_o = scroll.soul.db.fix_struct(yield scroll.soul.db.db_get('scroll',
-    b2s(scroll.M_hash(0, 0))));
-  let db_c = db_o?.conflict;
-  assert.equal(Object.keys(db_c||{}).length, Object.keys(tested).length,
-    'conflict count mismatch '+t.r);
-  for (let cfid in db_c){
-    let o = db_c[cfid];
-    assert.deepEqual(o.parent?.cfid!==undefined ?
-      {seq: o.parent.seq, cfid: o.parent.cfid, type: o.parent.type} :
-      undefined, tested[cfid]?.parent, 'conflict '+cfid+' mismatch '+t.r);
-    assert.equal(o.top.seq, tested[cfid]?.top.seq, 'top seq mismatch c'+cfid+
-      ' '+t.r);
-    assert.equal(b2s(o.top.M), tested[cfid]?.top.M,
-      'top M mismatch c'+cfid+' '+t.r);
-  }
 });
 
 const cmd_eq = o=>etask(function*cmd_eq(){
@@ -1057,7 +1020,6 @@ const test_run_single = (curr, o)=>etask(function*_test_run_single(){
   case '=': yield cmd_eq(o); break;
   case '==': yield cmd_test(o); break;
   case 'c': yield cmd_c(o); break;
-  case 'db_c': yield cmd_db_c(o); break; // XXX: obsolete, rm
   // XXX need db_data api
   case '//': break;
   case 'dbg': debugger; break; // eslint-disable-line no-debugger

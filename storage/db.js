@@ -4,9 +4,7 @@ import assert from 'assert';
 import etask from '../util/etask.js';
 import * as idb from 'idb';
 import xerr from '../util/xerr.js';
-import buf_util from '../peer-relay/buf_util.js';
 import setGlobalVars from 'indexeddbshim';
-const b2s = buf_util.buf_to_str;
 setGlobalVars(null, {addNonIDBGlobals: true});
 global.ShimEventTarget.prototype.triggerErrorEvent =
   (err, evt)=>xerr.xexit(err);
@@ -18,24 +16,6 @@ function wrap_cb(cb){
     catch(err){ xerr.xexit(err); }
   };
 }
-
-/* XXX: design
-scrolls = [ // KEYPATH scfid. INDEX scroll, cfid
-  {scfid: 0, scroll: '4817AB', cfid: 0},
-  {scfid: 1, scroll: '4817AB', cfid: 2, splits: [{cfid: 0, seq: 37}]},
-  {scfid: 2, scroll: '4817AB', cfid: 3, splits: [{cfid: 2, seq: 472},
-    {0, 37}]},
-  {scfid: 3, scroll: '4817AB', cfid: 4, splits: [{cfid: 2, seq: 472},
-    {0, 37}], tmp: true},
-];
-decls = [ // KEYPATH scfig, seq
-  {scfid: 0, seq: 3, M: M3, m: {0: m0_1, 1: m1}},
-    D: [{sig}, {buf, h}, ...]}
-  {scfid: 1, seq: 3, M: M3b1, m: {0: m0_1, 1: m1}},
-    D: [{sig}, {buf, h}, ...]}
-];
-blob = // XXX: add scfid array so we can purge scroll
-*/
 
 export default class DB {
   init = (opt={})=>etask({_: this}, function*db_init(){
@@ -52,9 +32,6 @@ export default class DB {
       upgrade(db, oldVersion, newVersion, transaction, event){
         // XXX how to wait for creation of table and verify both are created
         // XXX: rm obsolete scroll and rename scroll2->scroll
-        db.createObjectStore('scroll', {keyPath: 'M'});
-        // XXX: use scroll id from scroll table instead of M for keyPath
-        db.createObjectStore('decl', {keyPath: ['scroll', 'seq']});
         db.createObjectStore('data', {keyPath: 'h'});
         let scroll2 = db.createObjectStore('scroll2', {keyPath: 'scfid'});
         // XXX: do we need both 'scroll' and 'scroll-scfid' indexes?
@@ -63,14 +40,6 @@ export default class DB {
         let decl2 = db.createObjectStore('decl2', {keyPath: ['scfid', 'seq']});
         decl2.createIndex('scfid', 'scfid');
     }});
-    _this.scrolls = new Map();
-    let tx = _this.db.transaction('scroll', 'readonly');
-    let store = tx.objectStore('scroll');
-    for (let cursor = yield _this.cursor_open(store); cursor;
-      cursor = yield _this.cursor_continue(cursor))
-    {
-      _this.scrolls.set(cursor.key, cursor.value);
-    }
     _this.scfid_next = 0; // XXX: need to load from db
   });
   get_new_scfid(){ return this.scfid_next++; }
@@ -79,7 +48,7 @@ export default class DB {
     if (!_this.inited)
       return xerr('db not inited');
     yield _this.db.close();
-    _this.db = _this.scrolls = undefined;
+    _this.db = undefined;
     if (opt.delete)
       yield _this.delete_db();
     _this.inited = false;

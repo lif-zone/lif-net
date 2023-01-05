@@ -5429,6 +5429,10 @@ describe('etask', function(){
                 return this.wait();
             }]);
         });
+        it('ignore_other_error', ()=>xetask({ret: 2}, function*(){
+            etask(function(){ throw new Error('XXX'); });
+            return yield 2;
+        }));
     });
     describe('for', function(){
         it('basic', ()=>{

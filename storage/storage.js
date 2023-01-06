@@ -119,6 +119,8 @@ export default class Storage_handler {
     this.queue_del.push({scfid: e.o.db.data.scfid});
   };
   on_decl = decl=>{
+    if (this.block_events)
+      return;
     decl.M.on('hash', this.on_decl_update);
     for (let i=0; i<decl.m.length; i++)
       decl.m[i].on('hash', this.on_decl_update);
@@ -126,6 +128,8 @@ export default class Storage_handler {
     decl.data.on('data', this.on_decl_update);
   };
   on_decl_update = e=>{
+    if (this.block_events)
+      return;
     // XXX: enable once old db code is removed
     // assert(this.busy, 'on_decl_update while not in update');
     assert(e.cfid!==undefined, 'missing cfid in event');
@@ -133,6 +137,7 @@ export default class Storage_handler {
     this.queue_decl = this.queue_decl||{};
     this.queue_decl[e.seq] = this.queue_decl[e.seq]||{};
     this.queue_decl[e.seq][e.cfid] = true;
+    // XXX: need to remove range for new created decl
   };
   flush(){ return etask({_: this}, function*flush(){
     let _this = this._;
@@ -247,7 +252,9 @@ export default class Storage_handler {
         'scfid was already deleted'); // XXX: make sure this can never happen
       // XXX: need to handle emits on data change
       data = db.fix_struct(data);
-      decl.from_static_cfid(cfid, data);
+      _this.block_events = true;
+      yield decl.from_static_cfid(cfid, data);
+      _this.block_events = false;
       if (!opt.data)
         return;
       yield _this.load_cfid_data(decl, cfid);
@@ -267,7 +274,7 @@ export default class Storage_handler {
       if (f.h && !f.buf){
         let o = yield db.db_get('data', b2s(f.h));
         if (o?.buf)
-          fbuf.set_frame_buf(i, Buffer.from(o.buf));
+          yield fbuf.set_frame_buf(i, Buffer.from(o.buf));
       }
     }
     decl.db.cfid[cfid].data = true;
@@ -334,3 +341,4 @@ function conflict_eq(data, data2){ return xutil.equal_deep(data, data2); }
 // 29. test read/write with multiple tables and verify no scfid confusion and
 //     scfid_next is loaded correctly
 // 30. write scfid to blob data table so we can do purge
+// 31. verify that multiple load will not try to load more than once

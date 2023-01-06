@@ -30,7 +30,25 @@ function to_frame(o){ // XXX: need test
   assert.fail('invalid frame data '+o);
 }
 
-class Data extends EventEmitter {
+// XXX: mv to util + review with derry
+class EventEmitterAsync extends EventEmitter {
+  emit_async(){
+    let _this = this, args = Array.from(arguments), e = args.shift();
+    let listeners = this._events[e];
+    if (!listeners)
+      return;
+    // XXX: verify EventEmitter and mimic same behavior when adding/removing
+    // listeners during call and also handle erros the same
+    if (!Array.isArray(listeners))
+      return listeners.apply(this, args);
+    return etask(function*emit_async(){
+      for (let i=0; i<listeners.length; i++)
+        yield listeners[i].apply(_this, args);
+    });
+  }
+}
+
+class Data extends EventEmitterAsync {
   constructor(opt){
     super();
     assert(opt?.seq>=0, 'invalid seq '+opt?.seq);
@@ -41,10 +59,10 @@ class Data extends EventEmitter {
     fbuf.map_info = {_: this, cfid: 0};
     this.cmap.set(0, fbuf);
   }
-  on_hash(){ this.map_info._.emit('hash', {seq: this.map_info._.seq,
-    cfid: this.map_info.cfid}); }
-  on_data(){ this.map_info._.emit('data', {seq: this.map_info._.seq,
-    cfid: this.map_info.cfid}); }
+  on_hash(){ return this.map_info._.emit_async('hash',
+    {seq: this.map_info._.seq, cfid: this.map_info.cfid}); }
+  on_data(){ return this.map_info._.emit_async('data',
+    {seq: this.map_info._.seq, cfid: this.map_info.cfid}); }
   get(cfid){
     assert(cfid>=0, 'invalid cfid'+cfid);
     let fbuf = this.cmap.get(cfid);
@@ -57,11 +75,11 @@ class Data extends EventEmitter {
     this.cmap.set(cfid, fbuf);
     return fbuf;
   }
-  copy(cdst, csrc){
-    let fsrc = this.get(csrc);
+  copy(cdst, csrc){ return etask({_: this}, function*copy(){
+    let _this = this._, fsrc = _this.get(csrc);
     if (fsrc.frames.length==1 && !fsrc.frames[0].h_rest)
       return;
-    let fdst = this.get(cdst);
+    let fdst = _this.get(cdst);
     assert.equal(fsrc.map_info.cfid, csrc);
     assert.equal(fdst.map_info.cfid, cdst);
     // XXX: wrap with api in Frame_buffer
@@ -69,31 +87,35 @@ class Data extends EventEmitter {
       'already contain data');
     fdst.h = fsrc.h;
     fdst.frames = fsrc.frames;
-    this.cmap.delete(csrc);
+    _this.cmap.delete(csrc);
     if (fdst.h){
-      this.emit('hash', {seq: this.seq, cfid: cdst});
-      this.emit('data', {seq: this.seq, cfid: cdst});
+      yield _this.emit_async('hash', {seq: _this.seq, cfid: cdst});
+      yield _this.emit_async('data', {seq: _this.seq, cfid: cdst});
     }
-  }
+  }); }
 }
 
-class Frame_buffer extends EventEmitter {
+class Frame_buffer extends EventEmitterAsync {
   constructor(opt={}){
     super();
     let {frames} = opt;
     this.frames = [{}]; // first frame reserved for {sig, h_rest}
     for (let i=0; i<frames?.length; i++)
       this.frames.push(to_frame(frames[i]));
+    let h_rest = Frame_buffer.calc_hash(this.frames, {safe: true});
+    if (h_rest)
+      this.frames[0].h_rest = h_rest;
   }
   get_frames(){ return Array.from(this.frames); }
-  set_frames(frames){
-    assert(this.frames.length==1 || this.frames.length==frames.length,
+  set_frames(frames){ return etask({_: this}, function*set_frames(){
+    let _this = this._;
+    assert(_this.frames.length==1 || _this.frames.length==frames.length,
       'frames length mismatch');
-    let {h_rest} = this.frames[0];
+    let {h_rest} = _this.frames[0];
     for (let i=0; i<frames.length; i++){
-      let f = frames[i], ff = this.frames[i];
+      let f = frames[i], ff = _this.frames[i];
       if (!ff){
-        this.frames.push(f);
+        _this.frames.push(f);
         continue;
       }
       if (ff?.sig && f?.sig)
@@ -115,13 +137,14 @@ class Frame_buffer extends EventEmitter {
       if (f?.sz)
         ff.sz = f.sz;
     }
-    if (!h_rest && this.frames[0].h_rest)
-      this.emit('hash');
-    this.emit('data');
-    this.get_hash();
-  }
-  set_frame_buf(i, buf){
-    let f = this.frames[i];
+    if (!h_rest && _this.frames[0].h_rest)
+      yield _this.emit_async('hash');
+    yield _this.emit_async('data');
+    if (!_this.h_rest)
+      yield _this.set_hash(Frame_buffer.calc_hash(_this.frames, {safe: true}));
+  }); }
+  set_frame_buf(i, buf){ return etask({_: this}, function*set_frame_buf(){
+    let _this = this._, f = _this.frames[i];
     assert(f, 'no frame '+i);
     assert(!f.buf, 'buf aleady exist');
     let h = crypto.blake2b(buf);
@@ -130,32 +153,30 @@ class Frame_buffer extends EventEmitter {
     else
       f.h = h;
     f.buf = buf;
-    this.emit('data');
-  }
-  get_hash(opt={}){
-    let h_rest = this.frames[0].h_rest;
-    if (h_rest)
-      return h_rest;
-    return this.set_hash(Frame_buffer.calc_hash(this.frames, {safe: true}));
-  }
-  set_hash(h){
-    let h_rest = this.frames[0].h_rest;
+    yield _this.emit_async('data');
+    if (!_this.h_rest)
+      yield _this.set_hash(Frame_buffer.calc_hash(_this.frames, {safe: true}));
+  }); }
+  get_hash(opt={}){ return this.frames[0].h_rest; }
+  set_hash(h){ return etask({_: this}, function*set_hash(){
+    let _this = this._, h_rest = _this.frames[0].h_rest;
     assert(!h_rest || h_rest.equals(h), 'hash changed');
     if (h_rest)
       return h_rest;
     if (h){
-      this.frames[0].h_rest = h;
-      this.emit('hash');
+      _this.frames[0].h_rest = h;
+      yield _this.emit_async('hash');
     }
     return h;
-  }
+  }); }
   sig_get(){ return this.frames[0].sig; }
-  sig_set(sig){
-    assert(!this.frames[0].sig || this.frames[0].sig.equals(sig),
+  sig_set(sig){ return etask({_: this}, function*(){
+    let _this = this._;
+    assert(!_this.frames[0].sig || _this.frames[0].sig.equals(sig),
       'sig changed');
-    this.frames[0].sig = sig;
-    this.emit('data');
-  }
+    _this.frames[0].sig = sig;
+    yield _this.emit_async('data');
+  }); }
   get(i){ return this.frames[i]?.buf; }
   get_json(i){ // XXX: need better implemenation + add caching of result
     let buf = this.frames[i]?.buf;
@@ -369,7 +390,7 @@ function Map_get_one(){
   return o?.value && o?.value[0];
 }
 
-export default class Scroll extends EventEmitter {
+export default class Scroll extends EventEmitterAsync {
   constructor(opt){
     super();
     assert(opt.pub, 'missing pub key');
@@ -440,8 +461,6 @@ export default class Scroll extends EventEmitter {
   }
   decl(opt, frames){ return etask({_: this}, function*decl(){
     let _this = this._;
-    if (_this.storage)
-      yield _this.storage.begin_update();
     if (frames===undefined)
       [opt, frames] = [{cfid: 0}, opt];
     if (typeof opt=='number')
@@ -458,16 +477,23 @@ export default class Scroll extends EventEmitter {
       header.link = link;
     if (branch)
       header.branch = branch;
+    if (_this.storage)
+      yield _this.storage.begin_update();
     let data = new Data({seq, frames: [header].concat(frames)});
     let decl = new Decl({scroll: _this, seq, data});
     _this.dmap.set(seq, decl);
     _this.emit('decl', decl);
-    decl.data.emit('data', {seq, cfid: 0}); // XXX HACK
     decl.init();
-    decl.sign(cfid);
+    yield decl.sign(cfid);
     decl.M.get_hash(cfid);
-    if (_this.storage)
+    if (_this.storage){
       yield _this.storage.end_update();
+      // XXX HACK: make M calculation event-based
+      yield _this.storage.begin_update();
+      assert(decl.M.get_hash(cfid), 'failed to calc M'+decl.seq+' cfid '+cfid);
+      yield _this.storage.end_update();
+    }
+    assert(decl.M.get_hash(cfid), 'failed to calc M'+decl.seq+' cfid '+cfid);
     return decl;
   }); }
   notify_M(opt){
@@ -506,19 +532,19 @@ export default class Scroll extends EventEmitter {
     if (_this.storage)
       yield _this.storage.begin_update();
     if (diff[0]) // XXX HACK: for case where we have only M0 (missing m0)
-      _this.put_single(0, diff, errors);
+      yield _this.put_single(0, diff, errors);
     for (let i=a.length-1; i>=0 && +a[i]; i--){
       let seq = +a[i], errors2={};
       if (seq==0)
         continue;
       let best = _this.find_best_conflict(seq, diff), cfid = best.cfid;
-      let ret = _this.put_single(seq, diff, errors2, {cfid});
+      let ret = yield _this.put_single(seq, diff, errors2, {cfid});
       if (ret?.conflict){
         let max = best.seq || _this.find_max_common_M({cfid, seq, diff});
         if (max!==undefined){
           errors2 = {};
           let c2 = _this.create_new_conflict({cfid, seq: max});
-          ret = _this.put_single(seq, diff, errors, {cfid: c2});
+          ret = yield _this.put_single(seq, diff, errors, {cfid: c2});
           if (ret?.conflict || _this.conflict.get(c2).top.seq<=max){
             _this.conflict.delete(c2);
             continue;
@@ -534,38 +560,45 @@ export default class Scroll extends EventEmitter {
       yield _this.storage.end_update();
     return {errors};
   }); }
-  put_single(seq, diff, errors, opt={}){
-    let ret = this._put_single(seq, diff, errors, opt);
+  put_single(seq, diff, errors, opt={}){ return etask({_: this},
+    function*put_single()
+  {
+    let _this = this._, ret = yield _this._put_single(seq, diff, errors, opt);
     if (ret?.conflict)
       return ret;
     if (!diff[seq]?.m)
       return;
-    let decl=this.get_decl(seq), a=Object.keys(diff[seq].m);
+    let decl=_this.get_decl(seq), a=Object.keys(diff[seq].m);
     let max_range = decl.m[decl.m.length-1].range;
-    for (let i=0; i<a.length; i++)
-      this.copy_extra_m(diff[seq].m[a[i]], [+a[i], seq], max_range, diff, opt);
-  }
-  copy_extra_m(m, range, max_range, diff, opt){
-    let cfid=opt.cfid||0, vm = this.m_hash(cfid, range);
+    for (let i=0; i<a.length; i++){
+      yield _this.copy_extra_m(diff[seq].m[a[i]], [+a[i], seq], max_range,
+        diff, opt);
+    }
+  }); }
+  copy_extra_m(m, range, max_range, diff, opt){ return etask({_: this},
+    function*copy_extra_m()
+  {
+    let _this = this._, cfid=opt.cfid||0, vm = _this.m_hash(cfid, range);
     if (vm)
       return vm.equals(m);
     if (r_eq(range, max_range))
       return false;
     let po = r_parent(range), sketch={}, errors={}, m2;
     let r2 = r_eq(range, po.left) ? po.right : po.left;
-    if (!(m2 = this.sketch_calc_m({cfid, range: r2, sketch, diff, errors})))
+    if (!(m2 = _this.sketch_calc_m({cfid, range: r2, sketch, diff, errors})))
       return false;
     let mp = hparent(po.parent[1]-po.parent[0]+1, r_eq(range, po.left) ?
       m : m2, r_eq(range, po.left) ? m2 : m);
-    if (!this.copy_extra_m(mp, po.parent, max_range, diff, opt))
+    if (!(yield _this.copy_extra_m(mp, po.parent, max_range, diff, opt)))
       return false;
     set_m_hash(sketch, range, m);
-    this.put_verified(sketch, {cfid});
-  }
-  _put_single(seq, diff, errors, opt={}){
-    let cfid=opt.cfid||0;
-    let top = this.conflict.get(cfid).top, sketch = {};
-    let decl=this.get_decl(seq), m=get_m_hash(diff, seq);
+    yield _this.put_verified(sketch, {cfid});
+  }); }
+  _put_single(seq, diff, errors, opt={}){ return etask({_: this},
+    function*_put_single()
+  {
+    let _this = this._, cfid=opt.cfid||0, decl=_this.get_decl(seq);
+    let top = _this.conflict.get(cfid).top, m=get_m_hash(diff, seq), sketch={};
     let D=get_D(diff, seq), sig=get_sig(diff, seq), d=get_d_hash(diff, seq);
     let dD=calc_D_hash(D), vm=decl.m_hash(cfid, seq), vsig=decl.sig_get(cfid);
     let vd=decl.d_hash(cfid);
@@ -575,7 +608,7 @@ export default class Scroll extends EventEmitter {
           push_error(errors, 'invalid D'+seq);
           dD = null;
         } else
-          this.put_verified(set_d({}, seq, null, D), {cfid});
+          yield _this.put_verified(set_d({}, seq, null, D), {cfid});
       }
       if (d && !beq(dD, d)){
         push_error(errors, 'invalid D'+seq);
@@ -603,13 +636,13 @@ export default class Scroll extends EventEmitter {
       m = m||hleaf(d, sig);
     if (vm){
       let ret = check_set_sig(sketch, errors, seq, vm, d, D, sig);
-      this.put_verified(sketch, {cfid});
+      yield _this.put_verified(sketch, {cfid});
       return ret;
     }
     if (!m)
       return;
     if (seq<=top.seq){ // verify m belongs to existing top.M
-      let M = this.sketch_calc_top_M({top, force: {range: [seq, seq], m},
+      let M = _this.sketch_calc_top_M({top, force: {range: [seq, seq], m},
         sketch, diff, errors, cfid});
       if (!M)
         return {conflict: true};
@@ -618,7 +651,7 @@ export default class Scroll extends EventEmitter {
         return {conflict: true}; // XXX: need test
       }
       check_set_sig(sketch, errors, seq, m, d, D, sig);
-      this.put_verified(sketch, {cfid});
+      yield _this.put_verified(sketch, {cfid});
       return;
     }
     // new top
@@ -626,24 +659,24 @@ export default class Scroll extends EventEmitter {
       return push_error(errors, 'missing '+(sig ? 'd' : 'sig')+seq);
     if (!is_m_valid(m, d, sig, errors, 'invalid sig'+seq))
       return;
-    let prev_top = this.get_decl(top.seq);
+    let prev_top = _this.get_decl(top.seq);
     let prev_top_r = prev_top.m[prev_top.m.length-1].range;
     let prev_force = {range: prev_top_r, m: prev_top.m_hash(cfid, prev_top_r)};
     if (is_null(prev_force.m, errors, 'missing m'+r_str(prev_top_r)))
       return;
-    let prev_M = this.sketch_calc_top_M({top: {seq: seq-1},
+    let prev_M = _this.sketch_calc_top_M({top: {seq: seq-1},
       force: prev_force, sketch, diff, errors, cfid});
     if (is_null(prev_M, errors, 'missing M'+(seq-1)))
       return {conflict: true};
-    if (!verify_sig(sig, this.pub, d, prev_M))
+    if (!verify_sig(sig, _this.pub, d, prev_M))
       return push_error(errors, 'invalid sig'+seq);
     set_sig(sketch, seq, sig);
     check_set_sig(sketch, errors, seq, m, d, D, sig);
     if (vsig && !vsig.equals(sig))
       return {conflict: true};
-    this.put_verified(sketch, {cfid});
-    this.M_hash(cfid, seq); // update new top
-  }
+    yield _this.put_verified(sketch, {cfid});
+    _this.M_hash(cfid, seq); // update new top
+  }); }
   sketch_calc_top_M(opt){
     let {cfid, top, force, sketch, diff, errors} = opt, {range} = force;
     let seq = force.range[1];
@@ -812,7 +845,7 @@ export default class Scroll extends EventEmitter {
     for (let i=c2.parent.seq+1; i<=c2.top.seq; i++){
       let src = _this.get_decl(i, {create: false});
       if (src)
-        src.copy(i1, i2);
+        yield src.copy(i1, i2);
     }
     if (c2.top.seq > c1.top.seq)
       _this.notify_M({cfid: i1, seq: c2.top.seq, M: c2.top.M});
@@ -829,7 +862,8 @@ export default class Scroll extends EventEmitter {
     for (const [i] of c2.conflicts)
       yield _this.conflict_update(i, {cfid: i1});
     _this.conflict.delete(i2);
-    _this.emit('conflict-removed', {cfid: i2, o: c2, cfid_new: i1});
+    yield _this.emit_async('conflict-removed',
+      {cfid: i2, o: c2, cfid_new: i1});
   }); }
   conflict_update(cfid, o){ return etask({_: this}, function*conflict_update(){
     let _this = this._;
@@ -859,7 +893,7 @@ export default class Scroll extends EventEmitter {
       for (let i=src.parent.seq+1; i<=o.seq; i++){
         let decl = _this.get_decl(i, {create: false});
         if (decl)
-          decl.copy(src.parent.cfid, src.cfid);
+          yield decl.copy(src.parent.cfid, src.cfid);
       }
       src.parent.seq = o.seq;
     }
@@ -945,29 +979,31 @@ export default class Scroll extends EventEmitter {
       return null;
     return hparent(range[1]-range[0]+1, m1, m2);
   }
-  put_verified(verified, opt={}){
-    let cfid=0;
+  put_verified(verified, opt={}){ return etask({_: this},
+    function*put_verified()
+  {
+    let _this = this._, cfid=0;
     if (opt.cfid!==undefined)
       cfid = opt.cfid;
     for (let seq in verified){
       seq = +seq;
-      let v = verified[seq], decl = this.get_decl(seq);
+      let v = verified[seq], decl = _this.get_decl(seq);
       for (let type in v){
         let val = v[type];
         switch (type){
-        case 'sig': decl.sig_set(cfid, val); break;
-        case 'd': decl.fbuf_get_sync(cfid).set_hash(val); break;
-        case 'D': decl.fbuf_get_sync(cfid).set_frames(val); break;
+        case 'sig': yield decl.sig_set(cfid, val); break;
+        case 'd': yield decl.fbuf_get_sync(cfid).set_hash(val); break;
+        case 'D': yield decl.fbuf_get_sync(cfid).set_frames(val); break;
         case 'M': decl.M.set_hash(cfid, val); break;
         case 'm':
           for (let s in val)
-            decl.m_get([+s, +seq]).set_hash(cfid, val[s]);
+            yield decl.m_get([+s, +seq]).set_hash(cfid, val[s]);
           break;
         default: assert.fail('invalid verified type '+type);
         }
       }
     }
-  }
+  }); }
   calc_root_hash(seq, opt){
     let roots=calc_roots(seq+1), a=[ROOT_TYPE];
     for (let i=0; i<roots.length; i++){
@@ -1047,7 +1083,7 @@ export default class Scroll extends EventEmitter {
   }
 }
 
-class Decl extends EventEmitter {
+class Decl extends EventEmitterAsync {
   constructor(opt){
     super();
     assert(opt.seq>=0, 'must provide Decl seq');
@@ -1072,22 +1108,27 @@ class Decl extends EventEmitter {
     this.M.init();
   }
   to_c(cfid){ return this.scroll.to_c(cfid, this.seq); }
-  sign(cfid){
-    let scroll = this.scroll, d = this.fbuf_get_sync(cfid).get_hash();
+  sign(cfid){ return etask({_: this}, function*sign(){
+    let _this = this._;
+    let scroll = _this.scroll, d = _this.fbuf_get_sync(cfid).get_hash();
     assert(scroll.key, 'cannot sign without key');
-    let M_prev = this.seq ? scroll.M_hash(cfid, this.seq-1) :
+    if (_this.seq)
+      yield _this.scroll.get_decl(_this.seq-1).load(cfid);
+    let M_prev = _this.seq ? scroll.M_hash(cfid, _this.seq-1) :
       scroll.prev_scroll;
-    if (this.seq && !M_prev)
-      throw new Error('cannot decl without prev M'+(this.seq-1));
+    if (_this.seq && !M_prev)
+      throw new Error('cannot decl without prev M'+(_this.seq-1));
     let buf = M_prev ? Buffer.concat([d, M_prev]) : d;
     let sig = crypto.sign(crypto.blake2b(buf), scroll.key);
-    this.sig_set(cfid, sig);
-  }
-  sig_set(cfid, sig){
-    this.fbuf_get_sync(cfid).sig_set(sig);
-    this.emit('sig', {cfid}); // XXX NOW: need to emit also from set_frames
+    yield _this.sig_set(cfid, sig);
+  }); }
+  sig_set(cfid, sig){ return etask({_: this}, function*sig_set(){
+    let _this = this._;
+    yield _this.fbuf_get_sync(cfid).sig_set(sig);
+    // XXX NOW: emit also from set_frames
+    yield _this.emit_async('sig', {cfid});
     return sig;
-  }
+  }); }
   sig_get(cfid){ return this.fbuf_get_sync(cfid).sig_get(); }
   fbuf_get_sync(cfid){ return this.data.get(this.to_c(cfid)); }
   data_get(){ return this.data; }
@@ -1143,18 +1184,19 @@ class Decl extends EventEmitter {
       .get_prev(opt);
     });
   }
-  copy(cdst, csrc){
-    assert(this.to_c(cdst)!=this.to_c(csrc), 'copy same c'+cdst+'<- c'+csrc);
-    let M = this.M.get_hash(csrc);
+  copy(cdst, csrc){ return etask({_: this}, function*copy(){
+    let _this = this._;
+    assert(_this.to_c(cdst)!=_this.to_c(csrc), 'copy same c'+cdst+'<- c'+csrc);
+    let M = _this.M.get_hash(csrc);
     if (M)
-      this.M.set_hash(cdst, M);
-    for (let i=0; i<this.m.length; i++){
-      let m = this.m[i].get_hash(csrc);
+      _this.M.set_hash(cdst, M);
+    for (let i=0; i<_this.m.length; i++){
+      let m = _this.m[i].get_hash(csrc);
       if (m)
-        this.m[i].set_hash(cdst, m);
+        yield _this.m[i].set_hash(cdst, m);
     }
-    this.data.copy(cdst, csrc);
-  }
+    yield _this.data.copy(cdst, csrc);
+  }); }
   to_static_cfid(cfid, opt={}){
     let {max_decl, max_frame, blob} = opt;
     let scfid = this.scroll.conflict.get(cfid).db?.data.scfid;
@@ -1264,27 +1306,32 @@ class Decl extends EventEmitter {
     }
     return o;
   }
-  from_static(o){
+  from_static(o){ return etask({_: this}, function*from_static(){
+    let _this = this._;
     for (const cfid in o.M)
-      this.M.set_hash(+cfid, o.M[cfid]);
+      _this.M.set_hash(+cfid, o.M[cfid]);
     for (const i in o.m){
       let m = o.m[i];
       for (const cfid in m) // XXX: need to verify +cfid is valid
-        this.m_get([+i, this.seq]).set_hash(+cfid, m[cfid]);
+        yield _this.m_get([+i, _this.seq]).set_hash(+cfid, m[cfid]);
     }
     for (const cfid in o.D)
-      this.fbuf_get_sync(+cfid).set_frames(o.D[cfid]);
-  }
-  from_static_cfid(cfid, o){
-    this.M.set_hash(cfid, o.M);
+      yield _this.fbuf_get_sync(+cfid).set_frames(o.D[cfid]);
+  }); }
+  from_static_cfid(cfid, o){ return etask({_: this},
+    function*from_static_cfid()
+  {
+    let _this = this._;
+    _this.M.set_hash(cfid, o.M);
     for (const i in o.m){
       let m = o.m[i];
-      this.m_get([+i, this.seq]).set_hash(cfid, m);
+      yield _this.m_get([+i, _this.seq]).set_hash(cfid, m);
     }
     if (o.D)
-      this.fbuf_get_sync(cfid).set_frames(o.D);
-  }
+      yield _this.fbuf_get_sync(cfid).set_frames(o.D);
+  }); }
   load(cfid, opt={}){ return etask({_: this}, function*load(){
+    assert(cfid>=0, 'invalid cfid '+cfid);
     let _this = this._;
     if (!_this.scroll.storage)
       return;
@@ -1292,7 +1339,7 @@ class Decl extends EventEmitter {
   }); }
 }
 
-class Merkel_node extends EventEmitter {
+class Merkel_node extends EventEmitterAsync {
   constructor(opt){
     super();
     this.inited = false;
@@ -1307,21 +1354,35 @@ class Merkel_node extends EventEmitter {
     this.inited = true;
     // XXX test events
     if (s==e){
-      const on_hash = opt=>{
-        let cfid = opt.cfid, d, sig;
+      const on_hash = opt=>etask({_: this}, function*on_hash(){
+        let _this = this._, cfid = opt.cfid, d, sig;
+        if (_this.get_hash(cfid)) // XXX: mv it outside of etask/rm cb
+          return;
         if ((d = decl.d_hash(cfid)) && (sig = decl.sig_get(cfid)))
-          return this.set_hash(cfid, hleaf(d, sig));
-      };
+          return yield _this.set_hash(cfid, hleaf(d, sig));
+      });
       decl.data.on('hash', on_hash);
       decl.on('sig', on_hash);
     } else {
       let [r1, r2] = r_split(this.range);
       let m1 = scroll.m_get(r1), m2 = scroll.m_get(r2);
-      const on_hash_m = opt=>{
-        let cfid = opt.cfid, h1, h2;
-        if ((h1 = m1.get_hash(cfid)) && (h2 = m2.get_hash(cfid)))
-          this.set_hash(cfid, hparent_safe(e-s+1, h1, h2));
-      };
+      const on_hash_m = opt=>etask({_: this}, function*on_hash_m(){
+        let _this = this._, cfid = opt.cfid;
+        if (_this.get_hash(cfid)) // XXX: mv it outside of etask/rm cb
+          return;
+        let h1 = m1.get_hash(cfid), h2 = m2.get_hash(cfid);
+        if (!h1){
+          yield m1.decl.load(cfid);
+          if (!(h1 = m1.get_hash(cfid)))
+            return;
+        }
+        if (!h2){
+          yield m2.decl.load(cfid);
+          if (!(h2 = m2.get_hash(cfid)))
+            return;
+        }
+        yield _this.set_hash(cfid, hparent_safe(e-s+1, h1, h2));
+      });
       m1.on('hash', on_hash_m);
       m2.on('hash', on_hash_m);
     }
@@ -1339,14 +1400,20 @@ class Merkel_node extends EventEmitter {
       assert(h_curr.equals(h), 'hash changed');
       return h_curr;
     }
-    this.cmap.set(cfid, h);
-    if (h)
-      this.emit('hash', {seq: this.decl.seq, cfid, range: this.range});
-    return h;
+    return etask({_: this}, function*set_hash(){
+      let _this = this._;
+      _this.cmap.set(cfid, h);
+      if (h){
+        yield _this.emit_async('hash',
+          {seq: _this.decl.seq, cfid, range: _this.range});
+      }
+      return h;
+    });
   }
 }
 
-class Merkel_root extends EventEmitter {
+// XXX: make set_hash async and to calc_root_hash via events
+class Merkel_root extends EventEmitterAsync {
   constructor(opt){
     super();
     this.inited = false;

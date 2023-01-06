@@ -562,7 +562,7 @@ const cmd_clone = (curr, t)=>etask(function*cmd_clone(){
       yield s_dst.storage.begin_update();
   for (let [seq2, decl] of s_src.dmap){
     if (seq2<=seq)
-      s_dst.get_decl(seq2).from_static(decl.to_static());
+      yield s_dst.get_decl(seq2).from_static(decl.to_static());
   }
   if (s_dst.storage)
       yield s_dst.storage.end_update();
@@ -2245,6 +2245,45 @@ describe('scroll', ()=>{
           load_c(2) #mem2={m2 sig2 M2 D2}
           decl(3) flush #(mem3={m3:S..m3 m2_3 m0_3 sig3 M3 D3} db_c={0:0:M3})
         `);
+        t('xxx0', `conf(soul:manual)
+          soul.s..scroll(db) decl(1-2) flush
+          Soul.db_copy(soul) Soul.S..scroll(s..M0 db) # mem0={m0 M0 sig0 D0}
+          decl(3) flush #(
+            mem1={m1:S..m1 m0_1 sig1 M1 D1}
+            mem2={m2 sig2 M2 D2}
+            mem3={m3 m2_3 m0_3 sig3 M3 D3} db3={m3 m2_3 m0_3 sig3 M3 D3}
+            mem_c={0:M3} db_c={0:0:M3})
+        `);
+        t('xxx1', `conf(soul:manual)
+          soul.s..scroll(db) decl(1-3) flush
+          Soul.db_copy(soul) Soul.S..scroll(s..M0 db) # mem0={m0 M0 sig0 D0}
+          decl(4) flush #(
+            mem3={m3:S..m3 m2_3 m0_3 sig3 M3 D3}
+            mem4={m4 sig4 M4 D4} db4={m4 sig4 M4 D4}
+            mem_c={0:M4} db_c={0:0:M4})`);
+        t('xxx2', `conf(soul:manual)
+          soul.s..scroll(db) decl(1-7) flush
+          Soul.db_copy(soul) Soul.S..scroll(s..M0 db) # mem0={m0 M0 sig0 D0}
+          decl(8) flush #(
+            mem7={M7:S..M7 m7 m6_7 m4_7 m0_7 sig7 D7}
+            mem8={M8 m8 sig8 D8}
+            db8={M8 m8 sig8 D8}
+            mem_c={0:M8} db_c={0:0:M8})
+          // XXX m0_7=(m0_3 m4_7) m4_7=(m4_5 m6_7)
+          decl(9) flush #(mem9={M9 m9 m8_9 sig9 D9} db9={M9 m9 m8_9 sig9 D9}
+            mem_c={0:M9} db_c={0:0:M9})
+        `);
+        t('xxx3', `conf(soul:manual)
+          soul.s..scroll(db) decl(1-15) flush
+          Soul.db_copy(soul) Soul.S..scroll(s..M0 db) # mem0={m0 M0 sig0 D0}
+          decl(16) flush #(
+            mem15={M15:S..M15 m15 m14_15 m12_15 m8_15 m0_15 sig15 D15}
+            mem16={M16 m16 sig16 D16}
+            db16={M16 m16 sig16 D16}
+            mem_c={0:M16} db_c={0:0:M16})
+        `);
+        // XXX: create example with 8 and 16 (verify hash-needed works
+        // correctly)
         t('conflict', `conf(soul:manual)
           soul.s..scroll(d:1-10) Soul.S..scroll(s..M0 db) #(db_c)
           tput(0 1 2 3 4          ) c(M4)

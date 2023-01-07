@@ -284,6 +284,7 @@ function set_m_hash(data, r, val){
   o.m = o.m||{};
   assert(!o.m[r[0]] || o.m[r[0]].equals(val), 'set m'+r_str(r)+
     ' differnt vals');
+  assert(val, 'trying to set null m'+r_str(r));
   return o.m[r[0]] = val;
 }
 
@@ -496,7 +497,7 @@ export default class Scroll extends EventEmitterAsync {
     assert(decl.M.get_hash(cfid), 'failed to calc M'+decl.seq+' cfid '+cfid);
     return decl;
   }); }
-  notify_M(opt){
+  notify_M(opt){ // XXX: make it etask and verify M is calced async
     let {cfid, seq, M} = opt;
     assert(seq!=0 || cfid==0, 'M0 exists only on b0');
     if (seq==0){
@@ -515,16 +516,19 @@ export default class Scroll extends EventEmitterAsync {
     let best = {cfid: 0, seq: 0};
     if (this.conflict.size<=1)
       return best;
-    for (const [j, conflict] of this.conflict){
-      // XXX: optimize. use prev max_common to first check if we can
-      // improve and stop checking if max_common is lower the prev
-      let max = this.find_max_common_M({cfid: j, seq, diff});
-      let top = conflict.top.seq;
-      if (best.seq < max || best.seq==max && best.top<top){
-        best = {cfid: j, seq: max, top};
+    return etask({_: this}, function*find_best_conflict(){
+      let _this = this._;
+      for (const [j, conflict] of _this.conflict){
+        // XXX: optimize. use prev max_common to first check if we can
+        // improve and stop checking if max_common is lower the prev
+        let max = yield _this.find_max_common_M({cfid: j, seq, diff});
+        let top = conflict.top.seq;
+        if (best.seq < max || best.seq==max && best.top<top){
+          best = {cfid: j, seq: max, top};
+        }
       }
-    }
-    return best;
+      return best;
+    });
   }
   put(diff){ return etask({_: this}, function*put(){
     let _this = this._;
@@ -537,10 +541,10 @@ export default class Scroll extends EventEmitterAsync {
       let seq = +a[i], errors2={};
       if (seq==0)
         continue;
-      let best = _this.find_best_conflict(seq, diff), cfid = best.cfid;
+      let best = yield _this.find_best_conflict(seq, diff), cfid = best.cfid;
       let ret = yield _this.put_single(seq, diff, errors2, {cfid});
       if (ret?.conflict){
-        let max = best.seq || _this.find_max_common_M({cfid, seq, diff});
+        let max = best.seq||(yield _this.find_max_common_M({cfid, seq, diff}));
         if (max!==undefined){
           errors2 = {};
           let c2 = _this.create_new_conflict({cfid, seq: max});
@@ -578,15 +582,21 @@ export default class Scroll extends EventEmitterAsync {
   copy_extra_m(m, range, max_range, diff, opt){ return etask({_: this},
     function*copy_extra_m()
   {
-    let _this = this._, cfid=opt.cfid||0, vm = _this.m_hash(cfid, range);
+    assert(m, 'm'+r_str(range)+' is null');
+    let _this = this._, cfid=opt.cfid||0;
+    yield _this.get_decl(range[1]).load(cfid);
+    let vm = _this.m_hash(cfid, range);
     if (vm)
       return vm.equals(m);
     if (r_eq(range, max_range))
       return false;
     let po = r_parent(range), sketch={}, errors={}, m2;
     let r2 = r_eq(range, po.left) ? po.right : po.left;
-    if (!(m2 = _this.sketch_calc_m({cfid, range: r2, sketch, diff, errors})))
+    if (!(m2 = yield _this.sketch_calc_m({cfid, range: r2, sketch, diff,
+      errors})))
+    {
       return false;
+    }
     let mp = hparent(po.parent[1]-po.parent[0]+1, r_eq(range, po.left) ?
       m : m2, r_eq(range, po.left) ? m2 : m);
     if (!(yield _this.copy_extra_m(mp, po.parent, max_range, diff, opt)))
@@ -598,6 +608,7 @@ export default class Scroll extends EventEmitterAsync {
     function*_put_single()
   {
     let _this = this._, cfid=opt.cfid||0, decl=_this.get_decl(seq);
+    yield decl.load(cfid);
     let top = _this.conflict.get(cfid).top, m=get_m_hash(diff, seq), sketch={};
     let D=get_D(diff, seq), sig=get_sig(diff, seq), d=get_d_hash(diff, seq);
     let dD=calc_D_hash(D), vm=decl.m_hash(cfid, seq), vsig=decl.sig_get(cfid);
@@ -642,8 +653,8 @@ export default class Scroll extends EventEmitterAsync {
     if (!m)
       return;
     if (seq<=top.seq){ // verify m belongs to existing top.M
-      let M = _this.sketch_calc_top_M({top, force: {range: [seq, seq], m},
-        sketch, diff, errors, cfid});
+      let M = yield _this.sketch_calc_top_M({top, force: {range: [seq, seq],
+        m}, sketch, diff, errors, cfid});
       if (!M)
         return {conflict: true};
       if (!beq(M, top.M)){
@@ -660,11 +671,12 @@ export default class Scroll extends EventEmitterAsync {
     if (!is_m_valid(m, d, sig, errors, 'invalid sig'+seq))
       return;
     let prev_top = _this.get_decl(top.seq);
+    yield prev_top.load(cfid);
     let prev_top_r = prev_top.m[prev_top.m.length-1].range;
     let prev_force = {range: prev_top_r, m: prev_top.m_hash(cfid, prev_top_r)};
     if (is_null(prev_force.m, errors, 'missing m'+r_str(prev_top_r)))
       return;
-    let prev_M = _this.sketch_calc_top_M({top: {seq: seq-1},
+    let prev_M = yield _this.sketch_calc_top_M({top: {seq: seq-1},
       force: prev_force, sketch, diff, errors, cfid});
     if (is_null(prev_M, errors, 'missing M'+(seq-1)))
       return {conflict: true};
@@ -677,26 +689,30 @@ export default class Scroll extends EventEmitterAsync {
     yield _this.put_verified(sketch, {cfid});
     _this.M_hash(cfid, seq); // update new top
   }); }
-  sketch_calc_top_M(opt){
+  sketch_calc_top_M(opt){ return etask({_: this}, function*sketch_calc_top_M()
+  {
+    let _this = this._;
     let {cfid, top, force, sketch, diff, errors} = opt, {range} = force;
     let seq = force.range[1];
     assert(seq<=top.seq, 'top over seq');
     let roots = calc_roots(top.seq+1), a=[ROOT_TYPE];
     for (let i=0; i<roots.length; i++){
       let r = roots[i], mr;
-      mr = this.sketch_calc_m({cfid, range: r, sketch, diff, errors, force:
-        r_includes(r, range) ? force : null});
+      mr = yield _this.sketch_calc_m({cfid, range: r, sketch, diff, errors,
+        force: r_includes(r, range) ? force : null});
       if (is_null(mr, errors, 'missing m'+r_str(r)))
         return null;
       a.push(mr, enc_u64(r[0]), enc_u64(r[1]-r[0]+1));
     }
     return hconcat(a);
-  }
-  sketch_calc_m(opt){
+  }); }
+  sketch_calc_m(opt){ return etask({_: this}, function*sketch_calc_m(){
+    let _this = this._;
     let {cfid, range, sketch, diff, errors, force} = opt;
     if (force && r_eq(range, force.range))
       return set_m_hash(sketch, range, force.m);
-    let seq = range[1], decl = this.get_decl(seq);
+    let seq = range[1], decl = _this.get_decl(seq);
+    yield decl.load(cfid);
     let m = get_m_hash(diff, range), vm = decl.m_hash(cfid, range);
     if ((vm||m) && (!force || !r_includes(range, force.range))){
       if (m && !vm)
@@ -711,19 +727,25 @@ export default class Scroll extends EventEmitterAsync {
       return set_m_hash(sketch, seq, hleaf(d, sig));
     }
     let [r1, r2] = r_split(range);
-    let m1, vm1, m2, vm2, decl1 = this.get_decl(r1[1]), decl2=decl;
-    if (force && r_includes(r1, force.range))
-      m1 = this.sketch_calc_m({cfid, range: r1, sketch, diff, errors, force});
-    else if (vm1 = decl1.m_hash(cfid, r1));
+    let m1, vm1, m2, vm2, decl1 = _this.get_decl(r1[1]), decl2=decl;
+    yield decl1.load(cfid);
+    if (force && r_includes(r1, force.range)){
+      m1 = yield _this.sketch_calc_m({cfid, range: r1, sketch, diff, errors,
+        force});
+    } else if (vm1 = decl1.m_hash(cfid, r1));
     else if (m1 = get_m_hash(sketch, r1)||get_m_hash(diff, r1));
-    else if (m1 = this.sketch_calc_m({cfid, range: r1, sketch, diff, errors}));
+    else if (m1 = yield _this.sketch_calc_m({cfid, range: r1, sketch, diff,
+      errors}));
     if (is_null(m1||vm1, errors, 'missing m'+r_str(r1)))
       return null;
-    if (force && r_includes(r2, force.range))
-      m2 = this.sketch_calc_m({cfid, range: r2, sketch, diff, errors, force});
-    else if (vm2 = decl2.m_hash(cfid, r2));
+    yield decl2.load(cfid);
+    if (force && r_includes(r2, force.range)){
+      m2 = yield _this.sketch_calc_m({cfid, range: r2, sketch, diff, errors,
+        force});
+    } else if (vm2 = decl2.m_hash(cfid, r2));
     else if (m2 = get_m_hash(sketch, r2)||get_m_hash(diff, r2));
-    else if (m2 = this.sketch_calc_m({cfid, range: r2, sketch, diff, errors}));
+    else if (m2 = yield _this.sketch_calc_m({cfid, range: r2, sketch, diff,
+      errors}));
     if (is_null(m2||vm2, errors, 'missing m'+r_str(r2)))
       return null;
     if (m1)
@@ -733,15 +755,16 @@ export default class Scroll extends EventEmitterAsync {
     m = hparent(range[1]-range[0]+1, vm1||m1, vm2||m2);
     set_m_hash(sketch, range, m);
     return m;
-  }
-  find_max_common_M(opt){
+  }); }
+  find_max_common_M(opt){ return etask({_: this}, function*find_max_common_M(){
+    let _this = this._;
     // XXX: optimization: take into account all from calc_merge_info?
     let {cfid, seq, diff, diff_c, common} = opt, roots = calc_roots(seq+1);
     let ret;
     for (let i=0; i<roots.length; i++){
       let r = roots[i], max;
-      max = r[1]<=common ? {range: r} :
-        this.find_max_common_m({cfid, range: r, diff, diff_c, common});
+      max = r[1]<=common ? {range: r} : yield _this.find_max_common_m({
+        cfid, range: r, diff, diff_c, common});
       if (!max)
         break;
       if (r_eq(r, max.range)){
@@ -749,33 +772,34 @@ export default class Scroll extends EventEmitterAsync {
         continue;
       }
       // XXX: optimize, we now by now that we have max.range[1]
-      let max2 = this.find_max_common_M({cfid, seq: r[1]-1, diff, diff_c,
-        common});
+      let max2 = yield _this.find_max_common_M({cfid, seq: r[1]-1, diff,
+        diff_c, common});
       return max2 ? max2 : max.range[1];
     }
     return ret;
-  }
-  find_max_common_m(opt){
+  }); }
+  find_max_common_m(opt){ return etask({_: this}, function*find_max_common_m(){
     // XXX: need sketch to cache results
-    let {cfid, range, diff, diff_c, common} = opt;
-    let seq = range[1], decl = this.get_decl(seq);
+    let _this = this._, {cfid, range, diff, diff_c, common} = opt;
+    let seq = range[1], decl = _this.get_decl(seq);
     let vm = decl.m_hash(cfid, range);
     if (vm && seq<=common)
       return {range, m};
-    let m = this.calc_m({range, diff, diff_c});
+    let m = _this.calc_m({range, diff, diff_c});
     if (vm && m && vm.equals(m))
       return {range, m};
     if (range[0]==range[1])
       return null;
     let [r1, r2] = r_split(range);
-    let m1, vm1, m2, vm2, decl1 = this.get_decl(r1[1]), decl2=decl;
+    let m1, vm1, m2, vm2, decl1 = _this.get_decl(r1[1]), decl2=decl;
     vm1 = decl1.m_hash(cfid, r1);
     vm2 = decl2.m_hash(cfid, r2);
     if (!vm1)
-      return this.find_max_common_m({cfid, range: r1, diff, diff_c});
-    m1 = this.calc_m({range: r1, diff, diff_c});
+      return yield _this.find_max_common_m({cfid, range: r1, diff, diff_c});
+    m1 = _this.calc_m({range: r1, diff, diff_c});
     if (!m1 || !vm1.equals(m1)){
-      let max1 = this.find_max_common_m({cfid, range: r1, diff, diff_c});
+      let max1 = yield _this.find_max_common_m({cfid, range: r1, diff,
+        diff_c});
       if (!max1)
         return null;
       if (!r_eq(r1, max1.range))
@@ -784,9 +808,10 @@ export default class Scroll extends EventEmitterAsync {
     }
     if (!vm2)
       return {range: r1, m: m1};
-    m2 = this.calc_m({range: r2, diff, diff_c});
+    m2 = _this.calc_m({range: r2, diff, diff_c});
     if (!m2 || !vm2.equals(m2)){
-      let max2 = this.find_max_common_m({cfid, range: r2, diff, diff_c});
+      let max2 = yield _this.find_max_common_m({cfid, range: r2, diff,
+        diff_c});
       if (!max2)
         return {range: r1, m: m1};
       // XXX maybe return r1+max2.range and optimize find_max_common_M
@@ -797,8 +822,9 @@ export default class Scroll extends EventEmitterAsync {
     assert(vm, 'vm must exists');
     assert(!m, 'm does not exists');
     return {range, m: vm};
-  }
+  }); }
   merge_all(seq, cfid){ return etask({_: this}, function*merge_all(){
+     xerr.notice('XXX merge_all seq%s cfid%s', seq, cfid);
     let _this = this._;
     if (_this.conflict.size<=1)
       return;
@@ -816,6 +842,7 @@ export default class Scroll extends EventEmitterAsync {
     }
   }); }
   merge_single(i1, i2, seq){ return etask({_: this}, function*merge_single(){
+    xerr.notice('XXX merge_single seq%s i %s <- %s', seq, i1, i2);
     let _this = this._;
     assert(i1<i2, 'invalid conflict merge '+i1+' '+i2);
     let c1=_this.conflict.get(i1), c2=_this.conflict.get(i2), bseq;
@@ -831,7 +858,7 @@ export default class Scroll extends EventEmitterAsync {
       return;
     }
     // XXX: to calc common, check also if conflict is not direct child
-    bseq = _this.find_max_common_M({cfid: i1, diff_c: i2, seq,
+    bseq = yield _this.find_max_common_M({cfid: i1, diff_c: i2, seq,
       common: c2.parent?.cfid==c1.parent?.cfid ? c2.parent?.seq : undefined});
     assert((c1.parent?.cfid||0)<i2,
       'lower cfid'+i1+' cannot point upper cfid'+i2);
@@ -876,7 +903,7 @@ export default class Scroll extends EventEmitterAsync {
     if (o.init){
       assert(o.cfid===undefined && o.seq===undefined, 'invalid init');
       assert(!src.info, 'invalid init');
-      _this.update_mergeable(src.cfid);
+      yield _this.update_mergeable(src.cfid);
       return;
     }
     if (src.cfid==o.cfid && src.seq==o.sec)
@@ -903,12 +930,13 @@ export default class Scroll extends EventEmitterAsync {
         'real conflict type change c'+src.cfid);
       src.parent.type = o.type;
     }
-    _this.update_mergeable(src.cfid);
+    yield _this.update_mergeable(src.cfid);
   }); }
-  update_mergeable(cfid){
+  update_mergeable(cfid){ return etask({_: this}, function*(){
+    let _this = this._;
     assert(cfid>0, 'invalid conflict');
-    let c_o = this.conflict.get(cfid);
-    let p_o = this.conflict.get(c_o.parent?.cfid);
+    let c_o = _this.conflict.get(cfid);
+    let p_o = _this.conflict.get(c_o.parent?.cfid);
     if (!p_o.conflicts.get(cfid))
       p_o.conflicts.set(cfid, c_o);
     assert.equal(p_o.conflicts.get(cfid), c_o, 'conflict corruption '+cfid);
@@ -928,40 +956,41 @@ export default class Scroll extends EventEmitterAsync {
       if (opt && opt.cfid!=cfid)
         return;
       let any = c_o.minfo.any;
-      for (let r, m, i=0; i<any.length&&(r = any[i])&&(m=this.m_get(r)); i++)
+      for (let r, m, i=0; i<any.length&&(r = any[i])&&(m=_this.m_get(r)); i++)
         m.off('hash', c_o.minfo.on_hash);
-      this.off('conflict-removed', c_o.minfo.cleanup);
-      this.merge_queue.delete(cfid);
+      _this.off('conflict-removed', c_o.minfo.cleanup);
+      _this.merge_queue.delete(cfid);
     };
-    const update_merge_queue = (r, cfid2)=>{
+    const update_merge_queue = (r, cfid2)=>etask(function*update_merge_queue(){
       if (c_o.minfo.merge_queue.get(cfid2))
         return;
       let m1, m2;
-      if ((m1=this.m_hash(cfid, r)) && (m2=this.m_hash(cfid2, r))){
+      if ((m1=_this.m_hash(cfid, r)) && (m2=_this.m_hash(cfid2, r))){
         if (!m1.equals(m2))
           return c_o.minfo.real_map.set(cfid2, true);
         c_o.minfo.merge_queue.set(cfid2, true);
-        this.merge_queue.set(cfid, true);
+        _this.merge_queue.set(cfid, true);
       }
-    };
-    c_o.minfo.on_hash = opt=>{
+    });
+    c_o.minfo.on_hash = opt=>etask(function*on_hash(){
       let r = opt.range, cfid2 = opt.cfid;
       if (cfid2<cfid)
-        update_merge_queue(r, cfid2);
+        yield update_merge_queue(r, cfid2);
       if (cfid2!=cfid)
         return;
-      for (const [j] of this.conflict){ // XXX: can we skip obvious ones
+      for (const [j] of _this.conflict){ // XXX: can we skip obvious ones
         if (j<cfid)
-          update_merge_queue(r, j);
+          yield update_merge_queue(r, j);
       }
-    };
-    this.on('conflict-removed', c_o.minfo.cleanup);
+    });
+    _this.on('conflict-removed', c_o.minfo.cleanup);
     for (let i=0; i<any.length; i++){
-      let r = any[i], m=this.m_get(r);
+      let r = any[i], m=_this.m_get(r);
+      yield _this.get_decl(r[1]).load(cfid);
+      yield c_o.minfo.on_hash({range: r, cfid});
       m.on('hash', c_o.minfo.on_hash);
-      c_o.minfo.on_hash({range: r, cfid});
     }
-  }
+  }); }
   calc_m(opt){
     let {range, diff, diff_c} = opt;
     let m = diff ? get_m_hash(diff, range, true) :
@@ -1054,10 +1083,13 @@ export default class Scroll extends EventEmitterAsync {
     }
     return o;
   }
-  conflict_from_static2(cs){
-    assert(this.conflict.size==1 && !this.top,
+  conflict_from_static2(cs){ return etask({_: this},
+    function*conflict_from_static2()
+  {
+    let _this = this._;
+    assert(_this.conflict.size==1 && !_this.top,
       'cannot update conflict info after it was populated');
-    let max_c = this.conflict.next_id||0, max_top;
+    let max_c = 0, max_top;
     for (let cfid in cs){
       let o = cs[cfid], M = Buffer.from(o.top.M);
       cfid = +cfid;
@@ -1067,20 +1099,25 @@ export default class Scroll extends EventEmitterAsync {
       let co = {cfid, top: {seq: o.top.seq, M: M},
         parent: o.parent ? {cfid: o.parent.cfid, seq: o.parent.seq,
           type: o.parent.type} : null, conflicts: new Map()};
-      this.conflict.set(cfid, co);
+      _this.conflict.set(cfid, co);
 
     }
     for (let cfid in cs){
       cfid = +cfid;
-      let co = this.conflict.get(cfid);
+      let co = _this.conflict.get(cfid);
       if (co.parent) // XXX: do it after pupolate all
-        this.conflict.get(co.parent.cfid).conflicts.set(cfid, co);
+        _this.conflict.get(co.parent.cfid).conflicts.set(cfid, co);
     }
     // XXX add test to verify conflict.next_id and top are updated
-    this.conflict.next_id = max_c+1;
-    this.top = max_top;
+    _this.conflict.next_id = max_c+1;
+    _this.top = max_top;
     // XXX: what about mergable etc.
-  }
+    for (let cfid in cs){
+      cfid = +cfid;
+      if (cfid)
+        yield _this.update_mergeable(cfid, true);
+    }
+  }); }
 }
 
 class Decl extends EventEmitterAsync {

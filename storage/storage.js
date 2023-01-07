@@ -342,3 +342,4 @@ function conflict_eq(data, data2){ return xutil.equal_deep(data, data2); }
 //     scfid_next is loaded correctly
 // 30. write scfid to blob data table so we can do purge
 // 31. verify that multiple load will not try to load more than once
+// 32. protect put (verify diff is valid)

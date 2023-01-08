@@ -55,8 +55,8 @@ export default class DB {
   });
   load_scfid_next(){ return etask({_: this}, function*load_scfid_next(){
     let _this = this._;
-    let tx = _this.create_transaction(['scroll2'], 'readonly');
-    let store = tx.tx.objectStore('scroll2');
+    let tx = _this.transaction(['scroll2'], 'readonly');
+    let store = tx.store('scroll2');
     let cursor = yield _this.cursor(store, null, 'prev');
     _this.scfid_next = cursor ? cursor.value.scfid+1 : 0;
   }); }
@@ -65,14 +65,14 @@ export default class DB {
     let _this = this._;
     assert(src.inited, 'src db not inited');
     assert(_this.inited, 'db not inited');
-    let tx = _this.create_transaction(['scroll2', 'decl2'], 'readwrite');
-    let store = tx.tx.objectStore('scroll2');
+    let tx = _this.transaction(['scroll2', 'decl2'], 'readwrite');
+    let store = tx.store('scroll2');
     for (let cursor = yield _this.cursor(store); cursor;
       cursor = yield cursor.next())
     {
       cursor.delete();
     }
-    store = tx.tx.objectStore('decl2');
+    store = tx.store('decl2');
     for (let cursor = yield _this.cursor(store); cursor;
       cursor = yield cursor.next())
     {
@@ -80,36 +80,36 @@ export default class DB {
     }
     yield tx;
     let data_scroll = [], data_decl = [], data_blob = [];
-    let tx2 = src.create_transaction(['scroll2', 'decl2'], 'readonly');
-    let store2 = tx2.tx.objectStore('scroll2');
+    let tx2 = src.transaction(['scroll2', 'decl2'], 'readonly');
+    let store2 = tx2.store('scroll2');
     for (let cursor = yield src.cursor(store2); cursor;
       cursor = yield cursor.next())
     {
       data_scroll.push(cursor.value);
     }
-    tx2 = src.create_transaction(['scroll2', 'decl2'], 'readonly');
-    store2 = tx2.tx.objectStore('decl2');
+    tx2 = src.transaction(['scroll2', 'decl2'], 'readonly');
+    store2 = tx2.store('decl2');
     for (let cursor = yield src.cursor(store2); cursor;
       cursor = yield cursor.next())
     {
       data_decl.push(cursor.value);
     }
-    tx2 = src.create_transaction(['data'], 'readonly');
-    store2 = tx2.tx.objectStore('data');
+    tx2 = src.transaction(['data'], 'readonly');
+    store2 = tx2.store('data');
     for (let cursor = yield src.cursor(store2); cursor;
       cursor = yield cursor.next())
     {
       data_blob.push(cursor.value);
     }
-    tx = _this.create_transaction(['scroll2', 'decl2', 'data'], 'readwrite');
-    store = tx.tx.objectStore('scroll2');
+    tx = _this.transaction(['scroll2', 'decl2', 'data'], 'readwrite');
+    store = tx.store('scroll2');
     for (let i=0; i<data_scroll.length; i++)
       yield _this.store_put(store, data_scroll[i]);
-    tx = _this.create_transaction(['scroll2', 'decl2', 'data'], 'readwrite');
-    store = tx.tx.objectStore('decl2');
+    tx = _this.transaction(['scroll2', 'decl2', 'data'], 'readwrite');
+    store = tx.store('decl2');
     for (let i=0; i<data_decl.length; i++)
       yield _this.store_put(store, data_decl[i]);
-    store = tx.tx.objectStore('data');
+    store = tx.store('data');
     for (let i=0; i<data_blob.length; i++)
       yield _this.store_put(store, data_blob[i]);
     yield tx;
@@ -130,8 +130,8 @@ export default class DB {
     let store = tx.objectStore(name);
     return store_add(store, val);
   }
-  create_transaction(store_names, mode, options){
-    return create_transaction(this.db, store_names, mode, options);
+  transaction(store_names, mode, options){
+    return transaction(this.db, store_names, mode, options);
   }
   store_delete(store, key){ return store_delete(store, key); }
   store_add(store, val){ return store_add(store, val); }
@@ -215,11 +215,12 @@ function store_delete(store, key){
   return wait;
 }
 
-function create_transaction(db, store_names, mode, options){
+function transaction(db, store_names, mode, options){
   let wait = etask.wait();
   wait.tx = db.transaction(store_names, mode, options);
   wait.tx.oncomplete = wrap_cb(e=>wait.continue(e));
-  wait.tx.onerror = wrap_cb(e=>wait.throw('create_transaction '+e));
+  wait.tx.onerror = wrap_cb(e=>wait.throw('transaction '+e));
+  wait.store = name=>wait.tx.objectStore(name);
   return wait;
 }
 

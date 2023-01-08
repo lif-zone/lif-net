@@ -81,7 +81,7 @@ export default class Storage_handler {
             seq = +seq;
             for (let cfid in queue_decl[seq]){
               cfid = +cfid;
-              // XXX: WIP
+              // XXX: WIP - should never happy, handle with events
               if (!scroll.conflict.get(cfid)) // XXX: TODO (branch deleted)
                 continue;
               if (!scroll.conflict.get(cfid).db) // XXX: TODO

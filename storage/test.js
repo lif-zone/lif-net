@@ -129,8 +129,8 @@ const struct_from_str = exp=>etask(function*struct_from_str(){
 
 const struct_from_db = (scroll, seq)=>etask(function*struct_from_db(){
   let db_c = yield db_get_c(scroll.soul.db, scroll.name);
-  let db = scroll.soul.db, tx = db.transaction('decl2', 'readonly');
-  let store = tx.store('decl2');
+  let db = scroll.soul.db, tx = db.transaction('decl', 'readonly');
+  let store = tx.store('decl');
   let ret = {};
   for (let scfid in db_c){
     scfid = +scfid;
@@ -909,11 +909,11 @@ const get_static_c = exp=>etask(function*get_static_c(){
 
 const db_get_scroll_decl = (db, scroll)=>etask(function*db_get_scroll_decl(){
   let db_c = yield db_get_c(db, scroll.M_hash(0, 0)), ret={};
-  let tx = db.transaction('decl2', 'readonly');
+  let tx = db.transaction('decl', 'readonly');
   for (let scfid in db_c){
     scfid = +scfid;
     let cfid = db_c[scfid].cfid;
-    let index = tx.store('decl2').index('scfid');
+    let index = tx.store('decl').index('scfid');
     let query = IDBKeyRange.only(scfid);
     for (let cursor=yield db.cursor(index, query); cursor;
       cursor = yield cursor.next())
@@ -925,17 +925,17 @@ const db_get_scroll_decl = (db, scroll)=>etask(function*db_get_scroll_decl(){
       ret[o.seq][cfid] = o;
     }
   }
-  let scfids = {}, store = tx.store('decl2');
+  let scfids = {}, store = tx.store('decl');
   for (let cursor=yield db.cursor(store); cursor; cursor = yield cursor.next())
     scfids[cursor.value.scfid] = true;
   for (let scfid in scfids)
-    assert(yield db.db_get('scroll2', +scfid), 'scfid '+scfid+' not found');
+    assert(yield db.db_get('scroll', +scfid), 'scfid '+scfid+' not found');
   return ret;
 });
 
 const db_get_c = (db, M)=>etask(function*db_get_c(){
-  let tx = db.transaction('scroll2', 'readonly'), ret;
-  let index = tx.index('scroll2', 'scroll');
+  let tx = db.transaction('scroll', 'readonly'), ret;
+  let index = tx.index('scroll', 'scroll');
   let query = IDBKeyRange.only(b2s(M));
   for (let cursor=yield db.cursor(index, query); cursor;
     cursor = yield cursor.next())

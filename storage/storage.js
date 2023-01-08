@@ -61,8 +61,8 @@ export default class Storage_handler {
           _this.db_wakeup = null;
           let blob = {};
           let {queue_cf, queue_cf_rm, queue_decl} = _this.db_queue[0];
-          let tx = db.transaction(['scroll2', 'decl2'], 'readwrite');
-          let store = tx.store('scroll2'), store2 = tx.store('decl2');
+          let tx = db.transaction(['scroll', 'decl'], 'readwrite');
+          let store = tx.store('scroll'), store2 = tx.store('decl');
           let index2 = store2.index('scfid');
           for (let i=0; i<queue_cf_rm?.length; i++){
             let scfid = queue_cf_rm[i].scfid;
@@ -223,8 +223,8 @@ export default class Storage_handler {
   {
     let _this = this._, db = _this.db, ret;
     assert(_this.inited, 'storage_handler not inited');
-    let tx = db.transaction('scroll2', 'readonly');
-    let index = tx.index('scroll2', 'scroll');
+    let tx = db.transaction('scroll', 'readonly');
+    let index = tx.index('scroll', 'scroll');
     let query = IDBKeyRange.only(M);
     for (let cursor = yield db.cursor(index, query) ; cursor;
       cursor = yield cursor.next())
@@ -267,8 +267,8 @@ export default class Storage_handler {
     return decl.db.cfid[cfid].busy = etask({_: this}, function*load_cfid(){
       let _this = this._, db = _this.db;
       this.on('finally', ()=>decl.db.cfid[cfid].busy = null);
-      let tx = db.transaction('decl2', 'readonly');
-      let data = yield db.store_get(tx.store('decl2'), [scfid, decl.seq]);
+      let tx = db.transaction('decl', 'readonly');
+      let data = yield db.store_get(tx.store('decl'), [scfid, decl.seq]);
       if (!data)
         return;
       assert.equal(scfid, _this.scroll.conflict.get(cfid).db?.data.scfid,
@@ -335,9 +335,7 @@ function conflict_eq(data, data2){ return xutil.equal_deep(data, data2); }
 //    flush/no-lock
 // 4. verify we rebuild minfo/conflicts on scroll.conflict when loading scroll
 //    from db
-// 12. check what to do when Data.copy is called (this.cmap.delete(csrc))
-// 13. rm obsolete scroll/decl stores
-// 16. save blob
+// 16. save blob scfid array
 // 18. rename struct_from_db2 -> struct_from_db and rm struct_from_db
 // 19. rm xxx_db_old_to_new
 // 20. change decl table to include also scroll name

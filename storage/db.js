@@ -31,13 +31,12 @@ export default class DB {
     _this.db = yield idb.openDB('lif_db'+_this.postfix, undefined, {
       upgrade(db, oldVersion, newVersion, transaction, event){
         // XXX how to wait for creation of table and verify both are created
-        // XXX: rm obsolete scroll and rename scroll2->scroll
         db.createObjectStore('data', {keyPath: 'h'});
-        let scroll2 = db.createObjectStore('scroll2', {keyPath: 'scfid'});
+        let scroll2 = db.createObjectStore('scroll', {keyPath: 'scfid'});
         // XXX: do we need both 'scroll' and 'scroll-scfid' indexes?
         scroll2.createIndex('scroll', 'scroll');
         scroll2.createIndex('scroll-cfid', ['scroll', 'cfid'], {unique: true});
-        let decl2 = db.createObjectStore('decl2', {keyPath: ['scfid', 'seq']});
+        let decl2 = db.createObjectStore('decl', {keyPath: ['scfid', 'seq']});
         decl2.createIndex('scfid', 'scfid');
     }});
     yield _this.load_scfid_next();
@@ -55,8 +54,8 @@ export default class DB {
   });
   load_scfid_next(){ return etask({_: this}, function*load_scfid_next(){
     let _this = this._;
-    let tx = _this.transaction(['scroll2'], 'readonly');
-    let store = tx.store('scroll2');
+    let tx = _this.transaction(['scroll'], 'readonly');
+    let store = tx.store('scroll');
     let cursor = yield _this.cursor(store, null, 'prev');
     _this.scfid_next = cursor ? cursor.value.scfid+1 : 0;
   }); }
@@ -65,14 +64,14 @@ export default class DB {
     let _this = this._;
     assert(src.inited, 'src db not inited');
     assert(_this.inited, 'db not inited');
-    let tx = _this.transaction(['scroll2', 'decl2'], 'readwrite');
-    let store = tx.store('scroll2');
+    let tx = _this.transaction(['scroll', 'decl'], 'readwrite');
+    let store = tx.store('scroll');
     for (let cursor = yield _this.cursor(store); cursor;
       cursor = yield cursor.next())
     {
       cursor.delete();
     }
-    store = tx.store('decl2');
+    store = tx.store('decl');
     for (let cursor = yield _this.cursor(store); cursor;
       cursor = yield cursor.next())
     {
@@ -80,15 +79,15 @@ export default class DB {
     }
     yield tx;
     let data_scroll = [], data_decl = [], data_blob = [];
-    let tx2 = src.transaction(['scroll2', 'decl2'], 'readonly');
-    let store2 = tx2.store('scroll2');
+    let tx2 = src.transaction(['scroll', 'decl'], 'readonly');
+    let store2 = tx2.store('scroll');
     for (let cursor = yield src.cursor(store2); cursor;
       cursor = yield cursor.next())
     {
       data_scroll.push(cursor.value);
     }
-    tx2 = src.transaction(['scroll2', 'decl2'], 'readonly');
-    store2 = tx2.store('decl2');
+    tx2 = src.transaction(['scroll', 'decl'], 'readonly');
+    store2 = tx2.store('decl');
     for (let cursor = yield src.cursor(store2); cursor;
       cursor = yield cursor.next())
     {
@@ -101,12 +100,12 @@ export default class DB {
     {
       data_blob.push(cursor.value);
     }
-    tx = _this.transaction(['scroll2', 'decl2', 'data'], 'readwrite');
-    store = tx.store('scroll2');
+    tx = _this.transaction(['scroll', 'decl', 'data'], 'readwrite');
+    store = tx.store('scroll');
     for (let i=0; i<data_scroll.length; i++)
       yield _this.store_put(store, data_scroll[i]);
-    tx = _this.transaction(['scroll2', 'decl2', 'data'], 'readwrite');
-    store = tx.store('decl2');
+    tx = _this.transaction(['scroll', 'decl', 'data'], 'readwrite');
+    store = tx.store('decl');
     for (let i=0; i<data_decl.length; i++)
       yield _this.store_put(store, data_decl[i]);
     store = tx.store('data');

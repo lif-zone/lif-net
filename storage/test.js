@@ -149,7 +149,7 @@ const struct_from_db = (scroll, seq)=>etask(function*struct_from_db(){
 function struct_from_decl(decl){
   if (!decl)
     return null;
-  let o = decl.to_static2();
+  let o = decl.to_static();
   for (let cfid in o){
     delete o[cfid].scfid;
     if (Object.keys(o[cfid]).length==1 && Object.keys(o[cfid])[0]=='seq')

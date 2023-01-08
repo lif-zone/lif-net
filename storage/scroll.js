@@ -1260,23 +1260,6 @@ class Decl extends EventEmitterAsync {
     }
     return o;
   }
-  to_static2(opt={}){
-    let ret;
-    for (const [cfid] of this.scroll.conflict){
-      ret = ret||{};
-      if (cfid==this.to_c(cfid))
-        ret[cfid] = this.to_static_cfid(cfid, opt);
-    }
-    return ret;
-  }
-  to_static(opt={}){ return this.to_static2(opt); }
-  from_static(o){ return etask({_: this}, function*from_static(){
-    let _this = this._;
-    for (let cfid in o){
-      cfid = +cfid;
-      yield _this.from_static_cfid(cfid, o[cfid]);
-    }
-  }); }
   from_static_cfid(cfid, o){ return etask({_: this},
     function*from_static_cfid()
   {
@@ -1288,6 +1271,22 @@ class Decl extends EventEmitterAsync {
     }
     if (o.D)
       yield _this.fbuf_get_sync(cfid).set_frames(o.D);
+  }); }
+  to_static(opt={}){
+    let ret;
+    for (const [cfid] of this.scroll.conflict){
+      ret = ret||{};
+      if (cfid==this.to_c(cfid))
+        ret[cfid] = this.to_static_cfid(cfid, opt);
+    }
+    return ret;
+  }
+  from_static(o){ return etask({_: this}, function*from_static(){
+    let _this = this._;
+    for (let cfid in o){
+      cfid = +cfid;
+      yield _this.from_static_cfid(cfid, o[cfid]);
+    }
   }); }
   load(cfid, opt={}){
     assert(cfid>=0, 'invalid cfid '+cfid);

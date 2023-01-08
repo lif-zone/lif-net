@@ -1076,8 +1076,8 @@ export default class Scroll extends EventEmitterAsync {
     }
     return o;
   }
-  conflict_from_static2(cs){ return etask({_: this},
-    function*conflict_from_static2()
+  conflict_from_static(cs, cb){ return etask({_: this},
+    function*conflict_from_static()
   {
     let _this = this._, max_c = 0, max_top;
     assert(_this.conflict.size==1 && !_this.top,
@@ -1090,8 +1090,9 @@ export default class Scroll extends EventEmitterAsync {
         max_top = {cfid, seq: top.seq, M};
       let co = {cfid, top: {seq: top.seq, M: M}, parent: parent ?
         {cfid: parent.cfid, seq: parent.seq, type: parent.type} : null,
-        conflicts: new Map(), db: o.db};
-      assert(o.db.data.scfid>=0, 'missing scfid');
+        conflicts: new Map()};
+      if (cb)
+        cb(o, co);
       _this.conflict.set(cfid, co);
       if (co.parent)
         _this.conflict.get(co.parent.cfid).conflicts.set(cfid, co);

@@ -191,7 +191,10 @@ export default class Storage_handler {
     let c = yield _this.load_conflict_static(M);
     if (!c)
       return;
-    yield scroll.conflict_from_static2(c);
+    yield scroll.conflict_from_static(c, (o, co)=>{
+      assert(o.db.data.scfid>=0, 'missing scfid');
+      co.db = o.db;
+    });
   }); }
   load_conflict_static(M){ return etask({_: this},
     function*load_conflict_static()
@@ -319,8 +322,6 @@ function conflict_eq(data, data2){ return xutil.equal_deep(data, data2); }
 //     (for easy delete of scorll)
 // 21. review all possible errors and handle properly
 // 23. wait for success on db.init
-// 24. conflict_from_static2 -> conflict_from_static
-// 25. conflict_from_static --> update mergable and friends
 // 26. review fbuf_load_async/regular usage
 // 27. verify behavior of loading data that was declared in memory and not yet
 //     flushed

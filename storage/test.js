@@ -2220,6 +2220,7 @@ describe('scroll', ()=>{
         `);
       });
       describe('write', ()=>{
+        // XXX: rm c and support 0:0:s..M1
         t('simple', `s..scroll(db) #(db_c db) c(M0=s..M0)
           flush #db0={m0 M0 sig0 D0}
           decl(1) c(M1=s..M1) flush #(db_c={0:0:M1} db1={M1 sig1 D1 m1 m0_1})

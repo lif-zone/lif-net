@@ -22,7 +22,7 @@ decl = [ // KEYPATH scfid, seq
     D: [{sig}, {buf, h}, ...]}
 ];
 data = [ // KEYPATH h
-  {h, buf, scfid: [1]},
+  {h, buf, scfid: [1, 2]},
 ];
 */
 
@@ -51,7 +51,7 @@ export default class Storage_handler {
     _this.on_decl(scroll.get_decl(0));
     scroll.on('conflict-removed', _this.on_conflict_removed);
     scroll.on('decl', _this.on_decl);
-    // XXX: 1. run in a worker 2. abort transcation on error
+    // XXX: 1. abort transcation on error
     _this.sp.spawn(etask(function*db_updater(){
       while (true){
         try {
@@ -315,7 +315,6 @@ function conflict_eq(data, data2){ return xutil.equal_deep(data, data2); }
 //    from db
 // 5. handle db.uninit (need to notify Storage_handler to write to db)
 // 6. run db operations in a worker
-// 10. _this -> this_
 // 11. move storage part to storage.js
 // 12. check what to do when Data.copy is called (this.cmap.delete(csrc))
 // 13. rm obsolete scroll/decl stores
@@ -340,10 +339,4 @@ function conflict_eq(data, data2){ return xutil.equal_deep(data, data2); }
 // 35. make all conflict changes event-based and rm conflict_eq
 
 // XXX derry:
-// 1. _this -> this_
-// 2. mv _this to etask(function*(_this)) and consider make this of etask _this
-// 3. EventEmitterAsync
-// 4. review storage in scroll
-// 5. review load_cfid
-// 6. review db_updater + this.sp
-// 7. blob - how to delete scfid from array when branch is removed (or merge)
+// 1. _this -> this_ (change vim coloring to be like) and fix top/parent/...

@@ -336,10 +336,6 @@ function conflict_eq(data, data2){ return xutil.equal_deep(data, data2); }
 // 4. verify we rebuild minfo/conflicts on scroll.conflict when loading scroll
 //    from db
 // 16. save blob scfid array
-// 18. rename struct_from_db2 -> struct_from_db and rm struct_from_db
-// 19. rm xxx_db_old_to_new
-// 20. change decl table to include also scroll name
-//     (for easy delete of scorll)
 // 21. review all possible errors and handle properly
 // 23. wait for success on db.init
 // 26. review fbuf_load_async/regular usage

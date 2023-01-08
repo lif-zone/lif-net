@@ -2318,7 +2318,6 @@ describe('scroll', ()=>{
           !mem2 !mem4 !mem5 !mem6 !mem7 !mem8 !mem9
           tput(0_1_2_3 4 5 6      )
           c(M6 5t0.M9)
-//          c(M9 5t0.M6)
         `);
         t('on_demand-simple1', `conf(soul:manual)
           soul.s..scroll(d:1-10) Soul.S..scroll(s..M0 db)
@@ -2345,7 +2344,15 @@ describe('scroll', ()=>{
           #(mem_c={0:M4 1:3t0.M9} mem3={M3:S2..M3 m3 m2_3 m0_3}
             mem4={M4 m4 sig4 D4} mem5={M5c1 m4_5c1}
             mem7={M7c1 m6_7c1 m4_7c1 m0_7c1} mem8={M8c1 m8c1}
-            mem9={M9c1 sig9c1 D9c1 m9c1 m8_9c1})`);
+            mem9={M9c1 sig9c1 D9c1 m9c1 m8_9c1})
+          s.c(M10=s..M10) // XXX: def(S..) or S..def
+          tput(0_1_2_3 4 5 6      ) #(mem_c={0:M9 2:5t0.M6}
+            mem5={M5 m5 m4_5} mem7={M7 m6_7 m4_7 m0_7} mem8={M8 m8}
+            mem9={M9 sig9 D9 m9 m8_9} mem6={M6c2:S2..M6c2 sig6c2 D6c2 m6c2})
+          s.c(M10=s..M10) // XXX: def(S..) or S..def
+          tput(0_1_2_3 4_5 6 7    ) #(mem_c={0:M9} mem5={M5 m5 m4_5}
+            mem6={M6 sig6 D6 m6} mem7={M7 sig7 D7 m7 m6_7 m4_7 m0_7}
+            mem8={M8 m8} mem9={M9 sig9 D9 m9 m8_9})`);
         t('on_demand-conflict2', `conf(soul:manual)
           soul.s..scroll(d:1-10) Soul.S..scroll(s..M0 db)
           tput(0 1 2 3 4          ) c(M4)

@@ -21,7 +21,7 @@ decl = [ // KEYPATH scfid, seq
   {scfid: 1, seq: 3, M: M3b1, m: {0: m0_1, 1: m1}},
     D: [{sig}, {buf, h}, ...]}
 ];
-blob = [ // KEYPATH h
+data = [ // KEYPATH h
   {h, buf, scfid: [1]},
 ];
 */
@@ -59,13 +59,13 @@ export default class Storage_handler {
             yield _this.db_wakeup = etask.wait();
           _this.db_wakeup = null;
           let blob = {};
-          let {queue, queue_del, queue_decl} = _this.db_queue[0];
+          let {queue_cf, queue_cf_rm, queue_decl} = _this.db_queue[0];
           let tx = db.create_transaction(['scroll2', 'decl2'], 'readwrite');
           let store = tx.tx.objectStore('scroll2');
           let store2 = tx.tx.objectStore('decl2');
           let index2 = store2.index('scfid');
-          for (let i=0; i<queue_del?.length; i++){
-            let scfid = queue_del[i].scfid;
+          for (let i=0; i<queue_cf_rm?.length; i++){
+            let scfid = queue_cf_rm[i].scfid;
             yield db.store_delete(store, scfid);
             // XXX: wrap in api
             let query = IDBKeyRange.only(scfid);
@@ -75,8 +75,8 @@ export default class Storage_handler {
               cursor.delete();
             }
           }
-          for (let i=0; i<queue.length; i++)
-            yield db.store_put(store, queue[i].data);
+          for (let i=0; i<queue_cf.length; i++)
+            yield db.store_put(store, queue_cf[i].data);
           for (let seq in queue_decl){
             seq = +seq;
             for (let cfid in queue_decl[seq]){
@@ -115,8 +115,8 @@ export default class Storage_handler {
     assert(this.busy, 'conflict-removed while not in update');
     if (!e.o.db)
       return;
-    this.queue_del = this.queue_del||[];
-    this.queue_del.push({scfid: e.o.db.data.scfid});
+    this.queue_cf_rm = this.queue_cf_rm||[];
+    this.queue_cf_rm.push({scfid: e.o.db.data.scfid});
   };
   on_decl = decl=>{
     if (this.block_events)
@@ -148,7 +148,7 @@ export default class Storage_handler {
   begin_update(){ return etask({_: this}, function*end_update(){
     let _this = this._;
     assert(_this.inited, 'storage_handler not inited');
-    assert(!_this.queue_del, 'pending quere_del');
+    assert(!_this.queue_cf_rm, 'pending quere_del');
     // XXX: review with derry and wrap it
     while (_this.busy)
       this.wait_ext(_this.busy);
@@ -158,24 +158,24 @@ export default class Storage_handler {
     let _this = this._, db = _this.db, scroll = _this.scroll;
     assert(_this.inited, 'storage_handler not inited');
     assert(_this.busy, 'end_update while not in update');
-    let queue = [];
+    let queue_cf = [];
     for (const [, o] of scroll.conflict){
       if (!o.db){
         o.db = {data: conflict_to_data(db, scroll, o)};
-        queue.push({new: true, data: xutil.clone_deep(o.db.data)});
+        queue_cf.push({new: true, data: xutil.clone_deep(o.db.data)});
       } else {
         let data = conflict_to_data(db, scroll, o);
         if (conflict_eq(o.db.data, data)) // XXX: optimize, avoid cmp
           continue;
         o.db.data = data;
-        queue.push({data: xutil.clone_deep(o.db.data)});
+        queue_cf.push({data: xutil.clone_deep(o.db.data)});
       }
       assert(o.db.data.scroll, 'missing scorll');
     }
-    _this.schedule_db_update({queue, queue_del: _this.queue_del,
+    _this.schedule_db_update({queue_cf, queue_cf_rm: _this.queue_cf_rm,
       queue_decl: _this.queue_decl});
     let wait = _this.busy;
-    _this.busy = _this.queue_del = _this.queue_decl = null;
+    _this.busy = _this.queue_cf_rm = _this.queue_decl = null;
     wait.continue();
   }); }
   schedule_db_update(o){
@@ -347,3 +347,4 @@ function conflict_eq(data, data2){ return xutil.equal_deep(data, data2); }
 // 4. review storage in scroll
 // 5. review load_cfid
 // 6. review db_updater + this.sp
+// 7. blob - how to delete scfid from array when branch is removed (or merge)

@@ -33,6 +33,7 @@ export default class Storage_handler {
       throw new Error('db not inited');
     this.db = db;
     this.db_queue = [];
+    this.listeners_decl = {};
     // XXX: derry
     this.sp = etask(function*Storage_handler_sp(){ return this.wait(); });
   }
@@ -43,14 +44,14 @@ export default class Storage_handler {
     _this.inited = true;
     let scroll = _this.scroll = opt.scroll;
     assert.equal(scroll.top, null, 'scroll must be empty');
+    assert.equal(scroll.dmap.size, 0, 'scroll must be empty');
     assert.equal(scroll.conflict.get(0).top, null, 'scroll must be empty');
+    scroll.on('conflict-removed', _this.on_conflict_removed);
+    scroll.on('decl', _this.on_decl);
     if (M){
       yield _this.load_conflict(M);
       yield _this.load_cfid(scroll.get_decl(0), 0);
     }
-    _this.on_decl(scroll.get_decl(0));
-    scroll.on('conflict-removed', _this.on_conflict_removed);
-    scroll.on('decl', _this.on_decl);
     // XXX: 1. abort transcation on error
     _this.sp.spawn(etask(function*db_updater(){
       while (true){
@@ -105,28 +106,48 @@ export default class Storage_handler {
     }));
   }); }
   uninit(){ return etask({_: this}, function*uninit(){
-    let _this = this._;
+    let _this = this._, scroll = _this.scroll;
+    assert(_this.inited, 'storage_handler not inited');
+    scroll.on('conflict-removed', _this.on_conflict_removed);
+    scroll.on('decl', _this.on_decl);
+    for (let seq in _this.listeners_decl)
+      _this.rm_on_decl(_this.listeners_decl[seq]);
     yield _this.flush();
-    _this.sp.return();
-    // XXX: need to unregister all cb
+    yield _this.sp.return();
+    // XXX: how to cancel all existing running etask (eg. load_cfid)
+    _this.inited = false;
   }); }
   on_conflict_removed = e=>{
     assert(this.busy, 'conflict-removed while not in update');
+    assert(this.inited, 'storage_handler not inited');
     if (!e.o.db)
       return;
     this.queue_cf_rm = this.queue_cf_rm||[];
     this.queue_cf_rm.push({scfid: e.o.db.data.scfid});
   };
   on_decl = decl=>{
+    assert(this.inited, 'storage_handler not inited');
     if (this.block_events)
       return;
+    assert(!this.listeners_decl[decl.seq], 'dup decl seq'+decl.seq);
+    this.listeners_decl[decl.seq] = decl;
     decl.M.on('hash', this.on_decl_update);
     for (let i=0; i<decl.m.length; i++)
       decl.m[i].on('hash', this.on_decl_update);
     decl.data.on('hash', this.on_decl_update);
     decl.data.on('data', this.on_decl_update);
   };
+  rm_on_decl = decl=>{
+    assert(this.inited, 'storage_handler not inited');
+    delete this.listeners_decl[decl.seq];
+    decl.M.off('hash', this.on_decl_update);
+    for (let i=0; i<decl.m.length; i++)
+      decl.m[i].off('hash', this.on_decl_update);
+    decl.data.off('hash', this.on_decl_update);
+    decl.data.off('data', this.on_decl_update);
+  };
   on_decl_update = e=>{
+    assert(this.inited, 'storage_handler not inited');
     if (this.block_events)
       return;
     // XXX: enable once old db code is removed
@@ -140,6 +161,7 @@ export default class Storage_handler {
   };
   flush(){ return etask({_: this}, function*flush(){
     let _this = this._;
+    assert(_this.inited, 'storage_handler not inited');
     // XXX: need to do it event based
     while (_this.db_queue.length)
       yield etask.sleep(1);
@@ -185,6 +207,7 @@ export default class Storage_handler {
   }
   load_conflict(M){ return etask({_: this}, function*load_conflict(){
     let _this = this._, scroll = _this.scroll;
+    assert(_this.inited, 'storage_handler not inited');
     assert.equal(scroll.top, null, 'scroll must be empty');
     assert.equal(scroll.conflict.get(0).top, null, 'scroll must be empty');
     let c = yield _this.load_conflict_static(M);
@@ -199,6 +222,7 @@ export default class Storage_handler {
     function*load_conflict_static()
   {
     let _this = this._, db = _this.db, ret;
+    assert(_this.inited, 'storage_handler not inited');
     let tx = db.transaction('scroll2', 'readonly');
     let index = tx.index('scroll2', 'scroll');
     let query = IDBKeyRange.only(M);
@@ -217,6 +241,7 @@ export default class Storage_handler {
     return ret;
   }); }
   load_cfid(decl, cfid, opt={}){
+    assert(this.inited, 'storage_handler not inited');
     assert.equal(decl.scroll, this.scroll, 'differnt decl scroll');
     let scfid = this.scroll.conflict.get(cfid)?.db?.data.scfid;
     if (!Number.isInteger(scfid))
@@ -260,6 +285,7 @@ export default class Storage_handler {
   load_cfid_data(decl, cfid){ return etask({_: this}, function*load_cfid_data()
   {
     let _this = this._, db = _this.db;
+    assert(_this.inited, 'storage_handler not inited');
     let data = decl.data_get();
     let fbuf = data.cmap.get(cfid);
     if (!fbuf)
@@ -309,9 +335,6 @@ function conflict_eq(data, data2){ return xutil.equal_deep(data, data2); }
 //    flush/no-lock
 // 4. verify we rebuild minfo/conflicts on scroll.conflict when loading scroll
 //    from db
-// 5. handle db.uninit (need to notify Storage_handler to write to db)
-// 6. run db operations in a worker
-// 11. move storage part to storage.js
 // 12. check what to do when Data.copy is called (this.cmap.delete(csrc))
 // 13. rm obsolete scroll/decl stores
 // 16. save blob

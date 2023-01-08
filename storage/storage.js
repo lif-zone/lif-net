@@ -6,16 +6,16 @@ import xutil from '../util/util.js';
 import buf_util from '../peer-relay/buf_util.js';
 const b2s = buf_util.buf_to_str, s2b = buf_util.buf_from_str;
 
-/* XXX: design
-scrolls = [ // KEYPATH scfid. INDEX scroll, cfid
+/* db design
+scroll = [ // KEYPATH scfid. INDEX scroll, cfid
   {scfid: 0, scroll: '4817AB', cfid: 0},
-  {scfid: 1, scroll: '4817AB', cfid: 2, splits: [{cfid: 0, seq: 37}]},
-  {scfid: 2, scroll: '4817AB', cfid: 3, splits: [{cfid: 2, seq: 472},
+  {scfid: 1, scroll: '4817AB', cfid: 2, split: [{cfid: 0, seq: 37}]},
+  {scfid: 2, scroll: '4817AB', cfid: 3, split: [{cfid: 2, seq: 472},
     {0, 37}]},
-  {scfid: 3, scroll: '4817AB', cfid: 4, splits: [{cfid: 2, seq: 472},
+  {scfid: 3, scroll: '4817AB', cfid: 4, split: [{cfid: 2, seq: 472},
     {0, 37}], tmp: true},
 ];
-decls = [ // KEYPATH scfig, seq
+decl = [ // KEYPATH scfid, seq
   {scfid: 0, seq: 3, M: M3, m: {0: m0_1, 1: m1}},
     D: [{sig}, {buf, h}, ...]}
   {scfid: 1, seq: 3, M: M3b1, m: {0: m0_1, 1: m1}},
@@ -193,10 +193,6 @@ export default class Storage_handler {
     if (!c)
       return;
     yield scroll.conflict_from_static2(c);
-    for (let cfid in c){ // XXX: verify test fails without this part
-      cfid = +cfid;
-      scroll.conflict.get(cfid).db = c[cfid].db;
-    }
   }); }
   load_conflict_static(M){ return etask({_: this},
     function*load_conflict_static()

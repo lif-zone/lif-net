@@ -987,12 +987,12 @@ export default class Scroll extends EventEmitterAsync {
       }
     });
     _this.on('conflict-removed', c_o.minfo.cleanup);
-    for (let i=0; i<any.length; i++){
-      let r = any[i], m=_this.m_get(r);
-      m.on('hash', c_o.minfo.on_hash);
-      yield _this.get_decl(r[1]).load(cfid);
-      yield c_o.minfo.on_hash({range: r, cfid});
-    }
+    for (let i=0; i<any.length; i++)
+      _this.m_get(any[i]).on('hash', c_o.minfo.on_hash);
+    for (let i=0; i<any.length; i++)
+      yield _this.get_decl(any[i][1]).load(cfid);
+    for (let i=0; i<any.length; i++)
+      yield c_o.minfo.on_hash({range: any[i], cfid});
   }); }
   calc_m(opt){
     let {range, diff, diff_c} = opt;
@@ -1092,6 +1092,7 @@ export default class Scroll extends EventEmitterAsync {
     let _this = this._;
     assert(_this.conflict.size==1 && !_this.top,
       'cannot update conflict info after it was populated');
+    // XXX: try to use create_new_conflict/conflict_update/... api
     let max_c = 0, max_top;
     for (let cfid in cs){
       let o = cs[cfid], M = Buffer.from(o.top.M);
@@ -1101,7 +1102,8 @@ export default class Scroll extends EventEmitterAsync {
         max_top = {cfid, seq: o.top.seq, M};
       let co = {cfid, top: {seq: o.top.seq, M: M},
         parent: o.parent ? {cfid: o.parent.cfid, seq: o.parent.seq,
-          type: o.parent.type} : null, conflicts: new Map()};
+          type: o.parent.type} : null, conflicts: new Map(), db: o.db};
+      assert(o.db.data.scfid>=0, 'missing scfid');
       _this.conflict.set(cfid, co);
     }
     for (let cfid in cs){

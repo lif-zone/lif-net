@@ -237,7 +237,7 @@ export default class Storage_handler {
     decl.db = decl.db||{cfid: {}};
     decl.db.cfid[cfid] = {};
     // XXX: handle errors
-    decl.db.cfid[cfid].busy = etask({_: this}, function*load_cfid(){
+    return decl.db.cfid[cfid].busy = etask({_: this}, function*load_cfid(){
       let _this = this._, db = _this.db;
       this.on('finally', ()=>decl.db.cfid[cfid].busy = null);
       let tx = db.create_transaction('decl2', 'readonly');
@@ -246,8 +246,7 @@ export default class Storage_handler {
       if (!data)
         return;
       assert.equal(scfid, _this.scroll.conflict.get(cfid).db?.data.scfid,
-        'scfid was already deleted'); // XXX: make sure this can never happen
-      // XXX: need to handle emits on data change
+        'scfid was already deleted');
       data = db.fix_struct(data);
       _this.block_events = true;
       yield decl.from_static_cfid(cfid, data);
@@ -256,7 +255,6 @@ export default class Storage_handler {
         return;
       yield _this.load_cfid_data(decl, cfid);
     });
-    return decl.db.cfid[cfid].busy;
   }
   load_cfid_data(decl, cfid){ return etask({_: this}, function*load_cfid_data()
   {
@@ -339,6 +337,8 @@ function conflict_eq(data, data2){ return xutil.equal_deep(data, data2); }
 // 31. verify that multiple load will not try to load more than once
 // 32. protect put (verify diff is valid)
 // 33. rm scfid/db direct usage in scroll
+// 34. stop etasks after branch removed-merge etc and decl.db.cfid[cfid]
+// 35. make all conflict changes event-based and rm conflict_eq
 
 // XXX derry:
 // 1. _this -> this_

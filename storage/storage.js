@@ -276,6 +276,11 @@ export default class Storage_handler {
     }
     decl.db.cfid[cfid].data = true;
   }); }
+  init_static_cfid(o, co){
+    let scfid = co.db?.data.scfid;
+    if (scfid>=0)
+      o.scfid = scfid;
+  }
 }
 
 // XXX: need test

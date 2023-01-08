@@ -1219,18 +1219,15 @@ class Decl extends EventEmitterAsync {
     yield _this.data.copy(cdst, csrc);
   }); }
   to_static_cfid(cfid, opt={}){
-    let {max_decl, max_frame, blob} = opt;
-    let scfid = this.scroll.conflict.get(cfid).db?.data.scfid;
-    let o = {scfid, seq: this.seq};
+    let {max_decl, max_frame, blob} = opt, o = {};
+    this.scroll.storage?.init_static_cfid(o, this.scroll.conflict.get(cfid));
+    o.seq = this.seq;
     assert.equal(cfid, this.to_c(cfid), 'cfid is not real');
-    if (this.sig_get(cfid)){
-      o.sig = o.sig||{};
-      o.sig = this.sig_get(cfid);
-    }
-    if (this.M_hash(cfid)){
-      o.M = o.M||{};
-      o.M = this.M_hash(cfid);
-    }
+    let sig = this.sig_get(cfid), M = this.M_hash(cfid);
+    if (sig)
+      o.sig = sig;
+    if (M)
+      o.M = M;
     let frames = this.fbuf_get_sync(cfid).get_frames();
     // XXX: move this logic to Frame_buffer
     if (frames.length>1 || frames[0].sig || frames[0].h_rest){
@@ -1251,16 +1248,15 @@ class Decl extends EventEmitterAsync {
           total += len;
         }
       }
-      o.D = o.D||{};
       o.D = frames2;
     }
     for (let i=0; i<this.m.length; i++){
-      if (!this.m[i].get_hash(cfid))
+      let m = this.m[i].get_hash(cfid);
+      if (!m)
         continue;
       let r = this.m[i].range;
       o.m = o.m||{};
-      o.m[r[0]] = o.m[r[0]]||{};
-      o.m[r[0]] = this.m[i].get_hash(cfid);
+      o.m[r[0]] = m;
     }
     return o;
   }

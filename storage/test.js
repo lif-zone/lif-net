@@ -935,7 +935,7 @@ const db_get_scroll_decl = (db, scroll)=>etask(function*db_get_scroll_decl(){
 
 const db_get_c = (db, M)=>etask(function*db_get_c(){
   let tx = db.transaction('scroll2', 'readonly'), ret;
-  let index = tx.store('scroll2').index('scroll');
+  let index = tx.index('scroll2', 'scroll');
   let query = IDBKeyRange.only(b2s(M));
   for (let cursor=yield db.cursor(index, query); cursor;
     cursor = yield cursor.next())

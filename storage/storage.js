@@ -198,7 +198,7 @@ export default class Storage_handler {
   {
     let _this = this._, db = _this.db, ret;
     let tx = db.transaction('scroll2', 'readonly');
-    let index = tx.store('scroll2').index('scroll');
+    let index = tx.index('scroll2', 'scroll');
     let query = IDBKeyRange.only(M);
     for (let cursor = yield db.cursor(index, query) ; cursor;
       cursor = yield cursor.next())
@@ -314,7 +314,6 @@ function conflict_eq(data, data2){ return xutil.equal_deep(data, data2); }
 // 11. move storage part to storage.js
 // 12. check what to do when Data.copy is called (this.cmap.delete(csrc))
 // 13. rm obsolete scroll/decl stores
-// 14. cleanup db api (eg. rm tx.tx)
 // 15. rename to_static2 and rm obsolete to_static/from_static etc
 // 16. save blob
 // 18. rename struct_from_db2 -> struct_from_db and rm struct_from_db

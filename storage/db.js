@@ -221,6 +221,7 @@ function transaction(db, store_names, mode, options){
   wait.tx.oncomplete = wrap_cb(e=>wait.continue(e));
   wait.tx.onerror = wrap_cb(e=>wait.throw('transaction '+e));
   wait.store = name=>wait.tx.objectStore(name);
+  wait.index = (sname, iname)=>wait.tx.objectStore(sname).index(iname);
   return wait;
 }
 

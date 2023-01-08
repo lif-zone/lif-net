@@ -943,7 +943,7 @@ const db_get_c = (db, M)=>etask(function*db_get_c(){
     let o = db.fix_struct(cursor.value);
     ret = ret||{};
     ret[o.scfid] = {cfid: o.cfid, top: {seq: o.top.seq, M: s2b(o.top.M)}};
-    // XXX: need assert to check ret of split array is correct
+    // XXX: need assert to check rest of split array is correct
     if (o.split){
       ret[o.scfid].parent = o.split[0];
       assert.equal(o.type, o.split[0].type, 'invalid type');

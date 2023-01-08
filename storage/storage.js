@@ -148,7 +148,6 @@ export default class Storage_handler {
     let _this = this._;
     assert(_this.inited, 'storage_handler not inited');
     assert(!_this.queue_cf_rm, 'pending quere_del');
-    // XXX: review with derry and wrap it
     while (_this.busy)
       this.wait_ext(_this.busy);
     _this.busy = etask.wait();
@@ -283,7 +282,6 @@ export default class Storage_handler {
   }
 }
 
-// XXX: need test
 function conflict_to_data(db, scroll, o){
   let scfid = o.db ? o.db.data.scfid : db.get_new_scfid();
   let cfid = o.cfid, top = {seq: o.top.seq, M: b2s(o.top.M)};
@@ -309,8 +307,6 @@ function conflict_eq(data, data2){ return xutil.equal_deep(data, data2); }
 //    review _this.wait
 //    and make sure that when we read data from db, it's only after
 //    flush/no-lock
-// 2. begin_update/end_update for scroll.decl and verify if other places we
-//    update data
 // 4. verify we rebuild minfo/conflicts on scroll.conflict when loading scroll
 //    from db
 // 5. handle db.uninit (need to notify Storage_handler to write to db)

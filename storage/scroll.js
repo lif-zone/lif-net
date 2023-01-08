@@ -1269,71 +1269,13 @@ class Decl extends EventEmitterAsync {
     }
     return ret;
   }
-  to_static(opt={}){
-    let {max_decl, max_frame, blob} = opt;
-    let o = {scroll: this.scroll.name, seq: this.seq};
-    // XXX: inefficient, don't go over all conflicts, but instead just those
-    // with data
-    for (const [cfid] of this.scroll.conflict){
-      if (cfid != this.to_c(cfid))
-        continue;
-      if (this.sig_get(cfid)){
-        o.sig = o.sig||{};
-        assert(!o.sig[cfid], 'sig already set');
-        o.sig[cfid] = this.sig_get(cfid);
-      }
-      if (this.M_hash(cfid)){
-        o.M = o.M||{};
-        assert(!o.M[cfid], 'M already set');
-        o.M[cfid] = this.M_hash(cfid);
-      }
-      let frames = this.fbuf_get_sync(cfid).get_frames();
-      // XXX: move this logic to Frame_buffer
-      if (frames.length>1 || frames[0].sig || frames[0].h_rest){
-        let frames2 = [], total=0;
-        for (let i=0; i<frames.length; i++){
-          let f = frames[i], len = f.buf?.length||0;
-          if (len && (len>max_frame || total+len>max_decl)){
-            assert(f.h, 'missing hash');
-            if (blob)
-              blob[b2s(f.h)] = f.buf;
-            let ff = {h: f.h};
-            if (f.sz)
-              ff.sz = f.sz;
-            frames2.push(ff);
-          }
-          else {
-            frames2.push(assign({}, f));
-            total += len;
-          }
-        }
-        o.D = o.D||{};
-        assert(!o.D[cfid], 'D already set');
-        o.D[cfid] = frames2;
-      }
-      for (let i=0; i<this.m.length; i++){
-        if (!this.m[i].get_hash(cfid))
-          continue;
-        let r = this.m[i].range;
-        o.m = o.m||{};
-        o.m[r[0]] = o.m[r[0]]||{};
-        assert(!o.m[r[0]][cfid], 'm already set');
-        o.m[r[0]][cfid] = this.m[i].get_hash(cfid);
-      }
-    }
-    return o;
-  }
+  to_static(opt={}){ return this.to_static2(opt); }
   from_static(o){ return etask({_: this}, function*from_static(){
     let _this = this._;
-    for (const cfid in o.M)
-      _this.M.set_hash(+cfid, o.M[cfid]);
-    for (const i in o.m){
-      let m = o.m[i];
-      for (const cfid in m) // XXX: need to verify +cfid is valid
-        yield _this.m_get([+i, _this.seq]).set_hash(+cfid, m[cfid]);
+    for (let cfid in o){
+      cfid = +cfid;
+      yield _this.from_static_cfid(cfid, o[cfid]);
     }
-    for (const cfid in o.D)
-      yield _this.fbuf_get_sync(+cfid).set_frames(o.D[cfid]);
   }); }
   from_static_cfid(cfid, o){ return etask({_: this},
     function*from_static_cfid()

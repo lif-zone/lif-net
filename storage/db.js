@@ -57,7 +57,7 @@ export default class DB {
     let _this = this._;
     let tx = _this.create_transaction(['scroll2'], 'readonly');
     let store = tx.tx.objectStore('scroll2');
-    let cursor = yield _this.cursor_open(store, null, 'prev');
+    let cursor = yield _this.cursor(store, null, 'prev');
     _this.scfid_next = cursor ? cursor.value.scfid+1 : 0;
   }); }
   copy = src=>etask({_: this}, function*copy(){
@@ -67,14 +67,14 @@ export default class DB {
     assert(_this.inited, 'db not inited');
     let tx = _this.create_transaction(['scroll2', 'decl2'], 'readwrite');
     let store = tx.tx.objectStore('scroll2');
-    for (let cursor = yield _this.cursor_open(store); cursor;
-      cursor = yield _this.cursor_continue(cursor))
+    for (let cursor = yield _this.cursor(store); cursor;
+      cursor = yield cursor.next())
     {
       cursor.delete();
     }
     store = tx.tx.objectStore('decl2');
-    for (let cursor = yield _this.cursor_open(store); cursor;
-      cursor = yield _this.cursor_continue(cursor))
+    for (let cursor = yield _this.cursor(store); cursor;
+      cursor = yield cursor.next())
     {
       cursor.delete();
     }
@@ -82,22 +82,22 @@ export default class DB {
     let data_scroll = [], data_decl = [], data_blob = [];
     let tx2 = src.create_transaction(['scroll2', 'decl2'], 'readonly');
     let store2 = tx2.tx.objectStore('scroll2');
-    for (let cursor = yield src.cursor_open(store2); cursor;
-      cursor = yield src.cursor_continue(cursor))
+    for (let cursor = yield src.cursor(store2); cursor;
+      cursor = yield cursor.next())
     {
       data_scroll.push(cursor.value);
     }
     tx2 = src.create_transaction(['scroll2', 'decl2'], 'readonly');
     store2 = tx2.tx.objectStore('decl2');
-    for (let cursor = yield src.cursor_open(store2); cursor;
-      cursor = yield src.cursor_continue(cursor))
+    for (let cursor = yield src.cursor(store2); cursor;
+      cursor = yield cursor.next())
     {
       data_decl.push(cursor.value);
     }
     tx2 = src.create_transaction(['data'], 'readonly');
     store2 = tx2.tx.objectStore('data');
-    for (let cursor = yield src.cursor_open(store2); cursor;
-      cursor = yield src.cursor_continue(cursor))
+    for (let cursor = yield src.cursor(store2); cursor;
+      cursor = yield cursor.next())
     {
       data_blob.push(cursor.value);
     }
@@ -137,13 +137,15 @@ export default class DB {
   store_add(store, val){ return store_add(store, val); }
   store_put(store, val){ return store_put(store, val); }
   store_get(store, val){ return store_get(store, val); }
-  cursor_open(store, query, dir){
+  cursor(store, query, dir){
     let wait = etask.wait();
     store = idb.unwrap(store);
     let req = store.openCursor(query, dir);
-    req.onerror = wrap_cb(e=>wait.throw(new Error('cursor_open '+e)));
+    req.onerror = wrap_cb(e=>wait.throw(new Error('cursor '+e)));
     req.onsuccess = wrap_cb(e=>{
       let cursor = e.target.result;
+      if (cursor)
+        cursor.next = ()=>this.cursor_continue(cursor);
       wait.continue(cursor);
     });
     return wait;

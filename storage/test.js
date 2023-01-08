@@ -885,8 +885,7 @@ const db_get_db_data = db=>etask(function*db_get_db_data(){
   let tx = db.db.transaction('data', 'readonly');
   let store = tx.objectStore('data');
   // XXX: optimize, just get data of scroll from DB
-  for (let cursor = yield db.cursor_open(store); cursor;
-    cursor = yield db.cursor_continue(cursor))
+  for (let cursor=yield db.cursor(store); cursor; cursor = yield cursor.next())
   {
     assert.equal(cursor.key, b2s(cursor.value.h));
     ret[cursor.key] = b2s(Buffer.from(cursor.value.buf));
@@ -916,8 +915,8 @@ const db_get_scroll_decl = (db, scroll)=>etask(function*db_get_scroll_decl(){
     let cfid = db_c[scfid].cfid;
     let index = tx.tx.objectStore('decl2').index('scfid');
     let query = IDBKeyRange.only(scfid);
-    for (let cursor = yield db.cursor_open(index, query); cursor;
-      cursor = yield db.cursor_continue(cursor))
+    for (let cursor=yield db.cursor(index, query); cursor;
+      cursor = yield cursor.next())
     {
       let o = db.fix_struct(cursor.value);
       assert.equal(o.scfid, scfid, 'missing scfid seq'+o.seq);
@@ -927,11 +926,8 @@ const db_get_scroll_decl = (db, scroll)=>etask(function*db_get_scroll_decl(){
     }
   }
   let scfids = {}, store = tx.tx.objectStore('decl2');
-  for (let cursor = yield db.cursor_open(store); cursor;
-    cursor = yield db.cursor_continue(cursor))
-  {
+  for (let cursor=yield db.cursor(store); cursor; cursor = yield cursor.next())
     scfids[cursor.value.scfid] = true;
-  }
   for (let scfid in scfids)
     assert(yield db.db_get('scroll2', +scfid), 'scfid '+scfid+' not found');
   return ret;
@@ -941,8 +937,9 @@ const db_get_c = (db, M)=>etask(function*db_get_c(){
   let tx = db.create_transaction('scroll2', 'readonly'), ret;
   let index = tx.tx.objectStore('scroll2').index('scroll');
   let query = IDBKeyRange.only(b2s(M));
-  let cursor = yield db.cursor_open(index, query);
-  for (; cursor; cursor = yield db.cursor_continue(cursor)){
+  for (let cursor=yield db.cursor(index, query); cursor;
+    cursor = yield cursor.next())
+  {
     let o = db.fix_struct(cursor.value);
     ret = ret||{};
     ret[o.scfid] = {cfid: o.cfid, top: {seq: o.top.seq, M: s2b(o.top.M)}};

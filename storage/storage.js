@@ -69,8 +69,8 @@ export default class Storage_handler {
             yield db.store_delete(store, scfid);
             // XXX: wrap in api
             let query = IDBKeyRange.only(scfid);
-            for (let cursor = yield db.cursor_open(index2, query); cursor;
-              cursor = yield db.cursor_continue(cursor))
+            for (let cursor = yield db.cursor(index2, query); cursor;
+              cursor = yield cursor.next())
             {
               cursor.delete();
             }
@@ -201,8 +201,9 @@ export default class Storage_handler {
     let tx = db.create_transaction('scroll2', 'readonly');
     let index = tx.tx.objectStore('scroll2').index('scroll');
     let query = IDBKeyRange.only(M);
-    let cursor = yield db.cursor_open(index, query);
-    for (; cursor; cursor = yield db.cursor_continue(cursor)){
+    for (let cursor = yield db.cursor(index, query) ; cursor;
+      cursor = yield cursor.next())
+    {
       ret = ret||{};
       let data = db.fix_struct(cursor.value);
       let {cfid, top, split} = data;
@@ -323,7 +324,6 @@ function conflict_eq(data, data2){ return xutil.equal_deep(data, data2); }
 // 20. change decl table to include also scroll name
 //     (for easy delete of scorll)
 // 21. review all possible errors and handle properly
-// 22. fix cursor api so no need to use db.cursor_continue
 // 23. wait for success on db.init
 // 24. conflict_from_static2 -> conflict_from_static
 // 25. conflict_from_static --> update mergable and friends

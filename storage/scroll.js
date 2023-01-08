@@ -417,8 +417,7 @@ export default class Scroll extends EventEmitterAsync {
   init(opt={}){ return etask({_: this}, function*scroll_init(){
     let _this = this._, {M, seq} = opt;
     assert(!M || seq==0 || !_this.storage, 'cannot use sotage if seq>0');
-    if (_this.storage)
-      yield _this.storage.init({scroll: _this, M: b2s(M)});
+    yield _this.storage?.init({scroll: _this, M: b2s(M)});
     if (!M)
       return;
     let decl = _this.get_decl(seq);
@@ -481,8 +480,7 @@ export default class Scroll extends EventEmitterAsync {
       header.link = link;
     if (branch)
       header.branch = branch;
-    if (_this.storage)
-      yield _this.storage.begin_update();
+    yield _this.storage?.begin_update();
     let data = new Data({seq, frames: [header].concat(frames)});
     let decl = new Decl({scroll: _this, seq, data});
     _this.dmap.set(seq, decl);
@@ -490,13 +488,7 @@ export default class Scroll extends EventEmitterAsync {
     decl.init();
     yield decl.sign(cfid);
     decl.M.get_hash(cfid);
-    if (_this.storage){
-      yield _this.storage.end_update();
-      // XXX HACK: make M calculation event-based
-      yield _this.storage.begin_update();
-      assert(decl.M.get_hash(cfid), 'failed to calc M'+decl.seq+' cfid '+cfid);
-      yield _this.storage.end_update();
-    }
+    yield _this.storage?.end_update();
     assert(decl.M.get_hash(cfid), 'failed to calc M'+decl.seq+' cfid '+cfid);
     return decl;
   }); }
@@ -536,8 +528,7 @@ export default class Scroll extends EventEmitterAsync {
   put(diff){ return etask({_: this}, function*put(){
     let _this = this._;
     let errors = {}, a = Object.keys(diff);
-    if (_this.storage)
-      yield _this.storage.begin_update();
+    yield _this.storage?.begin_update();
     if (diff[0]) // XXX HACK: for case where we have only M0 (missing m0)
       yield _this.put_single(0, diff, errors);
     for (let i=a.length-1; i>=0 && +a[i]; i--){
@@ -563,8 +554,7 @@ export default class Scroll extends EventEmitterAsync {
       yield _this.merge_all(seq, cfid);
       copy_errors(errors, errors2);
     }
-    if (_this.storage)
-      yield _this.storage.end_update();
+    yield _this.storage?.end_update();
     return {errors};
   }); }
   put_single(seq, diff, errors, opt={}){ return etask({_: this},
@@ -1371,13 +1361,10 @@ class Decl extends EventEmitterAsync {
     if (o.D)
       yield _this.fbuf_get_sync(cfid).set_frames(o.D);
   }); }
-  load(cfid, opt={}){ return etask({_: this}, function*load(){
+  load(cfid, opt={}){
     assert(cfid>=0, 'invalid cfid '+cfid);
-    let _this = this._;
-    if (!_this.scroll.storage)
-      return;
-    return yield _this.scroll.storage.load_cfid(_this, cfid, opt);
-  }); }
+    return this.scroll.storage?.load_cfid(this, cfid, opt);
+  }
 }
 
 class Merkel_node extends EventEmitterAsync {

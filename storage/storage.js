@@ -307,9 +307,6 @@ function conflict_eq(data, data2){ return xutil.equal_deep(data, data2); }
 //    from db
 // 5. handle db.uninit (need to notify Storage_handler to write to db)
 // 6. run db operations in a worker
-// 7. rm db_c and rename db2_c to db_c
-// 8. rewrite old db tests and rm old api
-// 9. calc scfid_next from db
 // 10. _this -> this_
 // 11. move storage part to storage.js
 // 12. check what to do when Data.copy is called (this.cmap.delete(csrc))

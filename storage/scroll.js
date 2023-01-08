@@ -1079,38 +1079,27 @@ export default class Scroll extends EventEmitterAsync {
   conflict_from_static2(cs){ return etask({_: this},
     function*conflict_from_static2()
   {
-    let _this = this._;
+    let _this = this._, max_c = 0, max_top;
     assert(_this.conflict.size==1 && !_this.top,
       'cannot update conflict info after it was populated');
-    // XXX: try to use create_new_conflict/conflict_update/... api
-    let max_c = 0, max_top;
     for (let cfid in cs){
-      let o = cs[cfid], M = Buffer.from(o.top.M);
+      let o = cs[cfid], {top, parent} = o, M = Buffer.from(top.M);
       cfid = +cfid;
       max_c = Math.max(cfid, max_c);
-      if (!max_top || max_top.seq<o.top.seq)
-        max_top = {cfid, seq: o.top.seq, M};
-      let co = {cfid, top: {seq: o.top.seq, M: M},
-        parent: o.parent ? {cfid: o.parent.cfid, seq: o.parent.seq,
-          type: o.parent.type} : null, conflicts: new Map(), db: o.db};
+      if (!max_top || max_top.seq<top.seq)
+        max_top = {cfid, seq: top.seq, M};
+      let co = {cfid, top: {seq: top.seq, M: M}, parent: parent ?
+        {cfid: parent.cfid, seq: parent.seq, type: parent.type} : null,
+        conflicts: new Map(), db: o.db};
       assert(o.db.data.scfid>=0, 'missing scfid');
       _this.conflict.set(cfid, co);
-    }
-    for (let cfid in cs){
-      cfid = +cfid;
-      let co = _this.conflict.get(cfid);
-      if (co.parent) // XXX: do it after pupolate all
+      if (co.parent)
         _this.conflict.get(co.parent.cfid).conflicts.set(cfid, co);
+      if (cfid)
+        yield _this.update_mergeable(cfid);
     }
-    // XXX add test to verify conflict.next_id and top are updated
     _this.conflict.next_id = max_c+1;
     _this.top = max_top;
-    // XXX: what about mergable etc.
-    for (let cfid in cs){
-      cfid = +cfid;
-      if (cfid)
-        yield _this.update_mergeable(cfid, true);
-    }
   }); }
 }
 

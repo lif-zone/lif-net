@@ -12,7 +12,8 @@ export default class Soul {
   constructor(opt={}){ this.name = opt.name; }
   set(M0, scroll){
     M0 = typeof M0=='string' ? M0 : b2s(M0);
-    assert(!this.soul.get(M0), 'scroll already exists '+M0);
+    assert(!this.soul.get(M0) || this.soul.get(M0)===scroll,
+      'scroll already exists '+M0);
     return this.soul.set(M0, scroll);
   }
   get(M0){

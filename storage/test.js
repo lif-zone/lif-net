@@ -114,7 +114,6 @@ const struct_from_str = exp=>etask(function*struct_from_str(){
     let val = yield get_val(t.r);
     assert(seq===undefined || seq==ol.seq, 'multiple seq in struct');
     assert(!ol.ctx, 'cannot have ctx for left strcut');
-    assert(!ol.def, 'XXX support set def');
     assert(['sig', 'd', 'm', 'M', 'D'].includes(type), 'invalid type '+type);
     seq = ol.seq;
     ret = ret||{};
@@ -2138,11 +2137,11 @@ describe('scroll', ()=>{
             db4={M4 sig4 D4 m4} db5={M5c1 m4_5c1} db6={M6c1 sig6c1 D6c1 m6c1})
           Soul2.db_copy(S.soul) S2.#(mem mem_c)
           // XXX: why mem1/mem3 are loaded (due to update_mergeable)
-          Soul2.S2..scroll(M0 db) #(mem_c={0:M4 1:3t0.M6=s0.M6}
-            mem0={M0 m0} mem1={M1 m1 m0_1} mem3={M3 m3 m2_3 m0_3})
-// XXX          load_c(1) #mem1={M1 m1 m0_1} load_c(1c1) #
+          Soul2.S2..scroll(M0 db) #(mem1={M1 m1 m0_1} mem3={M3 m3 m2_3 m0_3}
+          mem_c={0:M4 1:3t0.M6=s0.M6} mem0={M0 m0})
+          load_c(1) #
           load_c(2) #mem2={M2 m2} load_c(2c1) #
-// XXX          load_c(3) #mem3={M3 m3 m2_3 m0_3} load_c(3c1) #
+          load_c(3) #
           load_c(4) #mem4={M4 sig4 D4 m4} load_c(4c1) #
           load_c(5) # load_c(5c1) #mem5={M5c1 m4_5c1}
           load_c(6) # load_c(6c1) #mem6={M6c1 sig6c1 D6c1 m6c1}
@@ -2239,9 +2238,9 @@ describe('scroll', ()=>{
       });
       describe('read', ()=>{
         t('simple', `conf(soul:manual)
-          soul.s..scroll(db) decl(1-2) c(M2=s..M2) flush
-          Soul.db_copy(soul) Soul.S..scroll(M0 db) S.c(M2) #(db_c mem)
-          mem0={m0 M0 sig0 D0} !mem1 !mem2
+          soul.s..scroll(db) #(db_c) s.decl(1-2) c(M2=s..M2) flush
+          #db_c={0:0:M2} Soul.db_copy(soul) S.#(db_c mem) Soul.S..scroll(M0 db)
+          #(mem0={m0 M0 sig0 D0} db_c={0:0:M2})
           S.load_c(0) #
           load_c(1) #mem1={m1 m0_1 sig1 M1 D1}
           load_c(2) #mem2={m2 sig2 M2 D2}
@@ -2317,8 +2316,9 @@ describe('scroll', ()=>{
           mem0={M0 m0} mem1={M1 m1 m0_1}
           mem3={M3 m3 m2_3 m0_3}
           !mem2 !mem4 !mem5 !mem6 !mem7 !mem8 !mem9
-          tput(0_1_2_3 4 5 6      ) // XXX c(M9 5t0.M6)
-          c(M4 3t0.M9 5t1.M6) // XXX: bug
+          tput(0_1_2_3 4 5 6      )
+          c(M6 5t0.M9)
+//          c(M9 5t0.M6)
         `);
         t('on_demand-simple1', `conf(soul:manual)
           soul.s..scroll(d:1-10) Soul.S..scroll(s..M0 db)
@@ -2346,7 +2346,6 @@ describe('scroll', ()=>{
             mem4={M4 m4 sig4 D4} mem5={M5c1 m4_5c1}
             mem7={M7c1 m6_7c1 m4_7c1 m0_7c1} mem8={M8c1 m8c1}
             mem9={M9c1 sig9c1 D9c1 m9c1 m8_9c1})`);
-        if (true) return; // XXX WIP
         t('on_demand-conflict2', `conf(soul:manual)
           soul.s..scroll(d:1-10) Soul.S..scroll(s..M0 db)
           tput(0 1 2 3 4          ) c(M4)
@@ -2365,10 +2364,11 @@ describe('scroll', ()=>{
           #(mem0={M0 m0} mem_c={0:M4 1:3t0.M9} mem1={M1 m1 m0_1}
             mem3={M3 m3 m2_3 m0_3})
           tput(0_1_2_3 4 5 6      )
-          // XXX good c(M9 5t0.M6)
-          // XXX bug c(M4 3t0.M9 5t1.M6)
-          #(mem_c={0:M9 2:5t0.M6})
-            `);
+          #(mem_c={0:M6 1:5t0.M9}
+          mem4={M4 sig4 D4 m4}
+          mem5={M5 m5 m4_5}
+          mem6={M6 sig6 D6 m6}
+          mem7={M7c1:S2..M7c1 m6_7c1 m4_7c1 m0_7c1})`);
          t('on_demand-conflict4xxx', `conf(soul:manual)
           soul.s..scroll(d:1-10) Soul.S..scroll(s..M0 db)
           tput(0 1 2 3 4          ) c(M4)

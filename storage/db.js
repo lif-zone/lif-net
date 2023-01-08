@@ -40,7 +40,7 @@ export default class DB {
         let decl2 = db.createObjectStore('decl2', {keyPath: ['scfid', 'seq']});
         decl2.createIndex('scfid', 'scfid');
     }});
-    _this.scfid_next = 0; // XXX: need to load from db
+    yield _this.load_scfid_next();
   });
   get_new_scfid(){ return this.scfid_next++; }
   uninit = (opt={})=>etask({_: this}, function*db_uninit(){
@@ -53,6 +53,13 @@ export default class DB {
       yield _this.delete_db();
     _this.inited = false;
   });
+  load_scfid_next(){ return etask({_: this}, function*load_scfid_next(){
+    let _this = this._;
+    let tx = _this.create_transaction(['scroll2'], 'readonly');
+    let store = tx.tx.objectStore('scroll2');
+    let cursor = yield _this.cursor_open(store, null, 'prev');
+    _this.scfid_next = cursor ? cursor.value.scfid+1 : 0;
+  }); }
   copy = src=>etask({_: this}, function*copy(){
     // XXX HACK: write it properly
     let _this = this._;
@@ -106,6 +113,7 @@ export default class DB {
     for (let i=0; i<data_blob.length; i++)
       yield _this.store_put(store, data_blob[i]);
     yield tx;
+    yield _this.load_scfid_next();
   });
   db_get(name, key){
     let tx = this.db.transaction(name, 'readonly');

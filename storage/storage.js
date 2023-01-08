@@ -170,6 +170,7 @@ export default class Storage_handler {
         o.db.data = data;
         queue.push({data: xutil.clone_deep(o.db.data)});
       }
+      assert(o.db.data.scroll, 'missing scorll');
     }
     _this.schedule_db_update({queue, queue_del: _this.queue_del,
       queue_decl: _this.queue_decl});

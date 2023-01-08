@@ -62,7 +62,8 @@ class Data extends EventEmitterAsync {
   on_hash(){ return this.map_info._.emit_async('hash',
     {seq: this.map_info._.seq, cfid: this.map_info.cfid}); }
   on_data(){ return this.map_info._.emit_async('data',
-    {seq: this.map_info._.seq, cfid: this.map_info.cfid}); }
+      {seq: this.map_info._.seq, cfid: this.map_info.cfid});
+  }
   get(cfid){
     assert(cfid>=0, 'invalid cfid'+cfid);
     let fbuf = this.cmap.get(cfid);
@@ -84,7 +85,7 @@ class Data extends EventEmitterAsync {
     assert.equal(fdst.map_info.cfid, cdst);
     // XXX: wrap with api in Frame_buffer
     assert(!fdst.h && fdst.frames.length==1 && !fdst.frames[0].h_rest,
-      'already contain data');
+      'already contain data seq'+_this.seq);
     fdst.h = fsrc.h;
     fdst.frames = fsrc.frames;
     _this.cmap.delete(csrc);
@@ -107,7 +108,7 @@ class Frame_buffer extends EventEmitterAsync {
       this.frames[0].h_rest = h_rest;
   }
   get_frames(){ return Array.from(this.frames); }
-  set_frames(frames){ return etask({_: this}, function*set_frames(){
+  set_frames(frames, opt){ return etask({_: this}, function*set_frames(){
     let _this = this._;
     assert(_this.frames.length==1 || _this.frames.length==frames.length,
       'frames length mismatch');
@@ -140,8 +141,10 @@ class Frame_buffer extends EventEmitterAsync {
     if (!h_rest && _this.frames[0].h_rest)
       yield _this.emit_async('hash');
     yield _this.emit_async('data');
-    if (!_this.h_rest)
-      yield _this.set_hash(Frame_buffer.calc_hash(_this.frames, {safe: true}));
+    if (!_this.h_rest){
+      yield _this.set_hash(Frame_buffer.calc_hash(_this.frames, {safe: true}),
+        opt);
+    }
   }); }
   set_frame_buf(i, buf){ return etask({_: this}, function*set_frame_buf(){
     let _this = this._, f = _this.frames[i];
@@ -158,7 +161,7 @@ class Frame_buffer extends EventEmitterAsync {
       yield _this.set_hash(Frame_buffer.calc_hash(_this.frames, {safe: true}));
   }); }
   get_hash(opt={}){ return this.frames[0].h_rest; }
-  set_hash(h){ return etask({_: this}, function*set_hash(){
+  set_hash(h, opt){ return etask({_: this}, function*set_hash(){
     let _this = this._, h_rest = _this.frames[0].h_rest;
     assert(!h_rest || h_rest.equals(h), 'hash changed');
     if (h_rest)
@@ -824,7 +827,6 @@ export default class Scroll extends EventEmitterAsync {
     return {range, m: vm};
   }); }
   merge_all(seq, cfid){ return etask({_: this}, function*merge_all(){
-     xerr.notice('XXX merge_all seq%s cfid%s', seq, cfid);
     let _this = this._;
     if (_this.conflict.size<=1)
       return;
@@ -842,7 +844,6 @@ export default class Scroll extends EventEmitterAsync {
     }
   }); }
   merge_single(i1, i2, seq){ return etask({_: this}, function*merge_single(){
-    xerr.notice('XXX merge_single seq%s i %s <- %s', seq, i1, i2);
     let _this = this._;
     assert(i1<i2, 'invalid conflict merge '+i1+' '+i2);
     let c1=_this.conflict.get(i1), c2=_this.conflict.get(i2), bseq;
@@ -979,16 +980,18 @@ export default class Scroll extends EventEmitterAsync {
       if (cfid2!=cfid)
         return;
       for (const [j] of _this.conflict){ // XXX: can we skip obvious ones
-        if (j<cfid)
+        if (j<cfid){
+          yield _this.get_decl(r[1]).load(j);
           yield update_merge_queue(r, j);
+        }
       }
     });
     _this.on('conflict-removed', c_o.minfo.cleanup);
     for (let i=0; i<any.length; i++){
       let r = any[i], m=_this.m_get(r);
+      m.on('hash', c_o.minfo.on_hash);
       yield _this.get_decl(r[1]).load(cfid);
       yield c_o.minfo.on_hash({range: r, cfid});
-      m.on('hash', c_o.minfo.on_hash);
     }
   }); }
   calc_m(opt){
@@ -1100,7 +1103,6 @@ export default class Scroll extends EventEmitterAsync {
         parent: o.parent ? {cfid: o.parent.cfid, seq: o.parent.seq,
           type: o.parent.type} : null, conflicts: new Map()};
       _this.conflict.set(cfid, co);
-
     }
     for (let cfid in cs){
       cfid = +cfid;
@@ -1429,7 +1431,7 @@ class Merkel_node extends EventEmitterAsync {
     cfid = this.decl.to_c(cfid);
     return this.cmap.get(cfid);
   }
-  set_hash(cfid, h){
+  set_hash(cfid, h, opt){
     assert(this.inited, 'Merkel_node not inited');
     cfid = this.decl.to_c(cfid);
     let h_curr = this.cmap.get(cfid);
@@ -1473,7 +1475,7 @@ class Merkel_root extends EventEmitterAsync {
     return this.set_hash(cfid,
       this.scroll.calc_root_hash(this.decl.seq, {cfid}));
   }
-  set_hash(cfid, h){
+  set_hash(cfid, h, opt){
     assert(this.inited, 'Merkel_root not inited');
     cfid = this.decl.to_c(cfid);
     let h_curr = this.cmap.get(cfid);

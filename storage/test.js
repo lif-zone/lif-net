@@ -127,8 +127,8 @@ const struct_from_str = exp=>etask(function*struct_from_str(){
   return ret;
 });
 
-const struct_from_db2 = (scroll, seq)=>etask(function*struct_from_db2(){
-  let db_c = yield db2_get_c(scroll.soul.db, scroll.name);
+const struct_from_db = (scroll, seq)=>etask(function*struct_from_db(){
+  let db_c = yield db_get_c(scroll.soul.db, scroll.name);
   let db = scroll.soul.db, tx = db.create_transaction('decl2', 'readonly');
   let store = tx.tx.objectStore('decl2');
   let ret = {};
@@ -337,7 +337,7 @@ const get_val = (exp, def_type='right')=>etask(function*_get_val(){
   // XXX: do we need calc_m?
   case 'm': return r0==seq ? scroll.m_hash(cfid, seq) :
     cfid ? scroll.m_hash(cfid, o.range) : calc_m(scroll, o.range);
-  case 'db': return yield struct_from_db2(scroll, seq);
+  case 'db': return yield struct_from_db(scroll, seq);
   case 'mem':
     return yield struct_from_decl(scroll.get_decl(seq, {create: false}));
   case 'struct': return yield struct_from_str(o.val);
@@ -674,7 +674,7 @@ const cmd_state = (curr, t)=>etask(function*cmd_state(){
   let db = soul?.db;
   if (db?.inited){
     state.db = yield db_get_scroll_decl(scroll.soul.db, scroll);
-    state.db_c = yield db2_get_c(scroll.soul.db, scroll.M_hash(0, 0));
+    state.db_c = yield db_get_c(scroll.soul.db, scroll.M_hash(0, 0));
     state.db_data = yield db_get_db_data(scroll.soul.db);
   } else {
     state.db = {};
@@ -702,7 +702,7 @@ const cmd_state = (curr, t)=>etask(function*cmd_state(){
   }
   if (!t_state.filter || t_state.filter.includes('db_c')){
     assert_b2s_obj(state.db_c, t_state[name].db_c,
-      'db2 conflict state mismach '+t.meta.s);
+      'db conflict state mismach '+t.meta.s);
   }
   if (!t_state.filter || t_state.filter.includes('db'))
     assert_b2s_obj(state.db, t_state[name].db, 'db state mismach '+t.meta.s);
@@ -909,7 +909,7 @@ const get_static_c = exp=>etask(function*get_static_c(){
 });
 
 const db_get_scroll_decl = (db, scroll)=>etask(function*db_get_scroll_decl(){
-  let db_c = yield db2_get_c(db, scroll.M_hash(0, 0)), ret={};
+  let db_c = yield db_get_c(db, scroll.M_hash(0, 0)), ret={};
   let tx = db.create_transaction('decl2', 'readonly');
   for (let scfid in db_c){
     scfid = +scfid;
@@ -937,7 +937,7 @@ const db_get_scroll_decl = (db, scroll)=>etask(function*db_get_scroll_decl(){
   return ret;
 });
 
-const db2_get_c = (db, M)=>etask(function*db2_get_c(){
+const db_get_c = (db, M)=>etask(function*db_get_c(){
   let tx = db.create_transaction('scroll2', 'readonly'), ret;
   let index = tx.tx.objectStore('scroll2').index('scroll');
   let query = IDBKeyRange.only(b2s(M));

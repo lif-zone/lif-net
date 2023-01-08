@@ -306,7 +306,6 @@ function conflict_eq(data, data2){ return xutil.equal_deep(data, data2); }
 //    flush/no-lock
 // 2. begin_update/end_update for scroll.decl and verify if other places we
 //    update data
-// 3. this.sp
 // 4. verify we rebuild minfo/conflicts on scroll.conflict when loading scroll
 //    from db
 // 5. handle db.uninit (need to notify Storage_handler to write to db)
@@ -321,7 +320,6 @@ function conflict_eq(data, data2){ return xutil.equal_deep(data, data2); }
 // 14. cleanup db api (eg. rm tx.tx)
 // 15. rename to_static2 and rm obsolete to_static/from_static etc
 // 16. save blob
-// 17. rename DB - > db and remove old db
 // 18. rename struct_from_db2 -> struct_from_db and rm struct_from_db
 // 19. rm xxx_db_old_to_new
 // 20. change decl table to include also scroll name
@@ -340,3 +338,12 @@ function conflict_eq(data, data2){ return xutil.equal_deep(data, data2); }
 // 30. write scfid to blob data table so we can do purge
 // 31. verify that multiple load will not try to load more than once
 // 32. protect put (verify diff is valid)
+
+
+// XXX derry:
+// 1. _this -> this_
+// 2. mv _this to etask(function*(_this)) and consider make this of etask _this
+// 3. EventEmitterAsync
+// 4. review storage in scroll
+// 5. review load_cfid
+// 6. review db_updater + this.sp

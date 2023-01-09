@@ -58,7 +58,6 @@ export default class DB {
     _this.scfid_next = cursor ? cursor.value.scfid+1 : 0;
   }); }
   copy = src=>etask({_: this}, function*copy(){
-    // XXX HACK: write it properly
     let _this = this._;
     assert(src.inited, 'src db not inited');
     assert(_this.inited, 'db not inited');
@@ -71,17 +70,17 @@ export default class DB {
       cur.delete();
     yield tx;
     let data_scroll = [], data_decl = [], data_blob = [];
-    let tx2 = src.transaction(['scroll', 'decl'], 'readonly');
-    let store2 = tx2.store('scroll');
-    for (let cur = yield src.cursor(store2); cur; cur = yield cur.next())
+    tx = src.transaction(['scroll', 'decl'], 'readonly');
+    store = tx.store('scroll');
+    for (let cur = yield src.cursor(store); cur; cur = yield cur.next())
       data_scroll.push(cur.value);
-    tx2 = src.transaction(['scroll', 'decl'], 'readonly');
-    store2 = tx2.store('decl');
-    for (let cur = yield src.cursor(store2); cur; cur = yield cur.next())
+    tx = src.transaction(['decl'], 'readonly');
+    store = tx.store('decl');
+    for (let cur = yield src.cursor(store); cur; cur = yield cur.next())
       data_decl.push(cur.value);
-    tx2 = src.transaction(['data'], 'readonly');
-    store2 = tx2.store('data');
-    for (let cur = yield src.cursor(store2); cur; cur = yield cur.next())
+    tx = src.transaction(['data'], 'readonly');
+    store = tx.store('data');
+    for (let cur = yield src.cursor(store); cur; cur = yield cur.next())
       data_blob.push(cur.value);
     tx = _this.transaction(['scroll', 'decl', 'data'], 'readwrite');
     store = tx.store('scroll');

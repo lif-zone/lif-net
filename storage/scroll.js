@@ -38,14 +38,17 @@ class Data extends EventEmitterAsync {
     this.cmap = new Map();
     let fbuf = new Frame_buffer(opt);
     fbuf.on('hash', this.on_hash);
+    fbuf.on('data', this.on_data);
+    fbuf.on('sig', this.on_sig);
     fbuf.map_info = {_: this, cfid: 0};
     this.cmap.set(0, fbuf);
   }
   on_hash(){ return this.map_info._.emit_async('hash',
     {seq: this.map_info._.seq, cfid: this.map_info.cfid}); }
   on_data(){ return this.map_info._.emit_async('data',
-      {seq: this.map_info._.seq, cfid: this.map_info.cfid});
-  }
+    {seq: this.map_info._.seq, cfid: this.map_info.cfid}); }
+  on_sig(){ return this.map_info._.emit_async('sig',
+    {seq: this.map_info._.seq, cfid: this.map_info.cfid}); }
   get(cfid){
     assert(cfid>=0, 'invalid cfid'+cfid);
     let fbuf = this.cmap.get(cfid);
@@ -55,6 +58,7 @@ class Data extends EventEmitterAsync {
     fbuf.map_info = {_: this, cfid};
     fbuf.on('hash', this.on_hash);
     fbuf.on('data', this.on_data);
+    fbuf.on('sig', this.on_sig);
     this.cmap.set(cfid, fbuf);
     return fbuf;
   }
@@ -93,7 +97,7 @@ class Frame_buffer extends EventEmitterAsync {
     let _this = this._;
     assert(_this.frames.length==1 || _this.frames.length==frames.length,
       'frames length mismatch');
-    let {h_rest} = _this.frames[0];
+    let {sig, h_rest} = _this.frames[0];
     for (let i=0; i<frames.length; i++){
       let f = frames[i], ff = _this.frames[i];
       if (!ff){
@@ -125,12 +129,17 @@ class Frame_buffer extends EventEmitterAsync {
     if (!_this.h_rest){
       yield _this.set_hash(Frame_buffer.calc_hash(_this.frames, {safe: true}),
         opt);
+    if (!sig && _this.frames[0].sig)
+      yield _this.emit_async('sig');
+    else
+      assert(_this.frames[0].sig.equals(sig), 'sig changed');
     }
   }); }
   set_frame_buf(i, buf){ return etask({_: this}, function*set_frame_buf(){
     let _this = this._, f = _this.frames[i];
     assert(f, 'no frame '+i);
     assert(!f.buf, 'buf aleady exist');
+    assert(i>0, 'cannot change frame '+i);
     let h = crypto.blake2b(buf);
     if (f.h)
       assert(h.equals(f.h), 'invalid hash');
@@ -156,10 +165,15 @@ class Frame_buffer extends EventEmitterAsync {
   sig_get(){ return this.frames[0].sig; }
   sig_set(sig){ return etask({_: this}, function*(){
     let _this = this._;
-    assert(!_this.frames[0].sig || _this.frames[0].sig.equals(sig),
-      'sig changed');
+    assert(sig, 'missing sig');
+    if (_this.frames[0].sig){
+      assert(_this.frames[0].sig.equals(sig), 'sig changed');
+      return sig;
+    }
     _this.frames[0].sig = sig;
     yield _this.emit_async('data');
+    yield _this.emit_async('sig');
+    return sig;
   }); }
   get(i){ return this.frames[i]?.buf; }
   get_json(i){ // XXX: need better implemenation + add caching of result
@@ -1124,13 +1138,7 @@ class Decl extends EventEmitterAsync {
     let sig = crypto.sign(crypto.blake2b(buf), scroll.key);
     yield _this.sig_set(cfid, sig);
   }); }
-  sig_set(cfid, sig){ return etask({_: this}, function*sig_set(){
-    let _this = this._;
-    yield _this.fbuf_get(cfid).sig_set(sig);
-    // XXX NOW: emit also from set_frames
-    yield _this.emit_async('sig', {cfid});
-    return sig;
-  }); }
+  sig_set(cfid, sig){ return this.fbuf_get(cfid).sig_set(sig); }
   sig_get(cfid){ return this.fbuf_get(cfid).sig_get(); }
   fbuf_get(cfid){ return this.data.get(this.to_c(cfid)); }
   data_get(){ return this.data; }
@@ -1302,7 +1310,7 @@ class Merkel_node extends EventEmitterAsync {
           return yield _this.set_hash(cfid, hleaf(d, sig));
       });
       decl.data.on('hash', on_hash);
-      decl.on('sig', on_hash);
+      decl.data.on('sig', on_hash);
     } else {
       let [r1, r2] = r_split(this.range);
       let m1 = scroll.m_get(r1), m2 = scroll.m_get(r2);

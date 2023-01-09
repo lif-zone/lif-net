@@ -78,11 +78,9 @@ export default class Storage_handler {
             seq = +seq;
             for (let cfid in queue_decl[seq]){
               cfid = +cfid;
-              // XXX: WIP - should never happy, handle with events
-              if (!scroll.conflict.get(cfid)) // XXX: TODO (branch deleted)
+              if (!scroll.conflict.get(cfid)) // branch deleted
                 continue;
-              if (!scroll.conflict.get(cfid).db) // XXX: TODO
-                continue;
+              assert(scroll.conflict.get(cfid).db, 'missing db cfid '+cfid);
               let decl = yield scroll.get_decl(seq);
               let o = decl.to_static_cfid(cfid, {max_decl: db.max_decl,
                 max_frame: db.max_frame, blob});

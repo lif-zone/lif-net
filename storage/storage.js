@@ -352,8 +352,6 @@ function conflict_eq(data, data2){ return xutil.equal_deep(data, data2); }
 //    and make sure that when we read data from db, it's only after
 //    flush/no-lock
 // 21. review all possible errors and handle properly
-// 27. verify behavior of loading data that was declared in memory and not yet
-//     flushed
 // 32. protect put (verify diff is valid)
 
 // XXX derry:

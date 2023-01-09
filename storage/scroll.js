@@ -1364,7 +1364,6 @@ class Merkel_node extends EventEmitterAsync {
   }
 }
 
-// XXX: make set_hash async and to calc_root_hash via events
 class Merkel_root extends EventEmitterAsync {
   constructor(opt){
     super();

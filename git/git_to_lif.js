@@ -38,8 +38,8 @@ const open_scroll = src=>etask(function*open_scroll(){
     // XXX: so ugly. need proper api
     let scroll = yield Scroll.open({key: keypair.key,
        pub: keypair.pub, M: M0});
-    let decl = yield db.get_decl(scroll, {seq: 0, data: true});
-    let data = decl.fbuf_get(0).get_json(2);
+    let decl = db.get_decl(scroll, {seq: 0, data: true});
+    let data = (yield decl.fbuf_get_async(0)).get_json(2);
     if (data.scroll?.topic!='git' || data.scroll?.src!=src)
       continue;
     yield db.get_scroll(scroll);

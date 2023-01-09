@@ -206,7 +206,7 @@ describe('lib', function(){
     for (let i=0; i<Math.max(a.length, exp.length); i++)
       assert.deepEqual(a[i], exp[i], 'line '+i);
     for (const [seq, decl] of scroll.dmap){
-      let data = (yield decl.fbuf_get(0)).get_json(2);
+      let data = (yield decl.fbuf_get_async(0)).get_json(2);
       if (data.op=='mv') // XXX: verify file resolution is correct
         continue;
       if (data.op=='commit'){

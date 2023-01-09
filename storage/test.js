@@ -800,7 +800,7 @@ const cmd_test = t=>etask(function*cmd_test(){
             ' exists '+t.meta.s);
           break;
         case 'd':
-          assert(!decl || !decl.fbuf_get_sync(cfid).h, 'd'+seq+'c'+cfid+
+          assert(!decl || !decl.fbuf_get(cfid).h, 'd'+seq+'c'+cfid+
             ' exists '+t.meta.s);
           break;
         case 'M':

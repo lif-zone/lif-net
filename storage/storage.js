@@ -349,11 +349,7 @@ function conflict_eq(data, data2){ return xutil.equal_deep(data, data2); }
 //    review _this.wait
 //    and make sure that when we read data from db, it's only after
 //    flush/no-lock
-// 4. verify we rebuild minfo/conflicts on scroll.conflict when loading scroll
-//    from db
 // 21. review all possible errors and handle properly
-// 23. wait for success on db.init
-// 26. review fbuf_load_async/regular usage
 // 27. verify behavior of loading data that was declared in memory and not yet
 //     flushed
 // 28. verify we don't queue stuff during load from db

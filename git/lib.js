@@ -1,5 +1,4 @@
 // author: derry. coder: arik.
-import xerr from '../util/xerr.js';
 import etask from '../util/etask.js';
 import array from '../util/array.js';
 import date from '../util/date.js';
@@ -236,7 +235,7 @@ E.json_str = function(o){
 E.scroll_to_lines = function(scroll){
   let a = [];
   for (let i=0; i<=scroll.top.seq; i++){
-    let decl = scroll.get_decl(i), fbuf = decl.fbuf_get_sync(0);
+    let decl = scroll.get_decl(i), fbuf = decl.fbuf_get(0);
     let h = fbuf.get_json(1);
     let o = fbuf.get_json(2);
     let blob = fbuf.get(3);
@@ -248,7 +247,7 @@ E.scroll_to_lines = function(scroll){
 
 E.dump_scroll = function(scroll){
   for (let i=0; i<=scroll.top.seq; i++){
-    let decl = scroll.get_decl(i), fbuf = decl.fbuf_get_sync(0);
+    let decl = scroll.get_decl(i), fbuf = decl.fbuf_get(0);
     // XXX: need nice api
     let h = {...fbuf.get_json(1)};
     let o = fbuf.get_json(2);

@@ -1017,8 +1017,8 @@ export default class Scroll extends EventEmitterAsync {
         let val = v[type];
         switch (type){
         case 'sig': yield decl.sig_set(cfid, val); break;
-        case 'd': yield decl.fbuf_get_sync(cfid).set_hash(val); break;
-        case 'D': yield decl.fbuf_get_sync(cfid).set_frames(val); break;
+        case 'd': yield decl.fbuf_get(cfid).set_hash(val); break;
+        case 'D': yield decl.fbuf_get(cfid).set_frames(val); break;
         case 'M': decl.M.set_hash(cfid, val); break;
         case 'm':
           for (let s in val)
@@ -1043,7 +1043,7 @@ export default class Scroll extends EventEmitterAsync {
   seq_sig(cfid, seq){ return this.get_decl(seq)?.sig_get(cfid); }
   seq_d(cfid, seq){ return this.get_decl(seq).d_hash(cfid); }
   seq_D(cfid, seq){
-    return this.get_decl(seq).fbuf_get_sync(cfid).get_frames(); }
+    return this.get_decl(seq).fbuf_get(cfid).get_frames(); }
   m_hash(cfid, range){
     let [, e] = range = r_fix(range), decl = this.get_decl(e);
     return decl.m_hash(cfid||0, range);
@@ -1134,7 +1134,7 @@ class Decl extends EventEmitterAsync {
   to_c(cfid){ return this.scroll.to_c(cfid, this.seq); }
   sign(cfid){ return etask({_: this}, function*sign(){
     let _this = this._;
-    let scroll = _this.scroll, d = _this.fbuf_get_sync(cfid).get_hash();
+    let scroll = _this.scroll, d = _this.fbuf_get(cfid).get_hash();
     assert(scroll.key, 'cannot sign without key');
     if (_this.seq)
       yield _this.scroll.get_decl(_this.seq-1).load(cfid);
@@ -1148,15 +1148,15 @@ class Decl extends EventEmitterAsync {
   }); }
   sig_set(cfid, sig){ return etask({_: this}, function*sig_set(){
     let _this = this._;
-    yield _this.fbuf_get_sync(cfid).sig_set(sig);
+    yield _this.fbuf_get(cfid).sig_set(sig);
     // XXX NOW: emit also from set_frames
     yield _this.emit_async('sig', {cfid});
     return sig;
   }); }
-  sig_get(cfid){ return this.fbuf_get_sync(cfid).sig_get(); }
-  fbuf_get_sync(cfid){ return this.data.get(this.to_c(cfid)); }
+  sig_get(cfid){ return this.fbuf_get(cfid).sig_get(); }
+  fbuf_get(cfid){ return this.data.get(this.to_c(cfid)); }
   data_get(){ return this.data; }
-  d_hash(cfid){ return this.fbuf_get_sync(cfid).get_hash(); }
+  d_hash(cfid){ return this.fbuf_get(cfid).get_hash(); }
   m_get(range){
     let i = merkel_array_pos(range);
     assert.deepEqual(this.m[i].range, r_fix(range));
@@ -1164,10 +1164,10 @@ class Decl extends EventEmitterAsync {
   }
   m_hash(cfid, range){ return this.m_get(range).get_hash(cfid); }
   M_hash(cfid){ return this.M.get_hash(cfid); }
-  fbuf_get(cfid){ return etask({_: this}, function*fbuf_get(){
+  fbuf_get_async(cfid){ return etask({_: this}, function*fbuf_get_async(){
     let _this = this._;
-    // XXX: load data from db/net
-    return _this.fbuf_get_sync(cfid);
+    yield _this.load(cfid);
+    return _this.fbuf_get(cfid);
   }); }
   get_buf(opt){
     let _this = this;
@@ -1175,7 +1175,7 @@ class Decl extends EventEmitterAsync {
       opt = {cfid: 0, d: opt};
     let d = opt.d;
     return etask(function*(){
-      let fbuf = yield _this.fbuf_get(opt.cfid);
+      let fbuf = yield _this.fbuf_get_async(opt.cfid);
       return fbuf.get(d);
     });
   }
@@ -1187,7 +1187,7 @@ class Decl extends EventEmitterAsync {
       opt = {cfid: 0, d: opt};
     let d = opt.d;
     return etask(function*(){
-      let fbuf = yield _this.fbuf_get(opt.cfid);
+      let fbuf = yield _this.fbuf_get_async(opt.cfid);
       if (!Array.isArray(d))
         return fbuf.get_json(d);
       let a = [];
@@ -1231,7 +1231,7 @@ class Decl extends EventEmitterAsync {
       o.sig = sig;
     if (M)
       o.M = M;
-    let frames = this.fbuf_get_sync(cfid).get_frames();
+    let frames = this.fbuf_get(cfid).get_frames();
     // XXX: move this logic to Frame_buffer
     if (frames.length>1 || frames[0].sig || frames[0].h_rest){
       let frames2 = [], total=0;
@@ -1278,7 +1278,7 @@ class Decl extends EventEmitterAsync {
       yield _this.m_get([+i, _this.seq]).set_hash(cfid, m);
     }
     if (o.D)
-      yield _this.fbuf_get_sync(cfid).set_frames(o.D);
+      yield _this.fbuf_get(cfid).set_frames(o.D);
   }); }
   to_static(opt={}){
     let ret;

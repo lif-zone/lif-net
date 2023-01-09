@@ -419,7 +419,7 @@ export default class Scroll extends EventEmitterAsync {
     let decl = _this.get_decl(seq);
     // XXX: TODO, protect with _this.storage?.begin_update();
     if (!decl.M.get_hash(0))
-      decl.M.set_hash(0, M);
+      yield decl.M.set_hash(0, M);
   }); }
   unload(){ // XXX HACK: quick implementation
     let M0 = this.M_hash(0, 0);
@@ -433,7 +433,7 @@ export default class Scroll extends EventEmitterAsync {
     this.create_new_conflict();
     // XXX HACK: why is needed (for soul?)
     let decl = this.get_decl(0);
-    decl.M.set_hash(0, M0);
+    return decl.M.set_hash(0, M0);
   }
   create_new_conflict(opt={}){
     let {cfid, seq} = opt;
@@ -1012,7 +1012,7 @@ export default class Scroll extends EventEmitterAsync {
         case 'sig': yield decl.sig_set(cfid, val); break;
         case 'd': yield decl.fbuf_get(cfid).set_hash(val); break;
         case 'D': yield decl.fbuf_get(cfid).set_frames(val); break;
-        case 'M': decl.M.set_hash(cfid, val); break;
+        case 'M': yield decl.M.set_hash(cfid, val); break;
         case 'm':
           for (let s in val)
             yield decl.m_get([+s, +seq]).set_hash(cfid, val[s]);
@@ -1201,7 +1201,7 @@ class Decl extends EventEmitterAsync {
     assert(_this.to_c(cdst)!=_this.to_c(csrc), 'copy same c'+cdst+'<- c'+csrc);
     let M = _this.M.get_hash(csrc);
     if (M)
-      _this.M.set_hash(cdst, M);
+      yield _this.M.set_hash(cdst, M);
     for (let i=0; i<_this.m.length; i++){
       let m = _this.m[i].get_hash(csrc);
       if (m)
@@ -1259,7 +1259,7 @@ class Decl extends EventEmitterAsync {
     function*from_static_cfid()
   {
     let _this = this._;
-    _this.M.set_hash(cfid, o.M);
+    yield _this.M.set_hash(cfid, o.M);
     for (const i in o.m){
       let m = o.m[i];
       yield _this.m_get([+i, _this.seq]).set_hash(cfid, m);
@@ -1409,10 +1409,14 @@ class Merkel_root extends EventEmitterAsync {
       assert(h && h_curr.equals(h), 'hash changed');
       return h_curr;
     }
-    this.cmap.set(cfid, h);
-    if (h)
-      this.emit('hash', {seq: this.decl.seq, cfid, h});
-    return h;
+    if (!h)
+      return;
+    return etask({_: this}, function*set_hash(){
+      let _this = this._;
+      _this.cmap.set(cfid, h);
+      yield _this.emit_async('hash', {seq: _this.decl.seq, cfid, h});
+      return h;
+    });
   }
 }
 

@@ -241,18 +241,13 @@ export default class Storage_handler {
     if (!Number.isInteger(scfid))
       return;
     if (decl.db?.cfid[cfid]){
-      if (!decl.db.cfid[cfid].busy && (!opt.data || decl.db.cfid[cfid].data))
-        return;
-      // XXX: is there better way
+      if (!decl.db.cfid[cfid].busy)
+        return opt.data && this.load_cfid_data(decl, cfid);
       return etask({_: this}, function*load_cfid_wait(){
         let _this = this._;
-        this.on('finally', ()=>decl.db.cfid[cfid].busy = null);
-        while (this.wait_ext(decl.db.cfid[cfid].busy))
-          yield this.wait_ext(decl.db.cfid[cfid].busy);
-        if (!opt.data || decl.db?.cfid[cfid].data)
-          return;
-        decl.db.cfid[cfid].busy = this;
-        yield _this.load_cfid_data(decl, cfid);
+        yield this.wait_ext(decl.db.cfid[cfid].busy);
+        if (opt.data)
+          return _this.load_cfid_data(decl, cfid);
       });
     }
     decl.db = decl.db||{cfid: {}};
@@ -260,11 +255,10 @@ export default class Storage_handler {
     // XXX: handle errors
     return decl.db.cfid[cfid].busy = etask({_: this}, function*load_cfid(){
       let _this = this._, db = _this.db, need_end_update;
-      this.on('finally', ()=>decl.db.cfid[cfid].busy = null);
       let tx = db.transaction('decl', 'readonly');
       let data = yield db.store_get(tx.store('decl'), [scfid, decl.seq]);
       if (!data)
-        return;
+        return decl.db.cfid[cfid].busy = null;
       assert.equal(scfid, _this.scroll.conflict.get(cfid).db?.data.scfid,
         'scfid was already deleted');
       data = db.fix_struct(data);
@@ -277,30 +271,45 @@ export default class Storage_handler {
       if (need_end_update)
         yield _this.end_update();
       decl.db.cfid[cfid].block_events = false;
-      if (!opt.data)
-        return;
-      yield _this.load_cfid_data(decl, cfid);
+      decl.db.cfid[cfid].busy = null;
+      if (opt.data)
+        return _this.load_cfid_data(decl, cfid);
     });
   }
-  load_cfid_data(decl, cfid){ return etask({_: this}, function*load_cfid_data()
-  {
-    let _this = this._, db = _this.db;
-    assert(_this.inited, 'storage_handler not inited');
-    let data = decl.data_get();
-    let fbuf = data.cmap.get(cfid);
-    if (!fbuf)
-      return;
-    let frames = fbuf.get_frames();
-    for (let i=0; i<frames.length; i++){
-      let f = frames[i];
-      if (f.h && !f.buf){
-        let o = yield db.db_get('data', b2s(f.h));
-        if (o?.buf)
-          yield fbuf.set_frame_buf(i, Buffer.from(o.buf));
-      }
+  // XXX: handle errors
+  load_cfid_data(decl, cfid){
+    assert(this.inited, 'storage_handler not inited');
+    assert(decl.db?.cfid[cfid] && !decl.db.cfid[cfid].busy,
+      'cannot load data before loading seq'+decl.seq);
+    if (decl.db.cfid[cfid].data){
+      if (!decl.db.cfid[cfid].data.busy)
+        return;
+      return etask({_: this}, function*load_cfid_data_wait(){
+        let _this = this._;
+        return _this.wait_ext(decl.db.cfid[cfid].data.busy);
+      });
     }
-    decl.db.cfid[cfid].data = true;
-  }); }
+    decl.db.cfid[cfid].data = {};
+    return decl.db.cfid[cfid].data.busy = etask({_: this},
+      function*load_cfid_data()
+    {
+      let _this = this._, db = _this.db;
+      let data = decl.data_get();
+      let fbuf = data.cmap.get(cfid);
+      if (!fbuf)
+        return decl.db.cfid[cfid].data.busy = null;
+      let frames = fbuf.get_frames();
+      for (let i=0; i<frames.length; i++){
+        let f = frames[i];
+        if (f.h && !f.buf){
+          let o = yield db.db_get('data', b2s(f.h));
+          if (o?.buf)
+            yield fbuf.set_frame_buf(i, Buffer.from(o.buf));
+        }
+      }
+      decl.db.cfid[cfid].data.busy = null;
+    });
+  }
   init_static_cfid(o, co){
     let scfid = co.db?.data.scfid;
     if (scfid>=0)

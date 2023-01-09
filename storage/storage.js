@@ -129,6 +129,8 @@ export default class Storage_handler {
       return;
     this.queue_cf_rm = this.queue_cf_rm||[];
     this.queue_cf_rm.push({scfid: e.o.db.data.scfid});
+    // XXX: how to cancel all existing running etask for cfid (eg. load_cfid)
+    // also verify we stop load after conflict merge
   };
   on_decl = decl=>{
     assert(this.inited, 'storage_handler not inited');
@@ -352,12 +354,7 @@ function conflict_eq(data, data2){ return xutil.equal_deep(data, data2); }
 // 21. review all possible errors and handle properly
 // 27. verify behavior of loading data that was declared in memory and not yet
 //     flushed
-// 28. verify we don't queue stuff during load from db
-// 29. test read/write with multiple tables and verify no scfid confusion and
-//     scfid_next is loaded correctly
-// 31. verify that multiple load will not try to load more than once
 // 32. protect put (verify diff is valid)
-// 34. stop etasks after branch removed-merge etc and decl.db.cfid[cfid]
 
 // XXX derry:
 // 1. _this -> this_ (change vim coloring to be like) and fix top/parent/...

@@ -755,7 +755,7 @@ const cmd_load_c = t=>etask(function*cmd_load_c(){
     default: o = parse_cfid_seq(curr.exp);
     }
   }
-  let decl = yield scroll.get_decl(o.seq);
+  let decl = scroll.get_decl(o.seq);
   yield decl.load(o.cfid, data && {data: true});
 });
 
@@ -779,7 +779,7 @@ const cmd_test = t=>etask(function*cmd_test(){
   for (const [cfid] of scroll.conflict){
     for (let seq=0; seq<=scroll.conflict.get(cfid).top.seq; seq++){
       seq = +seq;
-      let decl = yield scroll.get_decl(seq, {create: false});
+      let decl = scroll.get_decl(seq, {create: false});
       ['sig', 'd', 'M', 'm'].forEach(type=>{
         if (type=='m'){
           let a = Scroll.merkel_ranges(seq);

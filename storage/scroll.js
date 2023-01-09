@@ -1201,11 +1201,10 @@ class Decl extends EventEmitterAsync {
     return etask({_: this}, function*get_prev(){
       let _this = this._, header = yield _this.get_json(1);
       if (Number.isInteger(header.prev))
-        return yield _this.scroll.get_decl(header.prev);
+        return _this.scroll.get_decl(header.prev);
       if (!opt.group || !header.group)
-        return yield _this.scroll.get_decl(_this.seq-1);
-      return (yield _this.scroll.get_decl(_this.seq-header.group))
-      .get_prev(opt);
+        return _this.scroll.get_decl(_this.seq-1);
+      return yield _this.scroll.get_decl(_this.seq-header.group).get_prev(opt);
     });
   }
   copy(cdst, csrc){ return etask({_: this}, function*copy(){

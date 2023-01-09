@@ -417,10 +417,10 @@ export default class Scroll extends EventEmitterAsync {
     if (!M)
       return;
     let decl = _this.get_decl(seq);
-    yield _this.storage?.begin_update();
+    yield _this.lock();
     if (!decl.M.get_hash(0))
       yield decl.M.set_hash(0, M);
-    yield _this.storage?.end_update();
+    yield _this.unlock();
   }); }
   unload(){ // XXX HACK: quick implementation
     let M0 = this.M_hash(0, 0);
@@ -478,18 +478,33 @@ export default class Scroll extends EventEmitterAsync {
       header.link = link;
     if (branch)
       header.branch = branch;
-    yield _this.storage?.begin_update();
+    yield _this.lock();
     let data = new Data({seq, frames: [header].concat(frames)});
     let decl = new Decl({scroll: _this, seq, data});
     _this.dmap.set(seq, decl);
     _this.emit('decl', decl);
     decl.init();
     yield decl.sign(cfid);
-    yield _this.storage?.end_update();
+    yield _this.unlock();
     assert(decl.M.get_hash(cfid), 'failed to calc M'+decl.seq+' cfid '+cfid);
     return decl;
   }); }
-  notify_M(opt){ // XXX: make it etask and verify M is calced async
+  lock(){ return etask({_: this}, function*lock(){
+    let _this = this._;
+    while (_this.busy)
+      yield this.wait_ext(_this.busy);
+    _this.busy = etask.wait();
+    yield _this.storage?.begin_update();
+  }); }
+  unlock(){ return etask({_: this}, function*unlock(){
+    let _this = this._;
+    assert(_this.busy, 'unlock but not busy');
+    yield _this.storage?.end_update();
+    let busy = _this.busy;
+    _this.busy = null;
+    busy.continue();
+  }); }
+  notify_M(opt){
     let {cfid, seq, M} = opt;
     assert(seq!=0 || cfid==0, 'M0 exists only on b0');
     if (seq==0){
@@ -525,7 +540,7 @@ export default class Scroll extends EventEmitterAsync {
   put(diff){ return etask({_: this}, function*put(){
     let _this = this._;
     let errors = {}, a = Object.keys(diff);
-    yield _this.storage?.begin_update();
+    yield _this.lock();
     if (diff[0]) // XXX HACK: for case where we have only M0 (missing m0)
       yield _this.put_single(0, diff, errors);
     for (let i=a.length-1; i>=0 && +a[i]; i--){
@@ -551,7 +566,7 @@ export default class Scroll extends EventEmitterAsync {
       yield _this.merge_all(seq, cfid);
       copy_errors(errors, errors2);
     }
-    yield _this.storage?.end_update();
+    yield _this.unlock();
     return {errors};
   }); }
   put_single(seq, diff, errors, opt={}){ return etask({_: this},

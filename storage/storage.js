@@ -174,9 +174,8 @@ export default class Storage_handler {
     let _this = this._;
     assert(_this.inited, 'storage_handler not inited');
     assert(!_this.queue_cf_rm, 'pending quere_del');
-    while (_this.busy)
-      this.wait_ext(_this.busy);
-    _this.busy = etask.wait();
+    assert(!_this.busy, 'begin_update called while busy');
+    _this.busy = true;
   }); }
   end_update(){ return etask({_: this}, function*end_update(){
     let _this = this._, db = _this.db, scroll = _this.scroll;
@@ -198,9 +197,8 @@ export default class Storage_handler {
     }
     _this.schedule_db_update({queue_cf, queue_cf_rm: _this.queue_cf_rm,
       queue_decl: _this.queue_decl});
-    let wait = _this.busy;
-    _this.busy = _this.queue_cf_rm = _this.queue_decl = null;
-    wait.continue();
+    _this.queue_cf_rm = _this.queue_decl = null;
+    _this.busy = false;
   }); }
   schedule_db_update(o){
     assert(this.inited, 'storage_handler not inited');
@@ -349,13 +347,7 @@ function conflict_to_data(db, scroll, o){
 function conflict_eq(data, data2){ return xutil.equal_deep(data, data2); }
 
 // XXX TODO:
-// 1. need to lock scroll/db so only one is doing changes at the same time
-//    (and decide when need to lock read during update operations)
-//    review _this.wait
-//    and make sure that when we read data from db, it's only after
-//    flush/no-lock
 // 21. review all possible errors and handle properly
 // 32. protect put (verify diff is valid)
-
 // XXX derry:
 // 1. _this -> this_ (change vim coloring to be like) and fix top/parent/...

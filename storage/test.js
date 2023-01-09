@@ -547,17 +547,11 @@ const cmd_clone = (curr, t)=>etask(function*cmd_clone(){
     db_opt);
   let seq = m[6] ? +m[7] : s_src.top.seq;
   yield s_dst.storage?.begin_update();
-  if (Array.from(s_src.conflict.keys()).length>1){ // XXX: rm this if
-    for (let [cfid, co] of s_src.conflict){
+  if (Array.from(s_src.conflict.keys()).length>1){
+    for (let [, co] of s_src.conflict)
       assert(co.top.seq<=seq, 'cannot clone < conflict top '+co.top.seq);
-      let o = {cfid: cfid, top: {seq: co.top.seq, M: Buffer.from(co.top.M)},
-        parent: co.parent && assign({}, co.parent), conflicts: new Map()};
-      s_dst.conflict.set(cfid, o);
-      if (o.parent)
-        s_dst.conflict.get(o.parent.cfid).conflicts.set(cfid, o);
-      if (cfid)
-        yield s_dst.update_mergeable(cfid);
-    }
+    s_dst.top = 0;
+    yield s_dst.conflict_from_static(s_src.conflict_to_static());
   }
   for (let [seq2, decl] of s_src.dmap){
     if (seq2<=seq)

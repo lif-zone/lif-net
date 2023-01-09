@@ -234,7 +234,7 @@ export default class Storage_handler {
       ret = ret||{};
       let data = db.fix_struct(cursor.value);
       let {cfid, top, split} = data;
-      // XXX: do some sanity on valeus, throw error is invalid
+      // XXX: do some sanity on values, throw error is invalid
       ret[cfid] = {cfid, top: {seq: top.seq, M: s2b(top.M)},
         db: {data}};
       if (split)

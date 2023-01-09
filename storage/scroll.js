@@ -485,7 +485,6 @@ export default class Scroll extends EventEmitterAsync {
     _this.emit('decl', decl);
     decl.init();
     yield decl.sign(cfid);
-    decl.M.get_hash(cfid);
     yield _this.storage?.end_update();
     assert(decl.M.get_hash(cfid), 'failed to calc M'+decl.seq+' cfid '+cfid);
     return decl;

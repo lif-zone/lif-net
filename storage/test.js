@@ -549,10 +549,16 @@ const cmd_clone = (curr, t)=>etask(function*cmd_clone(){
   let seq = m[6] ? +m[7] : s_src.top.seq;
   yield s_dst.storage?.begin_update();
   if (Array.from(s_src.conflict.keys()).length>1){
+    let db = s_dst.conflict.get(0).db;
     for (let [, co] of s_src.conflict)
       assert(co.top.seq<=seq, 'cannot clone < conflict top '+co.top.seq);
-    s_dst.top = 0;
-    yield s_dst.conflict_from_static(s_src.conflict_to_static());
+    s_dst.top = null;
+    let o = s_src.conflict_to_static();
+    yield s_dst.conflict_from_static(o, (_o, _co)=>{
+      // s_dst was saved to db during new_scroll, so we need to keep same scfid
+      if (_co.cfid==0)
+        _co.db = db;
+    });
   }
   for (let [seq2, decl] of s_src.dmap){
     if (seq2<=seq)

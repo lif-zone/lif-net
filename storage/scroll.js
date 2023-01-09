@@ -417,9 +417,10 @@ export default class Scroll extends EventEmitterAsync {
     if (!M)
       return;
     let decl = _this.get_decl(seq);
-    // XXX: TODO, protect with _this.storage?.begin_update();
+    yield _this.storage?.begin_update();
     if (!decl.M.get_hash(0))
       yield decl.M.set_hash(0, M);
+    yield _this.storage?.end_update();
   }); }
   unload(){ // XXX HACK: quick implementation
     let M0 = this.M_hash(0, 0);

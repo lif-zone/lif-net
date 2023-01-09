@@ -546,6 +546,11 @@ const cmd_clone = (curr, t)=>etask(function*cmd_clone(){
   let s_dst = yield new_scroll(dst, s_src.M_hash(0, 0), null, t.prev?.ctx,
     db_opt);
   let seq = m[6] ? +m[7] : s_src.top.seq;
+  yield s_dst.storage?.begin_update();
+  /* XXX: use
+  s_dst.top = null;
+  yield s_dst.conflict_from_static(s_src.conflict_to_static());
+  */
   // XXX: use conflict_to_static/conflict_from_static
   if (Array.from(s_src.conflict.keys()).length>1){ // XXX: rm this if
     for (let [cfid, co] of s_src.conflict){
@@ -557,14 +562,11 @@ const cmd_clone = (curr, t)=>etask(function*cmd_clone(){
         s_dst.conflict.get(o.parent.cfid).conflicts.set(cfid, o);
     }
   }
-  if (s_dst.storage) // XXX: rm
-      yield s_dst.storage.begin_update();
   for (let [seq2, decl] of s_src.dmap){
     if (seq2<=seq)
       yield s_dst.get_decl(seq2).from_static(decl.to_static());
   }
-  if (s_dst.storage)
-      yield s_dst.storage.end_update();
+  yield s_dst.storage?.end_update();
 });
 
 const cmd_decl = t=>etask(function*cmd_decl(){

@@ -416,11 +416,14 @@ export default class Scroll extends EventEmitterAsync {
   }
   init(opt={}){ return etask({_: this}, function*scroll_init(){
     let _this = this._, {M, seq} = opt;
+    if (M)
+      _this.name = b2s(M);
     assert(!M || seq==0 || !_this.storage, 'cannot use sotage if seq>0');
     yield _this.storage?.init({scroll: _this, M: b2s(M)});
     if (!M)
       return;
     let decl = _this.get_decl(seq);
+    // XXX: TODO, protect with _this.storage?.begin_update();
     if (!decl.M.get_hash(0))
       decl.M.set_hash(0, M);
   }); }

@@ -127,8 +127,6 @@ export default class Storage_handler {
   };
   on_decl = decl=>{
     assert(this.inited, 'storage_handler not inited');
-    if (this.block_events)
-      return;
     assert(!this.listeners_decl[decl.seq], 'dup decl seq'+decl.seq);
     this.listeners_decl[decl.seq] = decl;
     decl.M.on('hash', this.on_decl_update);
@@ -148,15 +146,16 @@ export default class Storage_handler {
   };
   on_decl_update = e=>{
     assert(this.inited, 'storage_handler not inited');
-    if (this.block_events)
-      return;
-    // XXX: enable once old db code is removed
+    let {seq, cfid} = e, decl = this.scroll.get_decl(seq);
+    // XXX: enable  assert
     // assert(this.busy, 'on_decl_update while not in update');
-    assert(e.cfid!==undefined, 'missing cfid in event');
-    assert(e.seq>=0, 'invalid seq in event');
+    assert(cfid!==undefined, 'missing cfid in event');
+    assert(seq>=0, 'invalid seq in event');
+    if (decl.db?.cfid[cfid]?.block_events)
+      return;
     this.queue_decl = this.queue_decl||{};
-    this.queue_decl[e.seq] = this.queue_decl[e.seq]||{};
-    this.queue_decl[e.seq][e.cfid] = true;
+    this.queue_decl[seq] = this.queue_decl[seq]||{};
+    this.queue_decl[seq][cfid] = true;
     // XXX: need to remove range for new created decl
   };
   flush(){ return etask({_: this}, function*flush(){
@@ -265,7 +264,7 @@ export default class Storage_handler {
     decl.db.cfid[cfid] = {};
     // XXX: handle errors
     return decl.db.cfid[cfid].busy = etask({_: this}, function*load_cfid(){
-      let _this = this._, db = _this.db;
+      let _this = this._, db = _this.db, need_end_update;
       this.on('finally', ()=>decl.db.cfid[cfid].busy = null);
       let tx = db.transaction('decl', 'readonly');
       let data = yield db.store_get(tx.store('decl'), [scfid, decl.seq]);
@@ -274,9 +273,15 @@ export default class Storage_handler {
       assert.equal(scfid, _this.scroll.conflict.get(cfid).db?.data.scfid,
         'scfid was already deleted');
       data = db.fix_struct(data);
-      _this.block_events = true;
+      decl.db.cfid[cfid].block_events = true;
+      if (!_this.busy){
+        need_end_update = true;
+        yield _this.begin_update();
+      }
       yield decl.from_static_cfid(cfid, data);
-      _this.block_events = false;
+      if (need_end_update)
+        yield _this.end_update();
+      decl.db.cfid[cfid].block_events = false;
       if (!opt.data)
         return;
       yield _this.load_cfid_data(decl, cfid);

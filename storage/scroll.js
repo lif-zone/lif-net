@@ -1391,16 +1391,15 @@ class Merkel_root extends EventEmitterAsync {
     cfid = this.decl.to_c(cfid);
     return this.cmap.get(cfid);
   }
-  calc_hash(cfid){ return etask({_: this}, function*calc_hash(){
-    let _this = this._;
-    if (_this.h)
+  calc_hash(cfid){
+    if (this.h)
       return;
-    let h = _this.scroll.calc_root_hash(_this.decl.seq, {roots: this.roots,
+    let h = this.scroll.calc_root_hash(this.decl.seq, {roots: this.roots,
       cfid});
     if (!h)
       return;
-    return _this.set_hash(cfid, h);
-  }); }
+    return this.set_hash(cfid, h);
+  }
   set_hash(cfid, h, opt){
     assert(this.inited, 'Merkel_root not inited');
     cfid = this.decl.to_c(cfid);

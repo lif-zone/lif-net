@@ -176,6 +176,7 @@ export default class DB {
       return;
     yield idb.deleteDB('lif_db'+_this.postfix);
   });
+  only(val){ return IDBKeyRange.only(val); }
 }
 
 function store_add(store, val){

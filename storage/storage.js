@@ -66,9 +66,7 @@ export default class Storage_handler {
           for (let i=0; i<queue_cf_rm?.length; i++){
             let scfid = queue_cf_rm[i].scfid;
             yield db.store_delete(store, scfid);
-            // XXX: wrap in api
-            let query = IDBKeyRange.only(scfid);
-            for (let cursor = yield db.cursor(index2, query); cursor;
+            for (let cursor = yield db.cursor(index2, db.only(scfid)); cursor;
               cursor = yield cursor.next())
             {
               cursor.delete();
@@ -223,8 +221,7 @@ export default class Storage_handler {
     assert(_this.inited, 'storage_handler not inited');
     let tx = db.transaction('scroll', 'readonly');
     let index = tx.index('scroll', 'scroll');
-    let query = IDBKeyRange.only(M);
-    for (let cursor = yield db.cursor(index, query) ; cursor;
+    for (let cursor = yield db.cursor(index, db.only(M)) ; cursor;
       cursor = yield cursor.next())
     {
       ret = ret||{};

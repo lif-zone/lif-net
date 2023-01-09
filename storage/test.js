@@ -913,8 +913,7 @@ const db_get_scroll_decl = (db, scroll)=>etask(function*db_get_scroll_decl(){
     scfid = +scfid;
     let cfid = db_c[scfid].cfid;
     let index = tx.store('decl').index('scfid');
-    let query = IDBKeyRange.only(scfid);
-    for (let cursor=yield db.cursor(index, query); cursor;
+    for (let cursor=yield db.cursor(index, db.only(scfid)); cursor;
       cursor = yield cursor.next())
     {
       let o = db.fix_struct(cursor.value);
@@ -935,8 +934,7 @@ const db_get_scroll_decl = (db, scroll)=>etask(function*db_get_scroll_decl(){
 const db_get_c = (db, M)=>etask(function*db_get_c(){
   let tx = db.transaction('scroll', 'readonly'), ret;
   let index = tx.index('scroll', 'scroll');
-  let query = IDBKeyRange.only(b2s(M));
-  for (let cursor=yield db.cursor(index, query); cursor;
+  for (let cursor=yield db.cursor(index, db.only(b2s(M))); cursor;
     cursor = yield cursor.next())
   {
     let o = db.fix_struct(cursor.value);

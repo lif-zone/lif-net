@@ -1047,9 +1047,13 @@ export default class Scroll extends EventEmitterAsync {
     let decl = this.get_decl(e);
     return decl.m_get(range);
   }
+  M_get(seq){
+    let decl = this.get_decl(seq);
+    return decl.M;
+  }
   M_hash(cfid, seq){
     let decl = this.get_decl(seq);
-    return decl ? decl.M_hash(cfid||0) : null;
+    return decl.M_hash(cfid||0);
   }
   get_decl(seq, opt={}){
     assert(typeof seq=='number', 'invalid seq '+seq);
@@ -1385,6 +1389,13 @@ class Merkel_root extends EventEmitterAsync {
     return this.set_hash(cfid,
       this.scroll.calc_root_hash(this.decl.seq, {cfid}));
   }
+  calc_hash(cfid){ return etask({_: this}, function*calc_hash(){
+    let _this = this._;
+    if (_this.h)
+      return;
+    return _this.set_hash(cfid,
+      _this.scroll.calc_root_hash(_this.decl.seq, {cfid}));
+  }); }
   set_hash(cfid, h, opt){
     assert(this.inited, 'Merkel_root not inited');
     cfid = this.decl.to_c(cfid);

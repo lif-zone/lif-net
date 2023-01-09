@@ -153,7 +153,6 @@ export default class Storage_handler {
     this.queue_decl = this.queue_decl||{};
     this.queue_decl[seq] = this.queue_decl[seq]||{};
     this.queue_decl[seq][cfid] = true;
-    // XXX: need to remove range for new created decl
   };
   flush(){ return etask({_: this}, function*flush(){
     let _this = this._;
@@ -325,7 +324,6 @@ function conflict_to_data(db, scroll, o){
   return data;
 }
 
-// XXX: need test (and fix to avoid equal_deep)
 function conflict_eq(data, data2){ return xutil.equal_deep(data, data2); }
 
 // XXX TODO:
@@ -348,9 +346,7 @@ function conflict_eq(data, data2){ return xutil.equal_deep(data, data2); }
 // 30. write scfid to blob data table so we can do purge
 // 31. verify that multiple load will not try to load more than once
 // 32. protect put (verify diff is valid)
-// 33. rm scfid/db direct usage in scroll
 // 34. stop etasks after branch removed-merge etc and decl.db.cfid[cfid]
-// 35. make all conflict changes event-based and rm conflict_eq
 
 // XXX derry:
 // 1. _this -> this_ (change vim coloring to be like) and fix top/parent/...

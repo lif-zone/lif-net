@@ -30,10 +30,8 @@ export default class DB {
       yield _this.delete_db();
     _this.db = yield idb.openDB('lif_db'+_this.postfix, undefined, {
       upgrade(db, oldVersion, newVersion, transaction, event){
-        // XXX how to wait for creation of table and verify both are created
         db.createObjectStore('data', {keyPath: 'h'});
         let scroll2 = db.createObjectStore('scroll', {keyPath: 'scfid'});
-        // XXX: do we need both 'scroll' and 'scroll-scfid' indexes?
         scroll2.createIndex('scroll', 'scroll');
         scroll2.createIndex('scroll-cfid', ['scroll', 'cfid'], {unique: true});
         let decl2 = db.createObjectStore('decl', {keyPath: ['scfid', 'seq']});
@@ -66,40 +64,25 @@ export default class DB {
     assert(_this.inited, 'db not inited');
     let tx = _this.transaction(['scroll', 'decl'], 'readwrite');
     let store = tx.store('scroll');
-    for (let cursor = yield _this.cursor(store); cursor;
-      cursor = yield cursor.next())
-    {
-      cursor.delete();
-    }
+    for (let cur = yield _this.cursor(store); cur; cur = yield cur.next())
+      cur.delete();
     store = tx.store('decl');
-    for (let cursor = yield _this.cursor(store); cursor;
-      cursor = yield cursor.next())
-    {
-      cursor.delete();
-    }
+    for (let cur = yield _this.cursor(store); cur; cur = yield cur.next())
+      cur.delete();
     yield tx;
     let data_scroll = [], data_decl = [], data_blob = [];
     let tx2 = src.transaction(['scroll', 'decl'], 'readonly');
     let store2 = tx2.store('scroll');
-    for (let cursor = yield src.cursor(store2); cursor;
-      cursor = yield cursor.next())
-    {
-      data_scroll.push(cursor.value);
-    }
+    for (let cur = yield src.cursor(store2); cur; cur = yield cur.next())
+      data_scroll.push(cur.value);
     tx2 = src.transaction(['scroll', 'decl'], 'readonly');
     store2 = tx2.store('decl');
-    for (let cursor = yield src.cursor(store2); cursor;
-      cursor = yield cursor.next())
-    {
-      data_decl.push(cursor.value);
-    }
+    for (let cur = yield src.cursor(store2); cur; cur = yield cur.next())
+      data_decl.push(cur.value);
     tx2 = src.transaction(['data'], 'readonly');
     store2 = tx2.store('data');
-    for (let cursor = yield src.cursor(store2); cursor;
-      cursor = yield cursor.next())
-    {
-      data_blob.push(cursor.value);
-    }
+    for (let cur = yield src.cursor(store2); cur; cur = yield cur.next())
+      data_blob.push(cur.value);
     tx = _this.transaction(['scroll', 'decl', 'data'], 'readwrite');
     store = tx.store('scroll');
     for (let i=0; i<data_scroll.length; i++)

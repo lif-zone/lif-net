@@ -156,7 +156,7 @@ const prepare_diff = (config, scroll, top, prev, lbranch, state_next)=>etask(
           if (d_old.op=='rm')
             d_old = null;
         } else {
-          let decl_old = yield scroll.get_decl(seq_path);
+          let decl_old = scroll.get_decl(seq_path);
           d_old = yield decl_old.get_json(2);
         }
         let oid_old = d_old?.git.oid;
@@ -515,7 +515,7 @@ E.import_git = (config, scroll, opt={})=>etask(function*_start(){
     assert(seq, 'git_branch not found '+git_branch);
     let prev = prev_sync.git_branch.get(git_branch)?.seq, add = !prev;
     if (prev){
-      let prev_d = yield scroll.get_decl(prev);
+      let prev_d = scroll.get_decl(prev);
       // XXX: need to properly parse link
       if ((yield prev_d.get_json(1)).link==seq){
         if (head==git_branch)
@@ -538,7 +538,7 @@ E.import_git = (config, scroll, opt={})=>etask(function*_start(){
     assert(seq, 'tag not found '+tag);
     let prev = prev_sync.tag.get(tag)?.seq, add = !prev;
     if (prev){
-      let prev_d = yield scroll.get_decl(prev);
+      let prev_d = scroll.get_decl(prev);
       // XXX: need to properly parse link
       if ((yield prev_d.get_json(1)).link==seq)
         continue;
@@ -551,7 +551,7 @@ E.import_git = (config, scroll, opt={})=>etask(function*_start(){
     let link = head_seq, same;
     let prev = prev_sync.git_branch.get('HEAD')?.seq, add = !prev;
     if (prev){
-      let prev_d = yield scroll.get_decl(prev);
+      let prev_d = scroll.get_decl(prev);
       // XXX: need to properly parse link
       same = (yield prev_d.get_json(1)).link==link;
     }
@@ -592,13 +592,13 @@ const get_content = decl=>etask(function*(){
   else {
     let seq = Scroll.resolve_link(header.link, o.l);
     assert(seq<decl.seq, 'link can only point backwards');
-    let decl2 = yield decl.scroll.get_decl(seq);
+    let decl2 = decl.scroll.get_decl(seq);
     buf = yield get_content(decl2);
   }
   if (!data.diff)
     return buf;
   let src_seq = Scroll.resolve_link(header.link, '_');
-  let src_decl = yield decl.scroll.get_decl(src_seq);
+  let src_decl = decl.scroll.get_decl(src_seq);
   let src = yield get_content(src_decl);
   let s = Diff.applyPatch(src.toString(), buf.toString());
   return Buffer.from(s);
@@ -625,7 +625,7 @@ E.get_commit = decl=>etask(function*_get_commit(){
   if (data_prev?.op=='commit')
     s+=line('parent', data_prev.git?.oid);
   if (git.merge){
-    let merge = yield decl.scroll.get_decl(git.merge);
+    let merge = decl.scroll.get_decl(git.merge);
     s+=line('parent', (yield merge.get_json(2)).git?.oid);
   }
   s+=line('author', data.author+' <'+git.author?.email+'> '+

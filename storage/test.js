@@ -547,7 +547,7 @@ const cmd_clone = (curr, t)=>etask(function*cmd_clone(){
   let s_dst = yield new_scroll(dst, s_src.M_hash(0, 0), null, t.prev?.ctx,
     db_opt);
   let seq = m[6] ? +m[7] : s_src.top.seq;
-  yield s_dst.storage?.begin_update();
+  yield s_dst.lock();
   if (Array.from(s_src.conflict.keys()).length>1){
     let db = s_dst.conflict.get(0).db;
     for (let [, co] of s_src.conflict)
@@ -564,7 +564,7 @@ const cmd_clone = (curr, t)=>etask(function*cmd_clone(){
     if (seq2<=seq)
       yield s_dst.get_decl(seq2).from_static(decl.to_static());
   }
-  yield s_dst.storage?.end_update();
+  yield s_dst.unlock();
 });
 
 const cmd_decl = t=>etask(function*cmd_decl(){

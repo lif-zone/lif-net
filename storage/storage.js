@@ -272,10 +272,10 @@ export default class Storage_handler {
       decl.db.cfid[cfid].block_events = true;
       let need_end_update = !_this.busy;
       if (need_end_update)
-        yield _this.begin_update();
+        yield _this.scroll.lock();
       yield decl.from_static_cfid(cfid, data);
       if (need_end_update)
-        yield _this.end_update();
+        yield _this.scroll.unlock();
       decl.db.cfid[cfid].block_events = false;
       decl.db.cfid[cfid].busy = null;
       if (opt.data)
@@ -306,7 +306,7 @@ export default class Storage_handler {
         return decl.db.cfid[cfid].data.busy = null;
       let need_end_update = !_this.busy;
       if (need_end_update)
-        yield _this.begin_update();
+        yield _this.scroll.lock();
       let frames = fbuf.get_frames();
       for (let i=0; i<frames.length; i++){
         let f = frames[i];
@@ -317,7 +317,7 @@ export default class Storage_handler {
         }
       }
       if (need_end_update)
-        yield _this.end_update();
+        yield _this.scroll.unlock();
       decl.db.cfid[cfid].data.busy = null;
     });
   }

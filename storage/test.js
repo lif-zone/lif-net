@@ -513,6 +513,7 @@ const cmd_scroll = t=>etask(function*cmd_scroll(){
       t2 = tparser.parse_exp_arg_pair(curr.exp);
       if (a = t2.l.match(/^M(\d+)$/)){
         let h = yield get_val(t2.r);
+        assert(h, 'missing '+t2.r);
         M = +a[1] ? {seq: +a[1], h} : h;
         break;
       }
@@ -667,7 +668,7 @@ const cmd_state = (curr, t)=>etask(function*cmd_state(){
   let db = soul?.db;
   if (db?.inited){
     state.db = yield db_get_scroll_decl(scroll.soul.db, scroll);
-    state.db_c = yield db_get_c(scroll.soul.db, scroll.M_hash(0, 0));
+    state.db_c = yield db_get_c(scroll.soul.db, scroll.name);
     state.db_data = yield db_get_db_data(scroll.soul.db);
   } else {
     state.db = {};
@@ -901,7 +902,7 @@ const get_static_c = exp=>etask(function*get_static_c(){
 });
 
 const db_get_scroll_decl = (db, scroll)=>etask(function*db_get_scroll_decl(){
-  let db_c = yield db_get_c(db, scroll.M_hash(0, 0)), ret={};
+  let db_c = yield db_get_c(db, scroll.name), ret={};
   let tx = db.transaction('decl', 'readonly');
   for (let scfid in db_c){
     scfid = +scfid;
@@ -926,6 +927,7 @@ const db_get_scroll_decl = (db, scroll)=>etask(function*db_get_scroll_decl(){
 });
 
 const db_get_c = (db, M)=>etask(function*db_get_c(){
+  assert(M, 'missing M');
   let tx = db.transaction('scroll', 'readonly'), ret;
   let index = tx.index('scroll', 'scroll');
   for (let cursor=yield db.cursor(index, db.only(b2s(M))); cursor;

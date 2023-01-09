@@ -677,7 +677,6 @@ export default class Scroll extends EventEmitterAsync {
     if (vsig && !vsig.equals(sig))
       return {conflict: true};
     yield _this.put_verified(sketch, {cfid});
-    _this.M_hash(cfid, seq); // update new top
   }); }
   sketch_calc_top_M(opt){ return etask({_: this}, function*sketch_calc_top_M()
   {
@@ -1024,7 +1023,7 @@ export default class Scroll extends EventEmitterAsync {
     }
   }); }
   calc_root_hash(seq, opt){
-    let roots=calc_roots(seq+1), a=[ROOT_TYPE];
+    let roots=opt.roots||calc_roots(seq+1), a=[ROOT_TYPE];
     for (let i=0; i<roots.length; i++){
       let r = roots[i], h = this.m_hash(opt.cfid, r);
       if (!h)
@@ -1377,31 +1376,37 @@ class Merkel_root extends EventEmitterAsync {
   init(){
     assert(!this.inited, 'Merkel_root already inited');
     this.inited = true;
+    this.on_hash = e=>{
+      if (this.cmap.get(e.cfid))
+        return;
+      this.calc_hash(e.cfid);
+    };
     this.on('hash', o=>this.scroll.notify_M({cfid: o.cfid, seq: o.seq,
       M: o.h}));
+    let roots = this.roots = calc_roots(this.decl.seq+1);
+    this.scroll.m_get(roots[roots.length-1]).on('hash', this.on_hash);
   }
   get_hash(cfid){
     assert(this.inited, 'Merkel_root not inited');
     cfid = this.decl.to_c(cfid);
-    let h = this.cmap.get(cfid);
-    if (h)
-      return h;
-    return this.set_hash(cfid,
-      this.scroll.calc_root_hash(this.decl.seq, {cfid}));
+    return this.cmap.get(cfid);
   }
   calc_hash(cfid){ return etask({_: this}, function*calc_hash(){
     let _this = this._;
     if (_this.h)
       return;
-    return _this.set_hash(cfid,
-      _this.scroll.calc_root_hash(_this.decl.seq, {cfid}));
+    let h = _this.scroll.calc_root_hash(_this.decl.seq, {roots: this.roots,
+      cfid});
+    if (!h)
+      return;
+    return _this.set_hash(cfid, h);
   }); }
   set_hash(cfid, h, opt){
     assert(this.inited, 'Merkel_root not inited');
     cfid = this.decl.to_c(cfid);
     let h_curr = this.cmap.get(cfid);
     if (h_curr){
-      assert(h_curr.equals(h), 'hash changed');
+      assert(h && h_curr.equals(h), 'hash changed');
       return h_curr;
     }
     this.cmap.set(cfid, h);

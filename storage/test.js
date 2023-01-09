@@ -15,30 +15,11 @@ import Soul from './soul.js';
 import DB from './db.js';
 import buf_util from '../peer-relay/buf_util.js';
 import {r_str, r_from_str, r_parent} from './range.js';
-const b2s = buf_util.buf_to_str, s2b = buf_util.buf_from_str;
+const {b2s, s2b, b2s_obj} = buf_util;
+
 function enc_u64(v){ return enc.encode(enc.uint64, v); }
 let t_soul, t_soul_id, t_soul_mode, t_state;
 let t_scroll, t_genesis_scroll, t_prev_scroll, t_def, t_keypair;
-
-// XXX: need test and move to buf_util.js
-function b2s_obj(o, ret){
-  if (!o || !(o instanceof Object))
-    return o;
-  ret = ret||{};
-  for (let name in o){
-    let v = o[name];
-    if (v instanceof Uint8Array)
-      ret[name] = b2s(Buffer.from(v));
-    else if (Buffer.isBuffer(v))
-      ret[name] = b2s(v);
-    else if (v instanceof Object){
-      ret[name] = {};
-      b2s_obj(v, ret[name]);
-    } else
-      ret[name] = v;
-  }
-  return ret;
-}
 
 // XXX: use memoryDatabase: ':memory:'
 DB.init({shim_conf: {checkOrigin: false, databaseBasePath: '/tmp',

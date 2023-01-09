@@ -65,7 +65,6 @@ class Data extends EventEmitterAsync {
     let fdst = _this.get(cdst);
     assert.equal(fsrc.map_info.cfid, csrc);
     assert.equal(fdst.map_info.cfid, cdst);
-    // XXX: wrap with api in Frame_buffer
     assert(!fdst.h && fdst.frames.length==1 && !fdst.frames[0].h_rest,
       'already contain data seq'+_this.seq);
     fdst.h = fsrc.h;
@@ -242,7 +241,6 @@ function calc_D_hash(D){
   return Frame_buffer.calc_hash(D);
 }
 
-// XXX: sig need to be part of data
 function get_sig(data, seq){ return data[seq]?.sig; }
 function set_sig(data, seq, val){
   let o = data[seq] = data[seq]||{};
@@ -1105,9 +1103,7 @@ class Decl extends EventEmitterAsync {
     this.M = new Merkel_root({decl: this});
   }
   init(){
-    // XXX: rm and make sure init is called only once
-    if (this.inited)
-      return;
+    assert(!this.inited, 'init called twice seq'+this.seq);
     this.inited = true;
     for (let i=0; i<this.m.length; i++)
       this.m[i].init();

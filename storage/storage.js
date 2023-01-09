@@ -34,7 +34,6 @@ export default class Storage_handler {
     this.db = db;
     this.db_queue = [];
     this.listeners_decl = {};
-    // XXX: derry
     this.sp = etask(function*Storage_handler_sp(){ return this.wait(); });
   }
   init(opt){ return etask({_: this}, function*init(){

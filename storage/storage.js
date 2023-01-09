@@ -88,10 +88,20 @@ export default class Storage_handler {
             }
           }
           yield tx;
-          // XXX NOW: need blob cache (and to do it only if blob was not
-          // before in db)
-          for (let h in blob) // XXX: save scfid in array
-            yield db.db_put('data', {h, buf: blob[h]});
+          for (let h in blob){
+            let o = blob[h];
+            let oo = (yield db.db_get('data', h))||{h, buf: o.buf, scfid: []};
+            for (let cfid in o.cfid){
+              cfid = +cfid;
+              if (!scroll.conflict.get(cfid))
+                continue;
+              let scfid = scroll.conflict.get(cfid).db.data.scfid;
+              if (!oo.scfid.includes(scfid))
+                oo.scfid.push(scfid);
+            }
+            if (oo.scfid.length)
+              yield db.db_put('data', oo);
+          }
           _this.db_queue.shift();
           yield etask.sleep(0);
         }
@@ -341,7 +351,6 @@ function conflict_eq(data, data2){ return xutil.equal_deep(data, data2); }
 //    flush/no-lock
 // 4. verify we rebuild minfo/conflicts on scroll.conflict when loading scroll
 //    from db
-// 16. save blob scfid array
 // 21. review all possible errors and handle properly
 // 23. wait for success on db.init
 // 26. review fbuf_load_async/regular usage
@@ -350,7 +359,6 @@ function conflict_eq(data, data2){ return xutil.equal_deep(data, data2); }
 // 28. verify we don't queue stuff during load from db
 // 29. test read/write with multiple tables and verify no scfid confusion and
 //     scfid_next is loaded correctly
-// 30. write scfid to blob data table so we can do purge
 // 31. verify that multiple load will not try to load more than once
 // 32. protect put (verify diff is valid)
 // 34. stop etasks after branch removed-merge etc and decl.db.cfid[cfid]

@@ -2151,77 +2151,17 @@ describe('scroll', ()=>{
 // XXX NOW how to handle conflict merge (c in db is wrong now) + add tests
 // XXX NOW need dirty flag to know what needs to be saved to db; also for blob
       });
-      describe('db_data', ()=>{
-        t('no_split', `s.scroll s.decl(data:32KB) S..#(db db_data)
-          clone(s.. db(max_decl:60KB max_frame:32KB)) flush
-          #(db0={M0 sig0 D0 m0} db1={M1 sig1 D1 m1 m0_1})
-          Soul2.db_copy(S.soul) S2.#(mem mem_c)
-          Soul2.S2..scroll(M0 db) #(mem_c={0:M1} mem0={M0 sig0 D0 m0})
-          load_c(1) #mem1={M1 sig1 D1 m1 m0_1}
-          load_c(1 data) #`);
-        t('split_load_first', `s.scroll s.decl(data:33KB) S..#(db db_data)
-          clone(s.. db(max_decl:60KB max_frame:32KB)) flush
-          #(db0={M0 sig0 D0 m0} db1={M1 sig1 D1:[D1F0 D1F1 D1f2] m1 m0_1}
-            db_data=D1F2)
-          Soul2.db_copy(S.soul) S2.#(mem mem_c)
-          Soul2.S2..scroll(M0 db) #(mem_c={0:M1} mem0={M0 sig0 D0 m0})
-          load_c(1 data) #mem1={M1 sig1 D1 m1 m0_1}
-          load_c(1) # load_c(1 data) #`);
-        t('split_load_late', `s.scroll s.decl(data:33KB) S..#(db db_data)
-          clone(s.. db(max_decl:60KB max_frame:32KB)) flush
-          #(db0={M0 sig0 D0 m0} db1={M1 sig1 D1:[D1F0 D1F1 D1f2] m1 m0_1}
-            db_data=D1F2)
-          Soul2.db_copy(S.soul) S2.#(mem mem_c)
-          Soul2.S2..scroll(M0 db) #(mem_c={0:M1} mem0={M0 sig0 D0 m0})
-          load_c(1) #mem1={M1 sig1 D1:[D1F0 D1F1 D1f2] m1 m0_1}
-          load_c(1 data) #mem1={M1 sig1 D1 m1 m0_1}
-          load_c(1 data) #`);
-        t('split_max_decl_1', `s.scroll s.decl(data(33KB 28KB))
-          S..#(db db_data)
-          clone(s.. db(max_decl:60KB max_frame:32KB)) flush
-          #(db0={M0 sig0 D0 m0} db1={M1 sig1 D1:[D1F0 D1F1 D1f2 D1F3] m1 m0_1}
-            db_data=D1F2)
-          Soul2.db_copy(S.soul) S2.#(mem mem_c)
-          Soul2.S2..scroll(M0 db) #(mem_c={0:M1} mem0={M0 sig0 D0 m0})
-          load_c(1) #mem1={M1 sig1 D1:[D1F0 D1F1 D1f2 D1F3] m1 m0_1}
-          load_c(1 data) #mem1={M1 sig1 D1 m1 m0_1}
-          load_c(1 data) #`);
-        t('split_max_decl_2', `s.scroll s.decl(data(32KB 29KB))
-          S..#(db db_data) clone(s.. db(max_decl:60KB max_frame:32KB)) flush
-          #(db0={M0 sig0 D0 m0} db1={M1 sig1 D1:[D1F0 D1F1 D1F2 D1f3] m1 m0_1}
-            db_data=D1F3)
-          Soul2.db_copy(S.soul) S2.#(mem mem_c)
-          Soul2.S2..scroll(M0 db) #(mem_c={0:M1} mem0={M0 sig0 D0 m0})
-          load_c(1) #mem1={M1 sig1 D1:[D1F0 D1F1 D1F2 D1f3] m1 m0_1}
-          load_c(1 data) #mem1={M1 sig1 D1 m1 m0_1}
-          load_c(1 data) #`);
-        t('split_max_decl_3', `s.scroll s.decl(data(33KB 33KB))
-          S..#(db db_data) clone(s.. db(max_decl:60KB max_frame:32KB)) flush
-          #(db0={M0 sig0 D0 m0} db1={M1 sig1 D1:[D1F0 D1F1 D1f2 D1f3] m1 m0_1}
-            db_data={D1F2 D1F3})
-          Soul2.db_copy(S.soul) S2.#(mem mem_c)
-          Soul2.S2..scroll(M0 db) #(mem_c={0:M1} mem0={M0 sig0 D0 m0})
-          load_c(1) #mem1={M1 sig1 D1:[D1F0 D1F1 D1f2 D1f3] m1 m0_1}
-          load_c(1 data) #mem1={M1 sig1 D1 m1 m0_1}
-          load_c(1 data) #`);
-        t('split_multi', `s.scroll s.decl(data:33KB) s.decl(data:33KB)
-          S..#(db db_data) clone(s.. db(max_decl:60KB max_frame:32KB)) flush
-          #(db0={M0 sig0 D0 m0} db1={M1 sig1 D1:[D1F0 D1F1 D1f2] m1 m0_1}
-            db2={M2 sig2 D2:[D2F0 D2F1 D2f2] m2} db_data={D1F2 D2F2})
-          Soul2.db_copy(S.soul) S2.#(mem mem_c)
-          Soul2.S2..scroll(M0 db) #(mem_c={0:M2} mem0={M0 sig0 D0 m0})
-          load_c(1) #mem1={M1 sig1 D1:[D1F0 D1F1 D1f2] m1 m0_1}
-          load_c(1 data) #mem1={M1 sig1 D1 m1 m0_1}
-          load_c(2) #mem2={M2 sig2 D2:[D2F0 D2F1 D2f2] m2}
-          load_c(2 data) #mem2={M2 sig2 D2 m2}
-        `);
-      });
       describe('write', ()=>{
         // XXX: rm c and support 0:0:s..M1
         t('simple', `s..scroll(db) #(db_c db) c(M0=s..M0)
           flush #db0={m0 M0 sig0 D0}
           decl(1) c(M1=s..M1) flush #(db_c={0:0:M1} db1={M1 sig1 D1 m1 m0_1})
           decl(2) c(M2=s..M2) flush #(db_c={0:0:M2} db2={M2 sig2 D2 m2})`);
+        t('multi', `s.scroll s.decl(1) s2.scroll s2.decl(1)
+          S.#(db_c db) Soul.S..clone(s.. db) flush
+          #(db_c={0:0:M1} db0={M0 sig0 D0 m0} db1={M1 sig1 D1 m1 m0_1})
+          S2.#(db_c db) Soul.S2..clone(s2.. db) flush
+          #(db_c={1:0:M1} db0={M0 sig0 D0 m0} db1={M1 sig1 D1 m1 m0_1})`);
         t('conflict', `s..scroll(d:1-10) S..scroll(s..M0 db) #(db_c db)
           tput(0 1 2 3 4          ) c(M4) flush #(db_c={0:0:M4} db0={m0 M0}
             db1={m1 m0_1 M1} db2={m2 M2} db3={m3 m2_3 m0_3 M3}
@@ -2405,6 +2345,91 @@ describe('scroll', ()=>{
             mem9={M9 sig9 D9 m9 m8_9})`);
         // XXX: add more complex tests (multiple scrolls with multiple scfids
         // and decl/put to scorll after loading from db
+      });
+      describe('db_data', ()=>{
+        t('no_split', `s.scroll s.decl(data:32KB) S..#(db db_data)
+          clone(s.. db(max_decl:60KB max_frame:32KB)) flush
+          #(db0={M0 sig0 D0 m0} db1={M1 sig1 D1 m1 m0_1})
+          Soul2.db_copy(S.soul) S2.#(mem mem_c)
+          Soul2.S2..scroll(M0 db) #(mem_c={0:M1} mem0={M0 sig0 D0 m0})
+          load_c(1) #mem1={M1 sig1 D1 m1 m0_1}
+          load_c(1 data) #`);
+        t('split_load_first', `s.scroll s.decl(data:33KB) S..#(db db_data)
+          clone(s.. db(max_decl:60KB max_frame:32KB)) flush
+          #(db0={M0 sig0 D0 m0} db1={M1 sig1 D1:[D1F0 D1F1 D1f2] m1 m0_1}
+            db_data=D1F2)
+          Soul2.db_copy(S.soul) S2.#(mem mem_c)
+          Soul2.S2..scroll(M0 db) #(mem_c={0:M1} mem0={M0 sig0 D0 m0})
+          load_c(1 data) #mem1={M1 sig1 D1 m1 m0_1}
+          load_c(1) # load_c(1 data) #`);
+        t('split_load_late', `s.scroll s.decl(data:33KB) S..#(db db_data)
+          clone(s.. db(max_decl:60KB max_frame:32KB)) flush
+          #(db0={M0 sig0 D0 m0} db1={M1 sig1 D1:[D1F0 D1F1 D1f2] m1 m0_1}
+            db_data=D1F2)
+          Soul2.db_copy(S.soul) S2.#(mem mem_c)
+          Soul2.S2..scroll(M0 db) #(mem_c={0:M1} mem0={M0 sig0 D0 m0})
+          load_c(1) #mem1={M1 sig1 D1:[D1F0 D1F1 D1f2] m1 m0_1}
+          load_c(1 data) #mem1={M1 sig1 D1 m1 m0_1}
+          load_c(1 data) #`);
+        t('split_max_decl_1', `s.scroll s.decl(data(33KB 28KB))
+          S..#(db db_data)
+          clone(s.. db(max_decl:60KB max_frame:32KB)) flush
+          #(db0={M0 sig0 D0 m0} db1={M1 sig1 D1:[D1F0 D1F1 D1f2 D1F3] m1 m0_1}
+            db_data=D1F2)
+          Soul2.db_copy(S.soul) S2.#(mem mem_c)
+          Soul2.S2..scroll(M0 db) #(mem_c={0:M1} mem0={M0 sig0 D0 m0})
+          load_c(1) #mem1={M1 sig1 D1:[D1F0 D1F1 D1f2 D1F3] m1 m0_1}
+          load_c(1 data) #mem1={M1 sig1 D1 m1 m0_1}
+          load_c(1 data) #`);
+        t('split_max_decl_2', `s.scroll s.decl(data(32KB 29KB))
+          S..#(db db_data) clone(s.. db(max_decl:60KB max_frame:32KB)) flush
+          #(db0={M0 sig0 D0 m0} db1={M1 sig1 D1:[D1F0 D1F1 D1F2 D1f3] m1 m0_1}
+            db_data=D1F3)
+          Soul2.db_copy(S.soul) S2.#(mem mem_c)
+          Soul2.S2..scroll(M0 db) #(mem_c={0:M1} mem0={M0 sig0 D0 m0})
+          load_c(1) #mem1={M1 sig1 D1:[D1F0 D1F1 D1F2 D1f3] m1 m0_1}
+          load_c(1 data) #mem1={M1 sig1 D1 m1 m0_1}
+          load_c(1 data) #`);
+        t('split_max_decl_3', `s.scroll s.decl(data(33KB 33KB))
+          S..#(db db_data) clone(s.. db(max_decl:60KB max_frame:32KB)) flush
+          #(db0={M0 sig0 D0 m0} db1={M1 sig1 D1:[D1F0 D1F1 D1f2 D1f3] m1 m0_1}
+            db_data={D1F2 D1F3})
+          Soul2.db_copy(S.soul) S2.#(mem mem_c)
+          Soul2.S2..scroll(M0 db) #(mem_c={0:M1} mem0={M0 sig0 D0 m0})
+          load_c(1) #mem1={M1 sig1 D1:[D1F0 D1F1 D1f2 D1f3] m1 m0_1}
+          load_c(1 data) #mem1={M1 sig1 D1 m1 m0_1}
+          load_c(1 data) #`);
+        t('split_multi', `s.scroll s.decl(data:33KB) s.decl(data:33KB)
+          S..#(db db_data) clone(s.. db(max_decl:60KB max_frame:32KB)) flush
+          #(db0={M0 sig0 D0 m0} db1={M1 sig1 D1:[D1F0 D1F1 D1f2] m1 m0_1}
+            db2={M2 sig2 D2:[D2F0 D2F1 D2f2] m2} db_data={D1F2 D2F2})
+          Soul2.db_copy(S.soul) S2.#(mem mem_c)
+          Soul2.S2..scroll(M0 db) #(mem_c={0:M2} mem0={M0 sig0 D0 m0})
+          load_c(1) #mem1={M1 sig1 D1:[D1F0 D1F1 D1f2] m1 m0_1}
+          load_c(1 data) #mem1={M1 sig1 D1 m1 m0_1}
+          load_c(2) #mem2={M2 sig2 D2:[D2F0 D2F1 D2f2] m2}
+          load_c(2 data) #mem2={M2 sig2 D2 m2}
+        `);
+        t('split_max_multi_decl', `s.scroll s.decl(data(33KB))
+          S.#(db_c db db_data)
+          soul.S..clone(s.. db(max_decl:60KB max_frame:32KB)) flush
+          #(db_c={0:0:M1} db0={M0 sig0 D0 m0}
+            db1={M1 sig1 D1:[D1F0 D1F1 D1f2] m1 m0_1} db_data={D1F2})
+          s2.scroll s2.decl(data(33KB))
+          S2.#(db_c db db_data)
+          soul.S2..clone(s2.. db(max_decl:60KB max_frame:32KB)) flush
+          #(db_c={1:0:M1} db0={M0 sig0 D0 m0}
+            db1={M1 sig1 D1:[D1F0 D1F1 D1f2] m1 m0_1} db_data={D1F2})
+          Soul.db_copy(S.soul) Soul.SS.#(mem mem_c)
+          Soul.SS..scroll(S..M0 db) #(mem_c={0:M1} mem0={M0 sig0 D0 m0})
+          load_c(1) #mem1={M1 sig1 D1:[D1F0 D1F1 D1f2] m1 m0_1}
+          load_c(1 data) #mem1={M1 sig1 D1 m1 m0_1}
+          load_c(1 data) #
+          Soul.SS2.#(mem mem_c)
+          Soul.SS2..scroll(S2..M0 db) #(mem_c={0:M1} mem0={M0 sig0 D0 m0})
+          load_c(1) #mem1={M1 sig1 D1:[D1F0 D1F1 D1f2] m1 m0_1}
+          load_c(1 data) #mem1={M1 sig1 D1 m1 m0_1}
+          load_c(1 data) #`);
       });
     });
   });

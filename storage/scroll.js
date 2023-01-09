@@ -1239,8 +1239,13 @@ class Decl extends EventEmitterAsync {
         let f = frames[i], len = f.buf?.length||0;
         if (len && (len>max_frame || total+len>max_decl)){
           assert(f.h, 'missing hash');
-          if (blob)
-            blob[b2s(f.h)] = f.buf;
+          if (blob){
+            let s = b2s(f.h);
+            if (!blob[s])
+              blob[s] = {buf: f.buf, cfid: [cfid]};
+            else
+              blob[s].cfid.push(cfid);
+          }
           let ff = {h: f.h};
           if (f.sz)
             ff.sz = f.sz;

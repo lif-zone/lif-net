@@ -547,11 +547,6 @@ const cmd_clone = (curr, t)=>etask(function*cmd_clone(){
     db_opt);
   let seq = m[6] ? +m[7] : s_src.top.seq;
   yield s_dst.storage?.begin_update();
-  /* XXX: use
-  s_dst.top = null;
-  yield s_dst.conflict_from_static(s_src.conflict_to_static());
-  */
-  // XXX: use conflict_to_static/conflict_from_static
   if (Array.from(s_src.conflict.keys()).length>1){ // XXX: rm this if
     for (let [cfid, co] of s_src.conflict){
       assert(co.top.seq<=seq, 'cannot clone < conflict top '+co.top.seq);
@@ -560,6 +555,8 @@ const cmd_clone = (curr, t)=>etask(function*cmd_clone(){
       s_dst.conflict.set(cfid, o);
       if (o.parent)
         s_dst.conflict.get(o.parent.cfid).conflicts.set(cfid, o);
+      if (cfid)
+        yield s_dst.update_mergeable(cfid);
     }
   }
   for (let [seq2, decl] of s_src.dmap){
@@ -1732,12 +1729,12 @@ describe('scroll', ()=>{
           s1.decl(2-5) S..clone(s) put(m0:s1..m0 m1 sig2 d2)
           sig1c0=s.sig1 sig2c0=s.sig2 sig2c1=s1.sig2
           c(M5=s.M5 1c0.M2=s1.M2)`);
-         t('1c0_missing_m', `s.scroll(!prev_scroll d:1-5)
+        t('1c0_missing_m', `s.scroll(!prev_scroll d:1-5)
           s1.clone(s.M1) s1.decl(2-5) S..clone(s)
           put(sig0:s1..sig0 d0 sig1 d1 sig2 d2)
           sig1c0=s.sig1 sig2c0=s.sig2 sig2c1=s1.sig2
           c(M5=s.M5 1c0.M2=s1.M2)`);
-         t('1c0_missing_d', `s.scroll(!prev_scroll d:1-5)
+        t('1c0_missing_d', `s.scroll(!prev_scroll d:1-5)
           s1.clone(s.M1) s1.decl(2-5) S..clone(s)
           put(sig0:s1..sig0 D0 sig1 D1 sig2 D2)
           sig1c0=s.sig1 sig2c0=s.sig2 sig2c1=s1.sig2

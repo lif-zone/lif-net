@@ -154,8 +154,7 @@ export default class Storage_handler {
   on_decl_update = e=>{
     assert(this.inited, 'storage_handler not inited');
     let {seq, cfid} = e, decl = this.scroll.get_decl(seq);
-    // XXX: enable  assert
-    // assert(this.busy, 'on_decl_update while not in update');
+    assert(this.busy, 'on_decl_update while not in update');
     assert(cfid!==undefined, 'missing cfid in event');
     assert(seq>=0, 'invalid seq in event');
     if (decl.db?.cfid[cfid]?.block_events)
@@ -264,7 +263,7 @@ export default class Storage_handler {
     decl.db.cfid[cfid] = {};
     // XXX: handle errors
     return decl.db.cfid[cfid].busy = etask({_: this}, function*load_cfid(){
-      let _this = this._, db = _this.db, need_end_update;
+      let _this = this._, db = _this.db;
       let tx = db.transaction('decl', 'readonly');
       let data = yield db.store_get(tx.store('decl'), [scfid, decl.seq]);
       if (!data)
@@ -273,10 +272,9 @@ export default class Storage_handler {
         'scfid was already deleted');
       data = db.fix_struct(data);
       decl.db.cfid[cfid].block_events = true;
-      if (!_this.busy){
-        need_end_update = true;
+      let need_end_update = !_this.busy;
+      if (need_end_update)
         yield _this.begin_update();
-      }
       yield decl.from_static_cfid(cfid, data);
       if (need_end_update)
         yield _this.end_update();
@@ -308,6 +306,9 @@ export default class Storage_handler {
       let fbuf = data.cmap.get(cfid);
       if (!fbuf)
         return decl.db.cfid[cfid].data.busy = null;
+      let need_end_update = !_this.busy;
+      if (need_end_update)
+        yield _this.begin_update();
       let frames = fbuf.get_frames();
       for (let i=0; i<frames.length; i++){
         let f = frames[i];
@@ -317,6 +318,8 @@ export default class Storage_handler {
             yield fbuf.set_frame_buf(i, Buffer.from(o.buf));
         }
       }
+      if (need_end_update)
+        yield _this.end_update();
       decl.db.cfid[cfid].data.busy = null;
     });
   }

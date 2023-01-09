@@ -16,7 +16,6 @@ import DB from './db.js';
 import buf_util from '../peer-relay/buf_util.js';
 import {r_str, r_from_str, r_parent} from './range.js';
 const b2s = buf_util.buf_to_str, s2b = buf_util.buf_from_str;
-const assign = Object.assign; // XXX: rm, use ...
 function enc_u64(v){ return enc.encode(enc.uint64, v); }
 let t_soul, t_soul_id, t_soul_mode, t_state;
 let t_scroll, t_genesis_scroll, t_prev_scroll, t_def, t_keypair;
@@ -611,18 +610,14 @@ function state_split_var(v, def){
 const state_split = (exp, def)=>etask(function*state_split(){
   let o = tparser.parse_exp(exp);
   switch (o.cmd){
-  case '!': return assign(state_split_var(o.r, def), {val: null});
+  case '!': return {...state_split_var(o.r, def), val: null};
   case '=':
-    if (['db_data'].includes(o.l)){
-      return assign(state_split_var(o.l, def),
-        {val: yield get_static_db_data(o.r)});
-    }
-    if (['db_c', 'mem_c'].includes(o.l)){
-      return assign(state_split_var(o.l, def),
-        {val: yield get_static_c(o.r)});
-    }
-    return assign(state_split_var(o.l, def),
-      {val: fix_buf(yield get_val(o.r, 'right'))});
+    if (['db_data'].includes(o.l))
+      return {...state_split_var(o.l, def), val: yield get_db_data(o.r)};
+    if (['db_c', 'mem_c'].includes(o.l))
+      return {...state_split_var(o.l, def), val: yield get_static_c(o.r)};
+    return {...state_split_var(o.l, def),
+      val: fix_buf(yield get_val(o.r, 'right'))};
   default: assert.fail('invalid state_split '+exp);
   }
 });
@@ -867,7 +862,7 @@ const cmd_c = t=>etask(function*cmd_c(){
   assert_no_corruption(scroll);
 });
 
-const get_static_db_data = exp=>etask(function*get_static_db_data(){
+const get_db_data = exp=>etask(function*get_db_data(){
   let m;
   if (m = exp.match(/^\{(.*)\}$/))
     exp = m[1];

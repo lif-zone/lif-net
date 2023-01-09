@@ -1217,7 +1217,6 @@ class Decl extends EventEmitterAsync {
     if (M)
       o.M = M;
     let frames = this.fbuf_get(cfid).get_frames();
-    // XXX: move this logic to Frame_buffer
     if (frames.length>1 || frames[0].sig || frames[0].h_rest){
       let frames2 = [], total=0;
       for (let i=0; i<frames.length; i++){
@@ -1300,37 +1299,39 @@ class Merkel_node extends EventEmitterAsync {
     let [s, e] = this.range;
     assert(!this.inited, 'already inited');
     this.inited = true;
-    // XXX test events
+    // XXX: need to rm callback when conflict is removed or parent updated
     if (s==e){
-      const on_hash = opt=>etask({_: this}, function*on_hash(){
-        let _this = this._, cfid = opt.cfid, d, sig;
-        if (_this.get_hash(cfid)) // XXX: mv it outside of etask/rm cb
+      const on_hash = opt=>{
+        let cfid = opt.cfid, d, sig;
+        if (this.get_hash(cfid))
           return;
         if ((d = decl.d_hash(cfid)) && (sig = decl.sig_get(cfid)))
-          return yield _this.set_hash(cfid, hleaf(d, sig));
-      });
+          return this.set_hash(cfid, hleaf(d, sig));
+      };
       decl.data.on('hash', on_hash);
       decl.data.on('sig', on_hash);
     } else {
       let [r1, r2] = r_split(this.range);
       let m1 = scroll.m_get(r1), m2 = scroll.m_get(r2);
-      const on_hash_m = opt=>etask({_: this}, function*on_hash_m(){
-        let _this = this._, cfid = opt.cfid;
-        if (_this.get_hash(cfid)) // XXX: mv it outside of etask/rm cb
+      const on_hash_m = opt=>{
+        let _this = this, cfid = opt.cfid;
+        if (this.get_hash(cfid))
           return;
-        let h1 = m1.get_hash(cfid), h2 = m2.get_hash(cfid);
-        if (!h1){
-          yield m1.decl.load(cfid);
-          if (!(h1 = m1.get_hash(cfid)))
-            return;
-        }
-        if (!h2){
-          yield m2.decl.load(cfid);
-          if (!(h2 = m2.get_hash(cfid)))
-            return;
-        }
-        yield _this.set_hash(cfid, hparent_safe(e-s+1, h1, h2));
-      });
+        return etask(function*on_hash_m(){
+          let h1 = m1.get_hash(cfid), h2 = m2.get_hash(cfid);
+          if (!h1){
+            yield m1.decl.load(cfid);
+            if (!(h1 = m1.get_hash(cfid)))
+              return;
+          }
+          if (!h2){
+            yield m2.decl.load(cfid);
+            if (!(h2 = m2.get_hash(cfid)))
+              return;
+          }
+          yield _this.set_hash(cfid, hparent_safe(e-s+1, h1, h2));
+        });
+      };
       m1.on('hash', on_hash_m);
       m2.on('hash', on_hash_m);
     }

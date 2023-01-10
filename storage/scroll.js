@@ -436,7 +436,6 @@ export default class Scroll extends EventEmitterAsync {
     this.top = null;
     this.conflict.next_id = 0;
     this.create_new_conflict();
-    // XXX HACK: why is needed (for soul?)
     let decl = this.get_decl(0);
     return decl.M.set_hash(0, M0);
   }

@@ -2088,7 +2088,6 @@ describe('scroll', ()=>{
             db0={M0 m0} db1={M1 m1 m0_1} db2={M2 m2} db3={M3 m3 m2_3 m0_3}
             db4={M4 sig4 D4 m4} db5={M5c1 m4_5c1} db6={M6c1 sig6c1 D6c1 m6c1})
           Soul2.db_copy(S.soul) S2.#(mem mem_c)
-          // XXX: why mem1/mem3 are loaded (due to update_mergeable)
           Soul2.S2..scroll(M0 db) #(mem1={M1 m1 m0_1} mem3={M3 m3 m2_3 m0_3}
           mem_c={0:M4 1:3t0.M6=s0.M6} mem0={M0 m0} mem4={M4 sig4 D4 m4}
           mem5={M5c1 m4_5c1})
@@ -2099,8 +2098,6 @@ describe('scroll', ()=>{
           load_c(5) # load_c(5c1) #
           load_c(6) # load_c(6c1) #mem6={M6c1 sig6c1 D6c1 m6c1}
           load_c(7) # load_c(7c1) #`);
-// XXX NOW how to handle conflict merge (c in db is wrong now) + add tests
-// XXX NOW need dirty flag to know what needs to be saved to db; also for blob
       });
       describe('write', ()=>{
         // XXX: rm c and support 0:0:s..M1
@@ -2164,7 +2161,6 @@ describe('scroll', ()=>{
             mem8={M8 m8 sig8 D8}
             db8={M8 m8 sig8 D8}
             mem_c={0:M8} db_c={0:0:M8})
-          // XXX m0_7=(m0_3 m4_7) m4_7=(m4_5 m6_7)
           decl(9) flush #(mem9={M9 m9 m8_9 sig9 D9} db9={M9 m9 m8_9 sig9 D9}
             mem_c={0:M9} db_c={0:0:M9})
         `);
@@ -2185,13 +2181,11 @@ describe('scroll', ()=>{
           tput(0_1_2_3 4_5 6_7 8 9) c(M4 3t0.M9)
           flush #(db_c={0:0:M4 1:1:3t0.M9})
           Soul2.db_copy(Soul) Soul2.S2..scroll(M0 db) c(M4 3t0.M9) #(db_c mem)
-          // XXX: why mem1/mem3 are loaded (due to update_mergeable)
           mem0={M0 m0} mem1={M1 m1 m0_1}
           mem3={M3 m3 m2_3 m0_3}
           // XXX: add mem4 mem5 mem7
           !mem2 !mem6 !mem8 !mem9
           load_c(4) #mem4={m4 M4 sig4 D4}
-          // XXX: why mem7 is loaded?
           load_c(5c1) #(mem5={S.m4_5c1 S.M5c1}
             mem7={S.m6_7c1 S.m4_7c1 S.m0_7c1 S.M7c1})
           // XXX: load more

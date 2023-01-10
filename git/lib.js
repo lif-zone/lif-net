@@ -333,51 +333,51 @@ const git_get_head = config=>etask(function*git_get_head(){
   return m[1].trim();
 });
 
-function build_branch_split_map(commits, branch_commit){
-  let real_branches = {};
-  for (const branch in branch_commit){
-    let head = branch_commit[branch].head;
-    if (real_branches[head]?.head==head){
-      real_branches[head].dup = real_branches[head].dup||{};
-      real_branches[head].dup.push(branch);
+function build_gbranch_split_map(commits, gbranch_commit){
+  let real_gbranches = {};
+  for (const gbranch in gbranch_commit){
+    let head = gbranch_commit[gbranch].head;
+    if (real_gbranches[head]?.head==head){
+      real_gbranches[head].dup = real_gbranches[head].dup||{};
+      real_gbranches[head].dup.push(gbranch);
       continue;
     }
-    real_branches[head] = {branch, head, dup: []};
+    real_gbranches[head] = {gbranch, head, dup: []};
     for (let curr=commits.get(head); curr;
       curr = commits.get(curr.commit.parent[0]))
     {
-      curr.branch = curr.branch||[];
-      curr.branch.push(branch);
+      curr.gbranch = curr.gbranch||[];
+      curr.gbranch.push(gbranch);
     }
   }
-  for (let head in real_branches){
-    let branch = real_branches[head].branch;
+  for (let head in real_gbranches){
+    let gbranch = real_gbranches[head].gbranch;
     for (let curr=commits.get(head), prev; curr;
       prev = curr, curr = commits.get(curr.commit.parent[0]))
     {
-      // XXX: need to handle case where default branch is not main any more
+      // XXX: need to handle case where default gbranch is not main any more
       // (in that situation, the parent of main is null and need to split
-      // on other branch)
-      if (curr.branch[0]!=branch){
+      // on other gbranch)
+      if (curr.gbranch[0]!=gbranch){
         if (prev)
-          real_branches[head].split = prev.oid;
+          real_gbranches[head].split = prev.oid;
         break;
       }
     }
   }
-  let ret = {real_branches, split: {}};
-  for (let head in real_branches){
-    let curr = real_branches[head];
+  let ret = {real_gbranches, split: {}};
+  for (let head in real_gbranches){
+    let curr = real_gbranches[head];
     ret.split[curr.split] = curr;
   }
   return ret;
 }
 
-function fix_lif_name(lif_branch, branch){
-  if (!branch)
+function fix_lif_name(lif_branch, gbranch){
+  if (!gbranch)
     return;
-  let name = branch;
-  for (let i=1; lif_branch.get(name); i++, name = branch+' '+i);
+  let name = gbranch;
+  for (let i=1; lif_branch.get(name); i++, name = gbranch+' '+i);
   return name;
 }
 
@@ -417,27 +417,27 @@ E.import_git = (config, scroll, opt={})=>etask(function*_start(){
   config.http = config.http||http;
   config.cache = {};
   yield git_api.clone({...config});
-  let branches = opt.ref ? Object.keys(opt.ref) :
+  let gbranches = opt.ref ? Object.keys(opt.ref) :
     yield git_api.listBranches({...config, remote: 'origin'});
   let tags = yield git_api.listTags({...config, remote: 'origin'});
   let {prev_sync, lif_branch} = yield build_prev_sync_index(scroll);
-  if (branches.includes('HEAD'))
-    array.rm_elm(branches, 'HEAD');
-  if (branches.includes('main')){
-    array.rm_elm(branches, 'main'); // XXX: do it on HEAD branch
-    branches.unshift('main');
+  if (gbranches.includes('HEAD'))
+    array.rm_elm(gbranches, 'HEAD');
+  if (gbranches.includes('main')){
+    array.rm_elm(gbranches, 'main'); // XXX: do it on HEAD gbranch
+    gbranches.unshift('main');
   }
-  let branch_commit = {}, all_commit = new Map;
-  for (let b=0; b<branches.length; b++){
-    let branch = branches[b];
-    assert(!branch_commit[branch], 'branch already exist '+branch);
-    yield git_api.checkout({...config, ref: branch, remote: 'origin'});
+  let gbranch_commit = {}, all_commit = new Map;
+  for (let b=0; b<gbranches.length; b++){
+    let gbranch = gbranches[b];
+    assert(!gbranch_commit[gbranch], 'gbranch already exist '+gbranch);
+    yield git_api.checkout({...config, ref: gbranch, remote: 'origin'});
     yield git_api.pull({...config});
-    let head = opt.ref ? opt.ref[branch] :
-      yield git_api.resolveRef({...config, ref: branch});
-    let curr = branch_commit[branch] = {head, commit: new Map()};
+    let head = opt.ref ? opt.ref[gbranch] :
+      yield git_api.resolveRef({...config, ref: gbranch});
+    let curr = gbranch_commit[gbranch] = {head, commit: new Map()};
     // XXX: optimize, read only from last prev_sync commit
-    let commits = yield git_api.log({...config, ref: branch});
+    let commits = yield git_api.log({...config, ref: gbranch});
     commits.reverse();
     for (let i=0; i<commits.length; i++){
       let oid = commits[i].oid, commit = prev_sync.commit.get(oid);
@@ -456,9 +456,9 @@ E.import_git = (config, scroll, opt={})=>etask(function*_start(){
       all_commit.set(oid, {oid, commit});
     }
   }
-  let split_map = build_branch_split_map(all_commit, branch_commit);
-  for (let branch in branch_commit){
-    let curr = branch_commit[branch];
+  let split_map = build_gbranch_split_map(all_commit, gbranch_commit);
+  for (let gbranch in gbranch_commit){
+    let curr = gbranch_commit[gbranch];
     for (const [oid, o] of curr.commit){
       let prev, merge;
       if (!o.state) // ie, prev_sync
@@ -479,7 +479,7 @@ E.import_git = (config, scroll, opt={})=>etask(function*_start(){
       });
       let state = o.state;
       assert(state, 'missing state for new commit');
-      let lbranch = fix_lif_name(lif_branch, split_map.split[oid]?.branch);
+      let lbranch = fix_lif_name(lif_branch, split_map.split[oid]?.gbranch);
       if (lbranch && !lif_branch[lbranch])
         lif_branch[lbranch] = {split: scroll.top.seq+1};
       let diff = yield prepare_diff(config, scroll, scroll.top.seq, prev,
@@ -504,14 +504,14 @@ E.import_git = (config, scroll, opt={})=>etask(function*_start(){
       prev = decl.seq;
     }
   }
-  let head = branches.length ? yield git_get_head(config) : null;
-  let branch_curr = {}, tag_curr = {}, head_seq;
-  for (let i=0; i<branches.length; i++){
-    let git_branch = branches[i];
+  let head = gbranches.length ? yield git_get_head(config) : null;
+  let gbranch_curr = {}, tag_curr = {}, head_seq;
+  for (let i=0; i<gbranches.length; i++){
+    let git_branch = gbranches[i];
     let oid = opt.ref ? opt.ref[git_branch] :
       yield git_api.resolveRef({...config, ref: git_branch});
     let seq = oid2seq.get(oid), link = seq;
-    branch_curr[git_branch] = {seq, oid};
+    gbranch_curr[git_branch] = {seq, oid};
     assert(seq, 'git_branch not found '+git_branch);
     let prev = prev_sync.git_branch.get(git_branch)?.seq, add = !prev;
     if (prev){
@@ -560,10 +560,10 @@ E.import_git = (config, scroll, opt={})=>etask(function*_start(){
       let data = {op, git_branch: 'HEAD'};
       yield scroll.decl({prev, link}, data);
     }
-    branch_curr.HEAD = {seq: head_seq};
+    gbranch_curr.HEAD = {seq: head_seq};
   }
   for (const [git_branch, o] of prev_sync.git_branch){
-    if (branch_curr[git_branch])
+    if (gbranch_curr[git_branch])
       continue;
     let prev = o.seq;
     yield scroll.decl({prev}, {op: 'rm', git_branch});

@@ -51,7 +51,6 @@ function macro_to_m(val, dst){
       continue;
     }
     let m = a[i].split('_');
-    // XXX: need to assert if valid m
     assert(m.length>1, 'invalid m '+val);
     let {n, d} = to_nd(m[m.length-1]);
     let n0 = to_nd(m[0]).n;
@@ -217,32 +216,6 @@ function assert_no_corruption(scroll){
   }
 }
 
-const calc_m = (scroll, range)=>etask(function*calc_m(){
-  let [s, e] = range;
-  assert(Number.isInteger(Math.log2(e-s+1)), 'invalid merkel range '+
-  r_str(range));
-  let q = [];
-  assert(e<scroll.conflict.get(0).top.seq+1, 'scroll too small '+
-    e+'<'+(scroll.conflict.get(0).top.seq+1));
-  for (let i=s; i<=e; i++)
-    q.push({s: i, e: i, m: yield scroll.m_hash(0, i)});
-  while (q.length!=1){
-    let q2 = [];
-    for (let i=0; i<q.length/2; i++){
-      q2.push({s: q[2*i].s, e: q[2*i+1].e,
-        m: Scroll.hconcat_safe([Scroll.PARENT_TYPE,
-        enc.encode(enc.uint64, q[2*i+1].e-q[2*i].s+1),
-        q[2*i].m, q[2*i+1].m])});
-    }
-    q = q2;
-  }
-  let scroll_m = yield scroll.m_hash(0, [s, e]);
-  let test_m = q[0].m;
-  if (scroll_m && test_m)
-    assert.equal(b2s(scroll_m), b2s(test_m));
-  return scroll_m||test_m;
-});
-
 function c_id2pos(scroll, cfid){
   return Array.from(scroll.conflict.keys()).indexOf(cfid); }
 
@@ -286,7 +259,7 @@ const get_val = (exp, def_type='right')=>etask(function*_get_val(){
   }
   if (m = exp.match(/^sign\((.*)\)$/)) // sign(d10)
     return crypto.sign(crypto.blake2b(yield get_val(m[1])), t_keypair.key);
-  let o = parse_var(exp), {type, seq, cfid} = o, r0 = o.range&&o.range[0];
+  let o = parse_var(exp), {type, seq, cfid} = o;
   if (o.def)
     set_def(def_type, o.ctx);
   let name = o.ctx||get_def(def_type||'right'), scroll = get_scroll(name);
@@ -299,9 +272,7 @@ const get_val = (exp, def_type='right')=>etask(function*_get_val(){
     {h: scroll.seq_D(cfid, seq)[o.i]?.h} : null;
   case 'DF': return scroll.seq_D(cfid, seq)[o.i]?.sig ||
     scroll.seq_D(cfid, seq)[o.i]?.buf ? scroll.seq_D(cfid, seq)[o.i] : null;
-  // XXX: do we need calc_m?
-  case 'm': return r0==seq ? scroll.m_hash(cfid, seq) :
-    cfid ? scroll.m_hash(cfid, o.range) : calc_m(scroll, o.range);
+  case 'm': return scroll.m_hash(cfid, o.range);
   case 'db': return yield struct_from_db(scroll, seq);
   case 'mem':
     return yield struct_from_decl(scroll.get_decl(seq, {create: false}));

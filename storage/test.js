@@ -1017,10 +1017,16 @@ describe('range', ()=>{
 describe('test_util', ()=>{
   it('parse_var', ()=>{
     const t = (v, exp)=>{
-      let a = exp.split(' '), range = r_from_str(a[1]);
-      let cfid = a[2] ? +a[2] : 0, ctx = a[3]||'', def = a[4]=='def'||false;
-      let exp2 = {type: a[0], seq: range[1], range, cfid, ctx, def};
-      assert.deepEqual(parse_var(v), exp2);
+      let a = exp.split(' '), ret = parse_var(v), exp2;
+      if (['db_c', 'db_data', 'mem_c'].includes(a[0])){
+        assert(a.length<=3, 'invalid exp '+exp);
+        exp2 = {type: a[0], ctx: a[1]||'', def: a[2]=='def'};
+      } else {
+        let range = r_from_str(a[1]);
+        let cfid = a[2] ? +a[2] : 0, ctx = a[3]||'', def = a[4]=='def';
+        exp2 = {type: a[0], seq: range[1], range, cfid, ctx, def};
+      }
+      assert.deepEqual(ret, exp2);
     };
     t('d0', 'd 0');
     t('d0', 'd 0');
@@ -1042,7 +1048,23 @@ describe('test_util', ()=>{
     t('s2.m0_1c10', 'm 0_1 10 s2');
     t('s2..d0', 'd 0 0 s2 def');
     t('s2..m0_1c10', 'm 0_1 10 s2 def');
-    // XXX: test db_c, db_data
+    t('mem_c', 'mem_c');
+    t('s.mem_c', 'mem_c s');
+    t('s..mem_c', 'mem_c s def');
+    t('mem2', 'mem 2');
+    t('s.mem2', 'mem 2 0 s');
+    t('s.mem2c1', 'mem 2_2 1 s');
+    t('s..mem2c1', 'mem 2_2 1 s def');
+    t('db2', 'db 2');
+    t('s.db2', 'db 2 0 s');
+    t('s.db2c1', 'db 2_2 1 s');
+    t('s..db2c1', 'db 2_2 1 s def');
+    t('db_c', 'db_c');
+    t('s.db_c', 'db_c s');
+    t('s..db_c', 'db_c s def');
+    t('db_data', 'db_data');
+    t('s.db_data', 'db_data s');
+    t('s..db_data', 'db_data s def');
   });
   it('parse_cfid_seq', ()=>{
     const t = (val, exp)=>assert.deepEqual(parse_cfid_seq(val), exp);
@@ -1297,7 +1319,7 @@ describe('scroll', ()=>{
       t('', {buf: Buffer.from('')});
       t('a', {buf: Buffer.from('a')});
       t({d: 1}, {d: 1});
-      t({d: '_'}, {l: '_'}); // XXX: derry, rename to l: '_'
+      t({d: '_'}, {l: '_'});
     });
   });
   describe('macro', ()=>{

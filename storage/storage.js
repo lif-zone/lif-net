@@ -2,6 +2,7 @@
 'use strict';
 import assert from 'assert';
 import etask from '../util/etask.js';
+import xerr from '../util/xerr.js';
 import xutil from '../util/util.js';
 import buf_util from '../peer-relay/buf_util.js';
 const b2s = buf_util.buf_to_str, s2b = buf_util.buf_from_str;
@@ -34,7 +35,10 @@ export default class Storage_handler {
     this.db = db;
     this.db_queue = [];
     this.listeners_decl = {};
-    this.sp = etask(function*Storage_handler_sp(){ return this.wait(); });
+    this.sp = etask(function*Storage_handler_sp(){
+      this.on('uncaught', e=>xerr.xexit(e));
+      return this.wait();
+    });
   }
   init(opt){ return etask({_: this}, function*init(){
     let _this = this._, db = _this.db, M = opt.M;
@@ -53,64 +57,62 @@ export default class Storage_handler {
     }
     // XXX: 1. abort transcation on error
     _this.sp.spawn(etask(function*db_updater(){
+      this.on('uncaught', e=>xerr.xexit(e));
       while (true){
-        try {
-          if (!_this.db_queue.length)
-            yield _this.db_wakeup = etask.wait();
-          _this.db_wakeup = null;
-          let blob = {};
-          let {queue_cf, queue_cf_rm, queue_decl} = _this.db_queue[0];
-          let tx = db.transaction(['scroll', 'decl'], 'readwrite');
-          let store = tx.store('scroll'), store2 = tx.store('decl');
-          let index2 = store2.index('scfid');
-          for (let i=0; i<queue_cf_rm?.length; i++){
-            let scfid = queue_cf_rm[i].scfid;
-            yield db.store_delete(store, scfid);
-            for (let cursor = yield db.cursor(index2, db.only(scfid)); cursor;
-              cursor = yield cursor.next())
-            {
-              cursor.delete();
-            }
+        if (!_this.db_queue.length)
+          yield _this.db_wakeup = etask.wait();
+        _this.db_wakeup = null;
+        let blob = {};
+        let {queue_cf, queue_cf_rm, queue_decl} = _this.db_queue[0];
+        let tx = db.transaction(['scroll', 'decl'], 'readwrite');
+        let store = tx.store('scroll'), store2 = tx.store('decl');
+        let index2 = store2.index('scfid');
+        for (let i=0; i<queue_cf_rm?.length; i++){
+          let scfid = queue_cf_rm[i].scfid;
+          yield db.store_delete(store, scfid);
+          for (let cursor = yield db.cursor(index2, db.only(scfid)); cursor;
+            cursor = yield cursor.next())
+          {
+            cursor.delete();
           }
-          for (let i=0; i<queue_cf.length; i++)
-            yield db.store_put(store, queue_cf[i].data);
-          for (let seq in queue_decl){
-            seq = +seq;
-            for (let cfid in queue_decl[seq]){
-              cfid = +cfid;
-              if (!scroll.conflict.get(cfid)) // branch deleted
-                continue;
-              assert(scroll.conflict.get(cfid).db, 'missing db cfid '+cfid);
-              let decl = yield scroll.get_decl(seq);
-              let o = decl.to_static_cfid(cfid, {max_decl: db.max_decl,
-                max_frame: db.max_frame, blob});
-              yield db.store_put(store2, o);
-            }
-          }
-          yield tx;
-          for (let h in blob){
-            let o = blob[h];
-            let oo = (yield db.db_get('data', h))||{h, buf: o.buf, scfid: []};
-            for (let cfid in o.cfid){
-              cfid = +cfid;
-              if (!scroll.conflict.get(cfid))
-                continue;
-              let scfid = scroll.conflict.get(cfid).db.data.scfid;
-              if (!oo.scfid.includes(scfid))
-                oo.scfid.push(scfid);
-            }
-            if (oo.scfid.length)
-              yield db.db_put('data', oo);
-          }
-          _this.db_queue.shift();
-          yield etask.sleep(0);
         }
-        // XXX: decide how to handle errors
-        catch(err){ assert.fail('error '+(err?.message||err)); }
+        for (let i=0; i<queue_cf.length; i++)
+          yield db.store_put(store, queue_cf[i].data);
+        for (let seq in queue_decl){
+          seq = +seq;
+          for (let cfid in queue_decl[seq]){
+            cfid = +cfid;
+            if (!scroll.conflict.get(cfid)) // branch deleted
+              continue;
+            assert(scroll.conflict.get(cfid).db, 'missing db cfid '+cfid);
+            let decl = yield scroll.get_decl(seq);
+            let o = decl.to_static_cfid(cfid, {max_decl: db.max_decl,
+              max_frame: db.max_frame, blob});
+            yield db.store_put(store2, o);
+          }
+        }
+        yield tx;
+        for (let h in blob){
+          let o = blob[h];
+          let oo = (yield db.db_get('data', h))||{h, buf: o.buf, scfid: []};
+          for (let cfid in o.cfid){
+            cfid = +cfid;
+            if (!scroll.conflict.get(cfid))
+              continue;
+            let scfid = scroll.conflict.get(cfid).db.data.scfid;
+            if (!oo.scfid.includes(scfid))
+              oo.scfid.push(scfid);
+          }
+          if (oo.scfid.length)
+            yield db.db_put('data', oo);
+        }
+        _this.db_queue.shift();
+        yield etask.sleep(0);
       }
     }));
   }); }
   uninit(){ return etask({_: this}, function*uninit(){
+    this.on('uncaught', e=>xerr.xexit(e));
     let _this = this._, scroll = _this.scroll;
     assert(_this.inited, 'storage_handler not inited');
     scroll.on('conflict-removed', _this.on_conflict_removed);
@@ -164,6 +166,7 @@ export default class Storage_handler {
     this.queue_decl[seq][cfid] = true;
   };
   flush(){ return etask({_: this}, function*flush(){
+    this.on('uncaught', e=>xerr.xexit(e));
     let _this = this._;
     assert(_this.inited, 'storage_handler not inited');
     // XXX: need to do it event based
@@ -171,6 +174,7 @@ export default class Storage_handler {
       yield etask.sleep(1);
   }); }
   begin_update(){ return etask({_: this}, function*end_update(){
+    this.on('uncaught', e=>xerr.xexit(e));
     let _this = this._;
     assert(_this.inited, 'storage_handler not inited');
     assert(!_this.queue_cf_rm, 'pending quere_del');
@@ -178,6 +182,7 @@ export default class Storage_handler {
     _this.busy = true;
   }); }
   end_update(){ return etask({_: this}, function*end_update(){
+    this.on('uncaught', e=>xerr.xexit(e));
     let _this = this._, db = _this.db, scroll = _this.scroll;
     assert(_this.inited, 'storage_handler not inited');
     assert(_this.busy, 'end_update while not in update');
@@ -208,6 +213,7 @@ export default class Storage_handler {
       this.db_wakeup.continue();
   }
   load_conflict(M){ return etask({_: this}, function*load_conflict(){
+    this.on('uncaught', e=>xerr.xexit(e));
     let _this = this._, scroll = _this.scroll;
     assert(_this.inited, 'storage_handler not inited');
     assert.equal(scroll.top, null, 'scroll must be empty');
@@ -223,6 +229,7 @@ export default class Storage_handler {
   load_conflict_static(M){ return etask({_: this},
     function*load_conflict_static()
   {
+    this.on('uncaught', e=>xerr.xexit(e));
     let _this = this._, db = _this.db, ret;
     assert(_this.inited, 'storage_handler not inited');
     let tx = db.transaction('scroll', 'readonly');
@@ -251,6 +258,7 @@ export default class Storage_handler {
       if (!decl.db.cfid[cfid].busy)
         return opt.data && this.load_cfid_data(decl, cfid);
       return etask({_: this}, function*load_cfid_wait(){
+        this.on('uncaught', e=>xerr.xexit(e));
         let _this = this._;
         yield this.wait_ext(decl.db.cfid[cfid].busy);
         if (opt.data)
@@ -261,6 +269,7 @@ export default class Storage_handler {
     decl.db.cfid[cfid] = {};
     // XXX: handle errors
     return decl.db.cfid[cfid].busy = etask({_: this}, function*load_cfid(){
+      this.on('uncaught', e=>xerr.xexit(e));
       let _this = this._, db = _this.db;
       let tx = db.transaction('decl', 'readonly');
       let data = yield db.store_get(tx.store('decl'), [scfid, decl.seq]);
@@ -291,6 +300,7 @@ export default class Storage_handler {
       if (!decl.db.cfid[cfid].data.busy)
         return;
       return etask({_: this}, function*load_cfid_data_wait(){
+        this.on('uncaught', e=>xerr.xexit(e));
         let _this = this._;
         return _this.wait_ext(decl.db.cfid[cfid].data.busy);
       });
@@ -299,6 +309,7 @@ export default class Storage_handler {
     return decl.db.cfid[cfid].data.busy = etask({_: this},
       function*load_cfid_data()
     {
+      this.on('uncaught', e=>xerr.xexit(e));
       let _this = this._, db = _this.db;
       let data = decl.data_get();
       let fbuf = data.cmap.get(cfid);
@@ -347,6 +358,5 @@ function conflict_to_data(db, scroll, o){
 function conflict_eq(data, data2){ return xutil.equal_deep(data, data2); }
 
 // XXX TODO:
-// 21. review all possible errors and handle properly
-// XXX derry:
 // 1. _this -> this_ (change vim coloring to be like) and fix top/parent/...
+// fix load_cfid (lock it in scorll)

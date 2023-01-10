@@ -813,14 +813,10 @@ const get_db_data = exp=>etask(function*get_db_data(){
 });
 
 const db_get_db_data = db=>etask(function*db_get_db_data(){
-  let ret = {};
-  let tx = db.transaction('data', 'readonly');
-  let store = tx.store('data');
-  // XXX: optimize, just get data of scroll from DB
-  for (let cursor=yield db.cursor(store); cursor; cursor = yield cursor.next())
-  {
-    assert.equal(cursor.key, b2s(cursor.value.h));
-    ret[cursor.key] = b2s(Buffer.from(cursor.value.buf));
+  let ret = {}, tx = db.transaction('data', 'readonly');
+  for (let cur=yield db.cursor(tx.store('data')); cur; cur = yield cur.next()){
+    assert.equal(cur.key, b2s(cur.value.h));
+    ret[cur.key] = b2s(Buffer.from(cur.value.buf));
   }
   return ret;
 });
@@ -943,7 +939,6 @@ const test_run_single = (curr, o)=>etask(function*_test_run_single(){
   case '=': yield cmd_eq(o); break;
   case '==': yield cmd_test(o); break;
   case 'c': yield cmd_c(o); break;
-  // XXX need db_data api
   case '//': break;
   case 'dbg': debugger; break; // eslint-disable-line no-debugger
   case '.':

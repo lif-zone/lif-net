@@ -362,5 +362,3 @@ function conflict_to_data(db, scroll, o){
 
 function conflict_eq(data, data2){ return xutil.equal_deep(data, data2); }
 
-// XXX TODO:
-// 1. _this -> this_ (change vim coloring to be like) and fix top/parent/...

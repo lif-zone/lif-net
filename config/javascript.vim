@@ -42,7 +42,8 @@ syn region  javaScriptEmbed	       start=+${+  end=+}+	contains=@javaScriptEmbed
 
 syn match   javaScriptSpecialCharacter "'\\.'"
 syn match   javaScriptNumber	       "-\=\<\d\+L\=\>\|0[xX][0-9a-fA-F]\+\>"
-syn region  javaScriptRegexpString     start=+[,(=+]\s*/[^/*]+ms=e-1,me=e-1 skip=+\\\\\|\\/+ end=+/[gimuys]\{0,2\}\s*$+ end=+/[gimuys]\{0,2\}\s*[+;.,)\]}]+me=e-1 end=+/[gimuys]\{0,2\}\s\+\/+me=e-1 contains=@htmlPreproc,javaScriptComment oneline
+"syn region  javaScriptRegexpString     start=+[,(=+]\s*/[^/*]+ms=e-1,me=e-1 skip=+\\\\\|\\/+ end=+/[gimuys]\{0,2\}\s*$+ end=+/[gimuys]\{0,2\}\s*[+;.,)\]}]+me=e-1 end=+/[gimuys]\{0,2\}\s\+\/+me=e-1 contains=@htmlPreproc,javaScriptComment oneline
+syn region  javaScriptRegexpString     start=+/[^/*]+me=e-1 skip=+\\\\\|\\/+ end=+/[gim]\{0,2\}\s*$+ end=+/[gim]\{0,2\}\s*[;.,)\]}]+me=e-1 contains=@htmlPreproc oneline
 
 syn keyword javaScriptConditional	if else switch
 syn keyword javaScriptRepeat		while for do in
@@ -51,10 +52,10 @@ syn keyword javaScriptBranch		break continue
 syn match   javaScriptOperatorOn       "\<\(delete\|new\|instanceof\|typeof\|of\) "
 syn match   javaScriptOperatorOff      "\<\(delete\|new\|instanceof\|typeof\|of\) ="
 syn keyword javaScriptType		Array Boolean Date Function Number Object String RegExp
-syn keyword javaScriptStatement		return with await
+syn keyword javaScriptStatement		return with await yield
 syn keyword javaScriptBoolean		true false
 syn keyword javaScriptNull		null undefined
-syn keyword javaScriptIdentifier	arguments this var let
+syn keyword javaScriptIdentifier	arguments this _this var let
 syn keyword javaScriptLabel		case default
 syn keyword javaScriptException		try catch finally throw
 syn keyword javaScriptMessage		alert confirm prompt status
@@ -90,8 +91,8 @@ endif
 " Define the default highlighting.
 " Only when an item doesn't have highlighting yet
 hi def link javaScriptComment		Comment
-hi def link javaScriptLineComment		Comment
-hi def link javaScriptCommentTodo		Todo
+hi def link javaScriptLineComment	Comment
+hi def link javaScriptCommentTodo	Todo
 hi def link javaScriptSpecial		Special
 hi def link javaScriptStringS		String
 hi def link javaScriptStringD		String
@@ -99,29 +100,29 @@ hi def link javaScriptStringT		String
 hi def link javaScriptCharacter		Character
 hi def link javaScriptSpecialCharacter	javaScriptSpecial
 hi def link javaScriptNumber		javaScriptValue
-hi def link javaScriptConditional		Conditional
+hi def link javaScriptConditional	Conditional
 hi def link javaScriptRepeat		Repeat
 hi def link javaScriptBranch		Conditional
 hi def link javaScriptOperator		Operator
 hi def link javaScriptOperatorOff	Off
 hi def link javaScriptOperatorOn	Operator
-hi def link javaScriptType			Type
+hi def link javaScriptType		Type
 hi def link javaScriptStatement		Statement
 hi def link javaScriptFunction		Function
 hi def link javaScriptBraces		Function
 hi def link javaScriptError		Error
 hi def link javaScrParenError		javaScriptError
-hi def link javaScriptNull			Keyword
+hi def link javaScriptNull		Keyword
 hi def link javaScriptBoolean		Boolean
-hi def link javaScriptRegexpString		String
+hi def link javaScriptRegexpString	String
 
-hi def link javaScriptIdentifier		Identifier
+hi def link javaScriptIdentifier	Identifier
 hi def link javaScriptLabel		Label
 hi def link javaScriptException		Exception
 hi def link javaScriptMessage		Keyword
-hi def link javaScriptGlobal		Keyword
+"hi def link javaScriptGlobal		Keyword
 hi def link javaScriptMember		Keyword
-hi def link javaScriptDeprecated		Exception 
+hi def link javaScriptDeprecated	Exception 
 hi def link javaScriptReserved		Keyword
 hi def link javaScriptDebug		Debug
 hi def link javaScriptConstant		Label

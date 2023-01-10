@@ -88,7 +88,7 @@ class FS_state {
 // XXX: how to detect file move (exact move, move+modifications)
 // eg commit 17: https://github.com/lif-zone/server/commit/e24039a1b371f9f05ce53829e9c6bc3ad675fa53?diff=split
 // XXX: what about directory move. need to optimize and not remove/readd all
-const prepare_diff = (config, scroll, top, prev, lbranch, state_next)=>etask(
+const prepare_diff = (config, scroll, top, prev, branch, state_next)=>etask(
   function*_prepare_diff(){
   let state_curr = prev ?
     yield get_state_seq(config, scroll, prev) : new FS_state();
@@ -112,8 +112,8 @@ const prepare_diff = (config, scroll, top, prev, lbranch, state_next)=>etask(
       let data = curr.type=='dir' ? {op: 'rm', dir: path+'/'} :
         {op: 'rm', file: path};
       top++;
-      queue[top] = {seq: top, header: {prev, branch: lbranch}, data};
-      lbranch = prev = curr = prev_oid = null;
+      queue[top] = {seq: top, header: {prev, branch}, data};
+      branch = prev = curr = prev_oid = null;
     }
     // content
     // {seq: 8, link: 6} {file: '/branch1_file1', ...}
@@ -140,8 +140,8 @@ const prepare_diff = (config, scroll, top, prev, lbranch, state_next)=>etask(
         data.src = move;
       data.git = git;
       top++;
-      qd = queue[top] = {seq: top, header: {prev, branch: lbranch}, data};
-      lbranch = prev = null;
+      qd = queue[top] = {seq: top, header: {prev, branch}, data};
+      branch = prev = null;
     } else {
       if (!curr && prev_oid && prev_oid.path!=path &&
         !state_next.get(prev_oid.path)){
@@ -197,9 +197,9 @@ const prepare_diff = (config, scroll, top, prev, lbranch, state_next)=>etask(
       if (blob)
         data.push(blob);
       top++;
-      qd = queue[top] = {seq: top, header: {prev, link, branch: lbranch},
+      qd = queue[top] = {seq: top, header: {prev, link, branch},
         data};
-      lbranch = prev = null;
+      branch = prev = null;
     }
     if (qd){
       if (!oid2seq.get(next.oid))
@@ -211,10 +211,10 @@ const prepare_diff = (config, scroll, top, prev, lbranch, state_next)=>etask(
     let data = curr.type=='dir' ? {op: 'rm', dir: path+'/'} :
       {op: 'rm', file: path};
     top++;
-    queue[top] = {seq: top, header: {prev, branch: lbranch}, data};
-    lbranch = prev = null;
+    queue[top] = {seq: top, header: {prev, branch}, data};
+    branch = prev = null;
   }
-  return {prev: prev||top, lbranch, queue};
+  return {prev: prev||top, branch, queue};
 });
 
 const put_diff = (scroll, queue)=>etask(function*_push_diff(){
@@ -267,13 +267,13 @@ const build_prev_sync_index = scroll=>etask(function*(){
   // XXX: need to have built-in index in scroll
   let prev_sync = {commit: new Map(), git_branch: new Map(), tag: new Map(),
     head: null};
-  let lif_branch = new Map();
+  let branches = new Map();
   for (const [seq, decl] of scroll.dmap){
     let [header, data] = yield decl.get_json(), oid = data.git?.oid;
     if (header.branch){
-      assert(!lif_branch.get(header.branch),
+      assert(!branches.get(header.branch),
         'duplicated branch split '+header.branch);
-      lif_branch.set(header.branch, {split: seq});
+      branches.set(header.branch, {split: seq});
     }
     if (data.op=='rm'){
       if (data.git_branch)
@@ -305,7 +305,7 @@ const build_prev_sync_index = scroll=>etask(function*(){
     if (data.head)
       prev_sync.head = {seq};
   }
-  return {prev_sync, lif_branch};
+  return {prev_sync, branches};
 });
 
 const get_state_seq = (config, scroll, seq)=>etask(function*get_state_seq(){
@@ -373,11 +373,11 @@ function build_gbranch_split_map(commits, gbranch_commit){
   return ret;
 }
 
-function fix_lif_name(lif_branch, gbranch){
+function fix_lif_name(branches, gbranch){
   if (!gbranch)
     return;
   let name = gbranch;
-  for (let i=1; lif_branch.get(name); i++, name = gbranch+' '+i);
+  for (let i=1; branches.get(name); i++, name = gbranch+' '+i);
   return name;
 }
 
@@ -420,7 +420,7 @@ E.import_git = (config, scroll, opt={})=>etask(function*_start(){
   let gbranches = opt.ref ? Object.keys(opt.ref) :
     yield git_api.listBranches({...config, remote: 'origin'});
   let tags = yield git_api.listTags({...config, remote: 'origin'});
-  let {prev_sync, lif_branch} = yield build_prev_sync_index(scroll);
+  let {prev_sync, branches} = yield build_prev_sync_index(scroll);
   if (gbranches.includes('HEAD'))
     array.rm_elm(gbranches, 'HEAD');
   if (gbranches.includes('main')){
@@ -479,12 +479,12 @@ E.import_git = (config, scroll, opt={})=>etask(function*_start(){
       });
       let state = o.state;
       assert(state, 'missing state for new commit');
-      let lbranch = fix_lif_name(lif_branch, split_map.split[oid]?.gbranch);
-      if (lbranch && !lif_branch[lbranch])
-        lif_branch[lbranch] = {split: scroll.top.seq+1};
+      let branch = fix_lif_name(branches, split_map.split[oid]?.gbranch);
+      if (branch && !branches[branch])
+        branches[branch] = {split: scroll.top.seq+1};
       let diff = yield prepare_diff(config, scroll, scroll.top.seq, prev,
-        lbranch, state);
-      // XXX: if empty commit, then need to set lif_branch on the commit
+        branch, state);
+      // XXX: if empty commit, then need to set branches on the commit
       prev = diff.prev;
       yield put_diff(scroll, diff.queue);
       let info = pick_rename(commit,

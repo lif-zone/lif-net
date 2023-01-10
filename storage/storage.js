@@ -49,11 +49,14 @@ export default class Storage_handler {
     assert.equal(scroll.top, null, 'scroll must be empty');
     assert.equal(scroll.dmap.size, 0, 'scroll must be empty');
     assert.equal(scroll.conflict.get(0).top, null, 'scroll must be empty');
+    assert(!scroll.is_locked(), 'scroll is locked');
     scroll.on('conflict-removed', _this.on_conflict_removed);
     scroll.on('decl', _this.on_decl);
     if (M){
+      yield scroll.lock();
       yield _this.load_conflict(M);
       yield _this.load_cfid(scroll.get_decl(0), 0);
+      yield scroll.unlock();
     }
     // XXX: 1. abort transcation on error
     _this.sp.spawn(etask(function*db_updater(){
@@ -184,6 +187,9 @@ export default class Storage_handler {
   end_update(){ return etask({_: this}, function*end_update(){
     this.on('uncaught', e=>xerr.xexit(e));
     let _this = this._, db = _this.db, scroll = _this.scroll;
+    this.on('finally', ()=>_this.busy = false);
+    if (!scroll.top)
+      return;
     assert(_this.inited, 'storage_handler not inited');
     assert(_this.busy, 'end_update while not in update');
     let queue_cf = [];
@@ -203,7 +209,6 @@ export default class Storage_handler {
     _this.schedule_db_update({queue_cf, queue_cf_rm: _this.queue_cf_rm,
       queue_decl: _this.queue_decl});
     _this.queue_cf_rm = _this.queue_decl = null;
-    _this.busy = false;
   }); }
   schedule_db_update(o){
     assert(this.inited, 'storage_handler not inited');
@@ -248,9 +253,19 @@ export default class Storage_handler {
     }
     return ret;
   }); }
+  is_loaded(decl, cfid, opt={data: true}){
+    if (!decl.db?.cfid[cfid])
+      return false;
+    if (decl.db.cfid[cfid].busy)
+      return false;
+    if (opt.data)
+      return decl.db.cfid[cfid].data ? !decl.db.cfid[cfid].data.busy : false;
+    return true;
+  }
   load_cfid(decl, cfid, opt={}){
     assert(this.inited, 'storage_handler not inited');
     assert.equal(decl.scroll, this.scroll, 'differnt decl scroll');
+    assert(this.busy, 'load_cfid but not in begin_update');
     let scfid = this.scroll.conflict.get(cfid)?.db?.data.scfid;
     if (!Number.isInteger(scfid))
       return;
@@ -279,23 +294,18 @@ export default class Storage_handler {
         'scfid was already deleted');
       data = db.fix_struct(data);
       decl.db.cfid[cfid].block_events = true;
-      let need_end_update = !_this.busy;
-      if (need_end_update)
-        yield _this.scroll.lock();
       yield decl.from_static_cfid(cfid, data);
-      if (need_end_update)
-        yield _this.scroll.unlock();
       decl.db.cfid[cfid].block_events = false;
       decl.db.cfid[cfid].busy = null;
       if (opt.data)
         return _this.load_cfid_data(decl, cfid);
     });
   }
-  // XXX: handle errors
   load_cfid_data(decl, cfid){
     assert(this.inited, 'storage_handler not inited');
     assert(decl.db?.cfid[cfid] && !decl.db.cfid[cfid].busy,
       'cannot load data before loading seq'+decl.seq);
+    assert(this.busy, 'load_cfid_data but not in begin_update');
     if (decl.db.cfid[cfid].data){
       if (!decl.db.cfid[cfid].data.busy)
         return;
@@ -315,9 +325,6 @@ export default class Storage_handler {
       let fbuf = data.cmap.get(cfid);
       if (!fbuf)
         return decl.db.cfid[cfid].data.busy = null;
-      let need_end_update = !_this.busy;
-      if (need_end_update)
-        yield _this.scroll.lock();
       let frames = fbuf.get_frames();
       for (let i=0; i<frames.length; i++){
         let f = frames[i];
@@ -327,8 +334,6 @@ export default class Storage_handler {
             yield fbuf.set_frame_buf(i, Buffer.from(o.buf));
         }
       }
-      if (need_end_update)
-        yield _this.scroll.unlock();
       decl.db.cfid[cfid].data.busy = null;
     });
   }
@@ -359,4 +364,3 @@ function conflict_eq(data, data2){ return xutil.equal_deep(data, data2); }
 
 // XXX TODO:
 // 1. _this -> this_ (change vim coloring to be like) and fix top/parent/...
-// fix load_cfid (lock it in scorll)

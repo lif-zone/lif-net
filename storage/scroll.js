@@ -488,6 +488,7 @@ export default class Scroll extends EventEmitterAsync {
     assert(decl.M.get_hash(cfid), 'failed to calc M'+decl.seq+' cfid '+cfid);
     return decl;
   }); }
+  is_locked(){ return !!this.busy; }
   lock(){ return etask({_: this}, function*lock(){
     let _this = this._;
     while (_this.busy)
@@ -1300,7 +1301,19 @@ class Decl extends EventEmitterAsync {
   }); }
   load(cfid, opt={}){
     assert(cfid>=0, 'invalid cfid '+cfid);
-    return this.scroll.storage?.load_cfid(this, cfid, opt);
+    let scroll = this.scroll;
+    if (!scroll.storage)
+      return;
+    if (scroll.storage.is_loaded(this, cfid, opt))
+      return;
+    return etask({_: this}, function*load(){
+      let _this = this._, need_lock;
+      if (need_lock = !scroll.is_locked())
+        yield scroll.lock();
+      yield scroll.storage?.load_cfid(_this, cfid, opt);
+      if (need_lock)
+        yield scroll.unlock();
+    });
   }
 }
 

@@ -14,7 +14,8 @@ import Scroll from './scroll.js';
 import Soul from './soul.js';
 import DB from './db.js';
 import buf_util from '../peer-relay/buf_util.js';
-import {r_str, r_from_str, r_parent} from './range.js';
+import {r_str, r_from_str, r_parent, r_includes, r_eq, r_split}
+  from './range.js';
 const {b2s, s2b, b2s_obj} = buf_util;
 
 function enc_u64(v){ return enc.encode(enc.uint64, v); }
@@ -983,6 +984,34 @@ describe('range', ()=>{
     t('1', [1, 1]);
     t('10', [10, 10]);
     t('10_100', [10, 100]);
+  });
+  it('r_eq', ()=>{
+    const t = (r, r2, exp)=>assert.equal(r_eq(r, r2), exp);
+    t([0, 0], [0, 0], true);
+    t([0, 1], [0, 0], false);
+    t([0, 1], [0, 1], true);
+    t([0, 1], [1, 1], false);
+    t([1, 1], [1, 1], true);
+  });
+  it('r_split', ()=>{
+    const t = (r, exp)=>assert.deepEqual(r_split(r), exp);
+    t([0, 1], [[0, 0], [1, 1]]);
+    t([0, 3], [[0, 1], [2, 3]]);
+    t([8, 15], [[8, 11], [12, 15]]);
+  });
+  it('r_includes', ()=>{
+    const t = (r, r2, exp)=>assert.equal(r_includes(r, r2), exp);
+    t([0, 0], [0, 0], true);
+    t([0, 1], [0, 0], true);
+    t([0, 0], [0, 1], false);
+    t([0, 0], [1, 1], false);
+    t([1, 4], [1, 3], true);
+    t([1, 4], [1, 4], true);
+    t([1, 4], [1, 5], false);
+    t([1, 4], [2, 4], true);
+    t([1, 4], [0, 4], false);
+    t([1, 4], [2, 4], true);
+    t([1, 4], [2, 3], true);
   });
   it('r_parent', ()=>{
     const t = (val, exp)=>{

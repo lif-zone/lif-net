@@ -2,7 +2,6 @@
 'use strict'; /*jslint node:true, browser:true*/
 import assert from 'assert';
 
-// XXX: need test
 export function r_split(range){
   let [s, e] = range;
   assert(s!=e, 'invalid range split '+range);
@@ -20,10 +19,8 @@ export function r_str(range){
   return range[0]==range[1] ? ''+range[1] : range[0]+'_'+range[1];
 }
 
-// XXX need test
 export function r_includes(r, r2){ return r2[0]>=r[0] && r2[1]<=r[1]; }
 
-// XXX need test
 export function r_eq(a, b){ return a[0]==b[0] && a[1]==b[1]; }
 
 export function r_parent(r){

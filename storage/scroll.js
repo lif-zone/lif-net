@@ -537,6 +537,7 @@ export default class Scroll extends EventEmitterAsync {
     });
   }
   put(diff){ return etask({_: this}, function*put(){
+    // XXX: run sanity on diff to make sure it is valid format
     let _this = this._;
     let errors = {}, a = Object.keys(diff);
     yield _this.lock();

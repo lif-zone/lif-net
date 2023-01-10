@@ -348,6 +348,5 @@ function conflict_eq(data, data2){ return xutil.equal_deep(data, data2); }
 
 // XXX TODO:
 // 21. review all possible errors and handle properly
-// 32. protect put (verify diff is valid)
 // XXX derry:
 // 1. _this -> this_ (change vim coloring to be like) and fix top/parent/...

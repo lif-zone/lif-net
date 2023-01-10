@@ -4,10 +4,12 @@
 [credential]
 	helper = store
 [diff]
-	tool = "diff"
+	tool = "gvimdiff"
 	context = 0
 [merge]
-	tool = "diff"
+	tool = "gvimdiff"
 	context = 0
+[difftool]
+  prompt = false
 [core]
 	pager = cat

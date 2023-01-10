@@ -286,28 +286,13 @@ describe('lib', function(){
     /* eslint-enable */
   ]);
 /* XXX TODO
-scrolls = [ // KEYPATH scfid. INDEX scroll, cfid
-  {scfid: 0, scroll: '4817AB', cfid: 0},
-  {scfid: 1, scroll: '4817AB', cfid: 2, splits: [{cfid: 0, seq: 37}]},
-  {scfid: 2, scroll: '4817AB', cfid: 3, splits: [{cfid: 2, seq: 472},
-    {0, 37}]},
-  {scfid: 3, scroll: '4817AB', cfid: 4, splits: [{cfid: 2, seq: 472},
-    {0, 37}], tmp: true},
-];
-decls = [ // KEYPATH scfig, seq
-  {scfid: 0, seq: 3, M: M3, m: {0: m0_1, 1: m1}},
-    D: [{sig}, {buf, h}, ...]}
-  {scfid: 1, seq: 3, M: M3b1, m: {0: m0_1, 1: m1}},
-    D: [{sig}, {buf, h}, ...]}
-];
-blob = // XXX: add scfid array so we can purge scroll
-
-branchs = [ // KEYPATH scfid, bdid. INDEX scfid, name
+branches = [ // KEYPATH scfid, bdid. INDEX scfid, name
   {scfid: 0, bid: 0, bseq: '3', name: 'main'},
   {scfid: 0, bid: 1, bseq: '3._42', name: 'branch-jabil'},
 ];
 files = [ // KEYPATH scfid, file, seq
   {scfid: 0, file: '/arik', seq: 3},
+  {scfid: 0, file: '/arik', seq: 1},
   {scfid: 1, file: '/derry', seq: 3},
 ];
 

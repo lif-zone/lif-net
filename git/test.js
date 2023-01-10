@@ -1,7 +1,7 @@
-'use strict'; /*global describe,it,beforeEach,afterEach*/
+'use strict'; /*global describe,it*/
 import assert from 'assert';
 import xutil from '../util/util.js';
-import xerr from '../util/xerr.js';
+import proc from '../util/proc.js';
 import xtest from '../util/test_lib.js'; // eslint-disable-line no-unused-vars
 import etask from '../util/etask.js';
 import Soul from '../storage/soul.js'; // eslint-disable-line no-unused-vars
@@ -10,23 +10,7 @@ import git_util from './util.js';
 import buf_util from '../peer-relay/buf_util.js';
 const s2b = buf_util.buf_from_str;
 
-// XXX: make it automatic for all node/browser in proc.js
-xerr.set_exception_catch_all(true);
-process.on('uncaughtException', err=>xerr.xexit(err));
-process.on('unhandledRejection', err=>xerr.xexit(err));
-xerr.set_exception_handler('test', (prefix, o, err)=>xerr.xexit(err));
-
-if (!xutil.is_inspect())
-  beforeEach(function(){ xerr.set_buffered(true, 1000); });
-
-afterEach(function(){
-  if (this.currentTest.timedOut){
-    xerr.notice(this.currentTest.err.stack);
-    assert.fail(this.currentTest.fullTitle()+': FAILED TIMEOUT');
-  }
-  xerr.clear();
-  xerr.set_buffered(false);
-});
+proc.init();
 
 function dump_lines(a){
   for (let i=0; i<a.length; i++){

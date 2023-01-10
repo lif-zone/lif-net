@@ -1,4 +1,4 @@
-'use strict'; /*jslint node:true*/ /*global describe,it,beforeEach,afterEach*/
+'use strict'; /*jslint node:true*/ /*global describe,it,beforeEach*/
 // XXX: need jslint mocha: true
 import assert from 'assert';
 import Node from './node.js';
@@ -12,6 +12,7 @@ import ReqHandler from './req_handler.js';
 import etask from '../util/etask.js';
 import xurl from '../util/url.js';
 import date from '../util/date.js';
+import proc from '../util/proc.js';
 import LBuffer from './lbuffer.js';
 import xescape from '../util/escape.js';
 import xutil from '../util/util.js';
@@ -29,6 +30,8 @@ const DEF_RTT = 100;
 
 Router.t.xxx_rt = false; // XXX WIP
 
+proc.init();
+
 function get_fuzzy(name){ return name && name[0]=='~' ? name[0] : ''; }
 function N(name, opt){
   opt = opt||{};
@@ -42,12 +45,6 @@ function N(name, opt){
   assert(node, 'missing node '+name);
   return node;
 }
-
-// XXX: make it automatic for all node/browser in proc.js
-xerr.set_exception_catch_all(true);
-process.on('uncaughtException', err=>xerr.xexit(err));
-process.on('unhandledRejection', err=>xerr.xexit(err));
-xerr.set_exception_handler('test', (prefix, o, err)=>xerr.xexit(err));
 
 let t_nodes = {}, t_ids = {}, t_msg, t_msgid, t_req, t_cmds, t_i, t_role;
 let t_port=4000, t_pending, t_sleep;
@@ -2795,18 +2792,6 @@ const test_end = ()=>etask(function*(){
   assert.equal(t_depth, 0, 'invalid t_depth');
   xerr.notice('*** test_done');
   xtest.xerr_level(xerr.L.ERR);
-});
-
-if (!xutil.is_inspect())
-  beforeEach(function(){ xerr.set_buffered(true, 1000); });
-
-afterEach(function(){
-  if (this.currentTest.timedOut){
-    xerr.notice(this.currentTest.err.stack);
-    assert.fail(this.currentTest.fullTitle()+': FAILED TIMEOUT');
-  }
-  xerr.clear();
-  xerr.set_buffered(false);
 });
 
 function test_transform_hash(s){

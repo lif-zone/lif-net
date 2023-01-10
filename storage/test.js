@@ -1,6 +1,6 @@
-'use strict'; /*global describe,it,beforeEach,afterEach*/
+'use strict'; /*global describe,it*/
 import assert from 'assert';
-import xutil from '../util/util.js';
+import proc from '../util/proc.js';
 import xerr from '../util/xerr.js';
 import enc from 'compact-encoding';
 import tparser from './test_parser.js';
@@ -25,22 +25,7 @@ let t_scroll, t_genesis_scroll, t_prev_scroll, t_def, t_keypair;
 DB.init({shim_conf: {checkOrigin: false, databaseBasePath: '/tmp',
   deleteDatabaseFiles: true, useSQLiteIndexes: true}});
 
-// XXX: make it automatic for all node/browser in proc.js
-process.on('uncaughtException', err=>xerr.xexit(err));
-process.on('unhandledRejection', err=>xerr.xexit(err));
-xerr.set_exception_handler('test', (prefix, o, err)=>xerr.xexit(err));
-
-if (!xutil.is_inspect())
-  beforeEach(function(){ xerr.set_buffered(true, 1000); });
-
-afterEach(function(){
-  if (this.currentTest.timedOut){
-    xerr.notice(this.currentTest.err.stack);
-    assert.fail(this.currentTest.fullTitle()+': FAILED TIMEOUT');
-  }
-  xerr.clear();
-  xerr.set_buffered(false);
-});
+proc.init();
 
 function space(s){ return s ? s+' ' : ''; }
 

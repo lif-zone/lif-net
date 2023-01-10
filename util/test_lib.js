@@ -798,3 +798,16 @@ if (xutil.is_mocha())
   proc.xexit_init();
   E.xerr_level(xerr.L.ERR);
 }
+
+if (!xutil.is_inspect())
+  beforeEach(function(){ xerr.set_buffered(true, 1000); });
+
+afterEach(function(){
+  if (this.currentTest.timedOut){
+    xerr.notice(this.currentTest.err.stack);
+    assert.fail(this.currentTest.fullTitle()+': FAILED TIMEOUT');
+  }
+  xerr.clear();
+  xerr.set_buffered(false);
+});
+

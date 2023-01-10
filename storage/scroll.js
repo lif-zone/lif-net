@@ -175,10 +175,15 @@ class Frame_buffer extends EventEmitterAsync {
     return sig;
   }); }
   get(i){ return this.frames[i]?.buf; }
-  get_json(i){ // XXX: need better implemenation + add caching of result
-    let buf = this.frames[i]?.buf;
-    if (buf)
-      return JSON.parse(buf.toString());
+  get_json(i){
+    let f = this.frames[i];
+    if (!f)
+      return;
+    if (f.json)
+      return f.json;
+    if (!f.buf)
+      return;
+    return f.json = JSON.parse(f.buf.toString());
   }
 }
 

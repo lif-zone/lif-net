@@ -679,7 +679,6 @@ const cmd_put = (curr, t)=>etask(function*cmd_put(){
   assert_no_corruption(scroll);
 });
 
-// XXX: rm api
 const cmd_unload = (curr, t)=>etask(function cmd_unload(){
   assert(t.ctx=='mem', 'missing mem prefix');
   let name = t.prev?.ctx||get_def('left'), scroll = get_scroll(name);

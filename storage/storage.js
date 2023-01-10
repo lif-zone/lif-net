@@ -58,7 +58,6 @@ export default class Storage_handler {
       yield _this.load_cfid(scroll.get_decl(0), 0);
       yield scroll.unlock();
     }
-    // XXX: 1. abort transcation on error
     _this.sp.spawn(etask(function*db_updater(){
       this.on('uncaught', e=>xerr.xexit(e));
       while (true){
@@ -282,7 +281,6 @@ export default class Storage_handler {
     }
     decl.db = decl.db||{cfid: {}};
     decl.db.cfid[cfid] = {};
-    // XXX: handle errors
     return decl.db.cfid[cfid].busy = etask({_: this}, function*load_cfid(){
       this.on('uncaught', e=>xerr.xexit(e));
       let _this = this._, db = _this.db;

@@ -1123,6 +1123,7 @@ export default class Scroll extends EventEmitterAsync {
     _this.conflict.next_id = max_c+1;
     _this.top = max_top;
   }); }
+  flush(){ return this.storage?.flush(); }
 }
 
 class Decl extends EventEmitterAsync {

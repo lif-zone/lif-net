@@ -121,7 +121,7 @@ export default class Storage_handler {
     scroll.on('decl', _this.on_decl);
     for (let seq in _this.listeners_decl)
       _this.rm_on_decl(_this.listeners_decl[seq]);
-    yield _this.flush();
+    yield scroll.flush();
     yield _this.sp.return();
     // XXX: how to cancel all existing running etask (eg. load_cfid)
     _this.inited = false;

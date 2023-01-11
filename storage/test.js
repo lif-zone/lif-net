@@ -2151,6 +2151,7 @@ describe('scroll', ()=>{
       // m0_1=mem1.m0
       // XXX: how to calc bseq, during inseretion? what if I cannot calc it
       // because of missing decl data?
+      // XXX: simplify storage testing with mem
     });
     describe('storage', ()=>{
       describe('mem', ()=>{

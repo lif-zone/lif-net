@@ -2117,6 +2117,7 @@ describe('scroll', ()=>{
      op_default: 'mod'}}
    ]
 */
+      // XXX: WIP, remove commments on bseq
       t('xxx1', `
         s..scroll(feature:branch)
         decl(1)                  // bseq1=1

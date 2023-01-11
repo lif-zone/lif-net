@@ -11,13 +11,15 @@ import string from '../util/string.js';
 import Storage_handler from './storage.js';
 import xsinon from '../util/sinon.js';
 import Scroll from './scroll.js';
+import Branch_table from './branch.js';
 import Soul from './soul.js';
 import DB from './db.js';
 import buf_util from '../peer-relay/buf_util.js';
 import {r_str, r_from_str, r_parent, r_includes, r_eq, r_split}
   from './range.js';
 const {b2s, s2b, b2s_obj} = buf_util;
-const {br_num, br_cmp} = Scroll;
+const {br_int, br_enc, br_cmp, br_branch_new, br_branch_inc, br_inc,
+  br_seq_inc} = Branch_table;
 
 function enc_u64(v){ return enc.encode(enc.uint64, v); }
 let t_soul, t_soul_id, t_soul_mode, t_state;
@@ -150,6 +152,8 @@ function parse_var(v){
     let seq = +m[1], range = [seq, seq], type = 'D'+m[2], i = +m[3];
     return {seq, type, range, i, cfid, ctx, def};
   }
+  if (/^[\d,.-]+$/.test(v)) // XXX: need is_valid_branch
+    return v;
   assert.fail('invalid var '+v);
 }
 
@@ -234,6 +238,8 @@ const get_val = (exp, def_type='right', encode=false)=>etask(
     return t_prev_scroll.M_hash(0, 1);
   if (/^\d+$/.test(exp))
     return encode ? enc.encode(enc.uint64, +exp) : +exp;
+  if (/^[\d,.-]+$/.test(exp)) // XXX: need is_valid_branch
+    return exp;
   if (m = exp.match(/^0x([0-9a-f]+)$/))
     return s2b(m[1]);
   if (m = exp.match(/^h\((.*)\)$/)){ // h(d10+sig11)
@@ -534,7 +540,7 @@ const cmd_decl = t=>etask(function*cmd_decl(){
       }
       break;
     case 'branch': branch = tt.r; break;
-    case 'prev': branch = tt.r; break;
+    case 'prev': prev = tt.r; break;
     case '-':
       assert(/^\d+$/.test(tt.l) && /^\d+$/.test(tt.r), 'invalid -: '+t.meta.s);
       [s, e] = [+tt.l, +tt.r];
@@ -1390,8 +1396,11 @@ describe('scroll', ()=>{
     });
   });
   describe('branch', ()=>{
-    it('br_num', ()=>{
-      const t = (val, exp)=>assert.equal(br_num(val), exp);
+    it('br_enc', ()=>{
+      const t = (val, exp)=>{
+        assert.equal(br_enc(val), exp);
+        assert.equal(br_int(exp), val);
+      };
       t(0, '0');
       t(1, '1');
       t(9, '9');
@@ -1404,8 +1413,24 @@ describe('scroll', ()=>{
       t(1000, '___1000');
       t(10000, '____10000');
     });
+    it('br_inc', ()=>{
+      const t = (val, n, exp)=>{
+        if (exp==undefined){
+          [n, exp] = [undefined, n];
+          assert.equal(br_inc(val), exp);
+        } else
+          assert.equal(br_inc(val, n), exp);
+      };
+      t('0', '1');
+      t('0', 2, '2');
+      t('1', '2');
+      t('_9', '_10');
+      t('_9', 2, '_11');
+      t('_10', '_11');
+      t('__100', '__101');
+    });
     it('br_cmp', ()=>{
-      const t = (a, b, exp)=>assert.equal(br_cmp(br_num(a), br_num(b)), exp);
+      const t = (a, b, exp)=>assert.equal(br_cmp(br_enc(a), br_enc(b)), exp);
       t(0, 0, 0);
       t(0, 1, -1);
       t(1, 0, 1);
@@ -1414,6 +1439,34 @@ describe('scroll', ()=>{
       t(10, 11, -1);
       t(11, 10, 1);
       t(99, 100, -1);
+    });
+    it('br_branch_new', ()=>{
+      const t = (val, exp)=>assert.equal(br_branch_new(val), exp);
+      t('0', '0-0.0');
+      t('1', '1-0.0');
+      t('_10', '_10-0.0');
+      t('1-0.0', '1-0.0-0.0');
+      t('1-2.0', '1-2.0-0.0');
+      t('1-2.3', '1-2.3-0.0');
+      t('1-2.3', '1-2.3-0.0');
+    });
+    it('br_branch_inc', ()=>{
+      const t = (val, exp)=>assert.equal(br_branch_inc(val), exp);
+      t('0-0.0', '0-1.0');
+      t('0-1.0', '0-2.0');
+      t('0-9.0', '0-_10.0');
+      t('1-0.0-0.0', '1-0.0-1.0');
+      t('1-0.0-1.0', '1-0.0-2.0');
+      t('1-2.3-0.0', '1-2.3-1.0');
+      t('1-2.3-9.0', '1-2.3-_10.0');
+    });
+    it('br_seq_inc', ()=>{
+      const t = (val, exp)=>assert.equal(br_seq_inc(val), exp);
+      t('0', '1');
+      t('1', '2');
+      t('9', '_10');
+      t('1-0.0', '1-0.1');
+      t('1-0.9', '1-0._10');
     });
   });
   describe('macro', ()=>{
@@ -2146,6 +2199,9 @@ br:null seq:4 bseq:2
         decl(3) bseq3=3`);
       // XXX: create test with partial scroll and rebuild bseq
       // XXX: create test with conflict+branch
+      // XXX: test with db
+      // XXX: test invalid format (eg. same branch appear twice, prev to wrong
+      // location etc)
       if (true) return; // XXX WIP
       t('one_branch', `
         s..scroll
@@ -2156,6 +2212,7 @@ br:null seq:4 bseq:2
         decl(5 prev:2)   bseq5=3
         decl(6)          bseq6=4
         decl(7 prev:4)   bseq5=2-0.2`);
+      if (true) return; // XXX WIP
       t('xxx2', `
         s..scroll
         decl(1)                  // bseq1=1

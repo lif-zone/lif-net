@@ -4,6 +4,7 @@ import assert from 'assert';
 import EventEmitterAsync from '../util/events_async.js';
 import crypto from '../util/crypto.js';
 import util from '../util/util.js';
+import Branch_table from './branch.js';
 import etask from '../util/etask.js';
 import xerr from '../util/xerr.js';
 import enc from 'compact-encoding';
@@ -16,16 +17,6 @@ const stringify = JSON.stringify.bind(JSON);
 // https://en.wikipedia.org/wiki/Merkle_tree#Second_preimage_attack
 const LEAF_TYPE = enc_u64(0), PARENT_TYPE = enc_u64(1), ROOT_TYPE = enc_u64(2);
 function enc_u64(v){ return enc.encode(enc.uint64, v); }
-
-// XXX: move to util
-function br_num(num){
-  assert(Number.isInteger(num) && num>=0, 'invalid num '+num);
-  let s = '';
-  for (let i=10; i<=num; i*=10, s += '_');
-  return s+num;
-}
-
-function br_cmp(a, b){ return a==b ? 0 : a<b ? -1 : 1; }
 
 function to_frame(o){ // XXX: need test
   if (Buffer.isBuffer(o))
@@ -60,7 +51,7 @@ class Data extends EventEmitterAsync {
     let _this = this._;
     let {data, seq, cfid, scroll} = _this.ctx;
     yield data.emit_async('data', {seq, cfid});
-    yield scroll.on_data({seq, cfid});
+    yield scroll.on_data({data, seq, cfid});
   }); }
   on_sig(){ return this.ctx.data.emit_async('sig',
     {seq: this.ctx.seq, cfid: this.ctx.cfid}); }
@@ -427,6 +418,7 @@ export default class Scroll extends EventEmitterAsync {
     this.conflict.next_id = 0;
     this.merge_queue = new Map;
     this.merge_queue.get_one = Map_get_one;
+    this.branch = null;
     this.create_new_conflict();
   }
   init(opt={}){ return etask({_: this}, function*scroll_init(){
@@ -1141,7 +1133,35 @@ export default class Scroll extends EventEmitterAsync {
     _this.top = max_top;
   }); }
   flush(){ return this.storage?.flush(); }
-  on_data = e=>{};
+  on_data = e=>{
+    let {data, seq, cfid} = e;
+    let o = data.get(cfid).get_json(1);
+    if (!o)
+      return;
+    let {branch, prev} = o;
+    if (!branch && !prev)
+      return;
+    let btable = this.get_branch_table(cfid);
+    if (branch){
+      if (btable.get_branch(branch)){
+        xerr('invalid scroll - branch %s appears twice');
+        // XXX: test it and mark scroll as invalid
+        return;
+      }
+      let bseq = btable.to_bseq(prev||seq-1);
+      btable.add_branch({branch, seq, bseq});
+    }
+  };
+  get_branch_table(cfid){
+    if (!this.branch)
+      this.branch = new Map();
+    let btable = this.branch.get(cfid);
+    if (btable)
+      return btable;
+    btable = new Branch_table();
+    this.branch.set(cfid, btable);
+    return btable;
+  }
 }
 
 class Decl extends EventEmitterAsync {
@@ -1183,7 +1203,10 @@ class Decl extends EventEmitterAsync {
   }); }
   sig_set(cfid, sig){ return this.fbuf_get(cfid).sig_set(sig); }
   sig_get(cfid){ return this.fbuf_get(cfid).sig_get(); }
-  bseq_get(cfid){ return this.seq; }
+  bseq_get(cfid){
+    let btable = this.scroll.get_branch_table(cfid);
+    return btable.to_bseq(this.seq);
+  }
   fbuf_get(cfid){ return this.data.get(this.to_c(cfid)); }
   data_get(){ return this.data; }
   d_hash(cfid){ return this.fbuf_get(cfid).get_hash(); }
@@ -1514,5 +1537,3 @@ Scroll.verify_sig = verify_sig;
 Scroll.LEAF_TYPE = LEAF_TYPE;
 Scroll.PARENT_TYPE = PARENT_TYPE;
 Scroll.ROOT_TYPE = ROOT_TYPE;
-Scroll.br_num = br_num;
-Scroll.br_cmp = br_cmp;

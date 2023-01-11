@@ -7,6 +7,7 @@ import xutil from '../util/util.js';
 import Scroll from '../storage/scroll.js';
 import Soul from '../storage/soul.js'; // eslint-disable-line no-unused-vars
 import DB from '../storage/db.js';
+import Storage_handler from '../storage/storage.js';
 import buf_util from '../peer-relay/buf_util.js';
 import lib from './lib.js';
 const soul = Scroll.soul, db = soul.db;
@@ -35,9 +36,10 @@ function err_handler(err){
 
 const open_scroll = src=>etask(function*open_scroll(){
   for (const [M0] of db.scrolls){
+    let storage = new Storage_handler({db: soul.db});
     // XXX: so ugly. need proper api
     let scroll = yield Scroll.open({key: keypair.key,
-       pub: keypair.pub, M: M0});
+       pub: keypair.pub, M: M0, storage});
     let decl = db.get_decl(scroll, {seq: 0, data: true});
     let data = (yield decl.fbuf_get_async(0)).get_json(2);
     if (data.scroll?.topic!='git' || data.scroll?.src!=src)
@@ -80,7 +82,7 @@ const start = ()=>etask(function*_start(){
   yield lib.import_git(config, scroll);
   lib.dump_scroll(scroll);
   console.log('saving to db');
-  yield db.put_scroll(scroll);
+  yield scroll.storage.flush(); // XXX: change to scroll.flush()
   yield db.uninit();
 });
 

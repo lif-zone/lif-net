@@ -2301,8 +2301,7 @@ br:null seq:4 bseq:2
           #(mem_c={0:M4 1:3t0.M9}) load_c(0) load_c(1) load_c(2) load_c(3)
           load_c(4c1) load_c(5c1) load_c(6c1) load_c(7c1) load_c(8c1)
           load_c(9c1) tput(0_1_2_3 4 5 6      )
-          flush
-          #(mem_c={0:M9 2:5t0.M6})
+          flush #(mem_c={0:M9 2:5t0.M6})
           def(s..) tput(0_1_2_3 4_5 6 7    ) #(mem_c={0:M9} mem5={M5 m5 m4_5}
             mem6={M6 sig6 D6 m6} mem7={M7 sig7 D7 m7 m6_7 m4_7 m0_7}
             mem9={M9 sig9 D9 m9 m8_9})`);

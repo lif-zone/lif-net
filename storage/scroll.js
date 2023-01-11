@@ -17,6 +17,16 @@ const stringify = JSON.stringify.bind(JSON);
 const LEAF_TYPE = enc_u64(0), PARENT_TYPE = enc_u64(1), ROOT_TYPE = enc_u64(2);
 function enc_u64(v){ return enc.encode(enc.uint64, v); }
 
+// XXX: move to util
+function br_num(num){
+  assert(Number.isInteger(num) && num>=0, 'invalid num '+num);
+  let s = '';
+  for (let i=10; i<=num; i*=10, s += '_');
+  return s+num;
+}
+
+function br_cmp(a, b){ return a==b ? 0 : a<b ? -1 : 1; }
+
 function to_frame(o){ // XXX: need test
   if (Buffer.isBuffer(o))
     return {buf: o};
@@ -1504,3 +1514,5 @@ Scroll.verify_sig = verify_sig;
 Scroll.LEAF_TYPE = LEAF_TYPE;
 Scroll.PARENT_TYPE = PARENT_TYPE;
 Scroll.ROOT_TYPE = ROOT_TYPE;
+Scroll.br_num = br_num;
+Scroll.br_cmp = br_cmp;

@@ -17,6 +17,7 @@ import buf_util from '../peer-relay/buf_util.js';
 import {r_str, r_from_str, r_parent, r_includes, r_eq, r_split}
   from './range.js';
 const {b2s, s2b, b2s_obj} = buf_util;
+const {br_num, br_cmp} = Scroll;
 
 function enc_u64(v){ return enc.encode(enc.uint64, v); }
 let t_soul, t_soul_id, t_soul_mode, t_state;
@@ -1388,6 +1389,33 @@ describe('scroll', ()=>{
       t({d: '_'}, {l: '_'});
     });
   });
+  describe('branch', ()=>{
+    it('br_num', ()=>{
+      const t = (val, exp)=>assert.equal(br_num(val), exp);
+      t(0, '0');
+      t(1, '1');
+      t(9, '9');
+      t(10, '_10');
+      t(11, '_11');
+      t(99, '_99');
+      t(100, '__100');
+      t(101, '__101');
+      t(999, '__999');
+      t(1000, '___1000');
+      t(10000, '____10000');
+    });
+    it('br_cmp', ()=>{
+      const t = (a, b, exp)=>assert.equal(br_cmp(br_num(a), br_num(b)), exp);
+      t(0, 0, 0);
+      t(0, 1, -1);
+      t(1, 0, 1);
+      t(9, 10, -1);
+      t(10, 9, 1);
+      t(10, 11, -1);
+      t(11, 10, 1);
+      t(99, 100, -1);
+    });
+  });
   describe('macro', ()=>{
     it('to_m', ()=>{
       const t = (val, exp)=>assert.equal(macro_to_m(val, 's'), exp);
@@ -2106,12 +2134,6 @@ describe('scroll', ()=>{
       });
     });
     describe('branch', ()=>{
-/* XXX: unittest
-0 1 2 9 _10 _11 _12 _99 __100
-1 1.0 1.1 2 3
-1 1.0 1.1 1.1.0 1.2 1.3 1.4 1.9 1._10
-*/
-
 /* XXX: branch table
 branches:
 br:null seq:0 bseq:0

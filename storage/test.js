@@ -2106,47 +2106,49 @@ describe('scroll', ()=>{
       });
     });
     describe('branch', ()=>{
-//      if (true) return; // XXX WIP
-/* [{seq: 0}, {scroll: {
-     crypt: [{sig: 'ed25519', hash: 'blake2b', lif: 'lif1'}],
-     pub: '44659cb51dec397ea66085679442505345e159940762c15ef75ad279ecf05033',
-     topic: 'git',
-     src: 'https://github.com/lif-zone/test_merge_simple',
-     feature: ['branch'],
-     key_val: ['dir', 'file', 'git_branch', 'tag'],
-     op_default: 'mod'}}
-   ]
+/* XXX: unittest
+0 1 2 9 _10 _11 _12 _99 __100
+1 1.0 1.1 2 3
+1 1.0 1.1 1.1.0 1.2 1.3 1.4 1.9 1._10
+*/
+
+/* XXX: branch table
+branches:
+br:null seq:0 bseq:0
+br:b seq:2 bseq:1.0
+br:null seq:4 bseq:2
 */
       // XXX: WIP, remove commments on bseq
       t('xxx1', `
-        s..scroll(feature:branch)
+        s..scroll
         decl(1)                  // bseq1=1
-        decl(2 branch:b)         // bseq2=1._0
-        decl(3)                  // bseq3=1._1
+        decl(2 branch:b)         // bseq2=1.0
+        decl(3)                  // bseq3=1.1
         decl(4 prev:1)           // bseq4=2
         decl(5)                  // bseq5=3`);
       t('xxx2', `
-        s..scroll(feature:branch)
+        s..scroll
         decl(1)                  // bseq1=1
-        decl(2 branch:b)         // bseq2=1._0
-        decl(3)                  // bseq3=1._1
-        decl(4 branch:b2)        // bseq4=1._1._0
-        decl(5)                  // bseq5=1._1._1
-        decl(6 prev 3)           // bseq6=1._2`);
+        decl(2 branch:b)         // bseq2=1.0
+        decl(3)                  // bseq3=1.1
+        decl(4 branch:b2)        // bseq4=1.1.0
+        decl(5)                  // bseq5=1.1.1
+        decl(6 prev 3)           // bseq6=1.2`);
       t('xxx3', `
-        s..scroll(feature:branch)
+        s..scroll
         decl(1)                  // bseq1=1
-        decl(2 branch:b)         // bseq2=1._0
-        decl(3)                  // bseq3=1._1
-        decl(4 prev:2 branch:b2) // bseq4=1._0._0
-        decl(5)                  // bseq5=1._0._1`);
+        decl(2 branch:b)         // bseq2=1.0
+        decl(3)                  // bseq3=1.1
+        decl(4 prev:2 branch:b2) // bseq4=1.0.0
+        decl(5)                  // bseq5=1.0.1`);
+      // XXX: branch format: s-b.s-b.s-b.s
       t('xxx4', `
-        s..scroll(feature:branch)
+        s..scroll
         decl(1)                  // bseq1=1
-        decl(2 branch:b)         // bseq2=1._0
-        decl(3)                  // bseq3=1._1
-        decl(4 prev:1 branch:b2) // bseq4=???
-        decl(5)                  // bseq5=???`);
+        decl(2 branch:b)         // bseq2=1-0.0
+        decl(3)                  // bseq3=1-0.1
+        decl(4 prev:1 branch:b2) // bseq4=1-1.0
+        decl(5)                  // bseq5=1-1.1`);
       // XXX: support bseq1=mem1.bseq (M1=mem1.M, ...)
       // m0_1=mem1.m0_1 or
       // m0_1=mem1.m0

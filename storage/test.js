@@ -137,7 +137,8 @@ function parse_var(v){
   v = m ? m[3] : v;
   if (['db_c', 'db_data', 'mem_c'].includes(v))
     return {type: v, ctx, def};
-  if (m = v.match(/^(sig|m|M|d|D|mem|db)((\d+)|((\d+)_(\d+)))(c(\d+))?$/)){
+  if (m = v.match(/^(bseq|sig|m|M|d|D|mem|db)((\d+)|((\d+)_(\d+)))(c(\d+))?$/))
+  {
     let type = m[1], range = r_from_str(m[2]), seq = range[1];
     let cfid = m[8] ? +m[8] : 0;
     assert(type=='m' || range[0]==range[1], 'invalid range '+v);
@@ -221,7 +222,9 @@ function assert_no_corruption(scroll){
 function c_id2pos(scroll, cfid){
   return Array.from(scroll.conflict.keys()).indexOf(cfid); }
 
-const get_val = (exp, def_type='right')=>etask(function*_get_val(){
+const get_val = (exp, def_type='right', encode=false)=>etask(
+  function*_get_val()
+{
   let m;
   assert(typeof exp=='string', 'invalid get_val '+exp);
   if (exp=='null')
@@ -229,19 +232,19 @@ const get_val = (exp, def_type='right')=>etask(function*_get_val(){
   if ('prev_scroll1'==exp)
     return t_prev_scroll.M_hash(0, 1);
   if (/^\d+$/.test(exp))
-    return enc.encode(enc.uint64, +exp);
+    return encode ? enc.encode(enc.uint64, +exp) : +exp;
   if (m = exp.match(/^0x([0-9a-f]+)$/))
     return s2b(m[1]);
   if (m = exp.match(/^h\((.*)\)$/)){ // h(d10+sig11)
     let a=[], vars = m[1].split('+');
     for (let i=0; i<vars.length; i++)
-      a.push(yield get_val(vars[i]));
+      a.push(yield get_val(vars[i], def_type, true));
     return Scroll.hconcat_safe(a);
   }
   if (m = exp.match(/^hleaf\((.*)\)$/)){
     let a=[Scroll.LEAF_TYPE], vars = m[1].split('+');
     for (let i=0; i<vars.length; i++)
-      a.push(yield get_val(vars[i]));
+      a.push(yield get_val(vars[i], def_type, true));
     return Scroll.hconcat(a);
   }
   if (m = exp.match(/^hroot\((.*)\)$/)){
@@ -249,7 +252,7 @@ const get_val = (exp, def_type='right')=>etask(function*_get_val(){
     for (let i=0; i<vars.length; i++){
       let v = vars[i];
       let r = r_from_str(v.replace(/^([a-zA-Z]+[\d]+\.)?m(.*)$/, '$2'));
-      a.push(yield get_val(v));
+      a.push(yield get_val(v, def_type, true));
       a.push(enc_u64(r[0]));
       a.push(enc_u64(r[1]-r[0]+1));
     }
@@ -257,10 +260,12 @@ const get_val = (exp, def_type='right')=>etask(function*_get_val(){
   }
   if (m = exp.match(/^sign\((.*)\+(.*)\)$/)){ // sign(d10+M9)
     return crypto.sign(Scroll.hconcat([yield get_val(m[1]),
-      yield get_val(m[2])]), t_keypair.key);
+      yield get_val(m[2])], def_type, true), t_keypair.key);
   }
-  if (m = exp.match(/^sign\((.*)\)$/)) // sign(d10)
-    return crypto.sign(crypto.blake2b(yield get_val(m[1])), t_keypair.key);
+  if (m = exp.match(/^sign\((.*)\)$/)){ // sign(d10)
+    return crypto.sign(crypto.blake2b(yield get_val(m[1], def_type, true)),
+      t_keypair.key);
+  }
   let o = parse_var(exp), {type, seq, cfid} = o;
   if (o.def)
     set_def(def_type, o.ctx);
@@ -269,6 +274,7 @@ const get_val = (exp, def_type='right')=>etask(function*_get_val(){
   let name = o.ctx||get_def(def_type||'right'), scroll = get_scroll(name);
   switch (type){
   case 'sig': return scroll.seq_sig(cfid, seq);
+  case 'bseq': return scroll.bseq_get(cfid, seq);
   case 'M': return scroll.M_hash(cfid, seq);
   case 'd': return scroll.seq_d(cfid, seq);
   case 'D': return scroll.seq_D(cfid, seq);
@@ -285,8 +291,8 @@ const get_val = (exp, def_type='right')=>etask(function*_get_val(){
   assert.fail('invalid val exp '+exp);
 });
 
-const test_decl = (scroll, data)=>etask(function*test_decl(){
-  yield scroll.decl(data);
+const test_decl = (scroll, data, opt={})=>etask(function*test_decl(){
+  yield scroll.decl(opt, data);
   yield xsinon.tick(1, {force: true});
 });
 
@@ -382,7 +388,7 @@ const cmd_db_copy = t=>etask(function*cmd_db_copy(){
   yield soul.db.copy(s_soul.db);
 });
 
-const new_scroll = (name, M, prev_scroll, sname, db_opt)=>etask(
+const new_scroll = (name, M, prev_scroll, sname, db_opt, scroll_decl)=>etask(
   function*new_scroll(){
   let soul, scroll;
   if (t_soul_mode=='differnt'){
@@ -407,12 +413,14 @@ const new_scroll = (name, M, prev_scroll, sname, db_opt)=>etask(
     storage = new Storage_handler({db: soul.db});
   }
   if (M){
+    assert(!scroll_decl, 'cannot modify scroll_decl in clone');
     scroll = yield Scroll.open({soul, key: t_keypair.key,
       pub: t_keypair.pub, M, storage});
   }
   else {
     scroll = yield Scroll.create({soul, key: t_keypair.key,
-      pub: t_keypair.pub, prev_scroll, storage}, {topic: 'test'});
+      pub: t_keypair.pub, prev_scroll, storage},
+      {topic: 'test', ...scroll_decl});
   }
   t_scroll[name] = scroll;
   scroll.t = {name};
@@ -429,7 +437,7 @@ const cmd_flush = t=>etask(function*cmd_flush(){
 
 const cmd_scroll = t=>etask(function*cmd_scroll(){
   let prev_scroll = yield t_prev_scroll.M_hash(0, 1), db_opt;
-  let name = t.ctx||get_def('left'), M, a, scroll, d;
+  let name = t.ctx||get_def('left'), M, a, scroll, d, feature;
   assert(!t.l, 'invalid arg '+t.meta.s);
   assert(!t_scroll[name], 'scroll already exist '+name);
   for (let curr=t.r, i=0; curr = tparser.parse_get_next(curr); i++){
@@ -448,6 +456,7 @@ const cmd_scroll = t=>etask(function*cmd_scroll(){
       else if (a=tt.r.match(/^(\d+)$/))
         d = [+a[1], +a[1]];
       break;
+    case 'feature': feature = tt.r.split(' '); break;
     default:
       t2 = tparser.parse_exp_arg_pair(curr.exp);
       if (a = t2.l.match(/^M(\d+)$/)){
@@ -459,7 +468,8 @@ const cmd_scroll = t=>etask(function*cmd_scroll(){
       assert.fail('invalid arg '+tt.cmd+' in '+t.meta.s);
     }
   }
-  scroll = yield new_scroll(name, M, prev_scroll, t.prev?.ctx, db_opt);
+  scroll = yield new_scroll(name, M, prev_scroll, t.prev?.ctx, db_opt,
+    feature && {feature});
   if (d!==undefined){
     for (let j=d[0]; j<=d[1]; j++)
       yield test_decl(scroll, ''+j);
@@ -484,7 +494,7 @@ const cmd_clone = (curr, t)=>etask(function*cmd_clone(){
     set_def('right', src);
   let s_src = get_scroll(src);
   let s_dst = yield new_scroll(dst, s_src.M_hash(0, 0), null, t.prev?.ctx,
-    db_opt);
+    db_opt, null);
   let seq = m[6] ? +m[7] : s_src.top.seq;
   yield s_dst.lock();
   if (Array.from(s_src.conflict.keys()).length>1){
@@ -508,31 +518,40 @@ const cmd_clone = (curr, t)=>etask(function*cmd_clone(){
 
 const cmd_decl = t=>etask(function*cmd_decl(){
   let name = t.ctx||get_def('left'), scroll = get_scroll(name);
+  let branch, prev, s, e, data;
   assert(!t.l, 'invalid left arg '+t.meta.s);
   assert(t.r, 'missing arg '+t.meta.s);
   for (let curr=t.r, i=0; curr = tparser.parse_get_next(curr); i++){
-    let tt = tparser.parse_exp_arg(curr.exp), a, data=[];
+    let tt = tparser.parse_exp_arg(curr.exp), a;
     switch (tt.cmd){
     case 'data':
       a = tt.r.split(' ');
+      data = [];
       for (let j=0; j<a.length; j++){
         let sz = assert_kb(a[j]);
         data.push(Buffer.alloc(sz, scroll.conflict.get(0).top.seq+j));
       }
-      yield test_decl(scroll, data);
       break;
+    case 'branch': branch = tt.r; break;
+    case 'prev': branch = tt.r; break;
     case '-':
       assert(/^\d+$/.test(tt.l) && /^\d+$/.test(tt.r), 'invalid -: '+t.meta.s);
-      for (let j=+tt.l; j<=+tt.r; j++)
-        yield test_decl(scroll, ''+j);
+      [s, e] = [+tt.l, +tt.r];
       break;
     default:
       if (/^\d+$/.test(tt.cmd))
-        yield test_decl(scroll, tt.cmd);
+        data = tt.cmd;
       else
         assert.fail('invalid arg '+tt.cmd+' in '+t.meta.s);
     }
   }
+  if (s!==undefined){
+    assert(!prev && !branch, 'cannot use prev/branch in mutli decl');
+    for (let j=s; j<=e; j++)
+      yield test_decl(scroll, ''+j);
+    return;
+  }
+  yield test_decl(scroll, data, {prev, branch});
 });
 
 function state_split_var(v, def){
@@ -1068,6 +1087,7 @@ describe('test_util', ()=>{
     t('M0', 'M 0');
     t('sig0', 'sig 0');
     t('sig10', 'sig 10');
+    t('bseq0', 'bseq 0');
     t('m0_0', 'm 0');
     t('m0_1', 'm 0_1');
     t('m2_3', 'm 2_3');
@@ -2084,6 +2104,51 @@ describe('scroll', ()=>{
           tput(0_1_2_3 4 5 6      ) c(M9 5t0.M6) S.D4c0=s.D4
           tput(0_1_2_3 4_5 6 7    ) c(M9) S.D4c0=s.D4`);
       });
+    });
+    describe('branch', ()=>{
+//      if (true) return; // XXX WIP
+/* [{seq: 0}, {scroll: {
+     crypt: [{sig: 'ed25519', hash: 'blake2b', lif: 'lif1'}],
+     pub: '44659cb51dec397ea66085679442505345e159940762c15ef75ad279ecf05033',
+     topic: 'git',
+     src: 'https://github.com/lif-zone/test_merge_simple',
+     feature: ['branch'],
+     key_val: ['dir', 'file', 'git_branch', 'tag'],
+     op_default: 'mod'}}
+   ]
+*/
+      t('xxx1', `
+        s..scroll(feature:branch)
+        decl(1)                  // bseq1=1
+        decl(2 branch:b)         // bseq2=1._0
+        decl(3)                  // bseq3=1._1
+        decl(4 prev:1)           // bseq4=2
+        decl(5)                  // bseq5=3`);
+      t('xxx2', `
+        s..scroll(feature:branch)
+        decl(1)                  // bseq1=1
+        decl(2 branch:b)         // bseq2=1._0
+        decl(3)                  // bseq3=1._1
+        decl(4 branch:b2)        // bseq4=1._1._0
+        decl(5)                  // bseq5=1._1._1
+        decl(6 prev 3)           // bseq6=1._2`);
+      t('xxx3', `
+        s..scroll(feature:branch)
+        decl(1)                  // bseq1=1
+        decl(2 branch:b)         // bseq2=1._0
+        decl(3)                  // bseq3=1._1
+        decl(4 prev:2 branch:b2) // bseq4=1._0._0
+        decl(5)                  // bseq5=1._0._1`);
+      t('xxx4', `
+        s..scroll(feature:branch)
+        decl(1)                  // bseq1=1
+        decl(2 branch:b)         // bseq2=1._0
+        decl(3)                  // bseq3=1._1
+        decl(4 prev:1 branch:b2) // bseq4=???
+        decl(5)                  // bseq5=???`);
+      // XXX: support bseq1=mem1.bseq (M1=mem1.M, ...)
+      // m0_1=mem1.m0_1 or
+      // m0_1=mem1.m0
     });
     describe('storage', ()=>{
       describe('mem', ()=>{

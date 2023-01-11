@@ -162,6 +162,7 @@ class Frame_buffer extends EventEmitterAsync {
     return h;
   }); }
   sig_get(){ return this.frames[0].sig; }
+  bseq_get(){ return this.frames[0].bseq; }
   sig_set(sig){ return etask({_: this}, function*(){
     let _this = this._;
     assert(sig, 'missing sig');
@@ -1054,6 +1055,7 @@ export default class Scroll extends EventEmitterAsync {
     return hconcat_safe(a);
   }
   seq_sig(cfid, seq){ return this.get_decl(seq)?.sig_get(cfid); }
+  bseq_get(cfid, seq){ return this.get_decl(seq)?.bseq_get(cfid); }
   seq_d(cfid, seq){ return this.get_decl(seq).d_hash(cfid); }
   seq_D(cfid, seq){
     return this.get_decl(seq).fbuf_get(cfid).get_frames(); }
@@ -1163,6 +1165,7 @@ class Decl extends EventEmitterAsync {
   }); }
   sig_set(cfid, sig){ return this.fbuf_get(cfid).sig_set(sig); }
   sig_get(cfid){ return this.fbuf_get(cfid).sig_get(); }
+  bseq_get(cfid){ return this.fbuf_get(cfid).bseq_get(); }
   fbuf_get(cfid){ return this.data.get(this.to_c(cfid)); }
   data_get(){ return this.data; }
   d_hash(cfid){ return this.fbuf_get(cfid).get_hash(); }

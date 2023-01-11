@@ -2122,6 +2122,8 @@ br:null seq:4 bseq:2
         decl(1) bseq1=1
         decl(2) bseq2=2
         decl(3) bseq3=3`);
+      // XXX: create test with partial scroll and rebuild bseq
+      // XXX: create test with conflict+branch
       if (true) return; // XXX WIP
       t('one_branch', `
         s..scroll

@@ -33,28 +33,34 @@ class Data extends EventEmitterAsync {
   constructor(opt){
     super();
     assert(opt?.seq>=0, 'invalid seq '+opt?.seq);
+    assert(opt.scroll, 'missing scroll');
     this.seq = opt.seq;
+    this.scroll = opt.scroll;
     this.cmap = new Map();
     let fbuf = new Frame_buffer(opt);
     fbuf.on('hash', this.on_hash);
     fbuf.on('data', this.on_data);
     fbuf.on('sig', this.on_sig);
-    fbuf.map_info = {_: this, cfid: 0};
+    fbuf.ctx = {data: this, scroll: this.scroll, seq: this.seq, cfid: 0};
     this.cmap.set(0, fbuf);
   }
-  on_hash(){ return this.map_info._.emit_async('hash',
-    {seq: this.map_info._.seq, cfid: this.map_info.cfid}); }
-  on_data(){ return this.map_info._.emit_async('data',
-    {seq: this.map_info._.seq, cfid: this.map_info.cfid}); }
-  on_sig(){ return this.map_info._.emit_async('sig',
-    {seq: this.map_info._.seq, cfid: this.map_info.cfid}); }
+  on_hash(){ return this.ctx.data.emit_async('hash',
+    {seq: this.ctx.seq, cfid: this.ctx.cfid}); }
+  on_data(){ return etask({_: this}, function*on_data(){
+    let _this = this._;
+    let {data, seq, cfid, scroll} = _this.ctx;
+    yield data.emit_async('data', {seq, cfid});
+    yield scroll.on_data({seq, cfid});
+  }); }
+  on_sig(){ return this.ctx.data.emit_async('sig',
+    {seq: this.ctx.seq, cfid: this.ctx.cfid}); }
   get(cfid){
     assert(cfid>=0, 'invalid cfid'+cfid);
     let fbuf = this.cmap.get(cfid);
     if (fbuf)
       return fbuf;
     fbuf = new Frame_buffer();
-    fbuf.map_info = {_: this, cfid};
+    fbuf.ctx = {data: this, scroll: this.scroll, seq: this.seq, cfid};
     fbuf.on('hash', this.on_hash);
     fbuf.on('data', this.on_data);
     fbuf.on('sig', this.on_sig);
@@ -66,17 +72,18 @@ class Data extends EventEmitterAsync {
     if (fsrc.frames.length==1 && !fsrc.frames[0].h_rest)
       return;
     let fdst = _this.get(cdst);
-    assert.equal(fsrc.map_info.cfid, csrc);
-    assert.equal(fdst.map_info.cfid, cdst);
-    assert(!fdst.h && fdst.frames.length==1 && !fdst.frames[0].h_rest,
+    assert.equal(fsrc.ctx.cfid, csrc);
+    assert.equal(fdst.ctx.cfid, cdst);
+    assert(!fdst.get_hash() && fdst.frames.length==1,
       'already contain data seq'+_this.seq);
-    fdst.h = fsrc.h;
     fdst.frames = fsrc.frames;
     _this.cmap.delete(csrc);
-    if (fdst.h){
-      yield _this.emit_async('hash', {seq: _this.seq, cfid: cdst});
-      yield _this.emit_async('data', {seq: _this.seq, cfid: cdst});
+    if (fdst.get_hash()){
+      yield fdst.emit_async('hash');
+      yield fdst.emit_async('data');
     }
+    if (fdst.sig_get())
+      yield fdst.emit_async('sig');
   }); }
 }
 
@@ -482,7 +489,7 @@ export default class Scroll extends EventEmitterAsync {
     if (branch)
       header.branch = branch;
     yield _this.lock();
-    let data = new Data({seq, frames: [header].concat(frames)});
+    let data = new Data({scroll: _this, seq, frames: [header].concat(frames)});
     let decl = new Decl({scroll: _this, seq, data});
     _this.dmap.set(seq, decl);
     _this.emit('decl', decl);
@@ -1080,7 +1087,7 @@ export default class Scroll extends EventEmitterAsync {
     let decl = this.dmap.get(seq);
     if (decl || opt.create===false)
       return decl;
-    decl = new Decl({scroll: this, seq, data: new Data({seq})});
+    decl = new Decl({scroll: this, seq, data: new Data({scroll: this, seq})});
     this.dmap.set(seq, decl);
     this.emit('decl', decl);
     decl.init();
@@ -1124,6 +1131,7 @@ export default class Scroll extends EventEmitterAsync {
     _this.top = max_top;
   }); }
   flush(){ return this.storage?.flush(); }
+  on_data = e=>{};
 }
 
 class Decl extends EventEmitterAsync {

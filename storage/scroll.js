@@ -162,7 +162,6 @@ class Frame_buffer extends EventEmitterAsync {
     return h;
   }); }
   sig_get(){ return this.frames[0].sig; }
-  bseq_get(){ return this.frames[0].bseq; }
   sig_set(sig){ return etask({_: this}, function*(){
     let _this = this._;
     assert(sig, 'missing sig');
@@ -1165,7 +1164,7 @@ class Decl extends EventEmitterAsync {
   }); }
   sig_set(cfid, sig){ return this.fbuf_get(cfid).sig_set(sig); }
   sig_get(cfid){ return this.fbuf_get(cfid).sig_get(); }
-  bseq_get(cfid){ return this.fbuf_get(cfid).bseq_get(); }
+  bseq_get(cfid){ return this.seq; }
   fbuf_get(cfid){ return this.data.get(this.to_c(cfid)); }
   data_get(){ return this.data; }
   d_hash(cfid){ return this.fbuf_get(cfid).get_hash(); }

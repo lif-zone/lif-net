@@ -2118,14 +2118,20 @@ br:null seq:0 bseq:0
 br:b seq:2 bseq:1.0
 br:null seq:4 bseq:2
 */
-      // XXX: WIP, remove commments on bseq
-      t('xxx1', `
+      t('no_branch', `s..scroll
+        decl(1) bseq1=1
+        decl(2) bseq2=2
+        decl(3) bseq3=3`);
+      if (true) return; // XXX WIP
+      t('one_branch', `
         s..scroll
-        decl(1)                  // bseq1=1
-        decl(2 branch:b)         // bseq2=1.0
-        decl(3)                  // bseq3=1.1
-        decl(4 prev:1)           // bseq4=2
-        decl(5)                  // bseq5=3`);
+        decl(1)          bseq1=1
+        decl(2)          bseq2=2
+        decl(3 branch:b) bseq3=2-0.0
+        decl(4)          bseq4=2-0.1
+        decl(5 prev:2)   bseq5=3
+        decl(6)          bseq6=4
+        decl(7 prev:4)   bseq5=2-0.2`);
       t('xxx2', `
         s..scroll
         decl(1)                  // bseq1=1

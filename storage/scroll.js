@@ -1151,16 +1151,18 @@ export default class Scroll extends EventEmitterAsync {
       for (let decl = _this.get_decl(seq); decl; decl = decl.next()){
         if (decl.seq!=seq) // XXX: we are called during load of seq
           yield decl.load(cfid);
-        if (!decl.data_get().get(cfid).get_json(1)) // XXX: get_header()
+        let o2 = decl.data_get().get(cfid).get_json(1); // XXX: get_header()
+        if (!o2)
           break;
         btable.data_seq = Math.max(btable.data_seq, decl.seq);
-        // XXX: need to rebuild bseq for new decl
+        _this.do_on_data(btable, decl.seq, o2.branch, o2.prev);
       }
       xerr.notice('XXX NEW data_seq %s', btable.data_seq);
     }
+  }); }
+  do_on_data(btable, seq, branch, prev){
     if (seq > btable.data_seq)
       return;
-    let {branch, prev} = o;
     if (!branch && !prev)
       return;
     if (branch){
@@ -1185,7 +1187,7 @@ export default class Scroll extends EventEmitterAsync {
       // XXX: what if no bseq
       btable.add_branch({branch, seq, bseq: br_seq_inc(bseq)});
     }
-  }); }
+  }
   get_branch_table(cfid){
     if (!this.branch)
       this.branch = new Map();

@@ -572,6 +572,8 @@ function state_split_var(v, def){
   let name = o.ctx||def||get_def('left');
   if (['db_c', 'db_data', 'mem_c'].includes(type))
     return {name, type};
+  if (type=='bseq')
+    return {name, type, seq, cfid};
   assert(['mem', 'db'].includes(type), 'invalid type '+type);
   assert.equal(cfid, '0', 'invalid conflict usage');
   return {name, type, seq};
@@ -584,6 +586,8 @@ const state_split = (exp, def)=>etask(function*state_split(){
   case '=':
     if (['db_data'].includes(o.l))
       return {...state_split_var(o.l, def), val: yield get_db_data(o.r)};
+    if (/^bseq/.test(o.l))
+      return {...state_split_var(o.l, def), val: yield get_val(o.r, 'right')};
     if (['db_c', 'mem_c'].includes(o.l))
       return {...state_split_var(o.l, def), val: yield get_static_c(o.r)};
     return {...state_split_var(o.l, def),
@@ -593,12 +597,25 @@ const state_split = (exp, def)=>etask(function*state_split(){
 });
 
 function state_apply(state, o){
-  let {type, seq, val} = o;
+  let {type, seq, cfid, val} = o;
   if (['db_c', 'db_data', 'mem_c'].includes(type)){
     if (val)
       state[type] = val;
     else
       delete state[type];
+    return;
+  }
+  xerr.notice('XXX state_apply type %s seq %s', type, seq);
+  if (['bseq'].includes(type)){
+    if (val!==null && val!==undefined){
+      state.bseq[cfid] = state.bseq[cfid]||{};
+      assert(state.bseq[cfid][seq] != val,
+        'uneeded state_apply bseq'+seq+(cfid ? 'c0' : '')+'='+val);
+      state.bseq[cfid][seq] = val;
+    } else if (state.bseq[cfid])
+      delete state.bseq[cfid][seq];
+    if (state.bseq[cfid] && !Object.keys(state.bseq[cfid]).length)
+      delete state.bseq[cfid];
     return;
   }
   if (val)
@@ -616,6 +633,7 @@ function get_filter(s){
     case 'db_c': break;
     case 'mem': break;
     case 'mem_c': break;
+    case 'bseq': break;
     default: return;
     }
   }
@@ -628,13 +646,29 @@ const cmd_state = (curr, t)=>etask(function*cmd_state(){
   let scroll = get_scroll(t.ctx||get_def('left'), true);
   let soul = scroll?.soul;
   state.mem = {};
+  // XXX: optimize, get state only if is in filter
   if (scroll){
+    // XXX: use decl.next (and clean all over code)
     for (const [seq, decl] of scroll.dmap){
       let o = struct_from_decl(decl);
       if (o)
         state.mem[seq] = o;
     }
     state.mem_c = yield mem_get_c(scroll);
+    state.bseq = {};
+    // XXX: create api with next (like decl) and clean all over
+    for (const [cfid] of scroll.conflict){
+      for (let decl = scroll.get_decl(0, {create: false}); decl;
+        decl = decl.next())
+      {
+        let seq = decl.seq, bseq = decl.bseq_get(cfid, seq);
+        if (bseq){
+          state.bseq[cfid] = state.bseq[cfid]||{};
+          state.bseq[cfid][seq] = bseq;
+        } else if (state.bseq[cfid])
+          delete state.bseq[cfid][seq];
+      }
+    }
   }
   let db = soul?.db;
   if (db?.inited){
@@ -649,32 +683,38 @@ const cmd_state = (curr, t)=>etask(function*cmd_state(){
   state = fix_buf(state);
   if (get_filter(t.r)){
     t_state[name] = state;
-    return t_state.filter = get_filter(t.r);
+    t_state.filter = get_filter(t.r);
+    return;
   }
   if (!t_state[name]){
     assert(!t.r, 'first # must be empty or list of types');
     t_state[name] = state;
+    t_state.filter = ['db', 'db_data', 'db_c', 'mem', 'mem_c'];
     return;
   }
   for (let curr=t.r; curr = tparser.parse_get_next(curr);)
     state_apply(t_state[name], yield state_split(curr.exp, name));
-  if (!t_state.filter || t_state.filter.includes('mem_c')){
+  if (t_state.filter.includes('mem_c')){
     assert_b2s_obj(state.mem_c, t_state[name].mem_c,
       'mem conflict state mismach '+t.meta.s);
   }
-  if (!t_state.filter || t_state.filter.includes('mem')){
+  if (t_state.filter.includes('mem')){
     assert_b2s_obj(state.mem, t_state[name].mem,
       'mem state mismach '+t.meta.s);
   }
-  if (!t_state.filter || t_state.filter.includes('db_c')){
+  if (t_state.filter.includes('db_c')){
     assert_b2s_obj(state.db_c, t_state[name].db_c,
       'db conflict state mismach '+t.meta.s);
   }
-  if (!t_state.filter || t_state.filter.includes('db'))
+  if (t_state.filter.includes('db'))
     assert_b2s_obj(state.db, t_state[name].db, 'db state mismach '+t.meta.s);
-  if (!t_state.filter || t_state.filter.includes('db_data')){
+  if (t_state.filter.includes('db_data')){
     assert_b2s_obj(state.db_data, t_state[name].db_data,
       'db_data state mismach '+t.meta.s);
+  }
+  if (t_state.filter.includes('bseq')){
+    assert_b2s_obj(state.bseq, t_state[name].bseq,
+      'bseq state mismach '+t.meta.s);
   }
   t_state[name] = state;
 });
@@ -2231,14 +2271,36 @@ describe('scroll', ()=>{
       });
       describe('partial', ()=>{
         // XXX: WIP
-        t('no_branch', `s..scroll decl(1-9) S..scroll(s..M0)
-          tput(0) bseq0=0
-          tput(0 1      ) bseq0=0 bseq1=1 !bseq2
-          tput(0 1 2_3 4) !bseq2 !bseq3 !bseq4 !bseq5
-          tput(0 1 2 3  ) !bseq2 !bseq3
-          tput(0 1 2    ) bseq2=2 bseq3=3 bseq4=4 !bseq5
+        t('no_branch', `s..scroll decl(1-9) S..scroll(s..M0) #bseq
+          tput(0) bseq0=0 #bseq0=0
+          tput(0 1      ) #bseq1=1
+          tput(0 1 2_3 4) #
+          tput(0 1 2 3  ) #
+          tput(0 1 2    ) #(bseq2=2 bseq3=3 bseq4=4)
           // XXX tput(0 1 2_3 4_7 8 9) bseq0=0 !bseq9
           `);
+        t('one_branch', `s..scroll decl(1)
+          decl(2)          bseq2=2
+          decl(3 branch:b) bseq3=2-0.0
+          decl(4)          bseq4=2-0.1
+          decl(5 prev:2)   bseq5=3
+          decl(6)          bseq6=4
+          decl(7 prev:4)   bseq7=2-0.2
+          decl(8)          bseq8=2-0.3
+          decl(9 prev:6)   bseq9=5
+          S..scroll(s..M0) #bseq
+          tput(0)         #bseq0=0
+          tput(0 1      ) #bseq1=1
+          tput(0 1 2_3 4) #
+          tput(0 1 2 3  ) #
+          tput(0 1 2    ) #(bseq2=2 bseq3=2-0.0 bseq4=2-0.1)
+          tput(0 1 2_3 4 5 6_7 8  ) #
+          tput(0 1 2_3 4 5 6_7 8 9) #
+          tput(0 1 2_3 4 5        ) #bseq5=3
+          tput(0 1 2_3 4 5 6      ) #
+          // XXX          tput(0 1 2_3 4 5 6 7    ) #bseq6=4
+          // XXX          tput(0 1 2_3 4 5 6 8    )
+        `);
       });
       // XXX: check with derry etask.ps() of decl->sign
       // XXX: simplify storage testing with mem

@@ -664,6 +664,8 @@ const cmd_state = t=>etask(function*cmd_state(){
       for (let decl = scroll.get_decl(0, {create: false}); decl;
         decl = decl.next())
       {
+        if (decl.to_c(cfid)!=cfid)
+          continue;
         let seq = decl.seq, bseq = decl.bseq_get(cfid, seq);
         if (bseq){
           state.bseq[cfid] = state.bseq[cfid]||{};
@@ -2308,8 +2310,9 @@ describe('scroll', ()=>{
           tput(0 1 2_3 4 5 6_7 8  ) #
           tput(0 1 2_3 4 5 6_7 8 9) #
           tput(0 1 2_3 4 5        ) #bseq5=5
-          tput(0 1 2_3 4 5 6      ) #
-          tput(0 1 2_3 4 5 6 7    ) #(bseq6=6 bseq7=7 bseq8=8 bseq9=9)`);
+          tput(0 1 2_3 4 5 6      ) #bseq6c1=6
+          tput(0 1 2_3 4 5 6 7    ) #(bseq6=6 bseq7=7 bseq8=8 bseq9=9
+            !bseq6c1)`);
         t('one_branch', `s..scroll decl(1) decl(2) decl(3 branch:b) decl(4)
           decl(5 prev:2) decl(6) decl(7 prev:4) decl(8) decl(9 prev:6)
           S..scroll(s..M0) #bseq
@@ -2321,9 +2324,42 @@ describe('scroll', ()=>{
           tput(0 1 2_3 4 5 6_7 8  ) #
           tput(0 1 2_3 4 5 6_7 8 9) #
           tput(0 1 2_3 4 5        ) #bseq5=3
-          tput(0 1 2_3 4 5 6      ) #
-          tput(0 1 2_3 4 5 6 7    ) #(bseq6=4 bseq7=2-1.2 bseq8=2-1.3 bseq9=5)
+          tput(0 1 2_3 4 5 6      ) #bseq6c1=4
+          tput(0 1 2_3 4 5 6 7    ) #(bseq6=4 bseq7=2-1.2 bseq8=2-1.3 bseq9=5
+            !bseq6c1)
         `);
+        // XXX: track mem_c (in all branch tests)
+        t('conflict_no_branch', `s..scroll decl(1-4)
+          s1..clone(s.M1) decl(2-4) S..scroll(s..M0) #bseq
+          tput(0) #bseq0=0
+          tput(0 1) #bseq1=1
+          tput(0 1 2    ) #bseq2=2
+          tput(0 1 2 3  ) #bseq3=3
+          tput(0 1 2 3 4) #bseq4=4
+          tput(0_1 c    ) #bseq2c1=2
+          tput(0_1 c d  ) #bseq3c1=3
+          tput(0_1 c d e) #bseq4c1=4`);
+        t('conflict_two_branch_same', `s..#bseq
+          s..#bseq scroll          #bseq0=0
+          decl(1)                  #bseq1=1
+          decl(2 branch:b)         #bseq2=1-1.0
+          decl(3)                  #bseq3=1-1.1
+          decl(4 prev:1 branch:b2) #bseq4=1-2.0
+          decl(5)                  #bseq5=1-2.1
+          s1..#bseq clone(s.M2)    #(bseq0=0 bseq1=1 bseq2=1-1.0)
+          decl(3)                  #bseq3=1-1.1
+          decl(4)                  #bseq4=1-1.2
+          decl(5 prev:1 branch:b2) #bseq5=1-2.0
+          S..scroll(s..M0) #bseq   #
+          tput(0)                  #bseq0=0
+          tput(0 1)                #bseq1=1
+          tput(0 1 2      )        #bseq2=1-1.0
+          tput(0 1 2 3    )        #bseq3=1-1.1
+          tput(0 1 2 3 4  )        #bseq4=1-2.0
+          tput(0 1 2 3 4 5)        #bseq5=1-2.1
+          tput(0_1 2 d    )        #bseq3c1=1-1.1
+          tput(0_1 2 d e  )        #bseq4c1=1-1.2
+          tput(0_1 2 d e f)        #bseq5c1=1-2.0`);
       });
       // XXX: check with derry etask.ps() of decl->sign
       // XXX: simplify storage testing with mem

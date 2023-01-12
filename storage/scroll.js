@@ -1147,7 +1147,14 @@ export default class Scroll extends EventEmitterAsync {
     let btable = _this.get_branch_table(cfid);
     xerr.notice('XXX on_data seq%s cfid %s data_seq %s', seq, cfid,
       btable.data_seq);
-    if (seq==0 || btable.data_seq==seq-1){
+    let seq0 = 0, co = _this.conflict.get(cfid);
+    if (co.parent){
+      let btable_parent = _this.get_branch_table(co.parent.cfid);
+      if (btable_parent.data_seq < co.parent.seq)
+        return;
+      seq0 = co.parent.seq+1;
+    }
+    if (seq==seq0 || btable.data_seq==seq-1){
       for (let decl = _this.get_decl(seq); decl; decl = decl.next()){
         if (decl.seq!=seq) // XXX: we are called during load of seq
           yield decl.load(cfid);
@@ -1192,7 +1199,7 @@ export default class Scroll extends EventEmitterAsync {
     let btable = this.branch.get(cfid);
     if (btable)
       return btable;
-    btable = new Branch_table();
+    btable = new Branch_table({scroll: this, cfid});
     this.branch.set(cfid, btable);
     return btable;
   }

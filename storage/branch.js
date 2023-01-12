@@ -12,18 +12,26 @@ br:null seq:4 bseq:2
 */
 
 export default class Branch_table {
-  constructor(){
+  constructor(opt){
+    this.scroll = opt.scroll;
+    this.cfid = opt.cfid;
+    assert(this.scroll && this.cfid!=undefined, 'missing scroll or cfid');
     this.data_seq = -1;
     this.branch = new Map();
     this.a = [];
     this.add_branch({branch: null, seq: 0, bseq: '0'});
   }
   get_branch(branch){ return this.branch.get(branch); }
-  get_last(seq){ // XXX: need test
-    // XXX HACK: need sorted array
-    let a = this.a, last;
+  get_last(seq, max){ // XXX: need test
+    // XXX HACK: need sorted array & optimize conflict
+    let {scroll, cfid} = this, {parent} = scroll.conflict.get(cfid), last;
+    if (parent)
+      last = scroll.get_branch_table(parent.cfid).get_last(seq, parent.seq);
+    let a = this.a;
     for (let i=0; i<a.length; i++){
       let bo = a[i];
+      if (bo.seq > max)
+        continue;
       if (!last && bo.seq <= seq)
         last = bo;
       else if (bo.seq <= seq && last.seq < bo.seq)
@@ -31,12 +39,19 @@ export default class Branch_table {
     }
     return last;
   }
-  find_avail_branch(bseq){ // XXX: need test
-    // XXX: HACK: need sorted array
+  find_avail_branch(bseq, max){ // XXX: need test
+    let {scroll, cfid} = this, {parent} = scroll.conflict.get(cfid);
+    if (parent){
+      bseq = scroll.get_branch_table(parent.cfid).find_avail_branch(bseq,
+        parent.seq);
+    }
+    // XXX HACK: need sorted array & optimize conflict
     while (true){
       let a = this.a, exists;
       for (let i=0; i<a.length; i++){
         let bo = a[i];
+        if (bo.seq > max)
+          continue;
         if (bo.bseq==bseq)
           exists = true;
       }

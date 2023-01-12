@@ -1153,8 +1153,9 @@ export default class Scroll extends EventEmitterAsync {
       }
       let bseq = btable.to_bseq(prev||seq-1);
       // XXX: what if no bseq
-      // XXX: need to call br_branch_inc if the new bseq already exists
-      btable.add_branch({branch, seq, bseq: br_branch_new(bseq)});
+      let bseq2 = br_branch_new(bseq);
+      bseq2 = btable.find_avail_branch(bseq2);
+      btable.add_branch({branch, seq, bseq: bseq2});
     } else if (prev){
       branch = btable.to_branch(prev);
       if (branch===undefined){

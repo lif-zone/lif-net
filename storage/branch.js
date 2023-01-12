@@ -28,6 +28,19 @@ export default class Branch_table {
     }
     return last;
   }
+  find_avail_branch(bseq){ // XXX: need test
+    // XXX: HACK: need sorted array
+    while (true){
+      let exists;
+      for (const [, co] of this.branch){
+        if (co.bseq==bseq)
+          exists = true;
+      }
+      if (!exists)
+        return bseq;
+      bseq = br_branch_inc(bseq);
+    }
+  }
   to_bseq(seq){
     let last = this.get_last(seq);
     if (!last) // XXX: can this happen?

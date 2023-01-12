@@ -2191,12 +2191,6 @@ describe('scroll', ()=>{
       });
     });
     describe('branch', ()=>{
-/* XXX: branch table
-branches:
-br:null seq:0 bseq:0
-br:b seq:2 bseq:1.0
-br:null seq:4 bseq:2
-*/
       t('no_branch', `s..scroll decl(1-9) bseq0=0 bseq1=1 bseq2=2 bseq3=3
         bseq4=4 bseq5=5 bseq6=6 bseq7=7 bseq8=8 bseq9=9 bseq10=_10`);
       // XXX: create test with partial scroll and rebuild bseq
@@ -2222,15 +2216,13 @@ br:null seq:4 bseq:2
         decl(4 branch:b2) bseq4=1-0.1-0.0
         decl(5)           bseq5=1-0.1-0.1
         decl(6 prev:3)    bseq6=1-0.2`);
-      if (true) return; // XXX WIP
-      t('xxx3', `
-        s..scroll
+      t('child_branch', `s..scroll bseq0=0
         decl(1)                  bseq1=1
-        decl(2 branch:b)         bseq2=1.0
-        decl(3)                  bseq3=1.1
-        decl(4 prev:2 branch:b2) bseq4=1.0.0
-        decl(5)                  bseq5=1.0.1`);
-      t('xxx4', `
+        decl(2 branch:b)         bseq2=1-0.0
+        decl(3)                  bseq3=1-0.1
+        decl(4 prev:2 branch:b2) bseq4=1-0.0-0.0
+        decl(5)                  bseq5=1-0.0-0.1`);
+      t('two_same_branch', `
         s..scroll
         decl(1)                  bseq1=1
         decl(2 branch:b)         bseq2=1-0.0

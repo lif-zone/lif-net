@@ -29,6 +29,8 @@ E.parse_get_next = function(curr){
       if (string.is_ws(c))
         continue;
       exp = c;
+      if (['(', '[', '{'].includes(c))
+        parentesis.push(c);
       state = 'exp';
       break;
     case 'exp':

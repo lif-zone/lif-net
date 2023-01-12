@@ -179,7 +179,14 @@ function get_def(type){
 function fix_buf(o){
   if (!o)
     return;
-  let ret = {};
+  let ret;
+  if (Array.isArray(o)){
+    ret = [];
+    for (let i=0; i<o.length; i++)
+      ret.push(fix_buf(o[i]));
+    return ret;
+  }
+  ret = {};
   for (let name in o){
     let v = o[name];
     if (Buffer.isBuffer(v))
@@ -591,6 +598,8 @@ const state_split = (exp, def)=>etask(function*state_split(){
       return {...state_split_var(o.l, def), val: yield get_val(o.r, 'right')};
     if (['db_c', 'mem_c'].includes(o.l))
       return {...state_split_var(o.l, def), val: yield get_static_c(o.r)};
+    if ('mem_bseq'==o.l)
+      return {...state_split_var(o.l, def), val: yield get_static_bseq(o.r)};
     return {...state_split_var(o.l, def),
       val: fix_buf(yield get_val(o.r, 'right'))};
   default: assert.fail('invalid state_split '+exp);
@@ -599,7 +608,7 @@ const state_split = (exp, def)=>etask(function*state_split(){
 
 function state_apply(state, o){
   let {type, seq, cfid, val} = o;
-  if (['db_c', 'db_data', 'mem_c'].includes(type)){
+  if (['db_c', 'db_data', 'mem_c', 'mem_bseq'].includes(type)){
     if (val)
       state[type] = val;
     else
@@ -903,18 +912,42 @@ const db_get_db_data = db=>etask(function*db_get_db_data(){
   return ret;
 });
 
-const get_static_c = exp=>etask(function*get_static_c(){
+const get_static_c = s=>etask(function*get_static_c(){
   let m;
-  if (m = exp.match(/^\{(.*)\}$/))
-    exp = m[1];
+  if (m = s.match(/^\{(.*)\}$/))
+    s = m[1];
   let o = {};
-  for (let curr=exp; curr = tparser.parse_get_next(curr);){
+  for (let curr=s; curr = tparser.parse_get_next(curr);){
     m = curr.exp.match(/^(\d+):(.*)$/);
     assert(m?.length==3, 'invalid db_c '+curr.exp);
     o[m[1]] = parse_conflict(m[2]);
     o[m[1]].top.M = b2s(yield get_val(o[m[1]].top.M));
   }
   return o;
+});
+
+const get_static_bseq = s=>etask(function*get_static_bseq(){
+  let m, m2, s2, ret = {};
+  if (m = s.match(/^\{(.*)\}$/))
+    s = m[1];
+  for (let curr=s; curr = tparser.parse_get_next(curr);){
+    m = curr.exp.match(/^(\d+):\[(.*)\]$/);
+    let cfid = +m[1];
+    assert(m[2], 'invalid mem_bseq struct '+curr.exp);
+    let a = [];
+    for (let curr2=m[2]; curr2 = tparser.parse_get_next(curr2);){
+      if (m2 = curr2.exp.match(/^\{(.*)\}$/)) // XXX: rm_parentesis
+        s2 = m2[1];
+      let bo = {};
+      for (let curr3=s2; curr3 = tparser.parse_get_next(curr3);){
+        let o = tparser.parse_exp(curr3.exp);
+        bo[o.l] = o.r=='null' ? null : o.r; // XXX yield get_val(o.r);
+      }
+      a.push(bo);
+    }
+    ret[cfid] = a;
+  }
+  return ret;
 });
 
 const db_get_scroll_decl = (db, scroll)=>etask(function*db_get_scroll_decl(){
@@ -1255,6 +1288,11 @@ describe('parser', ()=>{
     t('a[b]', ['a[b]']);
     t('a{b}', ['a{b}']);
     t('a(b c)', ['a(b c)']);
+    t('(a)', ['(a)']);
+    t('(a) (b)', ['(a)', '(b)']);
+    t('[a] [b]', ['[a]', '[b]']);
+    t('{a} {b}', ['{a}', '{b}']);
+    t('{a:0} {b:0}', ['{a:0}', '{b:0}']);
     t('a(b(c))', ['a(b(c))']);
     t('a(b(c) d(e))', ['a(b(c) d(e))']);
     t('a[b(c) d{e}]', ['a[b(c) d{e}]']);
@@ -2254,8 +2292,6 @@ describe('scroll', ()=>{
       });
     });
     describe('branch', ()=>{
-      // XXX: create test with partial scroll and rebuild bseq
-      // XXX: create test with conflict+branch
       // XXX: test with db
       // XXX: test invalid format (eg. same branch appear twice, prev to wrong
       // location etc)
@@ -2266,17 +2302,22 @@ describe('scroll', ()=>{
         t('no_branch', `s..#bseq scroll decl(1-10) #(bseq0=0 bseq1=1
           bseq2=2 bseq3=3 bseq4=4 bseq5=5 bseq6=6 bseq7=7 bseq8=8 bseq9=9
           bseq10=_10) !bseq11`);
-        t('one_branch', `s..#bseq
-          scroll           #bseq0=0
+        t('one_branch', `s..#(bseq mem_bseq)
+          scroll           #(bseq0=0 mem_bseq={0:[{branch:null seq:0 bseq:0}]})
           decl(1)          #bseq1=1
           decl(2)          #bseq2=2
-          decl(3 branch:b) #bseq3=2-1.0
+          decl(3 branch:b) #(bseq3=2-1.0
+            mem_bseq={0:[{branch:null seq:0 bseq:0} {branch:b seq:3 bseq:2-1.0}]})
           decl(4)          #bseq4=2-1.1
-          decl(5 prev:2)   #bseq5=3
+          decl(5 prev:2)   #(bseq5=3
+            mem_bseq={0:[{branch:null seq:0 bseq:0} {branch:b seq:3 bseq:2-1.0} {branch:null seq:5 bseq:3}]})
           decl(6)          #bseq6=4
-          decl(7 prev:4)   #bseq7=2-1.2
+          decl(7 prev:4)   #(bseq7=2-1.2
+            mem_bseq={0:[{branch:null seq:0 bseq:0} {branch:b seq:3 bseq:2-1.0} {branch:null seq:5 bseq:3} {branch:b seq:7 bseq:2-1.2}]})
           decl(8)          #bseq8=2-1.3
-          decl(9 prev:6)   #bseq9=5`);
+          decl(9 prev:6)   #(bseq9=5
+            mem_bseq={0:[{branch:null seq:0 bseq:0} {branch:b seq:3 bseq:2-1.0} {branch:null seq:5 bseq:3} {branch:b seq:7 bseq:2-1.2} {branch:null seq:9 bseq:5}]})
+          `);
         t('two_branch_differnt', `s..#bseq
           scroll            #bseq0=0
           decl(1)           #bseq1=1
@@ -2328,7 +2369,6 @@ describe('scroll', ()=>{
           tput(0 1 2_3 4 5 6 7    ) #(bseq6=4 bseq7=2-1.2 bseq8=2-1.3 bseq9=5
             !bseq6c1)
         `);
-        // XXX: track mem_c (in all branch tests)
         t('conflict_no_branch', `s..scroll decl(1-4)
           s1..clone(s.M1) decl(2-4) S..scroll(s..M0) #bseq
           tput(0) #bseq0=0

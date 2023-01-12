@@ -2249,7 +2249,7 @@ describe('scroll', ()=>{
           decl(7 prev:4)   bseq7=2-0.2
           decl(8)          bseq8=2-0.3
           decl(9 prev:6)   bseq9=5`);
-        t('two_branch', `s..scroll
+        t('two_branch_differnt', `s..scroll
           decl(1)           bseq1=1
           decl(2 branch:b)  bseq2=1-0.0
           decl(3)           bseq3=1-0.1
@@ -2262,7 +2262,7 @@ describe('scroll', ()=>{
           decl(3)                  bseq3=1-0.1
           decl(4 prev:2 branch:b2) bseq4=1-0.0-0.0
           decl(5)                  bseq5=1-0.0-0.1`);
-        t('two_same_branch', `s..scroll
+        t('two_branch_same', `s..scroll
           decl(1)                  bseq1=1
           decl(2 branch:b)         bseq2=1-0.0
           decl(3)                  bseq3=1-0.1
@@ -2277,8 +2277,11 @@ describe('scroll', ()=>{
           tput(0 1 2_3 4) #
           tput(0 1 2 3  ) #
           tput(0 1 2    ) #(bseq2=2 bseq3=3 bseq4=4)
-          // XXX tput(0 1 2_3 4_7 8 9) bseq0=0 !bseq9
-          `);
+          tput(0 1 2_3 4 5 6_7 8  ) #
+          tput(0 1 2_3 4 5 6_7 8 9) #
+          tput(0 1 2_3 4 5        ) #bseq5=5
+          tput(0 1 2_3 4 5 6      ) #
+          tput(0 1 2_3 4 5 6 7    ) #(bseq6=6 bseq7=7 bseq8=8 bseq9=9)`);
         t('one_branch', `s..scroll decl(1)
           decl(2)          bseq2=2
           decl(3 branch:b) bseq3=2-0.0

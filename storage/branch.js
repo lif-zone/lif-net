@@ -13,10 +13,10 @@ br:null seq:4 bseq:2
 export default class Branch_table {
   constructor(){
     this.branch = new Map();
+    this.add_branch({branch: null, seq: 0, bseq: '0'});
   }
-  get_branch(branch){
-  }
-  to_bseq(seq){
+  get_branch(branch){ return this.branch.get(branch); }
+  get_last(seq){
     // XXX HACK: need sorted array
     let last;
     for (const [, co] of this.branch){
@@ -25,19 +25,25 @@ export default class Branch_table {
       if (co.seq <= seq && last.seq < co.seq)
         last = co;
     }
-    if (!last)
+    return last;
+  }
+  to_bseq(seq){
+    let last = this.get_last(seq);
+    if (!last) // XXX: can this happen?
       return br_enc(seq);
     return br_seq_inc(last.bseq, seq-last.seq);
   }
+  to_branch(seq){
+    let last = this.get_last(seq);
+    return last?.branch;
+  }
   add_branch(opt){
     let {branch, seq, bseq} = opt;
-    assert(branch && seq && bseq, 'missing opt');
-    let bseq2 = br_branch_new(bseq);
-    // XXX: need to call br_branch_inc if bseq2 already exists
-    assert(!this.branch.get(branch), 'branch already exists '+branch);
-    let bo = {branch, seq, bseq: bseq2};
+    assert(Number.isInteger(seq) && seq>=0, 'invalid seq '+seq);
+    assert(typeof bseq=='string', 'invalid bseq '+bseq); // XXX: need is_valid
+    let bo = {branch, seq, bseq};
     this.branch.set(branch, bo);
-    xerr.notice('XXX branch %s seq %s bseq %s', branch, seq, bseq2);
+    xerr.notice('XXX branch %s seq %s bseq %s', branch, seq, bseq);
   }
 }
 

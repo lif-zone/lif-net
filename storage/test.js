@@ -152,7 +152,7 @@ function parse_var(v){
     let seq = +m[1], range = [seq, seq], type = 'D'+m[2], i = +m[3];
     return {seq, type, range, i, cfid, ctx, def};
   }
-  if (/^[\d,.-]+$/.test(v)) // XXX: need is_valid_branch
+  if (/^[_\d,.-]+$/.test(v)) // XXX: need is_valid_branch
     return v;
   assert.fail('invalid var '+v);
 }
@@ -238,7 +238,7 @@ const get_val = (exp, def_type='right', encode=false)=>etask(
     return t_prev_scroll.M_hash(0, 1);
   if (/^\d+$/.test(exp))
     return encode ? enc.encode(enc.uint64, +exp) : +exp;
-  if (/^[\d,.-]+$/.test(exp)) // XXX: need is_valid_branch
+  if (/^[_\d,.-]+$/.test(exp)) // XXX: need is_valid_branch
     return exp;
   if (m = exp.match(/^0x([0-9a-f]+)$/))
     return s2b(m[1]);
@@ -540,7 +540,7 @@ const cmd_decl = t=>etask(function*cmd_decl(){
       }
       break;
     case 'branch': branch = tt.r; break;
-    case 'prev': prev = tt.r; break;
+    case 'prev': prev = +tt.r; break;
     case '-':
       assert(/^\d+$/.test(tt.l) && /^\d+$/.test(tt.r), 'invalid -: '+t.meta.s);
       [s, e] = [+tt.l, +tt.r];
@@ -2193,16 +2193,13 @@ br:null seq:0 bseq:0
 br:b seq:2 bseq:1.0
 br:null seq:4 bseq:2
 */
-      t('no_branch', `s..scroll
-        decl(1) bseq1=1
-        decl(2) bseq2=2
-        decl(3) bseq3=3`);
+      t('no_branch', `s..scroll decl(1-9) bseq1=1 bseq2=2 bseq3=3 bseq4=4
+        bseq5=5 bseq6=6 bseq7=7 bseq8=8 bseq9=9 bseq10=_10`);
       // XXX: create test with partial scroll and rebuild bseq
       // XXX: create test with conflict+branch
       // XXX: test with db
       // XXX: test invalid format (eg. same branch appear twice, prev to wrong
       // location etc)
-      if (true) return; // XXX WIP
       t('one_branch', `
         s..scroll
         decl(1)          bseq1=1
@@ -2211,7 +2208,10 @@ br:null seq:4 bseq:2
         decl(4)          bseq4=2-0.1
         decl(5 prev:2)   bseq5=3
         decl(6)          bseq6=4
-        decl(7 prev:4)   bseq5=2-0.2`);
+        decl(7 prev:4)   bseq7=2-0.2
+        decl(8)          bseq8=2-0.3
+        decl(9 prev:6)   bseq9=5
+        `);
       if (true) return; // XXX WIP
       t('xxx2', `
         s..scroll

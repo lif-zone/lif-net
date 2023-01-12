@@ -14,6 +14,7 @@ import {r_fix, r_parent, r_eq, r_includes, r_str, r_split} from './range.js';
 const s2b = buf_util.buf_from_str, b2s = buf_util.buf_to_str;
 const beq = buf_util.buf_eq;
 const stringify = JSON.stringify.bind(JSON);
+const {br_branch_new, br_seq_inc} = Branch_table;
 // https://en.wikipedia.org/wiki/Merkle_tree#Second_preimage_attack
 const LEAF_TYPE = enc_u64(0), PARENT_TYPE = enc_u64(1), ROOT_TYPE = enc_u64(2);
 function enc_u64(v){ return enc.encode(enc.uint64, v); }
@@ -482,8 +483,10 @@ export default class Scroll extends EventEmitterAsync {
     cfid = cfid||0;
     let top = _this.conflict.get(cfid).top;
     let seq = top ? top.seq+1 : 0, header = {seq, ts: Date.now()};
-    if (prev>0 && prev!=seq-1)
+    if (prev>0 && prev!=seq-1){
+      assert(Number.isInteger(prev), 'invalid prev '+prev);
       header.prev = prev;
+    }
     if (group)
       header.group = group;
     if (link)
@@ -1149,7 +1152,19 @@ export default class Scroll extends EventEmitterAsync {
         return;
       }
       let bseq = btable.to_bseq(prev||seq-1);
-      btable.add_branch({branch, seq, bseq});
+      // XXX: what if no bseq
+      // XXX: need to call br_branch_inc if the new bseq already exists
+      btable.add_branch({branch, seq, bseq: br_branch_new(bseq)});
+    } else if (prev){
+      branch = btable.to_branch(prev);
+      if (branch===undefined){
+        xerr('invalid scroll - branch not found for prev %s', prev);
+        // XXX: test it and mark scroll as invalid
+        return;
+      }
+      let bseq = btable.to_bseq(prev);
+      // XXX: what if no bseq
+      btable.add_branch({branch, seq, bseq: br_seq_inc(bseq)});
     }
   };
   get_branch_table(cfid){

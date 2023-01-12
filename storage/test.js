@@ -334,6 +334,7 @@ const test_start = ()=>etask(function*test_start(){
 
 const test_end = ()=>etask(function*test_end(){
   yield xsinon.wait();
+  yield cmd_state(tparser.parse_exp('#'));
   for (let name in t_scroll){
     let scroll = t_scroll[name];
     if (scroll.storage)
@@ -641,7 +642,7 @@ function get_filter(s){
   return a;
 }
 
-const cmd_state = (curr, t)=>etask(function*cmd_state(){
+const cmd_state = t=>etask(function*cmd_state(){
   let state = {mem: {}, db: {}};
   let name = t.ctx||get_def('left');
   let scroll = get_scroll(t.ctx||get_def('left'), true);
@@ -1023,7 +1024,7 @@ const test_run_single = (curr, o)=>etask(function*_test_run_single(){
   case 'unload': yield cmd_unload(curr, o); break;
   case 'load_c': yield cmd_load_c(o); break;
   case 'tput': yield cmd_tput(curr, o); break;
-  case '#': yield cmd_state(curr, o); break;
+  case '#': yield cmd_state(o); break;
   case 'def': yield cmd_def(o); break;
   case '=': yield cmd_eq(o); break;
   case '==': yield cmd_test(o); break;
@@ -2260,40 +2261,42 @@ describe('scroll', ()=>{
       // uneeded branch table
       // XXX: support mem_bseq testing
       describe('full', ()=>{
-        // XXX: change all tests to be state based
-        t('no_branch', `s..#bseq s.scroll decl(1-10) #(bseq0=0 bseq1=1
+        t('no_branch', `s..#bseq scroll decl(1-10) #(bseq0=0 bseq1=1
           bseq2=2 bseq3=3 bseq4=4 bseq5=5 bseq6=6 bseq7=7 bseq8=8 bseq9=9
           bseq10=_10) !bseq11`);
-        t('one_branch', `s..scroll
-          decl(1)          bseq1=1
-          decl(2)          bseq2=2
-          decl(3 branch:b) bseq3=2-1.0
-          decl(4)          bseq4=2-1.1
-          decl(5 prev:2)   bseq5=3
-          decl(6)          bseq6=4
-          decl(7 prev:4)   bseq7=2-1.2
-          decl(8)          bseq8=2-1.3
-          decl(9 prev:6)   bseq9=5`);
+        t('one_branch', `s..#bseq
+          scroll           #bseq0=0
+          decl(1)          #bseq1=1
+          decl(2)          #bseq2=2
+          decl(3 branch:b) #bseq3=2-1.0
+          decl(4)          #bseq4=2-1.1
+          decl(5 prev:2)   #bseq5=3
+          decl(6)          #bseq6=4
+          decl(7 prev:4)   #bseq7=2-1.2
+          decl(8)          #bseq8=2-1.3
+          decl(9 prev:6)   #bseq9=5`);
         t('two_branch_differnt', `s..#bseq
-          s.scroll         #bseq0=0
+          scroll            #bseq0=0
           decl(1)           #bseq1=1
           decl(2 branch:b)  #bseq2=1-1.0
           decl(3)           #bseq3=1-1.1
           decl(4 branch:b2) #bseq4=1-1.1-1.0
           decl(5)           #bseq5=1-1.1-1.1
           decl(6 prev:3)    #bseq6=1-1.2`);
-        t('child_branch', `s..scroll
-          decl(1)                  bseq1=1
-          decl(2 branch:b)         bseq2=1-1.0
-          decl(3)                  bseq3=1-1.1
-          decl(4 prev:2 branch:b2) bseq4=1-1.0-1.0
-          decl(5)                  bseq5=1-1.0-1.1`);
-        t('two_branch_same', `s..scroll
-          decl(1)                  bseq1=1
-          decl(2 branch:b)         bseq2=1-1.0
-          decl(3)                  bseq3=1-1.1
-          decl(4 prev:1 branch:b2) bseq4=1-2.0
-          decl(5)                  bseq5=1-2.1`);
+        t('child_branch', `s..#bseq
+          scroll                   #bseq0=0
+          decl(1)                  #bseq1=1
+          decl(2 branch:b)         #bseq2=1-1.0
+          decl(3)                  #bseq3=1-1.1
+          decl(4 prev:2 branch:b2) #bseq4=1-1.0-1.0
+          decl(5)                  #bseq5=1-1.0-1.1`);
+        t('two_branch_same', `s..#bseq
+          scroll                   #bseq0=0
+          decl(1)                  #bseq1=1
+          decl(2 branch:b)         #bseq2=1-1.0
+          decl(3)                  #bseq3=1-1.1
+          decl(4 prev:1 branch:b2) #bseq4=1-2.0
+          decl(5)                  #bseq5=1-2.1`);
       });
       describe('partial', ()=>{
         t('no_branch', `s..scroll decl(1-9) S..scroll(s..M0) #bseq

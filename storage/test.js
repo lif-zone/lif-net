@@ -540,7 +540,11 @@ const cmd_decl = t=>etask(function*cmd_decl(){
       }
       break;
     case 'branch': branch = tt.r; break;
-    case 'prev': prev = +tt.r; break;
+    case 'prev':
+      prev = +tt.r;
+      // XXX: need is_positive
+      assert(tt.r && Number.isInteger(prev) && prev>=0, 'invalid prev '+tt.r);
+      break;
     case '-':
       assert(/^\d+$/.test(tt.l) && /^\d+$/.test(tt.r), 'invalid -: '+t.meta.s);
       [s, e] = [+tt.l, +tt.r];
@@ -2193,15 +2197,14 @@ br:null seq:0 bseq:0
 br:b seq:2 bseq:1.0
 br:null seq:4 bseq:2
 */
-      t('no_branch', `s..scroll decl(1-9) bseq1=1 bseq2=2 bseq3=3 bseq4=4
-        bseq5=5 bseq6=6 bseq7=7 bseq8=8 bseq9=9 bseq10=_10`);
+      t('no_branch', `s..scroll decl(1-9) bseq0=0 bseq1=1 bseq2=2 bseq3=3
+        bseq4=4 bseq5=5 bseq6=6 bseq7=7 bseq8=8 bseq9=9 bseq10=_10`);
       // XXX: create test with partial scroll and rebuild bseq
       // XXX: create test with conflict+branch
       // XXX: test with db
       // XXX: test invalid format (eg. same branch appear twice, prev to wrong
       // location etc)
-      t('one_branch', `
-        s..scroll
+      t('one_branch', `s..scroll bseq0=0
         decl(1)          bseq1=1
         decl(2)          bseq2=2
         decl(3 branch:b) bseq3=2-0.0
@@ -2212,30 +2215,28 @@ br:null seq:4 bseq:2
         decl(8)          bseq8=2-0.3
         decl(9 prev:6)   bseq9=5
         `);
+      t('two_branch', `s..scroll bseq0=0
+        decl(1)           bseq1=1
+        decl(2 branch:b)  bseq2=1-0.0
+        decl(3)           bseq3=1-0.1
+        decl(4 branch:b2) bseq4=1-0.1-0.0
+        decl(5)           bseq5=1-0.1-0.1
+        decl(6 prev:3)    bseq6=1-0.2`);
       if (true) return; // XXX WIP
-      t('xxx2', `
-        s..scroll
-        decl(1)                  // bseq1=1
-        decl(2 branch:b)         // bseq2=1.0
-        decl(3)                  // bseq3=1.1
-        decl(4 branch:b2)        // bseq4=1.1.0
-        decl(5)                  // bseq5=1.1.1
-        decl(6 prev 3)           // bseq6=1.2`);
       t('xxx3', `
         s..scroll
-        decl(1)                  // bseq1=1
-        decl(2 branch:b)         // bseq2=1.0
-        decl(3)                  // bseq3=1.1
-        decl(4 prev:2 branch:b2) // bseq4=1.0.0
-        decl(5)                  // bseq5=1.0.1`);
-      // XXX: branch format: s-b.s-b.s-b.s
+        decl(1)                  bseq1=1
+        decl(2 branch:b)         bseq2=1.0
+        decl(3)                  bseq3=1.1
+        decl(4 prev:2 branch:b2) bseq4=1.0.0
+        decl(5)                  bseq5=1.0.1`);
       t('xxx4', `
         s..scroll
-        decl(1)                  // bseq1=1
-        decl(2 branch:b)         // bseq2=1-0.0
-        decl(3)                  // bseq3=1-0.1
-        decl(4 prev:1 branch:b2) // bseq4=1-1.0
-        decl(5)                  // bseq5=1-1.1`);
+        decl(1)                  bseq1=1
+        decl(2 branch:b)         bseq2=1-0.0
+        decl(3)                  bseq3=1-0.1
+        decl(4 prev:1 branch:b2) bseq4=1-1.0
+        decl(5)                  bseq5=1-1.1`);
       // XXX: support bseq1=mem1.bseq (M1=mem1.M, ...)
       // m0_1=mem1.m0_1 or
       // m0_1=mem1.m0

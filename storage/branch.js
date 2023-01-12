@@ -4,6 +4,7 @@ import assert from 'assert';
 import xerr from '../util/xerr.js';
 
 /* design:
+branch format: s-b.s-b.s-b.s
 branches:
 br:null seq:0 bseq:0
 br:b seq:2 bseq:1.0
@@ -16,13 +17,13 @@ export default class Branch_table {
     this.add_branch({branch: null, seq: 0, bseq: '0'});
   }
   get_branch(branch){ return this.branch.get(branch); }
-  get_last(seq){
+  get_last(seq){ // XXX: need test
     // XXX HACK: need sorted array
     let last;
     for (const [, co] of this.branch){
       if (!last && co.seq <= seq)
         last = co;
-      if (co.seq <= seq && last.seq < co.seq)
+      else if (co.seq <= seq && last.seq < co.seq)
         last = co;
     }
     return last;

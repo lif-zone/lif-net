@@ -13,6 +13,7 @@ br:null seq:4 bseq:2
 
 export default class Branch_table {
   constructor(){
+    this.data_seq = -1;
     this.branch = new Map();
     this.add_branch({branch: null, seq: 0, bseq: '0'});
   }
@@ -42,6 +43,8 @@ export default class Branch_table {
     }
   }
   to_bseq(seq){
+    if (this.data_seq < seq)
+      return;
     let last = this.get_last(seq);
     if (!last) // XXX: can this happen?
       return br_enc(seq);

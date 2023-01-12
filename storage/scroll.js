@@ -1136,15 +1136,33 @@ export default class Scroll extends EventEmitterAsync {
     _this.top = max_top;
   }); }
   flush(){ return this.storage?.flush(); }
-  on_data = e=>{
-    let {data, seq, cfid} = e;
-    let o = data.get(cfid).get_json(1);
+  on_data = e=>{ return etask({_: this}, function*on_data(){
+    // XXX: optimize, don't use etask if no need to load data
+    // XXX: protect against calling on_data while already in on_data
+    // load() may trigger 'data' event
+    let _this = this._, {data, seq, cfid} = e;
+    let o = data.get(cfid).get_json(1); // XXX: get_header()
     if (!o)
+      return;
+    let btable = _this.get_branch_table(cfid);
+    xerr.notice('XXX on_data seq%s cfid %s data_seq %s', seq, cfid,
+      btable.data_seq);
+    if (seq==0 || btable.data_seq==seq-1){
+      for (let decl = _this.get_decl(seq); decl; decl = decl.next()){
+        if (decl.seq!=seq) // XXX: we are called during load of seq
+          yield decl.load(cfid);
+        if (!decl.data_get().get(cfid).get_json(1)) // XXX: get_header()
+          break;
+        btable.data_seq = Math.max(btable.data_seq, decl.seq);
+        // XXX: need to rebuild bseq for new decl
+      }
+      xerr.notice('XXX NEW data_seq %s', btable.data_seq);
+    }
+    if (seq > btable.data_seq)
       return;
     let {branch, prev} = o;
     if (!branch && !prev)
       return;
-    let btable = this.get_branch_table(cfid);
     if (branch){
       if (btable.get_branch(branch)){
         xerr('invalid scroll - branch %s appears twice');
@@ -1167,7 +1185,7 @@ export default class Scroll extends EventEmitterAsync {
       // XXX: what if no bseq
       btable.add_branch({branch, seq, bseq: br_seq_inc(bseq)});
     }
-  };
+  }); }
   get_branch_table(cfid){
     if (!this.branch)
       this.branch = new Map();
@@ -1202,6 +1220,9 @@ class Decl extends EventEmitterAsync {
       this.m[i].init();
     this.M.init();
   }
+  prev(){ return this.seq ? this.scroll.get_decl(this.seq-1, {create: false})
+    : null; }
+  next(){ return this.scroll.get_decl(this.seq+1, {create: false}); }
   to_c(cfid){ return this.scroll.to_c(cfid, this.seq); }
   sign(cfid){ return etask({_: this}, function*sign(){
     let _this = this._;

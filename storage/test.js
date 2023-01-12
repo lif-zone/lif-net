@@ -2191,43 +2191,56 @@ describe('scroll', ()=>{
       });
     });
     describe('branch', ()=>{
-      t('no_branch', `s..scroll decl(1-9) bseq0=0 bseq1=1 bseq2=2 bseq3=3
-        bseq4=4 bseq5=5 bseq6=6 bseq7=7 bseq8=8 bseq9=9 bseq10=_10`);
       // XXX: create test with partial scroll and rebuild bseq
       // XXX: create test with conflict+branch
       // XXX: test with db
       // XXX: test invalid format (eg. same branch appear twice, prev to wrong
       // location etc)
-      t('one_branch', `s..scroll bseq0=0
-        decl(1)          bseq1=1
-        decl(2)          bseq2=2
-        decl(3 branch:b) bseq3=2-0.0
-        decl(4)          bseq4=2-0.1
-        decl(5 prev:2)   bseq5=3
-        decl(6)          bseq6=4
-        decl(7 prev:4)   bseq7=2-0.2
-        decl(8)          bseq8=2-0.3
-        decl(9 prev:6)   bseq9=5`);
-      t('two_branch', `s..scroll bseq0=0
-        decl(1)           bseq1=1
-        decl(2 branch:b)  bseq2=1-0.0
-        decl(3)           bseq3=1-0.1
-        decl(4 branch:b2) bseq4=1-0.1-0.0
-        decl(5)           bseq5=1-0.1-0.1
-        decl(6 prev:3)    bseq6=1-0.2`);
-      t('child_branch', `s..scroll bseq0=0
-        decl(1)                  bseq1=1
-        decl(2 branch:b)         bseq2=1-0.0
-        decl(3)                  bseq3=1-0.1
-        decl(4 prev:2 branch:b2) bseq4=1-0.0-0.0
-        decl(5)                  bseq5=1-0.0-0.1`);
-      t('two_same_branch', `
-        s..scroll
-        decl(1)                  bseq1=1
-        decl(2 branch:b)         bseq2=1-0.0
-        decl(3)                  bseq3=1-0.1
-        decl(4 prev:1 branch:b2) bseq4=1-1.0
-        decl(5)                  bseq5=1-1.1`);
+      describe('full', ()=>{
+        t('no_branch', `s..scroll decl(1-10) bseq0=0 bseq1=1 bseq2=2 bseq3=3
+          bseq4=4 bseq5=5 bseq6=6 bseq7=7 bseq8=8 bseq9=9 bseq10=_10 !bseq11`);
+        t('one_branch', `s..scroll
+          decl(1)          bseq1=1
+          decl(2)          bseq2=2
+          decl(3 branch:b) bseq3=2-0.0
+          decl(4)          bseq4=2-0.1
+          decl(5 prev:2)   bseq5=3
+          decl(6)          bseq6=4
+          decl(7 prev:4)   bseq7=2-0.2
+          decl(8)          bseq8=2-0.3
+          decl(9 prev:6)   bseq9=5`);
+        t('two_branch', `s..scroll
+          decl(1)           bseq1=1
+          decl(2 branch:b)  bseq2=1-0.0
+          decl(3)           bseq3=1-0.1
+          decl(4 branch:b2) bseq4=1-0.1-0.0
+          decl(5)           bseq5=1-0.1-0.1
+          decl(6 prev:3)    bseq6=1-0.2`);
+        t('child_branch', `s..scroll
+          decl(1)                  bseq1=1
+          decl(2 branch:b)         bseq2=1-0.0
+          decl(3)                  bseq3=1-0.1
+          decl(4 prev:2 branch:b2) bseq4=1-0.0-0.0
+          decl(5)                  bseq5=1-0.0-0.1`);
+        t('two_same_branch', `s..scroll
+          decl(1)                  bseq1=1
+          decl(2 branch:b)         bseq2=1-0.0
+          decl(3)                  bseq3=1-0.1
+          decl(4 prev:1 branch:b2) bseq4=1-1.0
+          decl(5)                  bseq5=1-1.1`);
+      });
+      describe('partial', ()=>{
+        // XXX: WIP
+        t('no_branch', `s..scroll decl(1-9) S..scroll(s..M0)
+          tput(0) bseq0=0
+          tput(0 1      ) bseq0=0 bseq1=1 !bseq2
+          tput(0 1 2_3 4) !bseq2 !bseq3 !bseq4 !bseq5
+          tput(0 1 2 3  ) !bseq2 !bseq3
+          tput(0 1 2    ) bseq2=2 bseq3=3 bseq4=4 !bseq5
+          // XXX tput(0 1 2_3 4_7 8 9) bseq0=0 !bseq9
+          `);
+      });
+      // XXX: check with derry etask.ps() of decl->sign
       // XXX: simplify storage testing with mem
     });
     describe('storage', ()=>{

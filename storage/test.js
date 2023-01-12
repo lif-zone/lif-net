@@ -2207,8 +2207,7 @@ describe('scroll', ()=>{
         decl(6)          bseq6=4
         decl(7 prev:4)   bseq7=2-0.2
         decl(8)          bseq8=2-0.3
-        decl(9 prev:6)   bseq9=5
-        `);
+        decl(9 prev:6)   bseq9=5`);
       t('two_branch', `s..scroll bseq0=0
         decl(1)           bseq1=1
         decl(2 branch:b)  bseq2=1-0.0
@@ -2229,11 +2228,6 @@ describe('scroll', ()=>{
         decl(3)                  bseq3=1-0.1
         decl(4 prev:1 branch:b2) bseq4=1-1.0
         decl(5)                  bseq5=1-1.1`);
-      // XXX: support bseq1=mem1.bseq (M1=mem1.M, ...)
-      // m0_1=mem1.m0_1 or
-      // m0_1=mem1.m0
-      // XXX: how to calc bseq, during inseretion? what if I cannot calc it
-      // because of missing decl data?
       // XXX: simplify storage testing with mem
     });
     describe('storage', ()=>{

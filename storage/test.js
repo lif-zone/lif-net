@@ -138,7 +138,7 @@ function parse_var(v){
   m = v.match(/^([a-zA-Z]\d*)(\.|\.\.)([^.]*)$/);
   let ctx = m ? m[1] : '', def = m ? m[2]=='..' : false;
   v = m ? m[3] : v;
-  if (['db_c', 'db_data', 'mem_c'].includes(v))
+  if (['db_c', 'db_data', 'mem_c', 'mem_bseq'].includes(v))
     return {type: v, ctx, def};
   if (m = v.match(/^(bseq|sig|m|M|d|D|mem|db)((\d+)|((\d+)_(\d+)))(c(\d+))?$/))
   {
@@ -570,7 +570,7 @@ function state_split_var(v, def){
   if (o.def)
     set_def('left', o.ctx);
   let name = o.ctx||def||get_def('left');
-  if (['db_c', 'db_data', 'mem_c'].includes(type))
+  if (['db_c', 'db_data', 'mem_c', 'mem_bseq'].includes(type))
     return {name, type};
   if (type=='bseq')
     return {name, type, seq, cfid};
@@ -633,6 +633,7 @@ function get_filter(s){
     case 'db_c': break;
     case 'mem': break;
     case 'mem_c': break;
+    case 'mem_bseq': break;
     case 'bseq': break;
     default: return;
     }
@@ -646,6 +647,7 @@ const cmd_state = (curr, t)=>etask(function*cmd_state(){
   let scroll = get_scroll(t.ctx||get_def('left'), true);
   let soul = scroll?.soul;
   state.mem = {};
+  state.bseq = {};
   // XXX: optimize, get state only if is in filter
   if (scroll){
     // XXX: use decl.next (and clean all over code)
@@ -655,7 +657,7 @@ const cmd_state = (curr, t)=>etask(function*cmd_state(){
         state.mem[seq] = o;
     }
     state.mem_c = yield mem_get_c(scroll);
-    state.bseq = {};
+    state.mem_bseq = yield mem_get_bseq(scroll);
     // XXX: create api with next (like decl) and clean all over
     for (const [cfid] of scroll.conflict){
       for (let decl = scroll.get_decl(0, {create: false}); decl;
@@ -711,6 +713,10 @@ const cmd_state = (curr, t)=>etask(function*cmd_state(){
   if (t_state.filter.includes('db_data')){
     assert_b2s_obj(state.db_data, t_state[name].db_data,
       'db_data state mismach '+t.meta.s);
+  }
+  if (t_state.filter.includes('mem_bseq')){
+    assert_b2s_obj(state.mem_bseq, t_state[name].mem_bseq,
+      'mem_bseq state mismach '+t.meta.s);
   }
   if (t_state.filter.includes('bseq')){
     assert_b2s_obj(state.bseq, t_state[name].bseq,
@@ -963,6 +969,16 @@ const mem_get_c = scroll=>etask(function mem_get_c(){
     }
   }
   assert_no_corruption(scroll);
+  return ret;
+});
+
+const mem_get_bseq = scroll=>etask(function mem_get_bseq(){
+  let ret;
+  for (const [cfid] of scroll.conflict){
+    ret = ret||{};
+    let btable = scroll.get_branch_table(cfid);
+    ret[cfid] = btable.to_static();
+  }
   return ret;
 });
 
@@ -1486,22 +1502,26 @@ describe('scroll', ()=>{
     });
     it('br_branch_new', ()=>{
       const t = (val, exp)=>assert.equal(br_branch_new(val), exp);
-      t('0', '0-0.0');
-      t('1', '1-0.0');
-      t('_10', '_10-0.0');
-      t('1-0.0', '1-0.0-0.0');
-      t('1-2.0', '1-2.0-0.0');
-      t('1-2.3', '1-2.3-0.0');
-      t('1-2.3', '1-2.3-0.0');
+      t('0', '0-1.0');
+      t('1', '1-1.0');
+      t('_10', '_10-1.0');
+      t('1-1.0', '1-1.0-1.0');
+      t('1-2.0', '1-2.0-1.0');
+      t('1-2.3', '1-2.3-1.0');
+      t('1-2.3', '1-2.3-1.0');
     });
     it('br_branch_inc', ()=>{
       const t = (val, exp)=>assert.equal(br_branch_inc(val), exp);
       t('0-0.0', '0-1.0');
       t('0-1.0', '0-2.0');
+      t('0-2.0', '0-3.0');
       t('0-9.0', '0-_10.0');
-      t('1-0.0-0.0', '1-0.0-1.0');
-      t('1-0.0-1.0', '1-0.0-2.0');
-      t('1-2.3-0.0', '1-2.3-1.0');
+      t('0-_10.0', '0-_11.0');
+      t('_10-_99.0', '_10-__100.0');
+      t('1-1.0-0.0', '1-1.0-1.0');
+      t('1-1.0-1.0', '1-1.0-2.0');
+      t('1-1.0-2.0', '1-1.0-3.0');
+      t('1-2.3-1.0', '1-2.3-2.0');
       t('1-2.3-9.0', '1-2.3-_10.0');
     });
     it('br_seq_inc', ()=>{
@@ -1509,8 +1529,8 @@ describe('scroll', ()=>{
       t('0', '1');
       t('1', '2');
       t('9', '_10');
-      t('1-0.0', '1-0.1');
-      t('1-0.9', '1-0._10');
+      t('1-1.0', '1-1.1');
+      t('1-1.9', '1-1._10');
     });
   });
   describe('macro', ()=>{
@@ -2236,41 +2256,46 @@ describe('scroll', ()=>{
       // XXX: test with db
       // XXX: test invalid format (eg. same branch appear twice, prev to wrong
       // location etc)
+      // XXX: verify behavior on conflict delete/merge and verify we removed
+      // uneeded branch table
+      // XXX: support mem_bseq testing
       describe('full', ()=>{
-        t('no_branch', `s..scroll decl(1-10) bseq0=0 bseq1=1 bseq2=2 bseq3=3
-          bseq4=4 bseq5=5 bseq6=6 bseq7=7 bseq8=8 bseq9=9 bseq10=_10 !bseq11`);
+        // XXX: change all tests to be state based
+        t('no_branch', `s..#bseq s.scroll decl(1-10) #(bseq0=0 bseq1=1
+          bseq2=2 bseq3=3 bseq4=4 bseq5=5 bseq6=6 bseq7=7 bseq8=8 bseq9=9
+          bseq10=_10) !bseq11`);
         t('one_branch', `s..scroll
           decl(1)          bseq1=1
           decl(2)          bseq2=2
-          decl(3 branch:b) bseq3=2-0.0
-          decl(4)          bseq4=2-0.1
+          decl(3 branch:b) bseq3=2-1.0
+          decl(4)          bseq4=2-1.1
           decl(5 prev:2)   bseq5=3
           decl(6)          bseq6=4
-          decl(7 prev:4)   bseq7=2-0.2
-          decl(8)          bseq8=2-0.3
+          decl(7 prev:4)   bseq7=2-1.2
+          decl(8)          bseq8=2-1.3
           decl(9 prev:6)   bseq9=5`);
-        t('two_branch_differnt', `s..scroll
-          decl(1)           bseq1=1
-          decl(2 branch:b)  bseq2=1-0.0
-          decl(3)           bseq3=1-0.1
-          decl(4 branch:b2) bseq4=1-0.1-0.0
-          decl(5)           bseq5=1-0.1-0.1
-          decl(6 prev:3)    bseq6=1-0.2`);
+        t('two_branch_differnt', `s..#bseq
+          s.scroll         #bseq0=0
+          decl(1)           #bseq1=1
+          decl(2 branch:b)  #bseq2=1-1.0
+          decl(3)           #bseq3=1-1.1
+          decl(4 branch:b2) #bseq4=1-1.1-1.0
+          decl(5)           #bseq5=1-1.1-1.1
+          decl(6 prev:3)    #bseq6=1-1.2`);
         t('child_branch', `s..scroll
           decl(1)                  bseq1=1
-          decl(2 branch:b)         bseq2=1-0.0
-          decl(3)                  bseq3=1-0.1
-          decl(4 prev:2 branch:b2) bseq4=1-0.0-0.0
-          decl(5)                  bseq5=1-0.0-0.1`);
+          decl(2 branch:b)         bseq2=1-1.0
+          decl(3)                  bseq3=1-1.1
+          decl(4 prev:2 branch:b2) bseq4=1-1.0-1.0
+          decl(5)                  bseq5=1-1.0-1.1`);
         t('two_branch_same', `s..scroll
           decl(1)                  bseq1=1
-          decl(2 branch:b)         bseq2=1-0.0
-          decl(3)                  bseq3=1-0.1
-          decl(4 prev:1 branch:b2) bseq4=1-1.0
-          decl(5)                  bseq5=1-1.1`);
+          decl(2 branch:b)         bseq2=1-1.0
+          decl(3)                  bseq3=1-1.1
+          decl(4 prev:1 branch:b2) bseq4=1-2.0
+          decl(5)                  bseq5=1-2.1`);
       });
       describe('partial', ()=>{
-        // XXX: WIP
         t('no_branch', `s..scroll decl(1-9) S..scroll(s..M0) #bseq
           tput(0) bseq0=0 #bseq0=0
           tput(0 1      ) #bseq1=1
@@ -2282,27 +2307,19 @@ describe('scroll', ()=>{
           tput(0 1 2_3 4 5        ) #bseq5=5
           tput(0 1 2_3 4 5 6      ) #
           tput(0 1 2_3 4 5 6 7    ) #(bseq6=6 bseq7=7 bseq8=8 bseq9=9)`);
-        t('one_branch', `s..scroll decl(1)
-          decl(2)          bseq2=2
-          decl(3 branch:b) bseq3=2-0.0
-          decl(4)          bseq4=2-0.1
-          decl(5 prev:2)   bseq5=3
-          decl(6)          bseq6=4
-          decl(7 prev:4)   bseq7=2-0.2
-          decl(8)          bseq8=2-0.3
-          decl(9 prev:6)   bseq9=5
+        t('one_branch', `s..scroll decl(1) decl(2) decl(3 branch:b) decl(4)
+          decl(5 prev:2) decl(6) decl(7 prev:4) decl(8) decl(9 prev:6)
           S..scroll(s..M0) #bseq
           tput(0)         #bseq0=0
           tput(0 1      ) #bseq1=1
           tput(0 1 2_3 4) #
           tput(0 1 2 3  ) #
-          tput(0 1 2    ) #(bseq2=2 bseq3=2-0.0 bseq4=2-0.1)
+          tput(0 1 2    ) #(bseq2=2 bseq3=2-1.0 bseq4=2-1.1)
           tput(0 1 2_3 4 5 6_7 8  ) #
           tput(0 1 2_3 4 5 6_7 8 9) #
           tput(0 1 2_3 4 5        ) #bseq5=3
           tput(0 1 2_3 4 5 6      ) #
-          // XXX          tput(0 1 2_3 4 5 6 7    ) #bseq6=4
-          // XXX          tput(0 1 2_3 4 5 6 8    )
+          tput(0 1 2_3 4 5 6 7    ) #(bseq6=4 bseq7=2-1.2 bseq8=2-1.3 bseq9=5)
         `);
       });
       // XXX: check with derry etask.ps() of decl->sign

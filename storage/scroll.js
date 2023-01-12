@@ -419,7 +419,7 @@ export default class Scroll extends EventEmitterAsync {
     this.conflict.next_id = 0;
     this.merge_queue = new Map;
     this.merge_queue.get_one = Map_get_one;
-    this.branch = null;
+    this.branch = new Map();
     this.create_new_conflict();
   }
   init(opt={}){ return etask({_: this}, function*scroll_init(){
@@ -1189,8 +1189,6 @@ export default class Scroll extends EventEmitterAsync {
     }
   }
   get_branch_table(cfid){
-    if (!this.branch)
-      this.branch = new Map();
     let btable = this.branch.get(cfid);
     if (btable)
       return btable;

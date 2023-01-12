@@ -15,26 +15,29 @@ export default class Branch_table {
   constructor(){
     this.data_seq = -1;
     this.branch = new Map();
+    this.a = [];
     this.add_branch({branch: null, seq: 0, bseq: '0'});
   }
   get_branch(branch){ return this.branch.get(branch); }
   get_last(seq){ // XXX: need test
     // XXX HACK: need sorted array
-    let last;
-    for (const [, co] of this.branch){
-      if (!last && co.seq <= seq)
-        last = co;
-      else if (co.seq <= seq && last.seq < co.seq)
-        last = co;
+    let a = this.a, last;
+    for (let i=0; i<a.length; i++){
+      let bo = a[i];
+      if (!last && bo.seq <= seq)
+        last = bo;
+      else if (bo.seq <= seq && last.seq < bo.seq)
+        last = bo;
     }
     return last;
   }
   find_avail_branch(bseq){ // XXX: need test
     // XXX: HACK: need sorted array
     while (true){
-      let exists;
-      for (const [, co] of this.branch){
-        if (co.bseq==bseq)
+      let a = this.a, exists;
+      for (let i=0; i<a.length; i++){
+        let bo = a[i];
+        if (bo.bseq==bseq)
           exists = true;
       }
       if (!exists)
@@ -59,8 +62,18 @@ export default class Branch_table {
     assert(Number.isInteger(seq) && seq>=0, 'invalid seq '+seq);
     assert(typeof bseq=='string', 'invalid bseq '+bseq); // XXX: need is_valid
     let bo = {branch, seq, bseq};
-    this.branch.set(branch, bo);
+    if (this.branch.get(branch))
+      this.branch.set(branch, bo);
+    this.a.push(bo);
     xerr.notice('XXX branch %s seq %s bseq %s', branch, seq, bseq);
+  }
+  to_static(){
+    let a = this.a, ret = [];
+    for (let i=0; i<a.length; i++){
+      let bo = a[i];
+      ret.push({...bo});
+    }
+    return ret;
   }
 }
 
@@ -86,10 +99,10 @@ function br_inc(a, n=1){
 
 function br_cmp(a, b){ return a==b ? 0 : a<b ? -1 : 1; }
 
-function br_branch_new(a){ return a+'-0.0'; }
+function br_branch_new(a){ return a+'-1.0'; }
 
 function br_branch_inc(a){
-  let m = a.match(/^([\d.-]+)-([\d])+\.0$/);
+  let m = a.match(/^([\d.\-_]+)-([_]*[\d]+)\.0$/);
   assert(m?.[1] && m?.[2], 'invalid br '+a);
   return m[1]+'-'+br_inc(m[2])+'.0';
 }

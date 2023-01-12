@@ -6,10 +6,14 @@ const E = {};
 export default E;
 
 function space(s){ return s ? ' '+s : ''; }
-function rm_parentesis(s){
-  if (s.charAt(0)!='(')
+
+E.rm_parentesis = rm_parentesis;
+function rm_parentesis(s, open='('){
+  if (s.charAt(0)!=open)
     return s;
-  assert(s.charAt(s.length-1)==')', 'invalid '+s);
+  let close = open=='(' ? ')' : open=='{' ? '}' : open=='[' ? ']' : '';
+  assert(close, 'invalid open parentesis '+open);
+  assert(s.charAt(s.length-1)==close, 'missing parentesis '+s);
   return s.substr(1, s.length-2);
 }
 

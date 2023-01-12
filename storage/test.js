@@ -17,6 +17,8 @@ import DB from './db.js';
 import buf_util from '../peer-relay/buf_util.js';
 import {r_str, r_from_str, r_parent, r_includes, r_eq, r_split}
   from './range.js';
+const {rm_parentesis, parse_get_next, parse_exp_arg_pair, parse_exp,
+  parse_exp_arg, parse_push} = tparser;
 const {b2s, s2b, b2s_obj} = buf_util;
 const {br_int, br_enc, br_cmp, br_branch_new, br_branch_inc, br_inc,
   br_seq_inc} = Branch_table;
@@ -65,7 +67,7 @@ function macro_to_m(val, dst){
 
 const array_from_str = exp=>etask(function*array_from_str(){
   let ret=[], a=[];
-  for (let curr=exp, i=0; curr = tparser.parse_get_next(curr); i++)
+  for (let curr=exp, i=0; curr = parse_get_next(curr); i++)
     a.push(curr.exp);
   for (let i=0; i<a.length; i++)
     ret.push(yield get_val(a[i]));
@@ -74,10 +76,10 @@ const array_from_str = exp=>etask(function*array_from_str(){
 
 const struct_from_str = exp=>etask(function*struct_from_str(){
   let a=[], seq, ret;
-  for (let curr=exp, i=0; curr = tparser.parse_get_next(curr); i++)
+  for (let curr=exp, i=0; curr = parse_get_next(curr); i++)
     a.push(curr.exp);
   for (let i=0; i<a.length; i++){
-    let t = tparser.parse_exp_arg_pair(a[i]);
+    let t = parse_exp_arg_pair(a[i]);
     let ol = parse_var(t.l), type = ol.type, cfid = ol.cfid||0, r = ol.range;
     let val = yield get_val(t.r);
     assert(seq===undefined || seq==ol.seq, 'multiple seq in struct');
@@ -341,7 +343,7 @@ const test_start = ()=>etask(function*test_start(){
 
 const test_end = ()=>etask(function*test_end(){
   yield xsinon.wait();
-  yield cmd_state(tparser.parse_exp('#'));
+  yield cmd_state(parse_exp('#'));
   for (let name in t_scroll){
     let scroll = t_scroll[name];
     if (scroll.storage)
@@ -354,8 +356,8 @@ const test_end = ()=>etask(function*test_end(){
 
 function cmd_conf(t){
   let soul;
-  for (let curr=t.r, i=0; curr = tparser.parse_get_next(curr); i++){
-    let tt = tparser.parse_exp_arg(curr.exp);
+  for (let curr=t.r, i=0; curr = parse_get_next(curr); i++){
+    let tt = parse_exp_arg(curr.exp);
     switch (tt.cmd){
       case 'soul':
         soul = tt.r;
@@ -371,8 +373,8 @@ function cmd_conf(t){
 
 function parse_db_init(t){
   let max_decl, max_frame;
-  for (let curr=t.r, i=0; curr = tparser.parse_get_next(curr); i++){
-    let tt = tparser.parse_exp_arg(curr.exp);
+  for (let curr=t.r, i=0; curr = parse_get_next(curr); i++){
+    let tt = parse_exp_arg(curr.exp);
     switch (tt.cmd){
     case 'max_decl': max_decl = assert_kb(tt.r); break;
     case 'max_frame': max_frame = assert_kb(tt.r); break;
@@ -455,8 +457,8 @@ const cmd_scroll = t=>etask(function*cmd_scroll(){
   let name = t.ctx||get_def('left'), M, a, scroll, d, feature;
   assert(!t.l, 'invalid arg '+t.meta.s);
   assert(!t_scroll[name], 'scroll already exist '+name);
-  for (let curr=t.r, i=0; curr = tparser.parse_get_next(curr); i++){
-    let tt = tparser.parse_exp_arg(curr.exp), t2;
+  for (let curr=t.r, i=0; curr = parse_get_next(curr); i++){
+    let tt = parse_exp_arg(curr.exp), t2;
     switch (tt.cmd){
     case 'db': db_opt = parse_db_init(tt); break;
     case '!':
@@ -473,7 +475,7 @@ const cmd_scroll = t=>etask(function*cmd_scroll(){
       break;
     case 'feature': feature = tt.r.split(' '); break;
     default:
-      t2 = tparser.parse_exp_arg_pair(curr.exp);
+      t2 = parse_exp_arg_pair(curr.exp);
       if (a = t2.l.match(/^M(\d+)$/)){
         let h = yield get_val(t2.r);
         assert(h, 'missing '+t2.r);
@@ -495,8 +497,8 @@ const cmd_clone = (curr, t)=>etask(function*cmd_clone(){
   let dst = t.ctx||get_def('left'), m, db_opt;
   assert(!t_scroll[dst], 'scroll already exist '+dst);
   assert(!t.l, 'invalid arg '+t.meta.s);
-  for (let curr=t.r, i=0; curr = tparser.parse_get_next(curr); i++){
-    let tt = tparser.parse_exp_arg(curr.exp);
+  for (let curr=t.r, i=0; curr = parse_get_next(curr); i++){
+    let tt = parse_exp_arg(curr.exp);
     switch (tt.cmd){
     case 'db': db_opt = parse_db_init(tt); break;
     default:
@@ -536,8 +538,8 @@ const cmd_decl = t=>etask(function*cmd_decl(){
   let branch, prev, s, e, data;
   assert(!t.l, 'invalid left arg '+t.meta.s);
   assert(t.r, 'missing arg '+t.meta.s);
-  for (let curr=t.r, i=0; curr = tparser.parse_get_next(curr); i++){
-    let tt = tparser.parse_exp_arg(curr.exp), a;
+  for (let curr=t.r, i=0; curr = parse_get_next(curr); i++){
+    let tt = parse_exp_arg(curr.exp), a;
     switch (tt.cmd){
     case 'data':
       a = tt.r.split(' ');
@@ -588,7 +590,7 @@ function state_split_var(v, def){
 }
 
 const state_split = (exp, def)=>etask(function*state_split(){
-  let o = tparser.parse_exp(exp);
+  let o = parse_exp(exp);
   switch (o.cmd){
   case '!': return {...state_split_var(o.r, def), val: null};
   case '=':
@@ -706,7 +708,7 @@ const cmd_state = t=>etask(function*cmd_state(){
     t_state.filter = ['db', 'db_data', 'db_c', 'mem', 'mem_c'];
     return;
   }
-  for (let curr=t.r; curr = tparser.parse_get_next(curr);)
+  for (let curr=t.r; curr = parse_get_next(curr);)
     state_apply(t_state[name], yield state_split(curr.exp, name));
   if (t_state.filter.includes('mem_c')){
     assert_b2s_obj(state.mem_c, t_state[name].mem_c,
@@ -739,14 +741,14 @@ const cmd_state = t=>etask(function*cmd_state(){
 
 function cmd_tput(curr, t){
   let dst = t.ctx||get_def('left'), src = get_def('right');
-  tparser.parse_push(curr, tjoin(dst, 'put', macro_to_m(t.r, src)));
+  parse_push(curr, tjoin(dst, 'put', macro_to_m(t.r, src)));
 }
 
 const cmd_put = (curr, t)=>etask(function*cmd_put(){
   let name = t.ctx||get_def('left'), scroll = get_scroll(name);
   let diff = {}, err='';
-  for (let curr=t.r; curr = tparser.parse_get_next(curr);){
-    let t2 = tparser.parse_exp_arg_pair(curr.exp);
+  for (let curr=t.r; curr = parse_get_next(curr);){
+    let t2 = parse_exp_arg_pair(curr.exp);
     if (t2.l=='err'){
       assert(!err, 'err already defined');
       err = t2.r||true;
@@ -771,14 +773,14 @@ const cmd_put = (curr, t)=>etask(function*cmd_put(){
 const cmd_unload = (curr, t)=>etask(function cmd_unload(){
   assert(t.ctx=='mem', 'missing mem prefix');
   let name = t.prev?.ctx||get_def('left'), scroll = get_scroll(name);
-  for (let curr=t.r; curr = tparser.parse_get_next(curr);)
+  for (let curr=t.r; curr = parse_get_next(curr);)
     assert(!curr.exp, 'invalid arg '+curr.exp);
   scroll.unload();
 });
 
 const cmd_load_c = t=>etask(function*cmd_load_c(){
   let name = t.ctx||get_def('left'), scroll = get_scroll(name), o, data;
-  for (let curr=t.r; curr = tparser.parse_get_next(curr);){
+  for (let curr=t.r; curr = parse_get_next(curr);){
     switch (curr.exp)
     {
     case 'data': data = true; break;
@@ -792,8 +794,8 @@ const cmd_load_c = t=>etask(function*cmd_load_c(){
 const cmd_test = t=>etask(function*cmd_test(){
   let name = t.ctx||get_def('left'), scroll = get_scroll(name);
   let tested = {};
-  for (let curr=t.r; curr = tparser.parse_get_next(curr);){
-    let t2 = tparser.parse_exp_arg_pair(curr.exp);
+  for (let curr=t.r; curr = parse_get_next(curr);){
+    let t2 = parse_exp_arg_pair(curr.exp);
     let l=name+'.'+t2.l, r=t2.r, o=parse_var(t2.l), cfid=o.cfid;
     tested[cfid] = tested[cfid]||{};
     tested[cfid][o.seq] = tested[cfid][o.seq]||{M: false, sig: false, d: false,
@@ -873,7 +875,7 @@ function parse_conflict(s){
 const cmd_c = t=>etask(function*cmd_c(){
   let name = t.ctx||get_def('left'), scroll = get_scroll(name);
   let tested = {}, i=0;
-  for (let curr=t.r; curr = tparser.parse_get_next(curr); i++)
+  for (let curr=t.r; curr = parse_get_next(curr); i++)
     tested[i] = parse_conflict(curr.exp);
   assert.equal(scroll.conflict.size, i, 'conflict count mismatch '+t.r);
   for (const [i, o] of scroll.conflict){
@@ -895,7 +897,7 @@ const get_db_data = exp=>etask(function*get_db_data(){
   if (m = exp.match(/^\{(.*)\}$/))
     exp = m[1];
   let o = {};
-  for (let curr=exp; curr = tparser.parse_get_next(curr);){
+  for (let curr=exp; curr = parse_get_next(curr);){
     let val = yield get_val(curr.exp);
     assert(val?.buf && val?.h, 'invalid static db data');
     o[b2s(val.h)] = b2s(val.buf);
@@ -913,12 +915,10 @@ const db_get_db_data = db=>etask(function*db_get_db_data(){
 });
 
 const get_static_c = s=>etask(function*get_static_c(){
-  let m;
-  if (m = s.match(/^\{(.*)\}$/))
-    s = m[1];
+  s = rm_parentesis(s, '{');
   let o = {};
-  for (let curr=s; curr = tparser.parse_get_next(curr);){
-    m = curr.exp.match(/^(\d+):(.*)$/);
+  for (let curr=s; curr = parse_get_next(curr);){
+    let m = curr.exp.match(/^(\d+):(.*)$/);
     assert(m?.length==3, 'invalid db_c '+curr.exp);
     o[m[1]] = parse_conflict(m[2]);
     o[m[1]].top.M = b2s(yield get_val(o[m[1]].top.M));
@@ -927,20 +927,18 @@ const get_static_c = s=>etask(function*get_static_c(){
 });
 
 const get_static_bseq = s=>etask(function*get_static_bseq(){
-  let m, m2, s2, ret = {};
-  if (m = s.match(/^\{(.*)\}$/))
-    s = m[1];
-  for (let curr=s; curr = tparser.parse_get_next(curr);){
-    m = curr.exp.match(/^(\d+):\[(.*)\]$/);
+  let ret = {};
+  s = rm_parentesis(s, '{');
+  for (let curr=s; curr = parse_get_next(curr);){
+    let m = curr.exp.match(/^(\d+):\[(.*)\]$/);
     let cfid = +m[1];
     assert(m[2], 'invalid mem_bseq struct '+curr.exp);
     let a = [];
-    for (let curr2=m[2]; curr2 = tparser.parse_get_next(curr2);){
-      if (m2 = curr2.exp.match(/^\{(.*)\}$/)) // XXX: rm_parentesis
-        s2 = m2[1];
+    for (let curr2=m[2]; curr2 = parse_get_next(curr2);){
+      let s2 = rm_parentesis(curr2.exp, '{');
       let bo = {};
-      for (let curr3=s2; curr3 = tparser.parse_get_next(curr3);){
-        let o = tparser.parse_exp(curr3.exp);
+      for (let curr3=s2; curr3 = parse_get_next(curr3);){
+        let o = parse_exp(curr3.exp);
         bo[o.l] = o.r=='null' ? null : o.r; // XXX yield get_val(o.r);
       }
       a.push(bo);
@@ -1028,7 +1026,7 @@ const cmd_eq = o=>etask(function*cmd_eq(){
   let l, r;
   if (!o.l){
     assert(o.r, 'invalid exp '+o.meta.s);
-    let t2 = tparser.parse_exp_arg_pair(o.r);
+    let t2 = parse_exp_arg_pair(o.r);
     l = yield get_val(t2.l, 'left');
     r = yield get_val(t2.r, 'right');
   } else {
@@ -1070,7 +1068,7 @@ const test_run_single = (curr, o)=>etask(function*_test_run_single(){
   case '..':
   case '...': // XXX: rm from here and move to parser
     assert(o.l, 'invalid "." operator');
-    o2 = tparser.parse_exp(o.r);
+    o2 = parse_exp(o.r);
     o2.ctx = o.l;
     o2.prev = o;
     if (o.cmd=='...'){
@@ -1092,8 +1090,8 @@ const test_run_single = (curr, o)=>etask(function*_test_run_single(){
 
 const test_run = test=>etask(function*test_run(){
   yield test_start();
-  for (let curr=test, i=0; curr = tparser.parse_get_next(curr); i++){
-    let o = tparser.parse_exp(curr.exp);
+  for (let curr=test, i=0; curr = parse_get_next(curr); i++){
+    let o = parse_exp(curr.exp);
     xerr.notice('cmd %s %s', i, o.meta.s);
     yield test_run_single(curr, o);
   }
@@ -1263,7 +1261,7 @@ describe('parser', ()=>{
   it('parse_get_next', ()=>{
     const t = (s, exp)=>{
       let curr = s;
-      while (curr = tparser.parse_get_next(curr)){
+      while (curr = parse_get_next(curr)){
         assert(exp.length, 'unexpected '+curr.exp);
         assert.equal(curr.exp, exp[0]);
         exp.shift();
@@ -1315,7 +1313,7 @@ describe('parser', ()=>{
       // XXX`, ['a', '// XXX']);
   });
   it('parse_exp', ()=>{
-    const t = (s, exp)=>assert.deepEqual(tparser.parse_exp(s),
+    const t = (s, exp)=>assert.deepEqual(parse_exp(s),
       {...exp, meta: {s: s.trim()}});
     t(' a ', {cmd: 'a', l: '', r: ''});
     t('a(b)', {cmd: 'a', l: '', r: 'b'});
@@ -1349,7 +1347,7 @@ describe('parser', ()=>{
     t('#ab', {cmd: '#', l: '', r: 'ab'});
   });
   it('parse_exp_arg', ()=>{
-    const t = (s, exp)=>assert.deepEqual(tparser.parse_exp_arg(s),
+    const t = (s, exp)=>assert.deepEqual(parse_exp_arg(s),
       {...exp, meta: {s: s.trim()}});
     t('d0', {cmd: 'd0', l: '', r: ''});
     t('s.d0', {cmd: '.', l: 's', r: 'd0'});
@@ -1359,7 +1357,7 @@ describe('parser', ()=>{
     t('s.d0:s2.d1', {cmd: '.', l: 's', r: 'd0:s2.d1'});
   });
   it('parse_exp_arg_pair', ()=>{
-    const t = (s, exp)=>assert.deepEqual(tparser.parse_exp_arg_pair(s), exp);
+    const t = (s, exp)=>assert.deepEqual(parse_exp_arg_pair(s), exp);
     t('d0', {l: 'd0', r: 'd0'});
     t('s0.d0', {l: 'd0', r: 's0.d0'});
     t('s0..d0', {l: 'd0', r: 's0..d0'});

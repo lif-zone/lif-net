@@ -142,7 +142,7 @@ function parse_var(v){
   v = m ? m[3] : v;
   if (['db_c', 'db_data', 'mem_c'].includes(v))
     return {type: v, ctx, def};
-  if (m = v.match(/btable_c(\d+)_(\d+)$/))
+  if (m = v.match(/btable_c(\d+)\[(\d+)\]$/))
     return {type: 'btable_c', cfid: +m[1], index: +m[2], ctx, def};
   if (m = v.match(/^(bseq|sig|m|M|d|D|mem|db)((\d+)|((\d+)_(\d+)))(c(\d+))?$/))
   {
@@ -1219,9 +1219,9 @@ describe('test_util', ()=>{
     t('s2.m0_1c10', 'm 0_1 10 s2');
     t('s2..d0', 'd 0 0 s2 def');
     t('s2..m0_1c10', 'm 0_1 10 s2 def');
-    t('btable_c0_2', 'btable_c 0 2');
-    t('s.btable_c0_2', 'btable_c 0 2 s');
-    t('s..btable_c0_2', 'btable_c 0 2 s def');
+    t('btable_c0[2]', 'btable_c 0 2');
+    t('s.btable_c0[2]', 'btable_c 0 2 s');
+    t('s..btable_c0[2]', 'btable_c 0 2 s def');
     t('mem_c', 'mem_c');
     t('s.mem_c', 'mem_c s');
     t('s..mem_c', 'mem_c s def');
@@ -2318,7 +2318,7 @@ describe('scroll', ()=>{
       describe('full', ()=>{
         t('no_branch', `s..#(bseq btable) scroll decl(1-10) #(bseq0=0 bseq1=1
           bseq2=2 bseq3=3 bseq4=4 bseq5=5 bseq6=6 bseq7=7 bseq8=8 bseq9=9
-          bseq10=_10 btable_c0_0={branch:null seq:0 bseq:0}) !bseq11`);
+          bseq10=_10 btable_c0[0]={branch:null seq:0 bseq:0}) !bseq11`);
         t('one_branch_test_bseq', `s..#bseq
           scroll           #bseq0=0
           decl(1)          #bseq1=1
@@ -2331,16 +2331,16 @@ describe('scroll', ()=>{
           decl(8)          #bseq8=2-1.3
           decl(9 prev:6)   #bseq9=5`);
         t('one_branch_test_btable', `s..#btable
-          scroll           #btable_c0_0={branch:null seq:0 bseq:0}
+          scroll           #btable_c0[0]={branch:null seq:0 bseq:0}
           decl(1)          #
           decl(2)          #
-          decl(3 branch:b) #btable_c0_1={branch:b seq:3 bseq:2-1.0}
+          decl(3 branch:b) #btable_c0[1]={branch:b seq:3 bseq:2-1.0}
           decl(4)          #
-          decl(5 prev:2)   #btable_c0_2={branch:null seq:5 bseq:3}
+          decl(5 prev:2)   #btable_c0[2]={branch:null seq:5 bseq:3}
           decl(6)          #
-          decl(7 prev:4)   #btable_c0_3={branch:b seq:7 bseq:2-1.2}
+          decl(7 prev:4)   #btable_c0[3]={branch:b seq:7 bseq:2-1.2}
           decl(8)          #
-          decl(9 prev:6)   #btable_c0_4={branch:null seq:9 bseq:5}
+          decl(9 prev:6)   #btable_c0[4]={branch:null seq:9 bseq:5}
         `);
         t('two_branch_differnt', `s..#bseq
           scroll            #bseq0=0
@@ -2407,7 +2407,7 @@ describe('scroll', ()=>{
         `);
         t('conflict_no_branch', `s..scroll decl(1-4)
           s1..clone(s.M1) decl(2-4) S..#(bseq btable) S..scroll(s..M0)
-          #btable_c0_0={branch:null seq:0 bseq:0}
+          #btable_c0[0]={branch:null seq:0 bseq:0}
           tput(0) #bseq0=0
           tput(0 1) #bseq1=1
           tput(0 1 2    ) #bseq2=2
@@ -2427,28 +2427,28 @@ describe('scroll', ()=>{
           decl(3)                  #bseq3=1-1.1
           decl(4)                  #bseq4=1-1.2
           decl(5 prev:1 branch:b2) #bseq5=1-2.0`;
-        t('conflict_two_branch_same_bseq', s_conflict_no_branch+`
-          S..scroll(s..M0) #bseq   #
-          tput(0)                  #bseq0=0
-          tput(0 1)                #bseq1=1
-          tput(0 1 2      )        #bseq2=1-1.0
-          tput(0 1 2 3    )        #bseq3=1-1.1
-          tput(0 1 2 3 4  )        #bseq4=1-2.0
-          tput(0 1 2 3 4 5)        #bseq5=1-2.1
-          tput(0_1 2 d    )        #bseq3c1=1-1.1
-          tput(0_1 2 d e  )        #bseq4c1=1-1.2
-          tput(0_1 2 d e f)        #bseq5c1=1-2.0`);
-        t('conflict_two_branch_same_btable', s_conflict_no_branch+`
-          S..#btable scroll(s..M0) #btable_c0_0={branch:null seq:0 bseq:0}
-          tput(0)                  #
-          tput(0 1)                #
-          tput(0 1 2      )        #btable_c0_1={branch:b seq:2 bseq:1-1.0}
-          tput(0 1 2 3    )        #
-          tput(0 1 2 3 4  )        #btable_c0_2={branch:b2 seq:4 bseq:1-2.0}
-          tput(0 1 2 3 4 5)        #
-          tput(0_1 2 d    )        #
-          tput(0_1 2 d e  )        #
-          tput(0_1 2 d e f)        #btable_c1_0={branch:b2 seq:5 bseq:1-2.0}`);
+        t('conflict_two_branch_same_bseq', s_conflict_no_branch+` S..#bseq
+          S..scroll(s..M0)  #
+          tput(0)           #bseq0=0
+          tput(0 1)         #bseq1=1
+          tput(0 1 2      ) #bseq2=1-1.0
+          tput(0 1 2 3    ) #bseq3=1-1.1
+          tput(0 1 2 3 4  ) #bseq4=1-2.0
+          tput(0 1 2 3 4 5) #bseq5=1-2.1
+          tput(0_1 2 d    ) #bseq3c1=1-1.1
+          tput(0_1 2 d e  ) #bseq4c1=1-1.2
+          tput(0_1 2 d e f) #bseq5c1=1-2.0`);
+        t('conflict_two_branch_same_btable', s_conflict_no_branch+` S..#btable
+          scroll(s..M0)     #btable_c0[0]={branch:null seq:0 bseq:0}
+          tput(0)           #
+          tput(0 1)         #
+          tput(0 1 2      ) #btable_c0[1]={branch:b seq:2 bseq:1-1.0}
+          tput(0 1 2 3    ) #
+          tput(0 1 2 3 4  ) #btable_c0[2]={branch:b2 seq:4 bseq:1-2.0}
+          tput(0 1 2 3 4 5) #
+          tput(0_1 2 d    ) #
+          tput(0_1 2 d e  ) #
+          tput(0_1 2 d e f) #btable_c1[0]={branch:b2 seq:5 bseq:1-2.0}`);
       });
       // XXX: check with derry etask.ps() of decl->sign
       // XXX: simplify storage testing with mem

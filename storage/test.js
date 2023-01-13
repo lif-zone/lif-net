@@ -692,7 +692,7 @@ const cmd_state = t=>etask(function*cmd_state(){
         state.mem[seq] = o;
     }
     state.mem_c = yield mem_get_c(scroll);
-    state.btable = yield mem_get_bseq(scroll);
+    state.btable = yield mem_get_btable(scroll);
     // XXX: create api with next (like decl) and clean all over
     for (const [cfid] of scroll.conflict){
       for (let decl = scroll.get_decl(0, {create: false}); decl;
@@ -1017,12 +1017,14 @@ const mem_get_c = scroll=>etask(function mem_get_c(){
   return ret;
 });
 
-const mem_get_bseq = scroll=>etask(function mem_get_bseq(){
+const mem_get_btable = scroll=>etask(function mem_get_btable(){
   let ret;
   for (const [cfid] of scroll.conflict){
     ret = ret||{};
     let btable = scroll.get_branch_table(cfid);
     ret[cfid] = btable.to_static();
+    if (!ret[cfid].length)
+      delete ret[cfid];
   }
   return ret;
 });
@@ -2385,8 +2387,8 @@ describe('scroll', ()=>{
           tput(0 1 2_3 4 5 6_7 8  ) #
           tput(0 1 2_3 4 5 6_7 8 9) #
           tput(0 1 2_3 4 5        ) #
-          tput(0 1 2_3 4 5 6      ) #btable_c1_0={branch:null seq:0 bseq:0}
-          tput(0 1 2_3 4 5 6 7    ) #!btable_c1_0
+          tput(0 1 2_3 4 5 6      ) #
+          tput(0 1 2_3 4 5 6 7    ) #
         `);
         t('one_branch', `s..scroll decl(1) decl(2) decl(3 branch:b) decl(4)
           decl(5 prev:2) decl(6) decl(7 prev:4) decl(8) decl(9 prev:6)
@@ -2403,8 +2405,9 @@ describe('scroll', ()=>{
           tput(0 1 2_3 4 5 6 7    ) #(bseq6=4 bseq7=2-1.2 bseq8=2-1.3 bseq9=5
             !bseq6c1)
         `);
-        t('conflict_no_branch_bseq', `s..scroll decl(1-4)
-          s1..clone(s.M1) decl(2-4) S..scroll(s..M0) #bseq
+        t('conflict_no_branch', `s..scroll decl(1-4)
+          s1..clone(s.M1) decl(2-4) S..#(bseq btable) S..scroll(s..M0)
+          #btable_c0_0={branch:null seq:0 bseq:0}
           tput(0) #bseq0=0
           tput(0 1) #bseq1=1
           tput(0 1 2    ) #bseq2=2
@@ -2413,18 +2416,7 @@ describe('scroll', ()=>{
           tput(0_1 c    ) #bseq2c1=2
           tput(0_1 c d  ) #bseq3c1=3
           tput(0_1 c d e) #bseq4c1=4`);
-        t('conflict_no_branch_btable', `s..scroll decl(1-4)
-          s1..clone(s.M1) decl(2-4) S..scroll(s..M0) #btable
-          tput(0) #
-          tput(0 1) #
-          tput(0 1 2    ) #
-          tput(0 1 2 3  ) #
-          tput(0 1 2 3 4) #
-          // XXX: bug no need for entry
-          tput(0_1 c    ) #btable_c1_0={branch:null seq:0 bseq:0}
-          tput(0_1 c d  ) #
-          tput(0_1 c d e) #`);
-        t('conflict_two_branch_same', `s..#bseq
+        let s_conflict_no_branch = `
           s..#bseq scroll          #bseq0=0
           decl(1)                  #bseq1=1
           decl(2 branch:b)         #bseq2=1-1.0
@@ -2434,7 +2426,8 @@ describe('scroll', ()=>{
           s1..#bseq clone(s.M2)    #(bseq0=0 bseq1=1 bseq2=1-1.0)
           decl(3)                  #bseq3=1-1.1
           decl(4)                  #bseq4=1-1.2
-          decl(5 prev:1 branch:b2) #bseq5=1-2.0
+          decl(5 prev:1 branch:b2) #bseq5=1-2.0`;
+        t('conflict_two_branch_same_bseq', s_conflict_no_branch+`
           S..scroll(s..M0) #bseq   #
           tput(0)                  #bseq0=0
           tput(0 1)                #bseq1=1
@@ -2445,6 +2438,17 @@ describe('scroll', ()=>{
           tput(0_1 2 d    )        #bseq3c1=1-1.1
           tput(0_1 2 d e  )        #bseq4c1=1-1.2
           tput(0_1 2 d e f)        #bseq5c1=1-2.0`);
+        t('conflict_two_branch_same_btable', s_conflict_no_branch+`
+          S..#btable scroll(s..M0) #btable_c0_0={branch:null seq:0 bseq:0}
+          tput(0)                  #
+          tput(0 1)                #
+          tput(0 1 2      )        #btable_c0_1={branch:b seq:2 bseq:1-1.0}
+          tput(0 1 2 3    )        #
+          tput(0 1 2 3 4  )        #btable_c0_2={branch:b2 seq:4 bseq:1-2.0}
+          tput(0 1 2 3 4 5)        #
+          tput(0_1 2 d    )        #
+          tput(0_1 2 d e  )        #
+          tput(0_1 2 d e f)        #btable_c1_0={branch:b2 seq:5 bseq:1-2.0}`);
       });
       // XXX: check with derry etask.ps() of decl->sign
       // XXX: simplify storage testing with mem

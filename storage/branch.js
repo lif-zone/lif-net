@@ -19,7 +19,8 @@ export default class Branch_table {
     this.data_seq = -1;
     this.branch = new Map();
     this.a = [];
-    this.add_branch({branch: null, seq: 0, bseq: '0'});
+    if (!this.scroll.conflict.get(this.cfid).parent)
+      this.add_branch({branch: null, seq: 0, bseq: '0'});
   }
   get_branch(branch){ return this.branch.get(branch); }
   get_last(seq, max){ // XXX: need test

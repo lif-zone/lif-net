@@ -140,8 +140,10 @@ function parse_var(v){
   m = v.match(/^([a-zA-Z]\d*)(\.|\.\.)([^.]*)$/);
   let ctx = m ? m[1] : '', def = m ? m[2]=='..' : false;
   v = m ? m[3] : v;
-  if (['db_c', 'db_data', 'mem_c', 'mem_bseq'].includes(v))
+  if (['db_c', 'db_data', 'mem_c'].includes(v))
     return {type: v, ctx, def};
+  if (m = v.match(/btable_c(\d+)_(\d+)$/))
+    return {type: 'btable_c', cfid: +m[1], index: +m[2], ctx, def};
   if (m = v.match(/^(bseq|sig|m|M|d|D|mem|db)((\d+)|((\d+)_(\d+)))(c(\d+))?$/))
   {
     let type = m[1], range = r_from_str(m[2]), seq = range[1];
@@ -576,12 +578,14 @@ const cmd_decl = t=>etask(function*cmd_decl(){
 });
 
 function state_split_var(v, def){
-  let o = parse_var(v), {type, seq, cfid} = o;
+  let o = parse_var(v), {type, seq, cfid, index} = o;
   if (o.def)
     set_def('left', o.ctx);
   let name = o.ctx||def||get_def('left');
-  if (['db_c', 'db_data', 'mem_c', 'mem_bseq'].includes(type))
+  if (['db_c', 'db_data', 'mem_c'].includes(type))
     return {name, type};
+  if (['btable_c'].includes(type))
+    return {name, type, cfid, index};
   if (type=='bseq')
     return {name, type, seq, cfid};
   assert(['mem', 'db'].includes(type), 'invalid type '+type);
@@ -600,7 +604,7 @@ const state_split = (exp, def)=>etask(function*state_split(){
       return {...state_split_var(o.l, def), val: yield get_val(o.r, 'right')};
     if (['db_c', 'mem_c'].includes(o.l))
       return {...state_split_var(o.l, def), val: yield get_static_c(o.r)};
-    if ('mem_bseq'==o.l)
+    if (/^btable_c/.test(o.l))
       return {...state_split_var(o.l, def), val: yield get_static_bseq(o.r)};
     return {...state_split_var(o.l, def),
       val: fix_buf(yield get_val(o.r, 'right'))};
@@ -609,15 +613,34 @@ const state_split = (exp, def)=>etask(function*state_split(){
 });
 
 function state_apply(state, o){
-  let {type, seq, cfid, val} = o;
-  if (['db_c', 'db_data', 'mem_c', 'mem_bseq'].includes(type)){
+  let {type, seq, cfid, index, val} = o;
+  if (['db_c', 'db_data', 'mem_c'].includes(type)){
     if (val)
       state[type] = val;
     else
       delete state[type];
     return;
   }
-  xerr.notice('XXX state_apply type %s seq %s', type, seq);
+  if (['btable_c'].includes(type)){
+    if (val){
+      state.btable = state.btable||{};
+      let a = state.btable[cfid] = state.btable[cfid]||[];
+      while (a.length<=index)
+        a.push({});
+      a[index] = val;
+    } else {
+      let a = state.btable[cfid] = state.btable[cfid]||[];
+      a[index] = null;
+      let need_delete=true;
+      for (let i=0; i<a.length; i++){
+        if (a[i])
+          need_delete = false;
+      }
+      if (need_delete)
+        delete state.btable[cfid];
+    }
+    return;
+  }
   if (['bseq'].includes(type)){
     if (val!==null && val!==undefined){
       state.bseq[cfid] = state.bseq[cfid]||{};
@@ -645,7 +668,7 @@ function get_filter(s){
     case 'db_c': break;
     case 'mem': break;
     case 'mem_c': break;
-    case 'mem_bseq': break;
+    case 'btable': break;
     case 'bseq': break;
     default: return;
     }
@@ -669,7 +692,7 @@ const cmd_state = t=>etask(function*cmd_state(){
         state.mem[seq] = o;
     }
     state.mem_c = yield mem_get_c(scroll);
-    state.mem_bseq = yield mem_get_bseq(scroll);
+    state.btable = yield mem_get_bseq(scroll);
     // XXX: create api with next (like decl) and clean all over
     for (const [cfid] of scroll.conflict){
       for (let decl = scroll.get_decl(0, {create: false}); decl;
@@ -728,9 +751,9 @@ const cmd_state = t=>etask(function*cmd_state(){
     assert_b2s_obj(state.db_data, t_state[name].db_data,
       'db_data state mismach '+t.meta.s);
   }
-  if (t_state.filter.includes('mem_bseq')){
-    assert_b2s_obj(state.mem_bseq, t_state[name].mem_bseq,
-      'mem_bseq state mismach '+t.meta.s);
+  if (t_state.filter.includes('btable')){
+    assert_b2s_obj(state.btable, t_state[name].btable,
+      'btable state mismach '+t.meta.s);
   }
   if (t_state.filter.includes('bseq')){
     assert_b2s_obj(state.bseq, t_state[name].bseq,
@@ -927,25 +950,13 @@ const get_static_c = s=>etask(function*get_static_c(){
 });
 
 const get_static_bseq = s=>etask(function*get_static_bseq(){
-  let ret = {};
+  let bo = {};
   s = rm_parentesis(s, '{');
   for (let curr=s; curr = parse_get_next(curr);){
-    let m = curr.exp.match(/^(\d+):\[(.*)\]$/);
-    let cfid = +m[1];
-    assert(m[2], 'invalid mem_bseq struct '+curr.exp);
-    let a = [];
-    for (let curr2=m[2]; curr2 = parse_get_next(curr2);){
-      let s2 = rm_parentesis(curr2.exp, '{');
-      let bo = {};
-      for (let curr3=s2; curr3 = parse_get_next(curr3);){
-        let o = parse_exp(curr3.exp);
-        bo[o.l] = o.r=='null' ? null : o.r; // XXX yield get_val(o.r);
-      }
-      a.push(bo);
-    }
-    ret[cfid] = a;
+    let o = parse_exp(curr.exp);
+    bo[o.l] = o.r=='null' ? null : o.r; // XXX yield get_val(o.r);
   }
-  return ret;
+  return bo;
 });
 
 const db_get_scroll_decl = (db, scroll)=>etask(function*db_get_scroll_decl(){
@@ -1169,7 +1180,11 @@ describe('test_util', ()=>{
   it('parse_var', ()=>{
     const t = (v, exp)=>{
       let a = exp.split(' '), ret = parse_var(v), exp2;
-      if (['struct'].includes(a[0])){
+      if (['btable_c'].includes(a[0])){
+        let cfid = +a[1], index = +a[2], ctx = a[3]||'', def = a[4]=='def';
+        exp2 = {type: 'btable_c', cfid, index, ctx, def};
+      }
+      else if (['struct'].includes(a[0])){
         exp2 = {type: 'struct', val: a.splice(1).join(' ')};
       } else if (['db_c', 'db_data', 'mem_c'].includes(a[0])){
         assert(a.length<=3, 'invalid exp '+exp);
@@ -1202,6 +1217,9 @@ describe('test_util', ()=>{
     t('s2.m0_1c10', 'm 0_1 10 s2');
     t('s2..d0', 'd 0 0 s2 def');
     t('s2..m0_1c10', 'm 0_1 10 s2 def');
+    t('btable_c0_2', 'btable_c 0 2');
+    t('s.btable_c0_2', 'btable_c 0 2 s');
+    t('s..btable_c0_2', 'btable_c 0 2 s def');
     t('mem_c', 'mem_c');
     t('s.mem_c', 'mem_c s');
     t('s..mem_c', 'mem_c s def');
@@ -2295,27 +2313,33 @@ describe('scroll', ()=>{
       // location etc)
       // XXX: verify behavior on conflict delete/merge and verify we removed
       // uneeded branch table
-      // XXX: support mem_bseq testing
       describe('full', ()=>{
-        t('no_branch', `s..#bseq scroll decl(1-10) #(bseq0=0 bseq1=1
+        t('no_branch', `s..#(bseq btable) scroll decl(1-10) #(bseq0=0 bseq1=1
           bseq2=2 bseq3=3 bseq4=4 bseq5=5 bseq6=6 bseq7=7 bseq8=8 bseq9=9
-          bseq10=_10) !bseq11`);
-        t('one_branch', `s..#(bseq mem_bseq)
-          scroll           #(bseq0=0 mem_bseq={0:[{branch:null seq:0 bseq:0}]})
+          bseq10=_10 btable_c0_0={branch:null seq:0 bseq:0}) !bseq11`);
+        t('one_branch_test_bseq', `s..#bseq
+          scroll           #bseq0=0
           decl(1)          #bseq1=1
           decl(2)          #bseq2=2
-          decl(3 branch:b) #(bseq3=2-1.0
-            mem_bseq={0:[{branch:null seq:0 bseq:0} {branch:b seq:3 bseq:2-1.0}]})
+          decl(3 branch:b) #bseq3=2-1.0
           decl(4)          #bseq4=2-1.1
-          decl(5 prev:2)   #(bseq5=3
-            mem_bseq={0:[{branch:null seq:0 bseq:0} {branch:b seq:3 bseq:2-1.0} {branch:null seq:5 bseq:3}]})
+          decl(5 prev:2)   #bseq5=3
           decl(6)          #bseq6=4
-          decl(7 prev:4)   #(bseq7=2-1.2
-            mem_bseq={0:[{branch:null seq:0 bseq:0} {branch:b seq:3 bseq:2-1.0} {branch:null seq:5 bseq:3} {branch:b seq:7 bseq:2-1.2}]})
+          decl(7 prev:4)   #bseq7=2-1.2
           decl(8)          #bseq8=2-1.3
-          decl(9 prev:6)   #(bseq9=5
-            mem_bseq={0:[{branch:null seq:0 bseq:0} {branch:b seq:3 bseq:2-1.0} {branch:null seq:5 bseq:3} {branch:b seq:7 bseq:2-1.2} {branch:null seq:9 bseq:5}]})
-          `);
+          decl(9 prev:6)   #bseq9=5`);
+        t('one_branch_test_btable', `s..#btable
+          scroll           #btable_c0_0={branch:null seq:0 bseq:0}
+          decl(1)          #
+          decl(2)          #
+          decl(3 branch:b) #btable_c0_1={branch:b seq:3 bseq:2-1.0}
+          decl(4)          #
+          decl(5 prev:2)   #btable_c0_2={branch:null seq:5 bseq:3}
+          decl(6)          #
+          decl(7 prev:4)   #btable_c0_3={branch:b seq:7 bseq:2-1.2}
+          decl(8)          #
+          decl(9 prev:6)   #btable_c0_4={branch:null seq:9 bseq:5}
+        `);
         t('two_branch_differnt', `s..#bseq
           scroll            #bseq0=0
           decl(1)           #bseq1=1
@@ -2340,8 +2364,8 @@ describe('scroll', ()=>{
           decl(5)                  #bseq5=1-2.1`);
       });
       describe('partial', ()=>{
-        t('no_branch', `s..scroll decl(1-9) S..scroll(s..M0) #bseq
-          tput(0) bseq0=0 #bseq0=0
+        t('no_branch_bseq', `s..scroll decl(1-9) S..scroll(s..M0) #bseq
+          tput(0)         #bseq0=0
           tput(0 1      ) #bseq1=1
           tput(0 1 2_3 4) #
           tput(0 1 2 3  ) #
@@ -2352,6 +2376,18 @@ describe('scroll', ()=>{
           tput(0 1 2_3 4 5 6      ) #bseq6c1=6
           tput(0 1 2_3 4 5 6 7    ) #(bseq6=6 bseq7=7 bseq8=8 bseq9=9
             !bseq6c1)`);
+        t('no_branch_btable', `s..scroll decl(1-9) S..scroll(s..M0) #btable
+          tput(0)         #
+          tput(0 1      ) #
+          tput(0 1 2_3 4) #
+          tput(0 1 2 3  ) #
+          tput(0 1 2    ) #
+          tput(0 1 2_3 4 5 6_7 8  ) #
+          tput(0 1 2_3 4 5 6_7 8 9) #
+          tput(0 1 2_3 4 5        ) #
+          tput(0 1 2_3 4 5 6      ) #btable_c1_0={branch:null seq:0 bseq:0}
+          tput(0 1 2_3 4 5 6 7    ) #!btable_c1_0
+        `);
         t('one_branch', `s..scroll decl(1) decl(2) decl(3 branch:b) decl(4)
           decl(5 prev:2) decl(6) decl(7 prev:4) decl(8) decl(9 prev:6)
           S..scroll(s..M0) #bseq
@@ -2367,7 +2403,7 @@ describe('scroll', ()=>{
           tput(0 1 2_3 4 5 6 7    ) #(bseq6=4 bseq7=2-1.2 bseq8=2-1.3 bseq9=5
             !bseq6c1)
         `);
-        t('conflict_no_branch', `s..scroll decl(1-4)
+        t('conflict_no_branch_bseq', `s..scroll decl(1-4)
           s1..clone(s.M1) decl(2-4) S..scroll(s..M0) #bseq
           tput(0) #bseq0=0
           tput(0 1) #bseq1=1
@@ -2377,6 +2413,17 @@ describe('scroll', ()=>{
           tput(0_1 c    ) #bseq2c1=2
           tput(0_1 c d  ) #bseq3c1=3
           tput(0_1 c d e) #bseq4c1=4`);
+        t('conflict_no_branch_btable', `s..scroll decl(1-4)
+          s1..clone(s.M1) decl(2-4) S..scroll(s..M0) #btable
+          tput(0) #
+          tput(0 1) #
+          tput(0 1 2    ) #
+          tput(0 1 2 3  ) #
+          tput(0 1 2 3 4) #
+          // XXX: bug no need for entry
+          tput(0_1 c    ) #btable_c1_0={branch:null seq:0 bseq:0}
+          tput(0_1 c d  ) #
+          tput(0_1 c d e) #`);
         t('conflict_two_branch_same', `s..#bseq
           s..#bseq scroll          #bseq0=0
           decl(1)                  #bseq1=1

@@ -2427,7 +2427,8 @@ describe('scroll', ()=>{
           decl(3)                  #bseq3=1-1.1
           decl(4)                  #bseq4=1-1.2
           decl(5 prev:1 branch:b2) #bseq5=1-2.0`;
-        t('conflict_two_branch_same_bseq', s_conflict_no_branch+` S..#bseq
+        t('conflict_two_branch_decl_t_bseq', s_conflict_no_branch);
+        t('conflict_two_branch_put_t_bseq', s_conflict_no_branch+` S..#bseq
           S..scroll(s..M0)  #
           tput(0)           #bseq0=0
           tput(0 1)         #bseq1=1
@@ -2438,7 +2439,7 @@ describe('scroll', ()=>{
           tput(0_1 2 d    ) #bseq3c1=1-1.1
           tput(0_1 2 d e  ) #bseq4c1=1-1.2
           tput(0_1 2 d e f) #bseq5c1=1-2.0`);
-        t('conflict_two_branch_same_btable', s_conflict_no_branch+` S..#btable
+        t('conflict_two_branch_put_t_btable', s_conflict_no_branch+` S..#btable
           scroll(s..M0)     #btable_c0[0]={branch:null seq:0 bseq:0}
           tput(0)           #
           tput(0 1)         #
@@ -2450,6 +2451,7 @@ describe('scroll', ()=>{
           tput(0_1 2 d e  ) #
           tput(0_1 2 d e f) #btable_c1[0]={branch:b2 seq:5 bseq:1-2.0}`);
       });
+      // XXX: change default hash to sha256 instead of blake
       // XXX: check with derry etask.ps() of decl->sign
       // XXX: simplify storage testing with mem
     });

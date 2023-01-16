@@ -13,7 +13,7 @@ const stringify = JSON.stringify;
 const E = {};
 export default E;
 
-E.keypair = function(seed){
+E.keypair = seed=>{
   const pub = b4a.allocUnsafe(sodium.crypto_sign_PUBLICKEYBYTES);
   const key = b4a.allocUnsafe(sodium.crypto_sign_SECRETKEYBYTES);
   if (seed)
@@ -23,30 +23,26 @@ E.keypair = function(seed){
   return {pub: Buffer.from(pub), key: Buffer.from(key)};
 };
 
-E.sign = function(buf, key){
+E.sign = (buf, key)=>{
   const sig = b4a.allocUnsafe(sodium.crypto_sign_BYTES);
   sodium.crypto_sign_detached(sig, buf, key);
   return Buffer.from(sig);
 };
 
-E.verify = function(sig, pub, buf){
-  return sodium.crypto_sign_verify_detached(sig, buf, pub); };
+E.verify = (sig, pub, buf)=>sodium.crypto_sign_verify_detached(sig, buf, pub);
 
-E.keypair_to_str = function(keys){
-  return stringify({pub: b2s(keys.pub), key: b2s(keys.key)}); };
+E.keypair_to_str = keys=>stringify({pub: b2s(keys.pub), key: b2s(keys.key)});
 
-E.keypair_from_str = function(keys_str){
+E.keypair_from_str = keys_str=>{
   let _keys = JSON.parse(keys_str);
   return {pub: s2b(_keys.pub), key: s2b(_keys.key)};
 };
 
-E.sha1 = function(buf){
-  return Buffer.from(crypto.createHash('sha1').update(buf).digest()); };
+E.sha1 = buf=>Buffer.from(crypto.createHash('sha1').update(buf).digest());
 
-E.sha256 = function(buf){
-  return Buffer.from(crypto.createHash('sha256').update(buf).digest()); };
+E.sha256 = buf=>Buffer.from(crypto.createHash('sha256').update(buf).digest());
 
-E.blake2b = function(buf){
+E.blake2b = buf=>{
   const out = b4a.allocUnsafe(blake2b.BYTES);
   blake2b(blake2b.BYTES).update(buf).digest(out);
   return Buffer.from(out);

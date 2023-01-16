@@ -8,6 +8,5 @@ E.split_trim = function(s, sep, limit){
   return array.compact_self(s.split(sep, limit)); };
 E.split_ws = function(s){ return E.split_trim(s, /\s+/); };
 E.is_ws = function(s){ return /^\s$/.test(s); };
-E.sort_char = s=>s.split('').sort((a, b)=>a>b ? -1 : a<b ? 1 : 0).join('');
 E.is_lower = function(ch){ return /^[a-z]$/.test(ch); };
 E.is_upper = function(ch){ return /^[A-Z]$/.test(ch); };

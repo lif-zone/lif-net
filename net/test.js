@@ -611,7 +611,8 @@ function track_seq_res(s, d, id, type, seq, call){
   return seq===undefined ? t_req[id].res.seq : seq;
 }
 
-function rtt_hash(a, b){ return string.sort_char(a+b); }
+const rtt_hash = (a, b)=>(a+b).split('').sort((a, b)=>a>b ? -1 : a<b ? 1 : 0)
+.join('');
 
 function conf_rtt(a, b){
   let hash = rtt_hash(a, b);

@@ -2416,7 +2416,7 @@ describe('scroll', ()=>{
           tput(0_1 c    ) #bseq2c1=2
           tput(0_1 c d  ) #bseq3c1=3
           tput(0_1 c d e) #bseq4c1=4`);
-        let s_conflict_no_branch = `
+        let s = `
           s..#bseq scroll          #bseq0=0
           decl(1)                  #bseq1=1
           decl(2 branch:b)         #bseq2=1-1.0
@@ -2427,12 +2427,12 @@ describe('scroll', ()=>{
           decl(3)                  #bseq3=1-1.1
           decl(4)                  #bseq4=1-1.2
           decl(5 prev:1 branch:b2) #bseq5=1-2.0`;
-        t('conflict_two_branch_clone_t_bseq', s_conflict_no_branch+`
+        t('conflict_two_branch_clone_t_bseq', s+`
           S..#bseq S.clone(s) S1..#bseq S1.clone(s1)
           S.#(bseq0=0 bseq1=1 bseq2=1-1.0 bseq3=1-1.1 bseq4=1-2.0 bseq5=1-2.1)
           S1.#(bseq0=0 bseq1=1 bseq2=1-1.0 bseq3=1-1.1 bseq4=1-1.2 bseq5=1-2.0)
         `);
-        t('conflict_two_branch_clone_t_btable', s_conflict_no_branch+`
+        t('conflict_two_branch_clone_t_btable', s+`
           S.#btable S.clone(s) S1.#btable S1.clone(s1)
           S.#(btable_c0[0]={branch:null seq:0 bseq:0}
             btable_c0[1]={branch:b seq:2 bseq:1-1.0}
@@ -2440,7 +2440,7 @@ describe('scroll', ()=>{
           S1.#(btable_c0[0]={branch:null seq:0 bseq:0}
             btable_c0[1]={branch:b seq:2 bseq:1-1.0}
             btable_c0[2]={branch:b2 seq:5 bseq:1-2.0})`);
-        t('conflict_two_branch_put_t_bseq', s_conflict_no_branch+` S..#bseq
+        t('conflict_two_branch_put_t_bseq', s+` S..#bseq
           S..scroll(s..M0)  #
           tput(0)           #bseq0=0
           tput(0 1)         #bseq1=1
@@ -2451,7 +2451,7 @@ describe('scroll', ()=>{
           tput(0_1 2 d    ) #bseq3c1=1-1.1
           tput(0_1 2 d e  ) #bseq4c1=1-1.2
           tput(0_1 2 d e f) #bseq5c1=1-2.0`);
-        t('conflict_two_branch_put_t_btable', s_conflict_no_branch+` S..#btable
+        t('conflict_two_branch_put_t_btable', s+` S..#btable
           scroll(s..M0)     #btable_c0[0]={branch:null seq:0 bseq:0}
           tput(0)           #
           tput(0 1)         #

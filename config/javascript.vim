@@ -1,4 +1,4 @@
-" cp javascript.vim /usr/share/vim/vim81/syntax/javascript.vim
+" cp javascript.vim ~/.vim/syntax/javascript.vim
 " Vim syntax file
 " Language:	JavaScript
 " Maintainer:	Claudio Fleiner <claudio@fleiner.com>

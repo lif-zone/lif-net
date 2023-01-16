@@ -2427,7 +2427,19 @@ describe('scroll', ()=>{
           decl(3)                  #bseq3=1-1.1
           decl(4)                  #bseq4=1-1.2
           decl(5 prev:1 branch:b2) #bseq5=1-2.0`;
-        t('conflict_two_branch_decl_t_bseq', s_conflict_no_branch);
+        t('conflict_two_branch_clone_t_bseq', s_conflict_no_branch+`
+          S..#bseq S.clone(s) S1..#bseq S1.clone(s1)
+          S.#(bseq0=0 bseq1=1 bseq2=1-1.0 bseq3=1-1.1 bseq4=1-2.0 bseq5=1-2.1)
+          S1.#(bseq0=0 bseq1=1 bseq2=1-1.0 bseq3=1-1.1 bseq4=1-1.2 bseq5=1-2.0)
+        `);
+        t('conflict_two_branch_clone_t_btable', s_conflict_no_branch+`
+          S.#btable S.clone(s) S1.#btable S1.clone(s1)
+          S.#(btable_c0[0]={branch:null seq:0 bseq:0}
+            btable_c0[1]={branch:b seq:2 bseq:1-1.0}
+            btable_c0[2]={branch:b2 seq:4 bseq:1-2.0})
+          S1.#(btable_c0[0]={branch:null seq:0 bseq:0}
+            btable_c0[1]={branch:b seq:2 bseq:1-1.0}
+            btable_c0[2]={branch:b2 seq:5 bseq:1-2.0})`);
         t('conflict_two_branch_put_t_bseq', s_conflict_no_branch+` S..#bseq
           S..scroll(s..M0)  #
           tput(0)           #bseq0=0

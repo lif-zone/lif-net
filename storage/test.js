@@ -2364,6 +2364,7 @@ describe('scroll', ()=>{
       // XXX: verify behavior on conflict delete/merge and verify we removed
       // uneeded branch table
       describe('decl', ()=>{
+        // XXX: unite bseq/btable tests into one test
         t('no_branch', `s..#(bseq btable) scroll decl(1-10) #(bseq0=0 bseq1=1
           bseq2=2 bseq3=3 bseq4=4 bseq5=5 bseq6=6 bseq7=7 bseq8=8 bseq9=9
           bseq10=_10 btable_c0[0]={branch:null seq:0 bseq:0}) !bseq11`);
@@ -2475,41 +2476,20 @@ describe('scroll', ()=>{
           decl(3)                  #bseq3=1-1.1
           decl(4)                  #bseq4=1-1.2
           decl(5 prev:1 branch:b2) #bseq5=1-2.0`;
-        t('conflict_two_branch_clone_t_bseq', s+`
-          S..#bseq S.clone(s) S1..#bseq S1.clone(s1)
-          S.#(bseq0=0 bseq1=1 bseq2=1-1.0 bseq3=1-1.1 bseq4=1-2.0 bseq5=1-2.1)
-          S1.#(bseq0=0 bseq1=1 bseq2=1-1.0 bseq3=1-1.1 bseq4=1-1.2 bseq5=1-2.0)
-        `);
-        t('conflict_two_branch_clone_t_btable', s+`
-          S.#btable S.clone(s) S1.#btable S1.clone(s1)
-          S.#(btable_c0[0]={branch:null seq:0 bseq:0}
-            btable_c0[1]={branch:b seq:2 bseq:1-1.0}
-            btable_c0[2]={branch:b2 seq:4 bseq:1-2.0})
-          S1.#(btable_c0[0]={branch:null seq:0 bseq:0}
-            btable_c0[1]={branch:b seq:2 bseq:1-1.0}
-            btable_c0[2]={branch:b2 seq:5 bseq:1-2.0})`);
-        t('conflict_two_branch_put_t_bseq', s+` S..#bseq
-          S..scroll(s..M0)  #
+        t('conflict_two_branch_put', s+` S..#(bseq btable)
+          S..scroll(s..M0)  #btable_c0[0]={branch:null seq:0 bseq:0}
           tput(0)           #bseq0=0
           tput(0 1)         #bseq1=1
-          tput(0 1 2      ) #bseq2=1-1.0
+          tput(0 1 2      ) #(bseq2=1-1.0
+                              btable_c0[1]={branch:b seq:2 bseq:1-1.0})
           tput(0 1 2 3    ) #bseq3=1-1.1
-          tput(0 1 2 3 4  ) #bseq4=1-2.0
+          tput(0 1 2 3 4  ) #(bseq4=1-2.0
+                              btable_c0[2]={branch:b2 seq:4 bseq:1-2.0})
           tput(0 1 2 3 4 5) #bseq5=1-2.1
           tput(0_1 2 d    ) #bseq3c1=1-1.1
           tput(0_1 2 d e  ) #bseq4c1=1-1.2
-          tput(0_1 2 d e f) #bseq5c1=1-2.0`);
-        t('conflict_two_branch_put_t_btable', s+` S..#btable
-          scroll(s..M0)     #btable_c0[0]={branch:null seq:0 bseq:0}
-          tput(0)           #
-          tput(0 1)         #
-          tput(0 1 2      ) #btable_c0[1]={branch:b seq:2 bseq:1-1.0}
-          tput(0 1 2 3    ) #
-          tput(0 1 2 3 4  ) #btable_c0[2]={branch:b2 seq:4 bseq:1-2.0}
-          tput(0 1 2 3 4 5) #
-          tput(0_1 2 d    ) #
-          tput(0_1 2 d e  ) #
-          tput(0_1 2 d e f) #btable_c1[0]={branch:b2 seq:5 bseq:1-2.0}`);
+          tput(0_1 2 d e f) #(bseq5c1=1-2.0
+                              btable_c1[0]={branch:b2 seq:5 bseq:1-2.0})`);
       });
       describe('db', ()=>{
         t('write', `s..#(db_btable)

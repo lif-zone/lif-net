@@ -457,11 +457,9 @@ E.test_parse_cmd_single = function(s, opt){
   opt = opt||{};
   let state = 'pre', i, ret={}, cmd_s=0, cmd_e = s.length, arg_s=0, arg_e=0;
   let parentesis = 0, done, comment;
-  for (i=0; i<s.length && !done; i++)
-  {
+  for (i=0; i<s.length && !done; i++){
     let c = s.charAt(i);
-    switch (state)
-    {
+    switch (state){
     case 'pre':
       if (string.is_ws(c))
         continue;
@@ -591,8 +589,7 @@ E.parse_cmd_dir = function(s){
   let loop = [], dir = s[_d], a='', b='', comma, no_comma, sign='';
   let dot_a, dot_b, cmd = s.substr(_d+1);
   let rt_opt_before, rt_opt_after, rt_path, rt_path_open;
-  for (let i=0; i<_d+1; i++)
-  {
+  for (let i=0; i<_d+1; i++){
     let ch = s[i];
     assert_invalid(/[:a-zA-Z,.<>=~!?[\]]/i.test(ch), s, i);
     if (ch=='['){

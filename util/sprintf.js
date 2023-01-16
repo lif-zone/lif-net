@@ -75,8 +75,7 @@ function _stringify(key, holder, replacer, stack){
       }
       ret = '['+a.join(',')+']';
     } else {
-      for (p in value)
-      {
+      for (p in value){
         if (!has.call(value, p))
           continue;
         if (typeof replacer=='object' && !replacer[p])

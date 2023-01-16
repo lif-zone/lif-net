@@ -46,8 +46,7 @@ E.compact_self = function(a){
   for (i=0; i<n && a[i]; i++);
   if (i==n)
     return a;
-  for (j=i; i<n; i++)
-  {
+  for (j=i; i<n; i++){
     if (!a[i])
       continue;
     a[j++] = a[i];

@@ -907,8 +907,7 @@ function ps_flags(flags){
       _m = {sp: m, name: []};
     else {
       _m = {sp: [], name: []};
-      for (var i=0; i<m.length; i++)
-      {
+      for (var i=0; i<m.length; i++){
         _m.name.push(m[i][0]);
         _m.sp.push(m[i][1]);
       }

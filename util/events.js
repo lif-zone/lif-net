@@ -70,8 +70,7 @@ EventEmitter.prototype.emit = function emit(name, a1, a2, a3, a4, a5){
     {
         for (i = 1, args = new Array(len-1); i<len; i++)
             args[i-1] = arguments[i];
-        for (i = 0; i<length; event = listeners[++i])
-        {
+        for (i = 0; i<length; event = listeners[++i]){
             event.fn.apply(event.context||this, args);
             if (event.once)
                 remove_listener.apply(this, [name, event]);

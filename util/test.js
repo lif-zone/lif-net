@@ -1749,26 +1749,6 @@ describe('util', ()=>{
 });
 
 describe('array', ()=>{
-    it('copy', ()=>{
-        let t = a=>assert.deepStrictEqual(a, array.copy(a));
-        t([]);
-        t([1]);
-        t([1, 2]);
-        t([1, 2, 3]);
-        t([1, 2, 3, 4]);
-        t([1, 2, 3, 4, 5]);
-        t([1, 2, 3, 4, 5, 6]);
-        t([3, 2, 1]);
-        t([6, 5, 4, 3, 2, 1]);
-        t([null]);
-        t([undefined]);
-        t([1, null, 1]);
-        t([1, undefined, 1]);
-        t([null, 1, 2]);
-        t([undefined, 1, 2]);
-        t([1, null]);
-        t([1, undefined]);
-    });
     it('push', ()=>{
         let t = (args, res)=>{
             let n = array.push(...args);

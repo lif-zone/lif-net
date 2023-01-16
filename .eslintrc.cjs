@@ -92,7 +92,7 @@ module.exports = {
     'space-before-function-paren': ['error', 'never'],
     'space-in-parens': 'error',
     'spaced-comment': ['error', 'always', {
-        markers: ['jslint', 'zlint', 'global'],
+        markers: ['eslint-env', 'global'],
     }],
     'object-curly-spacing': 'warn',
     // ECMAScript 6

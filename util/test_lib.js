@@ -1,5 +1,5 @@
 // author: derry. coder: arik.
-'use strict'; /*global describe,it,beforeEach,afterEach before after*/
+'use strict'; /*eslint-env mocha*/
 import proc from './proc.js';
 import etask from './etask.js';
 import xutil from './util.js';

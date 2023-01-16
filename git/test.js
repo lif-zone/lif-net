@@ -1,4 +1,4 @@
-'use strict'; /*global describe,it*/
+'use strict'; /*eslint-env mocha*/
 import assert from 'assert';
 import xutil from '../util/util.js';
 import proc from '../util/proc.js';

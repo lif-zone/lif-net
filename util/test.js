@@ -1,5 +1,5 @@
 // author: derry. coder: arik.
-'use strict'; /*global describe,it,beforeEach,afterEach*/
+'use strict'; /*eslint-env mocha*/
 import etask from './etask.js';
 import date from './date.js';
 import xutil from './util.js';

@@ -1,4 +1,4 @@
-'use strict'; /*global describe,it,beforeEach*/
+'use strict'; /*eslint-env mocha*/
 import assert from 'assert';
 import Node from './node.js';
 import Router from './router.js';

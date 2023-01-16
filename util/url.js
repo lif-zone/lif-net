@@ -1,5 +1,5 @@
 // author: derry. coder: arik.
-'use strict'; /*zlint node, br*/
+'use strict';
 import xutil from './util.js';
 import qs from 'querystring';
 var assign = Object.assign;

@@ -1,5 +1,5 @@
 // author: derry. coder: arik.
-'use strict'; /*jslint node:true*/
+'use strict';
 import WS, {WebSocketServer} from 'ws';
 const E = {};
 export default E;

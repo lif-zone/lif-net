@@ -1,5 +1,5 @@
 // author: derry. coder: arik.
-'use strict'; /*jslint node:true, browser:true*/
+'use strict';
 import {EventEmitter} from 'events';
 import Tree from 'avl';
 import FibonacciHeap from 'js-fibonacci-heap';

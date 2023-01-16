@@ -1,5 +1,5 @@
 // author: derry. coder: arik.
-'use strict'; /*jslint node:true,browser:true*/
+'use strict';
 import array from './array.js';
 const E = {};
 export default E;

@@ -1,5 +1,5 @@
 // author: derry. coder: arik.
-'use strict'; /*jslint node:true, browser:true*/
+'use strict';
 import {EventEmitter} from 'events';
 import xerr from '../util/xerr.js';
 import NodeId from './node_id.js';

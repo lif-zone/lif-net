@@ -1,5 +1,5 @@
 // author: derry. coder: arik.
-'use strict'; /*jslint node:true*/ /*global afterEach*/
+'use strict'; /*global afterEach*/
 import sinon from 'sinon';
 import assert from 'assert';
 import etask from './etask.js';

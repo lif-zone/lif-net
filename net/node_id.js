@@ -1,5 +1,5 @@
 // author: derry. coder: arik.
-'use strict'; /*jslint node:true, browser:true*/ /*global BigInt*/
+'use strict'; /*global BigInt*/
 import {EventEmitter} from 'events';
 import {Buffer} from 'buffer';
 import assert from 'assert';

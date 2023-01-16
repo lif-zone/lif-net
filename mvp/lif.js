@@ -1,5 +1,5 @@
 // author: derry. coder: arik.
-'use strict'; /*jslint node:true, browser:true*/
+'use strict';
 import assert from 'assert';
 import {EventEmitter} from 'events';
 import LBuffer from '../peer-relay/lbuffer.js';

@@ -1,5 +1,5 @@
 // author: derry. coder: arik.
-'use strict'; /*jslint node:true*/
+'use strict';
 export default sprintf;
 var E = sprintf;
 E.sprintf = sprintf;

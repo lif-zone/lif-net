@@ -1,5 +1,5 @@
 // author: derry. coder: arik.
-'use strict'; /*zlint node, br*/
+'use strict';
 import xerr from './xerr.js';
 
 export default function xlog(module){

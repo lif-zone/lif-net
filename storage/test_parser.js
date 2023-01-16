@@ -1,4 +1,4 @@
-'use strict'; /*jslint node:true*/
+'use strict';
 import assert from 'assert';
 import string from '../util/string.js';
 

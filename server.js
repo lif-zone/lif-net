@@ -1,5 +1,5 @@
 // author: derry. coder: arik.
-'use strict'; /*jslint node:true*/
+'use strict';
 import nconf from 'nconf';
 import util from './util/util.js';
 import date from './util/date.js';

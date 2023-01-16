@@ -1,5 +1,5 @@
 // author: derry. coder: arik.
-'use strict'; /*jslint node:true*/
+'use strict';
 import node_util from 'util';
 const is_node = typeof window==='undefined';
 

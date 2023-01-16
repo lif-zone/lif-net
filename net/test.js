@@ -1,5 +1,4 @@
-'use strict'; /*jslint node:true*/ /*global describe,it,beforeEach*/
-// XXX: need jslint mocha: true
+'use strict'; /*global describe,it,beforeEach*/
 import assert from 'assert';
 import Node from './node.js';
 import Router from './router.js';

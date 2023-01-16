@@ -1,5 +1,5 @@
 // author: derry. coder: arik.
-'use strict'; /*jslint node:true*/
+'use strict';
 const env = process.env, DEV = env.DEV;
 const E = {
   dns_server: {port: 53, ip: DEV ? '127.0.0.1' : '3.12.37.122', dns: '8.8.8.8',

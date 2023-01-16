@@ -1,5 +1,5 @@
 // author: derry. coder: arik.
-'use strict'; /*jslint node:true, browser:true*/
+'use strict';
 import buf_util from './buf_util.js';
 import xerr from '../util/xerr.js';
 import sprintf from '../util/sprintf.js';

@@ -1,5 +1,5 @@
 // author: derry. coder: arik.
-'use strict'; /*jslint node:true*/ /*global describe,it,beforeEach,afterEach*/
+'use strict'; /*global describe,it,beforeEach,afterEach*/
 import etask from './etask.js';
 import date from './date.js';
 import xutil from './util.js';

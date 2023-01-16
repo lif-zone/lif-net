@@ -1,6 +1,6 @@
 // author: derry. coder: arik.
 // XXX: file need test
-'use strict'; /*jslint node:true,browser:true*/
+'use strict';
 import sodium from 'sodium-universal';
 import b4a from 'b4a'; // XXX: rm
 import blake2b from 'blake2b';

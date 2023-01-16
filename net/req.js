@@ -1,5 +1,5 @@
 // author: derry. coder: arik.
-'use strict'; /*jslint node:true, browser:true*/
+'use strict';
 import {EventEmitter} from 'events';
 import assert from 'assert';
 import date from '../util/date.js';

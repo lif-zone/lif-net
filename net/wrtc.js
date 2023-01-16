@@ -1,5 +1,5 @@
 // author: derry. coder: arik.
-'use strict'; /*jslint node:true, browser:true*/
+'use strict';
 import {inherits} from 'util';
 import {EventEmitter} from 'events';
 import SimplePeer from 'simple-peer';

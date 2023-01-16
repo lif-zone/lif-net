@@ -1,5 +1,5 @@
 // author: derry. coder: arik.
-'use strict'; /*zlint node, br*/
+'use strict';
 import xescape from './escape.js';
 import xutil from './util.js';
 const E = {};

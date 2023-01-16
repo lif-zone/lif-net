@@ -1,5 +1,5 @@
 // author: derry. coder: arik.
-'use strict'; /*jslint node:true, browser:true*/
+'use strict';
 import xcrypto from '../util/crypto.js';
 import NodeId from './node_id.js';
 const stringify = JSON.stringify;

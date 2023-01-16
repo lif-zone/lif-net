@@ -1,5 +1,5 @@
 // author: derry. coder: arik.
-'use strict'; /*jslint node:true, browser:true*/
+'use strict';
 import hcrypto from 'hypercore-crypto';
 import assert from 'assert';
 import hash from 'object-hash';

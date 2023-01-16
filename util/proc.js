@@ -1,5 +1,5 @@
 // author: derry. coder: arik.
-'use strict'; /*jslint node:true*/
+'use strict';
 import xerr from './xerr.js';
 import xutil from './util.js';
 import assert from 'assert';

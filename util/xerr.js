@@ -1,5 +1,5 @@
 // author: derry. coder: arik.
-'use strict'; /*zlint node, br*/
+'use strict';
 import xutil from './util.js';
 import date from './date.js';
 import array from './array.js';

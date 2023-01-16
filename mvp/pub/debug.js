@@ -1,5 +1,5 @@
 // author: derry. coder: arik.
-'use strict'; /*jslint node:true, browser:true*/
+'use strict';
 // XXX run: npm run mvp-bundle && node ./main.js
 import React from 'react';
 import ReactDOM from 'react-dom';

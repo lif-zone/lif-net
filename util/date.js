@@ -1,5 +1,5 @@
 // author: derry. coder: arik.
-'use strict'; /*jslint node:true*/
+'use strict';
 const E = date_get;
 export default E;
 const is_node = typeof window==='undefined';

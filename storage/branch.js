@@ -16,28 +16,42 @@ branch table key: [scfid, seq]
 {scfid: 1, branch: b, seq: 10 bseq: 1-1.0}
 // XXX: where to save full_seq/complete_data
 
-//4
-{seq: 0 bseq: 0 size: 3}
-0 bseq:0
-1 bseq:1
-2 bseq:2
+// s
+btable:
+{seq: 0 bseq: 0} // size: 2
+{seq: 4 bseq: 2} // size: 1}
+scroll:
+0           #bseq:0
+1           #bseq:1
+2_3
+4 prev:1    #bseq:2
 
-// 3-1.0
-{seq: 0 bseq: 0 size: 2}
-{seq: 3 bseq: '1-1.0', branch: 'b' size: 2}
-{seq: 8 bseq: 2 size: 1}
-0 bseq:0
-1 bseq:1
-2 branch:b bseq:1-1.0
-3 bseq:1-1.1
-4 prev 1 bseq:1
+// s1
+btable:
+{seq: 0 bseq: 0} // size: 2
+{seq: 2 bseq: 1-1.0} // size: 2
+{seq: 4 bseq: 2} // size: 1
+scroll:
+0           #bseq:0
+1           #bseq:1
+2 branch:b  #bseq:1-1.0
+3           #bseq:1-1.1
+4 prev:1    #bseq:2
+
+// s2
+btable:
+{seq: 0 bseq: 0} // size: 2
+{seq: 2 bseq: 1-1.0} // size: 1
+{seq: 3 bseq: 1-1.0-1.0} // size: 1
+{seq: 4 bseq: 2} // size: 1
+scroll:
+0           #bseq:0
+1           #bseq:1
+2 branch:b  #bseq:1-1.0
+3 branch:b2 #bseq:1-1.0-1.0
+4 prev:1    #bseq:2
 
 
-
-6_7
-8
-9 prev 1
-complete_data:
 
 */
 

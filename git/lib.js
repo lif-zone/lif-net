@@ -11,7 +11,7 @@ import http from 'isomorphic-git/http/node/index.cjs';
 import fs from 'fs';
 import assert from 'assert';
 import * as Diff from 'diff';
-import buf_util from '../peer-relay/buf_util.js';
+import buf_util from '../net/buf_util.js';
 const b2s = buf_util.buf_to_str;
 const E = {};
 // XXX derry: mv to util (and is there better way)

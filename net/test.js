@@ -3451,7 +3451,7 @@ describe('wallet', ()=>{
   });
 });
 
-describe('peer-relay', function(){
+describe('net', function(){
   beforeEach(function(){
     xtest.set(Node, 'WsConnector', FakeWsConnector);
     xtest.set(Node, 'WrtcConnector', FakeWrtcConnector);

@@ -3,7 +3,7 @@
 import assert from 'assert';
 import Scroll from './scroll.js';
 import DB from './db.js';
-import buf_util from '../peer-relay/buf_util.js';
+import buf_util from '../net/buf_util.js';
 const b2s = buf_util.buf_to_str;
 
 export default class Soul {

@@ -8,7 +8,7 @@ import Scroll from '../storage/scroll.js';
 import Soul from '../storage/soul.js'; // eslint-disable-line no-unused-vars
 import DB from '../storage/db.js';
 import Storage_handler from '../storage/storage.js';
-import buf_util from '../peer-relay/buf_util.js';
+import buf_util from '../net/buf_util.js';
 import lib from './lib.js';
 const soul = Scroll.soul, db = soul.db;
 const s2b = buf_util.buf_from_str;

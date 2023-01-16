@@ -14,7 +14,7 @@ import Scroll from './scroll.js';
 import Branch_table from './branch.js';
 import Soul from './soul.js';
 import DB from './db.js';
-import buf_util from '../peer-relay/buf_util.js';
+import buf_util from '../net/buf_util.js';
 import {r_str, r_from_str, r_parent, r_includes, r_eq, r_split}
   from './range.js';
 const {rm_parentesis, parse_get_next, parse_exp_arg_pair, parse_exp,

@@ -9,7 +9,7 @@ import etask from '../util/etask.js';
 import xerr from '../util/xerr.js';
 import enc from 'compact-encoding';
 import {Buffer} from 'buffer';
-import buf_util from '../peer-relay/buf_util.js';
+import buf_util from '../net/buf_util.js';
 import {r_fix, r_parent, r_eq, r_includes, r_str, r_split} from './range.js';
 const s2b = buf_util.buf_from_str, b2s = buf_util.buf_to_str;
 const beq = buf_util.buf_eq;

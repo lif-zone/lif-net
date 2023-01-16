@@ -4,7 +4,7 @@ import assert from 'assert';
 import etask from '../util/etask.js';
 import xerr from '../util/xerr.js';
 import xutil from '../util/util.js';
-import buf_util from '../peer-relay/buf_util.js';
+import buf_util from '../net/buf_util.js';
 const b2s = buf_util.buf_to_str, s2b = buf_util.buf_from_str;
 
 /* db design

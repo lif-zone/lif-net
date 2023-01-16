@@ -6,7 +6,7 @@ import b4a from 'b4a'; // XXX: rm
 import blake2b from 'blake2b';
 import crypto from 'crypto';
 import {Buffer} from 'buffer';
-import buf_util from '../peer-relay/buf_util.js';
+import buf_util from '../net/buf_util.js';
 const s2b = buf_util.buf_from_str, b2s = buf_util.buf_to_str;
 const stringify = JSON.stringify;
 

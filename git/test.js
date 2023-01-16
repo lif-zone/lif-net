@@ -7,7 +7,7 @@ import etask from '../util/etask.js';
 import Soul from '../storage/soul.js'; // eslint-disable-line no-unused-vars
 import lib from './lib.js';
 import git_util from './util.js';
-import buf_util from '../peer-relay/buf_util.js';
+import buf_util from '../net/buf_util.js';
 const s2b = buf_util.buf_from_str;
 
 proc.init();

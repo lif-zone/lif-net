@@ -34,7 +34,7 @@ export default class Node extends EventEmitter {
     this.ring_join_handler = new ReqHandler({node: this, cmd: 'ring_join'})
     .on('req', (msg, res)=>res.send({id: id.s}));
     if (opt.port)
-      xerr.notice('peer-relay: listen on %s id %s', opt.port, id.s);
+      xerr.notice('net: listen on %s id %s', opt.port, id.s);
     this.wsConnector = new Node.WsConnector(id.b, opt.port, opt.host,
       opt.http);
     this.wsConnector.on('connection', channel=>this._onConnection(channel));

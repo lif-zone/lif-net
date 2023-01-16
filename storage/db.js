@@ -31,11 +31,14 @@ export default class DB {
     _this.db = yield idb.openDB('lif_db'+_this.postfix, undefined, {
       upgrade(db, oldVersion, newVersion, transaction, event){
         db.createObjectStore('data', {keyPath: 'h'});
-        let scroll2 = db.createObjectStore('scroll', {keyPath: 'scfid'});
-        scroll2.createIndex('scroll', 'scroll');
-        scroll2.createIndex('scroll-cfid', ['scroll', 'cfid'], {unique: true});
-        let decl2 = db.createObjectStore('decl', {keyPath: ['scfid', 'seq']});
-        decl2.createIndex('scfid', 'scfid');
+        let scroll = db.createObjectStore('scroll', {keyPath: 'scfid'});
+        scroll.createIndex('scroll', 'scroll');
+        scroll.createIndex('scroll-cfid', ['scroll', 'cfid'], {unique: true});
+        let decl = db.createObjectStore('decl', {keyPath: ['scfid', 'seq']});
+        decl.createIndex('scfid', 'scfid');
+        let branch = db.createObjectStore('branch',
+          {keyPath: ['scfid', 'seq']});
+        branch.createIndex('scfid', 'scfid');
     }});
     yield _this.load_scfid_next();
   });
@@ -58,19 +61,23 @@ export default class DB {
     _this.scfid_next = cursor ? cursor.value.scfid+1 : 0;
   }); }
   copy = src=>etask({_: this}, function*copy(){
+    this.on('uncaught', e=>xerr.xexit(e));
     let _this = this._;
     assert(src.inited, 'src db not inited');
     assert(_this.inited, 'db not inited');
-    let tx = _this.transaction(['scroll', 'decl'], 'readwrite');
+    let tx = _this.transaction(['scroll', 'decl', 'branch'], 'readwrite');
     let store = tx.store('scroll');
     for (let cur = yield _this.cursor(store); cur; cur = yield cur.next())
       cur.delete();
     store = tx.store('decl');
     for (let cur = yield _this.cursor(store); cur; cur = yield cur.next())
       cur.delete();
+    store = tx.store('branch');
+    for (let cur = yield _this.cursor(store); cur; cur = yield cur.next())
+      cur.delete();
     yield tx;
-    let data_scroll = [], data_decl = [], data_blob = [];
-    tx = src.transaction(['scroll', 'decl'], 'readonly');
+    let data_scroll = [], data_decl = [], data_blob = [], data_branch = [];
+    tx = src.transaction(['scroll', 'decl', 'branch'], 'readonly');
     store = tx.store('scroll');
     for (let cur = yield src.cursor(store); cur; cur = yield cur.next())
       data_scroll.push(cur.value);
@@ -78,6 +85,10 @@ export default class DB {
     store = tx.store('decl');
     for (let cur = yield src.cursor(store); cur; cur = yield cur.next())
       data_decl.push(cur.value);
+    tx = src.transaction(['branch'], 'readonly');
+    store = tx.store('branch');
+    for (let cur = yield src.cursor(store); cur; cur = yield cur.next())
+      data_branch.push(cur.value);
     tx = src.transaction(['data'], 'readonly');
     store = tx.store('data');
     for (let cur = yield src.cursor(store); cur; cur = yield cur.next())
@@ -86,10 +97,13 @@ export default class DB {
     store = tx.store('scroll');
     for (let i=0; i<data_scroll.length; i++)
       yield _this.store_put(store, data_scroll[i]);
-    tx = _this.transaction(['scroll', 'decl', 'data'], 'readwrite');
+    tx = _this.transaction(['scroll', 'decl', 'data', 'branch'], 'readwrite');
     store = tx.store('decl');
     for (let i=0; i<data_decl.length; i++)
       yield _this.store_put(store, data_decl[i]);
+    store = tx.store('branch');
+    for (let i=0; i<data_branch.length; i++)
+      yield _this.store_put(store, data_branch[i]);
     store = tx.store('data');
     for (let i=0; i<data_blob.length; i++)
       yield _this.store_put(store, data_blob[i]);

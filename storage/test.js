@@ -6,6 +6,7 @@ import enc from 'compact-encoding';
 import tparser from './test_parser.js';
 import xtest from '../util/test_lib.js'; // eslint-disable-line no-unused-vars
 import etask from '../util/etask.js';
+import xutil from '../util/util.js';
 import crypto from '../util/crypto.js';
 import string from '../util/string.js';
 import Storage_handler from './storage.js';
@@ -142,8 +143,10 @@ function parse_var(v){
   v = m ? m[3] : v;
   if (['db_c', 'db_data', 'mem_c'].includes(v))
     return {type: v, ctx, def};
-  if (m = v.match(/btable_c(\d+)\[(\d+)\]$/))
+  if (m = v.match(/^btable_c(\d+)\[(\d+)\]$/))
     return {type: 'btable_c', cfid: +m[1], index: +m[2], ctx, def};
+  if (m = v.match(/^db_btable_c(\d+)\[(\d+)\]$/))
+    return {type: 'db_btable_c', cfid: +m[1], index: +m[2], ctx, def};
   if (m = v.match(/^(bseq|sig|m|M|d|D|mem|db)((\d+)|((\d+)_(\d+)))(c(\d+))?$/))
   {
     let type = m[1], range = r_from_str(m[2]), seq = range[1];
@@ -586,6 +589,8 @@ function state_split_var(v, def){
     return {name, type};
   if (['btable_c'].includes(type))
     return {name, type, cfid, index};
+  if (['db_btable_c'].includes(type))
+    return {name, type, cfid, index};
   if (type=='bseq')
     return {name, type, seq, cfid};
   assert(['mem', 'db'].includes(type), 'invalid type '+type);
@@ -605,7 +610,9 @@ const state_split = (exp, def)=>etask(function*state_split(){
     if (['db_c', 'mem_c'].includes(o.l))
       return {...state_split_var(o.l, def), val: yield get_static_c(o.r)};
     if (/^btable_c/.test(o.l))
-      return {...state_split_var(o.l, def), val: yield get_static_bseq(o.r)};
+      return {...state_split_var(o.l, def), val: yield get_btable(o.r)};
+    if (/^db_btable_c/.test(o.l))
+      return {...state_split_var(o.l, def), val: yield get_btable(o.r)};
     return {...state_split_var(o.l, def),
       val: fix_buf(yield get_val(o.r, 'right'))};
   default: assert.fail('invalid state_split '+exp);
@@ -621,15 +628,23 @@ function state_apply(state, o){
       delete state[type];
     return;
   }
-  if (['btable_c'].includes(type)){
+  if (['btable_c', 'db_btable_c'].includes(type)){
+    let so;
+    if (type=='btable_c')
+      so = state.btable = state.btable||{};
+    else if (type=='db_btable_c')
+      so = state.db_btable = state.db_btable||{};
+    else
+      assert.fail('invalid type '+type);
     if (val){
-      state.btable = state.btable||{};
-      let a = state.btable[cfid] = state.btable[cfid]||[];
+      let a = so[cfid] = so[cfid]||[];
       while (a.length<=index)
         a.push({});
+      if (xutil.equal_deep(a[index], val))
+        assert.fail('uneeded '+type+cfid+'['+index+']');
       a[index] = val;
     } else {
-      let a = state.btable[cfid] = state.btable[cfid]||[];
+      let a = so[cfid] = so[cfid]||[];
       a[index] = null;
       let need_delete=true;
       for (let i=0; i<a.length; i++){
@@ -637,7 +652,7 @@ function state_apply(state, o){
           need_delete = false;
       }
       if (need_delete)
-        delete state.btable[cfid];
+        delete so[cfid];
     }
     return;
   }
@@ -670,6 +685,7 @@ function get_filter(s){
     case 'mem_c': break;
     case 'btable': break;
     case 'bseq': break;
+    case 'db_btable': break;
     default: return;
     }
   }
@@ -714,6 +730,7 @@ const cmd_state = t=>etask(function*cmd_state(){
     state.db = yield db_get_scroll_decl(scroll.soul.db, scroll);
     state.db_c = yield db_get_c(scroll.soul.db, scroll.name);
     state.db_data = yield db_get_db_data(scroll.soul.db);
+    state.db_btable = yield db_get_btable(scroll);
   } else {
     state.db = {};
     state.db_c = {};
@@ -758,6 +775,10 @@ const cmd_state = t=>etask(function*cmd_state(){
   if (t_state.filter.includes('bseq')){
     assert_b2s_obj(state.bseq, t_state[name].bseq,
       'bseq state mismach '+t.meta.s);
+  }
+  if (t_state.filter.includes('db_btable')){
+    assert_b2s_obj(state.db_btable, t_state[name].db_btable,
+      'db_btable state mismach '+t.meta.s);
   }
   t_state[name] = state;
 });
@@ -949,12 +970,13 @@ const get_static_c = s=>etask(function*get_static_c(){
   return o;
 });
 
-const get_static_bseq = s=>etask(function*get_static_bseq(){
+const get_btable = s=>etask(function*get_btable(){
   let bo = {};
   s = rm_parentesis(s, '{');
   for (let curr=s; curr = parse_get_next(curr);){
     let o = parse_exp(curr.exp);
-    bo[o.l] = o.r=='null' ? null : o.r; // XXX yield get_val(o.r);
+    // XXX yield get_val(o.r);
+    bo[o.l] = o.r=='null' ? null : o.l=='seq' ? +o.r : o.r;
   }
   return bo;
 });
@@ -1025,6 +1047,25 @@ const mem_get_btable = scroll=>etask(function mem_get_btable(){
     ret[cfid] = btable.to_static();
     if (!ret[cfid].length)
       delete ret[cfid];
+  }
+  return ret;
+});
+
+const db_get_btable = scroll=>etask(function*db_get_btable(){
+  if (!scroll.storage)
+    return;
+  let db = scroll.soul.db, tx = db.transaction('branch', 'readonly'), ret;
+  let index = tx.index('branch', 'scfid'); // XXX: order by seq
+  for (const [, co] of scroll.conflict){
+    for (let cursor=yield db.cursor(index, db.only(co.db.data.scfid)); cursor;
+      cursor = yield cursor.next())
+    {
+      let {scfid, cfid, branch, seq, bseq} = cursor.value;
+      assert.equal(scfid, co.db.data.scfid, 'scfid mismatch');
+      ret = ret||{};
+      ret[cfid] = ret[cfid]||[];
+      ret[cfid].push({branch, seq, bseq});
+    }
   }
   return ret;
 });
@@ -1186,6 +1227,10 @@ describe('test_util', ()=>{
         let cfid = +a[1], index = +a[2], ctx = a[3]||'', def = a[4]=='def';
         exp2 = {type: 'btable_c', cfid, index, ctx, def};
       }
+      else if (['db_btable_c'].includes(a[0])){
+        let cfid = +a[1], index = +a[2], ctx = a[3]||'', def = a[4]=='def';
+        exp2 = {type: 'db_btable_c', cfid, index, ctx, def};
+      }
       else if (['struct'].includes(a[0])){
         exp2 = {type: 'struct', val: a.splice(1).join(' ')};
       } else if (['db_c', 'db_data', 'mem_c'].includes(a[0])){
@@ -1222,6 +1267,9 @@ describe('test_util', ()=>{
     t('btable_c0[2]', 'btable_c 0 2');
     t('s.btable_c0[2]', 'btable_c 0 2 s');
     t('s..btable_c0[2]', 'btable_c 0 2 s def');
+    t('db_btable_c0[2]', 'db_btable_c 0 2');
+    t('s.db_btable_c0[2]', 'db_btable_c 0 2 s');
+    t('s..db_btable_c0[2]', 'db_btable_c 0 2 s def');
     t('mem_c', 'mem_c');
     t('s.mem_c', 'mem_c s');
     t('s..mem_c', 'mem_c s def');
@@ -2315,7 +2363,7 @@ describe('scroll', ()=>{
       // location etc)
       // XXX: verify behavior on conflict delete/merge and verify we removed
       // uneeded branch table
-      describe('full', ()=>{
+      describe('decl', ()=>{
         t('no_branch', `s..#(bseq btable) scroll decl(1-10) #(bseq0=0 bseq1=1
           bseq2=2 bseq3=3 bseq4=4 bseq5=5 bseq6=6 bseq7=7 bseq8=8 bseq9=9
           bseq10=_10 btable_c0[0]={branch:null seq:0 bseq:0}) !bseq11`);
@@ -2365,7 +2413,7 @@ describe('scroll', ()=>{
           decl(4 prev:1 branch:b2) #bseq4=1-2.0
           decl(5)                  #bseq5=1-2.1`);
       });
-      describe('partial', ()=>{
+      describe('put', ()=>{
         t('no_branch_bseq', `s..scroll decl(1-9) S..scroll(s..M0) #bseq
           tput(0)         #bseq0=0
           tput(0 1      ) #bseq1=1
@@ -2462,6 +2510,13 @@ describe('scroll', ()=>{
           tput(0_1 2 d    ) #
           tput(0_1 2 d e  ) #
           tput(0_1 2 d e f) #btable_c1[0]={branch:b2 seq:5 bseq:1-2.0}`);
+      });
+      describe('db', ()=>{
+        t('write', `s..#(db_btable)
+          scroll(db) flush       #(db_btable_c0[0]={branch:null seq:0 bseq:0})
+          decl(1) flush          #
+          decl(2 branch:b) flush #(db_btable_c0[1]={branch:b seq:2 bseq:1-1.0})
+          decl(2) flush          #`);
       });
       // XXX: change default hash to sha256 instead of blake
       // XXX: check with derry etask.ps() of decl->sign
@@ -2683,7 +2738,7 @@ describe('scroll', ()=>{
           def(s..) tput(0_1_2_3 4_5 6 7    ) #(mem_c={0:M9} mem5={M5 m5 m4_5}
             mem6={M6 sig6 D6 m6} mem7={M7 sig7 D7 m7 m6_7 m4_7 m0_7}
             mem9={M9 sig9 D9 m9 m8_9})`);
-        t('on_demand_v7', `conf(soul:manual)
+        t('on_demand_v8', `conf(soul:manual)
           soul.s..scroll(d:1-10) Soul.S..scroll(s..M0 db)
           tput(0 1 2 3 4          )
           tput(0_1_2_3 4_5 6_7 8 9)

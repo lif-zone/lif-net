@@ -65,26 +65,33 @@ export default class Storage_handler {
           yield _this.db_wakeup = etask.wait();
         _this.db_wakeup = null;
         let blob = {};
-        let {queue_cf, queue_cf_rm, queue_decl} = _this.db_queue[0];
-        let tx = db.transaction(['scroll', 'decl'], 'readwrite');
+        let {queue_cf, queue_cf_rm, queue_decl, queue_br} = _this.db_queue[0];
+        let tx = db.transaction(['scroll', 'decl', 'branch'], 'readwrite');
         let store = tx.store('scroll'), store2 = tx.store('decl');
-        let index2 = store2.index('scfid');
+        let store_br = tx.store('branch');
         for (let i=0; i<queue_cf_rm?.length; i++){
           let scfid = queue_cf_rm[i].scfid;
           yield db.store_delete(store, scfid);
-          for (let cursor = yield db.cursor(index2, db.only(scfid)); cursor;
-            cursor = yield cursor.next())
+          for (let cursor = yield db.cursor(store2.index('scfid'),
+            db.only(scfid)); cursor; cursor = yield cursor.next())
+          {
+            cursor.delete();
+          }
+          for (let cursor = yield db.cursor(store_br.index('scfid'),
+            db.only(scfid)); cursor; cursor = yield cursor.next())
           {
             cursor.delete();
           }
         }
         for (let i=0; i<queue_cf.length; i++)
           yield db.store_put(store, queue_cf[i].data);
+        for (let i=0; i<queue_br.length; i++)
+          yield db.store_put(store_br, queue_br[i].data);
         for (let seq in queue_decl){
           seq = +seq;
           for (let cfid in queue_decl[seq]){
             cfid = +cfid;
-            if (!scroll.conflict.get(cfid)) // branch deleted
+            if (!scroll.conflict.get(cfid)) // conflict deleted
               continue;
             assert(scroll.conflict.get(cfid).db, 'missing db cfid '+cfid);
             let decl = yield scroll.get_decl(seq);
@@ -191,7 +198,7 @@ export default class Storage_handler {
       return;
     assert(_this.inited, 'storage_handler not inited');
     assert(_this.busy, 'end_update while not in update');
-    let queue_cf = [];
+    let queue_cf = [], queue_br = [];
     for (const [, o] of scroll.conflict){
       if (!o.db){
         o.db = {data: conflict_to_data(db, scroll, o)};
@@ -203,10 +210,17 @@ export default class Storage_handler {
         o.db.data = data;
         queue_cf.push({data: xutil.clone_deep(o.db.data)});
       }
+      let btable = scroll.get_branch_table(o.cfid);
+      while (btable.storage_queue.length){
+        let bo = btable.storage_queue.shift();
+        assert(!bo.db, 'branch already have db section bseq '+bo.bseq);
+        bo.db = {data: btable.row_to_static(bo)};
+        queue_br.push({data: xutil.clone_deep(bo.db.data)});
+      }
       assert(o.db.data.scroll, 'missing scorll');
     }
     _this.schedule_db_update({queue_cf, queue_cf_rm: _this.queue_cf_rm,
-      queue_decl: _this.queue_decl});
+      queue_decl: _this.queue_decl, queue_br});
     _this.queue_cf_rm = _this.queue_decl = null;
   }); }
   schedule_db_update(o){

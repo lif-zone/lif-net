@@ -1,7 +1,6 @@
 // author: derry. coder: arik.
 'use strict';
 import assert from 'assert';
-import xerr from '../util/xerr.js';
 
 /* design:
 branch format: s-b.s-b.s-b.s
@@ -16,12 +15,14 @@ export default class Branch_table {
     this.scroll = opt.scroll;
     this.cfid = opt.cfid;
     assert(this.scroll && this.cfid!=undefined, 'missing scroll or cfid');
-    this.data_seq = -1;
+    this.max_seq = -1;
     this.branch = new Map();
     this.a = [];
+    this.storage_queue = [];
     if (!this.scroll.conflict.get(this.cfid).parent)
       this.add_branch({branch: null, seq: 0, bseq: '0'});
   }
+  set_max_seq(max){ this.max_seq = max; }
   get_branch(branch){ return this.branch.get(branch); }
   get_last(seq, max){ // XXX: need test
     // XXX HACK: need sorted array & optimize conflict
@@ -62,7 +63,7 @@ export default class Branch_table {
     }
   }
   to_bseq(seq){
-    if (this.data_seq < seq)
+    if (this.max_seq < seq)
       return;
     let last = this.get_last(seq);
     if (!last) // XXX: can this happen?
@@ -81,7 +82,7 @@ export default class Branch_table {
     if (this.branch.get(branch))
       this.branch.set(branch, bo);
     this.a.push(bo);
-    xerr.notice('XXX branch %s seq %s bseq %s', branch, seq, bseq);
+    this.storage_queue.push(bo);
   }
   to_static(){
     let a = this.a, ret = [];
@@ -90,6 +91,12 @@ export default class Branch_table {
       ret.push({...bo});
     }
     return ret;
+  }
+  row_to_static(bo){
+    let {branch, seq, bseq} = bo;
+    let cfid = this.cfid, scfid = this.scroll.to_scfid(cfid);
+    assert(scfid>=0, 'missing scfid for cfid '+cfid);
+    return {scfid, cfid, branch, seq, bseq};
   }
 }
 

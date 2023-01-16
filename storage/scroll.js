@@ -473,6 +473,7 @@ export default class Scroll extends EventEmitterAsync {
       cfid = parent.cfid);
     return cfid;
   }
+  to_scfid(cfid){ return this.conflict.get(cfid).db?.data.scfid; }
   decl(opt, frames){ return etask({_: this}, function*decl(){
     let _this = this._;
     if (frames===undefined)
@@ -1145,30 +1146,27 @@ export default class Scroll extends EventEmitterAsync {
     if (!o)
       return;
     let btable = _this.get_branch_table(cfid);
-    xerr.notice('XXX on_data seq%s cfid %s data_seq %s', seq, cfid,
-      btable.data_seq);
     let seq0 = 0, co = _this.conflict.get(cfid);
     if (co.parent){
       let btable_parent = _this.get_branch_table(co.parent.cfid);
-      if (btable_parent.data_seq < co.parent.seq)
+      if (btable_parent.max_seq < co.parent.seq)
         return;
       seq0 = co.parent.seq+1;
     }
-    if (seq==seq0 || btable.data_seq==seq-1){
+    if (seq==seq0 || btable.max_seq==seq-1){
       for (let decl = _this.get_decl(seq); decl; decl = decl.next()){
         if (decl.seq!=seq) // XXX: we are called during load of seq
           yield decl.load(cfid);
         let o2 = decl.data_get().get(cfid).get_json(1); // XXX: get_header()
         if (!o2)
           break;
-        btable.data_seq = Math.max(btable.data_seq, decl.seq);
-        _this.do_on_data(btable, decl.seq, o2.branch, o2.prev);
+        btable.set_max_seq(Math.max(btable.max_seq, decl.seq));
+        _this._on_data(btable, decl.seq, o2.branch, o2.prev);
       }
-      xerr.notice('XXX NEW data_seq %s', btable.data_seq);
     }
   }); }
-  do_on_data(btable, seq, branch, prev){
-    if (seq > btable.data_seq)
+  _on_data(btable, seq, branch, prev){
+    if (seq > btable.max_seq)
       return;
     if (!branch && !prev)
       return;

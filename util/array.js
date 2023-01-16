@@ -24,8 +24,7 @@ E.unshift = function(a){
   return a.length;
 };
 
-E.slice = function(args, from, to){
-  return Array.prototype.slice.call(args, from, to); };
+E.slice = (args, from, to)=>Array.prototype.slice.call(args, from, to);
 
 E.compact = function(a){ return E.compact_self(a.slice()); };
 E.compact_self = function(a){

@@ -177,9 +177,8 @@ E.to_sql_ms = function(d){
     +':'+pad(d.getUTCSeconds(), 2)
     +'.'+pad(d.getUTCMilliseconds(), 3);
 };
-E.to_sql_sec = function(d){ return E.to_sql_ms(d).slice(0, -4); };
-E.to_sql = function(d){
-    return E.to_sql_ms(d).replace(/( 00:00:00)?....$/, ''); };
+E.to_sql_sec = d=>E.to_sql_ms(d).slice(0, -4);
+E.to_sql = d=>E.to_sql_ms(d).replace(/( 00:00:00)?....$/, '');
 E.to_time_ms = function(d){
   d = E.get(d);
   if (isNaN(d))

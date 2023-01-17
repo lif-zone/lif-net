@@ -15,9 +15,6 @@ E.xexit_init = ()=>{
     }
     if (env.ZEXIT_ON_TYPEERROR===undefined || +env.ZEXIT_ON_TYPEERROR)
       return xexit_on_err(err);
-    if (err.sent_perr)
-      return;
-    err.sent_perr = true;
     console.error('etask_typeerror '+err);
   };
   if (!xutil.is_mocha())

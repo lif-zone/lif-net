@@ -17,11 +17,11 @@ function EventEmitter(){ this._events = {}; }
  * @api public
  */
 EventEmitter.prototype.listeners = function listeners(name){
-    var events = this._events && this._events[name] || [];
-    var length = events.length, listeners = [];
-    for (var i = 0; i<length; events[++i])
-        listeners.push(events[i].fn);
-    return listeners;
+  var events = this._events && this._events[name] || [];
+  var length = events.length, listeners = [];
+  for (var i = 0; i<length; events[++i])
+    listeners.push(events[i].fn);
+  return listeners;
 };
 
 /**
@@ -32,91 +32,76 @@ EventEmitter.prototype.listeners = function listeners(name){
  * @api public
  */
 EventEmitter.prototype.emit = function emit(name, a1, a2, a3, a4, a5){
-    if (!this._events || !this._events[name])
-        return false;
-    var listeners = this._events[name], length = listeners.length;
-    var len = arguments.length, event = listeners[0], args, i;
-    if (length===1)
-    {
-        switch (len)
-        {
-        case 1:
-            event.fn.call(event.context||this);
-            break;
-        case 2:
-            event.fn.call(event.context||this, a1);
-            break;
-        case 3:
-            event.fn.call(event.context||this, a1, a2);
-            break;
-        case 4:
-            event.fn.call(event.context||this, a1, a2, a3);
-            break;
-        case 5:
-            event.fn.call(event.context||this, a1, a2, a3, a4);
-            break;
-        case 6:
-            event.fn.call(event.context||this, a1, a2, a3, a4, a5);
-            break;
-        default:
-            for (i = 1, args = new Array(len-1); i<len; i++)
-                args[i-1] = arguments[i];
-            event.fn.apply(event.context||this, args);
-        }
-        if (event.once)
-            remove_listener.apply(this, [name, event]);
+  if (!this._events || !this._events[name])
+    return false;
+  var listeners = this._events[name], length = listeners.length;
+  var len = arguments.length, event = listeners[0], args, i;
+  if (length===1){
+    switch (len){
+    case 1: event.fn.call(event.context||this); break;
+    case 2: event.fn.call(event.context||this, a1); break;
+    case 3: event.fn.call(event.context||this, a1, a2); break;
+    case 4: event.fn.call(event.context||this, a1, a2, a3); break;
+    case 5: event.fn.call(event.context||this, a1, a2, a3, a4); break;
+    case 6: event.fn.call(event.context||this, a1, a2, a3, a4, a5); break;
+    default:
+      for (i = 1, args = new Array(len-1); i<len; i++)
+        args[i-1] = arguments[i];
+      event.fn.apply(event.context||this, args);
     }
-    else
-    {
-        for (i = 1, args = new Array(len-1); i<len; i++)
-            args[i-1] = arguments[i];
-        for (i = 0; i<length; event = listeners[++i]){
-            event.fn.apply(event.context||this, args);
-            if (event.once)
-                remove_listener.apply(this, [name, event]);
-        }
+    if (event.once)
+      remove_listener.apply(this, [name, event]);
+  }
+  else {
+    for (i = 1, args = new Array(len-1); i<len; i++)
+      args[i-1] = arguments[i];
+    for (i = 0; i<length; event = listeners[++i]){
+      event.fn.apply(event.context||this, args);
+      if (event.once)
+        remove_listener.apply(this, [name, event]);
     }
-    return true;
+  }
+  return true;
 };
 
 function add_listener(name, fn, opt){
-    opt = opt||{};
-    if (!this._events)
-        this._events = {};
-    if (!this._events[name])
-        this._events[name] = [];
-    var event = {fn: fn};
-    if (opt.context)
-        event.context = opt.context;
-    if (opt.once)
-        event.once = opt.once;
-    if (opt.prepend)
-        this._events[name].unshift(event);
-    else
-        this._events[name].push(event);
-    return this;
+  opt = opt||{};
+  if (!this._events)
+    this._events = {};
+  if (!this._events[name])
+    this._events[name] = [];
+  var event = {fn: fn};
+  if (opt.context)
+    event.context = opt.context;
+  if (opt.once)
+    event.once = opt.once;
+  if (opt.prepend)
+    this._events[name].unshift(event);
+  else
+    this._events[name].push(event);
+  return this;
 }
 
 function remove_listener(name, listener){
-    if (!this._events || !this._events[name])
-        return this;
-    var listeners = this._events[name], events = [];
-    var is_fn = typeof listener=='function';
-    for (var i = 0, length = listeners.length; i<length; i++){
-        if (!listener)
-            continue;
-        if (is_fn && listeners[i].fn!==listener ||
-            !is_fn && listeners[i]!==listener)
-        {
-            events.push(listeners[i]);
-        }
-    }
-    // reset the array, or remove it completely if we have no more listeners
-    if (events.length)
-        this._events[name] = events;
-    else
-        this._events[name] = null;
+  if (!this._events || !this._events[name])
     return this;
+  var listeners = this._events[name], events = [];
+  var is_fn = typeof listener=='function';
+  for (var i = 0, length = listeners.length; i<length; i++){
+    if (!listener)
+      continue;
+    if (is_fn && listeners[i].fn!==listener ||
+      !is_fn && listeners[i]!==listener)
+    {
+      events.push(listeners[i]);
+    }
+  }
+  // reset the array, or remove it completely if we have no more listeners
+  if (events.length)
+    this._events[name] = events;
+  else
+    this._events[name] = null;
+  return this;
 }
 
 /**
@@ -128,7 +113,7 @@ function remove_listener(name, listener){
  * @api public
  */
 EventEmitter.prototype.on = function on(name, fn, context){
-    return add_listener.apply(this, [name, fn, {context: context}]); };
+  return add_listener.apply(this, [name, fn, {context: context}]); };
 
 /**
  * Add an EventListener that's only called once.
@@ -139,22 +124,22 @@ EventEmitter.prototype.on = function on(name, fn, context){
  * @api public
  */
 EventEmitter.prototype.once = function once(name, fn, context){
-    return add_listener.apply(this, [name, fn,
-        {context: context, once: true}]);
+  return add_listener.apply(this, [name, fn,
+    {context: context, once: true}]);
 };
 
 EventEmitter.prototype.prependListener = function prependListener(name, fn,
-    context)
+  context)
 {
-    return add_listener.apply(this, [name, fn, {context: context,
-        prepend: true}]);
+  return add_listener.apply(this, [name, fn, {context: context,
+    prepend: true}]);
 };
 
 EventEmitter.prototype.prependOnceListener = function prependOnceListener(
-    name, fn, context)
+  name, fn, context)
 {
-    return this.prependListener(name, fn, {context: context, prepend: true,
-        once: true});
+  return this.prependListener(name, fn, {context: context, prepend: true,
+    once: true});
 };
 
 /**
@@ -165,7 +150,7 @@ EventEmitter.prototype.prependOnceListener = function prependOnceListener(
  * @api public
  */
 EventEmitter.prototype.removeListener = function removeListener(name, fn){
-    return remove_listener.apply(this, [name, fn]); };
+  return remove_listener.apply(this, [name, fn]); };
 
 /**
  * Remove all listeners or only the listeners for the specified event.
@@ -175,11 +160,11 @@ EventEmitter.prototype.removeListener = function removeListener(name, fn){
  */
 EventEmitter.prototype.removeAllListeners = function removeAllListeners(name){
   if (!this._events)
-      return this;
+    return this;
   if (name)
-      this._events[name] = null;
+    this._events[name] = null;
   else
-      this._events = {};
+    this._events = {};
   return this;
 };
 
@@ -192,9 +177,9 @@ EventEmitter.prototype.setMaxListeners = function setMaxListeners(){
   return this; };
 
 EventEmitter.prototype.eventNames = function eventNames(){
-    var _this = this;
-    return Object.keys(this._events).filter(function(e){
-        return _this._events[e]!==null; });
+  var _this = this;
+  return Object.keys(this._events).filter(function(e){
+    return _this._events[e]!==null; });
 };
 
 // expose the module

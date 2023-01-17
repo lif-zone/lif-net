@@ -1296,6 +1296,8 @@ class Decl extends EventEmitterAsync {
   get_prev(opt={}){ // XXX: need test
     if (this.seq==0)
       return null;
+    if (Number.isInteger(opt))
+      opt = {cfid: opt};
     return etask({_: this}, function*get_prev(){
       let _this = this._, header = yield _this.get_header(opt.cfid||0);
       if (Number.isInteger(header.prev))

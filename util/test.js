@@ -308,22 +308,6 @@ describe('url', ()=>{
         t('http://www.com/', 'www.com');
         t('http://www\\.com/', 'www');
     });
-    it('get_root_domain', ()=>{
-        let t = (url, exp)=>assert.strictEqual(xurl.get_root_domain(url), exp);
-        t('', '');
-        t('a', 'a');
-        t('a.com', 'a.com');
-        t('a.b.com', 'b.com');
-        t('1.1.1.1', '1.1.1.1');
-        t('a.com.tw', 'a.com.tw');
-        t('a.b.com.tw', 'b.com.tw');
-        t('a.b.com.us.hola', 'b.com');
-        t('a.b.com.us.111.hola', 'b.com');
-        t('a.com.tw.us.hola', 'a.com.tw');
-        t('a.com.tw.us.444.hola', 'a.com.tw');
-        t('a.b.com.tw.us.hola', 'b.com.tw');
-        t('a.b.com.tw.us.1234.hola', 'b.com.tw');
-    });
     it('rel_proto_to_abs', ()=>{
         let t = (url, exp)=>assert.strictEqual(
             xurl.rel_proto_to_abs(url), exp);
@@ -510,14 +494,6 @@ describe('url', ()=>{
         t('a', null);
         t('user@example.com', 'example.com');
         t('user@mail.example.com', 'mail.example.com');
-    });
-    it('get_root_domain_email', ()=>{
-        let t = (email, exp)=>
-            assert.strictEqual(xurl.get_root_domain_email(email), exp);
-        t('', null);
-        t('a', null);
-        t('user@example.com', 'example.com');
-        t('user@mail.example.com', 'example.com');
     });
     it('is_alias_email', ()=>{
         let t = (email, exp)=>
@@ -2699,9 +2675,9 @@ describe('escape', ()=>{
         t({}, 'mailto:?');
         t({to: '', cc: '', subject: '', body: ''},
             'mailto:?cc=&subject=&body=');
-        t({to: 'serhan@holaspark.com', cc: 'derry@holaspark.com',
+        t({to: 'serhan@lif.zone', cc: 'derry@lif.zone',
             subject: 'subject !', body: 'body !\nline2\n'},
-            'mailto:serhan@holaspark.com?cc=derry%40holaspark.com'+
+            'mailto:serhan@lif.zone?cc=derry%40lif.zone'+
             '&subject=subject%20!&body=body%20!%0Aline2%0A');
     });
 });

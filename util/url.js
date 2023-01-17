@@ -33,39 +33,10 @@ E.get_host_without_tld = function(host){
   return host.replace(/^([^.]+)\.[^.]{2,3}(\.[^.]{2,3})?$/, '$1');
 };
 
-var generic_2ld = {com: 1, biz: 1, net: 1, org: 1, xxx: 1, edu: 1, gov: 1,
-  ac: 1, co: 1, or: 1, ne: 1, kr: 1, jp: 1, jpn: 1, cn: 1};
-
-E.get_root_domain = function(domain){
-  if (E.is_ip(domain))
-    return domain;
-  var s = domain.split('.'), root = s, len = s.length;
-  if (len>2){ // www.abc.com abc.com.tw www.abc.com.tw,...
-    var hd = 0;
-    if (s[len-1]=='hola'){
-      hd = 2; // domain.us.hola
-      if (s[len-2].match(/^\d+$/))
-        hd = 3; // domain.us.23456.hola
-    }
-    if (generic_2ld[s[len-2-hd]])
-      root = s.slice(-3-hd, len-hd); // abc.com.tw
-    else
-      root = s.slice(-2-hd, len-hd); // abc.com
-  }
-  return root.join('.');
-};
-
 // XXX josh: move to email.js:get_domain
 E.get_domain_email = function(email){
   var match = email.toLowerCase().match(/^[a-z0-9_.\-+]+@(.*)$/);
   return match && match[1];
-};
-
-// XXX josh: move to email.js:get_root_domain or remove and let developer
-// combine email.js:get_domain with url.js:get_root_domain
-E.get_root_domain_email = function(email){
-  var domain = E.get_domain_email(email);
-  return domain && E.get_root_domain(domain);
 };
 
 E.get_path = function(url){

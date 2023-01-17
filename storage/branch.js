@@ -16,6 +16,72 @@ branch table key: [scfid, seq]
 {scfid: 1, branch: b, seq: 10 bseq: 1-1.0}
 // XXX: where to save full_seq/complete_data
 
+// example:
+0           #bseq:0
+1           #bseq:1
+2_3
+4           #bseq:1-1.0
+
+{seq:0 bseq:0} // size: 2
+{seq:4 bseq:1-1.0} // size:1
+
+// option-1
+2                     #bseq:2
+3                     #bseq:3
+4 branch:b prev:1     #bseq:1-1.0
+
+{seq:0 bseq:0} // size:4
+{seq:4 bseq:1-1.0} // size:1
+
+// option-2
+2                     #bseq:2
+3 branch:b            #bseq:2-1.0
+4 branch:b2 prev:1    #bseq:1-1.0
+
+{seq:0 bseq:0} // size:3
+{seq:3 bseq:2-1.0} // size:1
+{seq:4 bseq:1-1.0} // size:1
+
+without size?
+- bseq1? bseq2?
+- top of branch
+
+1. save size in branch table
+2. save bseq on any decl with prev/branch
+3. save bseq on any decl
+
+{seq: 0 bseq: 0} // size: 2
+{seq: 2 bseq: 1-1.0} // size: 1
+{seq: 3 bseq: 2} // size: 2
+
+
+// example 2:
+0 #bseq:0
+1 #bseq:1
+2 #bseq:2
+3 #bseq:3
+4-7
+8
+{seq:0 bseq:0} // size 4
+
+option1:
+4 branch:b #bseq:3-1.0
+5          #bseq:3-1.1
+6 prev:3   #bseq:4
+7                          #bseq:5
+8 branch:b2 prev 1         #bseq:6
+{seq:0 bseq:0} // size 4
+{seq:4 bseq:3-1.0} // size 2
+{seq:6 bseq: 4} // size 3
+
+option2:
+4          #bseq:4
+5 branch:b #4-1.0
+6          #4-1.1
+7 prev:4   #bseq:5
+8          #bseq:6
+
+
 // s
 btable:
 {seq: 0 bseq: 0} // size: 2
@@ -50,8 +116,6 @@ scroll:
 2 branch:b  #bseq:1-1.0
 3 branch:b2 #bseq:1-1.0-1.0
 4 prev:1    #bseq:2
-
-
 
 */
 

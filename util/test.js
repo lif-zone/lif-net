@@ -479,15 +479,6 @@ describe('url', ()=>{
         t('-a.com', false);
         t('r1---b.b.com', true);
     });
-    it('is_hola_domain', ()=>{
-        let t = (arg, exp)=>assert.strictEqual(xurl.is_hola_domain(arg), exp);
-        t('google.org', false);
-        t('xhola.org', false);
-        t('hola.org', true);
-        t('x.hola.org', true);
-        t('x\\.hola.org', false);
-        t('holazorg', false);
-    });
     it('is_valid_email', ()=>{
         let t = (email, exp)=>assert.strictEqual(
             xurl.is_valid_email(email), exp);
@@ -1027,27 +1018,6 @@ describe('url', ()=>{
         t('https://site.com?t=v', {t: 'v'});
         t('https://site.com/test?t=v', {t: 'v'});
         t('https://site.com?t=v&v=t', {t: 'v', v: 't'});
-    });
-    it('safe_redir', ()=>{
-        let t = (url, exp, host)=>
-            assert.strictEqual(xurl.safe_redir(url, host), exp||undefined);
-        t('http://hola.org/foo', 'https://hola.org/foo');
-        t('http://www.hola.org/foo', 'https://www.hola.org/foo');
-        t('http://wwwhola.org/foo', false);
-        t('https://hola.org/foo', 'https://hola.org/foo');
-        t('/foo', false);
-        t('foo', false);
-        t('/foo', 'https://hola.org/foo', 'hola.org');
-        t('foo', false, 'hola.org');
-        t('javascript:', false);
-        t('javascript:alert()', false);
-        t('http://hola.org/<script>alert()</script>',
-            'https://hola.org/%3Cscript%3Ealert()%3C/script%3E');
-        t('evil.com', false);
-        t('https://hola.org@evil.com', false);
-        t('//evil.com', false);
-        t('https://////////////hola.org@evil.com', false);
-        t('https://evil.com\\.hola.org', false);
     });
 });
 

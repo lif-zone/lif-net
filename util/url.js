@@ -1,6 +1,5 @@
 // author: derry. coder: arik.
 'use strict';
-import xutil from './util.js';
 import qs from 'querystring';
 var assign = Object.assign;
 const E = {};
@@ -173,16 +172,6 @@ E.is_valid_url = function(url){
 
 E.is_valid_domain = function(domain){
   return /^([a-z0-9]([a-z0-9-_]*[a-z0-9])?\.)+[a-z]{2,63}$/.test(domain); };
-
-E.is_hola_domain = function(domain){
-  return E.is_valid_domain(domain) &&
-    domain.search(/^(.*\.)?(hola\.org|holacdn\.com|h-cdn\.com)$/)!=-1;
-};
-
-E.is_spark_domain = function(domain){
-  return E.is_valid_domain(domain) &&
-    domain.search(/^(.*\.)?(holaspark.com)/)!=-1;
-};
 
 // XXX josh: move to email.js:is_valid
 E.is_valid_email = function(email){
@@ -438,18 +427,3 @@ E.qs_add = function(url, qs){
 };
 
 E.qs_parse_url = url=>E.qs_parse(url.replace(/(^.*\?)|(^[^?]*$)/, ''));
-
-// returns absolute url or undefined
-E.safe_redir = function(url, default_hostname){
-  if (!url)
-    return;
-  var u = E.parse(url, true);
-  var hostname = u.hostname||default_hostname;
-  if (!/^https?:$/.test(u.protocol) || !hostname)
-    return;
-  if (E.is_hola_domain(hostname) || E.is_spark_domain(hostname) ||
-    xutil.is_mocha()&&hostname=='localhost')
-  {
-    return 'https://'+hostname+encodeURI(u.path);
-  }
-};

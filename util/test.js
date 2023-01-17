@@ -953,27 +953,24 @@ describe('url', ()=>{
                 assign(a, n, {query: xurl.qs_parse(a.query)}),
                 assign(b, n, {query: xurl.qs_parse(b.query)}));
         };
-        t('http://site.com/', {hola_mode: 'cdn'},
-            'http://site.com/?hola_mode=cdn');
-        t('http://site.com/?h=3', {hola_mode: 'cdn'},
-            'http://site.com/?h=3&hola_mode=cdn');
-        t('http://site.com/path?h=3&hola_mode=stats&t=1#hash',
-            {hola_mode: 'cdn', hola_debug: true},
-            'http://site.com/path?h=3&t=1&hola_mode=cdn&hola_debug=true#hash');
-        t('http://site.com/path?h=3&t=1&hola_mode=stats#hash',
-            {hola_mode: 'cdn', hola_debug: true},
-            'http://site.com/path?h=3&t=1&hola_mode=cdn&hola_debug=true#hash');
-        t('http://site.com/path?h=3&t=1&hola_mode=stats&hola_debug=false&z=2',
-            {hola_mode: 'cdn', hola_debug: true},
-            'http://site.com/path?h=3&t=1&z=2&hola_mode=cdn&hola_debug=true');
-        t('http://site.com/path?h=3&t=1&hola_mode=stats&hola_debug&z=2',
-            {hola_mode: 'cdn', hola_debug: true, hola_graph: 'top'},
-            'http://site.com/path?h=3&t=1&z=2&hola_mode=cdn&hola_debug=true&'
-            +'hola_graph=top');
-        t('http://site.com/path?h=3&t=1&hola_mode=stats#hash',
-            {hola_mode: 'cdn', hola_debug: true, h: [3, 4, 5]},
-            'http://site.com/path?h=3&h=4&h=5&t=1&hola_mode=cdn&'
-            +'hola_debug=true#hash');
+        t('http://site.com/', {mode: 'cdn'}, 'http://site.com/?mode=cdn');
+        t('http://site.com/?h=3', {mode: 'cdn'},
+            'http://site.com/?h=3&mode=cdn');
+        t('http://site.com/path?h=3&mode=stats&t=1#hash',
+            {mode: 'cdn', debug: true},
+            'http://site.com/path?h=3&t=1&mode=cdn&debug=true#hash');
+        t('http://site.com/path?h=3&t=1&mode=stats#hash',
+            {mode: 'cdn', debug: true},
+            'http://site.com/path?h=3&t=1&mode=cdn&debug=true#hash');
+        t('http://site.com/path?h=3&t=1&mode=stats&debug=false&z=2',
+            {mode: 'cdn', debug: true},
+            'http://site.com/path?h=3&t=1&z=2&mode=cdn&debug=true');
+        t('http://site.com/path?h=3&t=1&mode=stats&debug&z=2',
+            {mode: 'cdn', debug: true, graph: 'top'},
+            'http://site.com/path?h=3&t=1&z=2&mode=cdn&debug=true&graph=top');
+        t('http://site.com/path?h=3&t=1&mode=stats#hash',
+            {mode: 'cdn', debug: true, h: [3, 4, 5]},
+            'http://site.com/path?h=3&h=4&h=5&t=1&mode=cdn&debug=true#hash');
     });
     it('qs_parse', ()=>{
         let t = (q, res)=>assert.deepStrictEqual(xurl.qs_parse(q), res);

@@ -69,6 +69,7 @@ class Data extends EventEmitterAsync {
     this.cmap.set(cfid, fbuf);
     return fbuf;
   }
+  get_header(cfid){ return this.get(cfid).get_header(); }
   copy(cdst, csrc){ return etask({_: this}, function*copy(){
     let _this = this._, fsrc = _this.get(csrc);
     if (fsrc.frames.length==1 && !fsrc.frames[0].h_rest)
@@ -194,6 +195,7 @@ class Frame_buffer extends EventEmitterAsync {
       return;
     return f.json = JSON.parse(f.buf.toString());
   }
+  get_header(){ return this.get_json(1); }
 }
 
 Frame_buffer.calc_hash = function(frames, opt={}){
@@ -1142,8 +1144,8 @@ export default class Scroll extends EventEmitterAsync {
     // XXX: protect against calling on_data while already in on_data
     // load() may trigger 'data' event
     let _this = this._, {data, seq, cfid} = e;
-    let o = data.get(cfid).get_json(1); // XXX: get_header()
-    if (!o)
+    let h = data.get_header(cfid);
+    if (!h)
       return;
     let btable = _this.get_branch_table(cfid);
     let seq0 = 0, co = _this.conflict.get(cfid);
@@ -1157,11 +1159,11 @@ export default class Scroll extends EventEmitterAsync {
       for (let decl = _this.get_decl(seq); decl; decl = decl.next()){
         if (decl.seq!=seq) // XXX: we are called during load of seq
           yield decl.load(cfid);
-        let o2 = decl.data_get().get(cfid).get_json(1); // XXX: get_header()
-        if (!o2)
+        let h2 = decl.data_get().get_header(cfid);
+        if (!h2)
           break;
         btable.set_max_seq(Math.max(btable.max_seq, decl.seq));
-        _this._on_data(btable, decl.seq, o2.branch, o2.prev);
+        _this._on_data(btable, decl.seq, h2.branch, h2.prev);
       }
     }
   }); }
@@ -1251,6 +1253,7 @@ class Decl extends EventEmitterAsync {
   }
   fbuf_get(cfid){ return this.data.get(this.to_c(cfid)); }
   data_get(){ return this.data; }
+  get_header(cfid){ return this.data_get().get_header(cfid); }
   d_hash(cfid){ return this.fbuf_get(cfid).get_hash(); }
   m_get(range){
     let i = merkel_array_pos(range);
@@ -1294,7 +1297,7 @@ class Decl extends EventEmitterAsync {
     if (this.seq==0)
       return null;
     return etask({_: this}, function*get_prev(){
-      let _this = this._, header = yield _this.get_json(1);
+      let _this = this._, header = yield _this.get_header(opt.cfid||0);
       if (Number.isInteger(header.prev))
         return _this.scroll.get_decl(header.prev);
       if (!opt.group || !header.group)

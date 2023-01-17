@@ -236,7 +236,7 @@ E.scroll_to_lines = function(scroll){
   let a = [];
   for (let i=0; i<=scroll.top.seq; i++){
     let decl = scroll.get_decl(i), fbuf = decl.fbuf_get(0);
-    let h = fbuf.get_json(1);
+    let h = fbuf.get_header();
     let o = fbuf.get_json(2);
     let blob = fbuf.get(3);
     delete h.ts;
@@ -249,7 +249,7 @@ E.dump_scroll = function(scroll){
   for (let i=0; i<=scroll.top.seq; i++){
     let decl = scroll.get_decl(i), fbuf = decl.fbuf_get(0);
     // XXX: need nice api
-    let h = {...fbuf.get_json(1)};
+    let h = {...fbuf.get_header()};
     let o = fbuf.get_json(2);
     let blob = fbuf.get(3);
     delete h.ts;

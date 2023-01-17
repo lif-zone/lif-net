@@ -457,7 +457,7 @@ describe('url', ()=>{
         t('a.longname', true);
         t('a.123', false);
         t('a.b.com', true);
-        t('a.com.tw.us.444.hola', true);
+        t('a.com.tw.us.444.lif', true);
         t('a-b.com', true);
         t('a--b.com', true);
         t('-a.com', false);
@@ -477,7 +477,7 @@ describe('url', ()=>{
         t('x*y@a.com', false);
         t('x@a.123', false);
         t('x@a.b.com', true);
-        t('x@a.com.tw.us.444.hola', true);
+        t('x@a.com.tw.us.444.lif', true);
         t('x@a-b.com', true);
         t('x@a--b.com', true);
         t('x@-a.com', false);

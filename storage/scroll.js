@@ -14,7 +14,7 @@ import {r_fix, r_parent, r_eq, r_includes, r_str, r_split} from './range.js';
 const s2b = buf_util.buf_from_str, b2s = buf_util.buf_to_str;
 const beq = buf_util.buf_eq;
 const stringify = JSON.stringify.bind(JSON);
-const {br_branch_new, br_seq_inc} = Branch_table;
+const {br_enc, br_branch_new, br_seq_inc} = Branch_table;
 // https://en.wikipedia.org/wiki/Merkle_tree#Second_preimage_attack
 const LEAF_TYPE = enc_u64(0), PARENT_TYPE = enc_u64(1), ROOT_TYPE = enc_u64(2);
 function enc_u64(v){ return enc.encode(enc.uint64, v); }
@@ -478,11 +478,13 @@ export default class Scroll extends EventEmitterAsync {
   to_scfid(cfid){ return this.conflict.get(cfid).db?.data.scfid; }
   decl(opt, frames){ return etask({_: this}, function*decl(){
     let _this = this._;
+    yield _this.lock();
     if (frames===undefined)
       [opt, frames] = [{cfid: 0}, opt];
     if (typeof opt=='number')
       opt = {cfid: opt};
-    let {cfid, prev, group, link, branch} = opt;
+    let {cfid, prev, bseq, group, link, branch} = opt;
+    // XXX: assert some validty on bsec (that it free in branch table)
     cfid = cfid||0;
     let top = _this.conflict.get(cfid).top;
     let seq = top ? top.seq+1 : 0, header = {seq, ts: Date.now()};
@@ -496,7 +498,28 @@ export default class Scroll extends EventEmitterAsync {
       header.link = link;
     if (branch)
       header.branch = branch;
-    yield _this.lock();
+    if (seq==0){
+      assert(bseq==br_enc(0) || !bseq, 'invalid bseq for seq'+seq);
+      bseq = br_enc(0);
+    }
+    else if (!bseq && seq>0){
+      let decl_prev = _this.get_decl(prev||seq-1);
+      yield decl_prev.load(cfid);
+      let bseq_prev = decl_prev.bseq_get(cfid);
+      // XXX: what if no bseq_prev
+      // assert(bseq_prev, 'missing bseq_prev '+prev+' seq'+seq);
+      if (!bseq_prev);
+      else if (branch){
+        let btable = _this.get_branch_table(cfid);
+        // XXX: we need to have complete branch table up to seq
+        bseq = btable.find_avail_branch(br_branch_new(bseq_prev));
+      } else
+        bseq = br_seq_inc(bseq_prev);
+    }
+    if (0) // XXX: how to handle
+      assert(bseq, 'missing bseq for seq'+seq);
+    if (bseq && br_enc(seq)!=bseq)
+        header.bseq = bseq;
     let data = new Data({scroll: _this, seq, frames: [header].concat(frames)});
     let decl = new Decl({scroll: _this, seq, data});
     _this.dmap.set(seq, decl);
@@ -867,7 +890,7 @@ export default class Scroll extends EventEmitterAsync {
   merge_single(i1, i2, seq){ return etask({_: this}, function*merge_single(){
     let _this = this._;
     assert(i1<i2, 'invalid conflict merge '+i1+' '+i2);
-    let c1=_this.conflict.get(i1), c2=_this.conflict.get(i2), bseq;
+    let c1=_this.conflict.get(i1), c2=_this.conflict.get(i2), cseq;
     let mergeable = c2.minfo.merge_queue.get(i1);
     let real_conflict = c2.minfo.real_map.get(i1);
     if (c2.parent?.seq >= seq)
@@ -880,15 +903,15 @@ export default class Scroll extends EventEmitterAsync {
       return;
     }
     // XXX: to calc common, check also if conflict is not direct child
-    bseq = yield _this.find_max_common_M({cfid: i1, diff_c: i2, seq,
+    cseq = yield _this.find_max_common_M({cfid: i1, diff_c: i2, seq,
       common: c2.parent?.cfid==c1.parent?.cfid ? c2.parent?.seq : undefined});
     assert((c1.parent?.cfid||0)<i2,
       'lower cfid'+i1+' cannot point upper cfid'+i2);
-    if (c2.parent?.seq >= bseq)
+    if (c2.parent?.seq >= cseq)
       return xerr('need optimize merge');
-    yield _this.conflict_update(i2, {cfid: i1, seq: bseq,
+    yield _this.conflict_update(i2, {cfid: i1, seq: cseq,
       type: real_conflict ? 'c' : 't'});
-    if (c2.top.seq!=bseq && c1.top.seq!=bseq)
+    if (c2.top.seq!=cseq && c1.top.seq!=cseq)
       return;
     // XXX: need more efficient way (just iterate on decl with data)
     for (let i=c2.parent.seq+1; i<=c2.top.seq; i++){
@@ -1139,62 +1162,14 @@ export default class Scroll extends EventEmitterAsync {
     _this.top = max_top;
   }); }
   flush(){ return this.storage?.flush(); }
-  on_data = e=>{ return etask({_: this}, function*on_data(){
-    // XXX: optimize, don't use etask if no need to load data
-    // XXX: protect against calling on_data while already in on_data
-    // load() may trigger 'data' event
-    let _this = this._, {data, seq, cfid} = e;
-    let h = data.get_header(cfid);
+  on_data = e=>{
+    let {data, seq, cfid} = e, h = data.get_header(cfid);
     if (!h)
       return;
-    let btable = _this.get_branch_table(cfid);
-    let seq0 = 0, co = _this.conflict.get(cfid);
-    if (co.parent){
-      let btable_parent = _this.get_branch_table(co.parent.cfid);
-      if (btable_parent.max_seq < co.parent.seq)
-        return;
-      seq0 = co.parent.seq+1;
-    }
-    if (seq==seq0 || btable.max_seq==seq-1){
-      for (let decl = _this.get_decl(seq); decl; decl = decl.next()){
-        if (decl.seq!=seq) // XXX: we are called during load of seq
-          yield decl.load(cfid);
-        let h2 = decl.data_get().get_header(cfid);
-        if (!h2)
-          break;
-        btable.set_max_seq(Math.max(btable.max_seq, decl.seq));
-        _this._on_data(btable, decl.seq, h2.branch, h2.prev);
-      }
-    }
-  }); }
-  _on_data(btable, seq, branch, prev){
-    if (seq > btable.max_seq)
-      return;
-    if (!branch && !prev)
-      return;
-    if (branch){
-      if (btable.get_branch(branch)){
-        xerr('invalid scroll - branch %s appears twice');
-        // XXX: test it and mark scroll as invalid
-        return;
-      }
-      let bseq = btable.to_bseq(prev||seq-1);
-      // XXX: what if no bseq
-      let bseq2 = br_branch_new(bseq);
-      bseq2 = btable.find_avail_branch(bseq2);
-      btable.add_branch({branch, seq, bseq: bseq2});
-    } else if (prev){
-      branch = btable.to_branch(prev);
-      if (branch===undefined){
-        xerr('invalid scroll - branch not found for prev %s', prev);
-        // XXX: test it and mark scroll as invalid
-        return;
-      }
-      let bseq = btable.to_bseq(prev);
-      // XXX: what if no bseq
-      btable.add_branch({branch, seq, bseq: br_seq_inc(bseq)});
-    }
-  }
+    let bseq = h.bseq||br_enc(seq), branch = h.branch;
+    let btable = this.get_branch_table(cfid);
+    btable.add({branch, seq, bseq});
+  };
   get_branch_table(cfid){
     let btable = this.branch.get(cfid);
     if (btable)
@@ -1248,8 +1223,11 @@ class Decl extends EventEmitterAsync {
   sig_set(cfid, sig){ return this.fbuf_get(cfid).sig_set(sig); }
   sig_get(cfid){ return this.fbuf_get(cfid).sig_get(); }
   bseq_get(cfid){
-    let btable = this.scroll.get_branch_table(cfid);
-    return btable.to_bseq(this.seq);
+    // XXX: use branch_table
+    let h = this.get_header(cfid);
+    if (!h)
+      return null;
+    return h.bseq ? h.bseq : br_enc(this.seq);
   }
   fbuf_get(cfid){ return this.data.get(this.to_c(cfid)); }
   data_get(){ return this.data; }

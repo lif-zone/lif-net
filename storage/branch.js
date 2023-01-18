@@ -130,11 +130,19 @@ export default class Branch_table {
     this.branch = new Map();
     this.a = [];
     this.storage_queue = [];
+    // XXX: rm null from branch name
     if (!this.scroll.conflict.get(this.cfid).parent)
-      this.add_branch({branch: null, seq: 0, bseq: '0'});
+      this.add({branch: null, seq: 0, bseq: '0'});
   }
-  set_max_seq(max){ this.max_seq = max; }
   get_branch(branch){ return this.branch.get(branch); }
+  _get_bo(seq){ // XXX: optimize
+    let a = this.a;
+    for (let i=0; i<a.length; i++){
+      let bo = a[i];
+      if (bo.seq<=seq && seq<bo.seq+bo.size)
+        return bo;
+    }
+  }
   get_last(seq, max){ // XXX: need test
     // XXX HACK: need sorted array & optimize conflict
     let {scroll, cfid} = this, {parent} = scroll.conflict.get(cfid), last;
@@ -185,15 +193,52 @@ export default class Branch_table {
     let last = this.get_last(seq);
     return last?.branch;
   }
-  add_branch(opt){
-    let {branch, seq, bseq} = opt;
+  add(opt){
+    let {branch, seq, bseq} = opt, bo, bo_next;
+    if (!branch) // XXX: get branch from bseq
+      branch = null;
     assert(Number.isInteger(seq) && seq>=0, 'invalid seq '+seq);
     assert(typeof bseq=='string', 'invalid bseq '+bseq); // XXX: need is_valid
-    let bo = {branch, seq, bseq};
-    if (this.branch.get(branch))
+    if (seq==0 && this._get_bo(seq))
+      return;
+    if (seq>0){
+      bo = this._get_bo(seq-1);
+      if (bo && br_branch_eq(bseq, bo.bseq)){
+        if (bo.seq<=seq && seq<bo.seq+bo.size)
+          return;
+        assert.equal(bo.seq+bo.size, seq, 'XXX0');
+        bo.size++; // XXX: this._inc_size
+        bo_next = this._get_bo(seq+1);
+        this._merge(bo, bo_next);
+        // XXX: need to schedule storage_queue
+        return;
+      }
+      bo_next = this._get_bo(seq+1);
+      if (bo_next && br_branch_eq(bseq, bo_next.bseq)){
+        assert.equal(bo_next.seq, seq+1, 'XXX1');
+        bo_next.size++; // XXX: this._inc_size
+        bo_next.seq = seq;
+        bo_next.bseq = bseq;
+        bo_next.branch = branch;
+        // XXX: need to schedule storage_queue
+        return;
+      }
+    }
+    bo = {branch, seq, bseq, size: 1};
+    if (!this.branch.get(branch))
       this.branch.set(branch, bo);
     this.a.push(bo);
     this.storage_queue.push(bo);
+  }
+  _merge(bo, bo_next){
+    if (!bo_next || !br_branch_eq(bo.bseq, bo_next.bseq))
+      return;
+    assert.equal(br_seq_inc(bo.bseq, bo.size), bo_next.bseq,
+      'branch merge mismatch');
+    bo.size += bo_next.size;
+    let i = this.a.indexOf(bo_next);
+    assert(i>=0, 'bo_next not found');
+    this.a.splice(i, 1);
   }
   to_static(){
     let a = this.a, ret = [];
@@ -204,10 +249,10 @@ export default class Branch_table {
     return ret;
   }
   row_to_static(bo){
-    let {branch, seq, bseq} = bo;
+    let {branch, seq, bseq, size} = bo;
     let cfid = this.cfid, scfid = this.scroll.to_scfid(cfid);
     assert(scfid>=0, 'missing scfid for cfid '+cfid);
-    return {scfid, cfid, branch, seq, bseq};
+    return {scfid, cfid, branch, seq, bseq, size};
   }
 }
 
@@ -222,8 +267,7 @@ function br_int(a){
   let num, i;
   for (i=0; a[i]=='_'; i++);
   num = +a.substr(i);
-  assert(i<a.length && Number.isInteger(num), 'invalid br_int '+a);
-  return num;
+  return i<a.length && Number.isInteger(num) ? num : undefined;
 }
 
 function br_inc(a, n=1){
@@ -241,8 +285,14 @@ function br_branch_inc(a){
   return m[1]+'-'+br_inc(m[2])+'.0';
 }
 
-function br_seq_inc(a, n){
-  let m = a.match(/^(([\d.-]+)\.)?([\d]+)$/);
+function br_branch_eq(a, b){
+  let ma = a.match(/^([\d.\-_]+)\.[_]*\d+$/);
+  let mb = b.match(/^([\d.\-_]+)\.[_]*\d+$/);
+  return ma?.[1]==mb?.[1];
+}
+
+function br_seq_inc(a, n=1){
+  let m = a.match(/^(([\d.-]+)\.)?_*([\d]+)$/);
   assert(m, 'invalid br '+a);
   return (m[1]||'')+br_inc(m[3], n);
 }
@@ -253,4 +303,17 @@ Branch_table.br_inc = br_inc;
 Branch_table.br_cmp = br_cmp;
 Branch_table.br_branch_new = br_branch_new;
 Branch_table.br_branch_inc = br_branch_inc;
+Branch_table.br_branch_eq = br_branch_eq;
 Branch_table.br_seq_inc = br_seq_inc;
+
+// XXX derry:
+// XXX: what if no bseq_prev (scroll.js:decl)
+// XXX: if decl branch, we need to have complete branch table up to seq
+// XXX: verify btable is correct during conflict merge/delete and that we
+// remove old entries
+// XXX: change default hash to sha256 instead of blake
+// XXX: check with derry etask.ps() of decl->sign
+// XXX: rm null from branch name
+// XXX: cleanup br_* api naming
+// XXX: review bseq_get api (we can use branch table to calc it)
+// XXX: verify all tests are testing btable&bseq together

@@ -142,8 +142,7 @@ export default class Branch_table {
         return bo;
     }
   }
-  get_last(seq, max){ // XXX: need test
-    // XXX HACK: need sorted array & optimize conflict
+  get_last(seq, max){ // XXX: optimize + test
     let {scroll, cfid} = this, {parent} = scroll.conflict.get(cfid), last;
     if (parent)
       last = scroll.get_branch_table(parent.cfid).get_last(seq, parent.seq);
@@ -204,8 +203,8 @@ export default class Branch_table {
       if (bo && br_branch_eq(bseq, bo.bseq)){
         if (bo.seq<=seq && seq<bo.seq+bo.size)
           return;
-        assert.equal(bo.seq+bo.size, seq, 'XXX0');
-        bo.size++; // XXX: this._inc_size
+        assert.equal(bo.seq+bo.size, seq, 'branch corruption');
+        bo.size++;
         this._schedule_mod(bo.seq);
         bo_next = this.get_bo(seq+1);
         this._merge(bo, bo_next);
@@ -213,9 +212,9 @@ export default class Branch_table {
       }
       bo_next = this.get_bo(seq+1);
       if (bo_next && br_branch_eq(bseq, bo_next.bseq)){
-        assert.equal(bo_next.seq, seq+1, 'XXX1');
+        assert.equal(bo_next.seq, seq+1, 'branch corruption');
         this._schedule_rm(bo_next.seq);
-        bo_next.size++; // XXX: this._inc_size
+        bo_next.size++;
         bo_next.seq = seq;
         bo_next.bseq = bseq;
         if (branch)

@@ -129,12 +129,12 @@ export default class Branch_table {
     this.max_seq = -1;
     this.branch = new Map();
     this.a = [];
-    this.storage_queue = [];
+    this.schedule_reset();
     if (!this.scroll.conflict.get(this.cfid).parent)
       this.add({seq: 0, bseq: '0'});
   }
   get_branch(branch){ return this.branch.get(branch); }
-  _get_bo(seq){ // XXX: optimize
+  get_bo(seq){ // XXX: optimize
     let a = this.a;
     for (let i=0; i<a.length; i++){
       let bo = a[i];
@@ -197,29 +197,30 @@ export default class Branch_table {
     branch = branch||null;
     assert(Number.isInteger(seq) && seq>=0, 'invalid seq '+seq);
     assert(typeof bseq=='string', 'invalid bseq '+bseq); // XXX: need is_valid
-    if (seq==0 && this._get_bo(seq))
+    if (seq==0 && this.get_bo(seq))
       return;
     if (seq>0){
-      bo = this._get_bo(seq-1);
+      bo = this.get_bo(seq-1);
       if (bo && br_branch_eq(bseq, bo.bseq)){
         if (bo.seq<=seq && seq<bo.seq+bo.size)
           return;
         assert.equal(bo.seq+bo.size, seq, 'XXX0');
         bo.size++; // XXX: this._inc_size
-        bo_next = this._get_bo(seq+1);
+        this._schedule_mod(bo.seq);
+        bo_next = this.get_bo(seq+1);
         this._merge(bo, bo_next);
-        // XXX: need to schedule storage_queue
         return;
       }
-      bo_next = this._get_bo(seq+1);
+      bo_next = this.get_bo(seq+1);
       if (bo_next && br_branch_eq(bseq, bo_next.bseq)){
         assert.equal(bo_next.seq, seq+1, 'XXX1');
+        this._schedule_rm(bo_next.seq);
         bo_next.size++; // XXX: this._inc_size
         bo_next.seq = seq;
         bo_next.bseq = bseq;
         if (branch)
           bo_next.branch = branch;
-        // XXX: need to schedule storage_queue
+        this._schedule_mod(bo_next.seq);
         return;
       }
     }
@@ -227,7 +228,7 @@ export default class Branch_table {
     if (!this.branch.get(branch))
       this.branch.set(branch, bo);
     this.a.push(bo);
-    this.storage_queue.push(bo);
+    this._schedule_mod(bo.seq);
   }
   _merge(bo, bo_next){
     if (!bo_next || !br_branch_eq(bo.bseq, bo_next.bseq))
@@ -238,7 +239,18 @@ export default class Branch_table {
     let i = this.a.indexOf(bo_next);
     assert(i>=0, 'bo_next not found');
     this.a.splice(i, 1);
+    this._schedule_mod(bo.seq);
+    this._schedule_rm(bo_next.seq);
   }
+  _schedule_mod(seq){
+    this.storage_queue.mod[seq] = true;
+    delete this.storage_queue.rm[seq];
+  }
+  _schedule_rm(seq){
+    this.storage_queue.rm[seq] = true;
+    delete this.storage_queue.mod[seq];
+  }
+  schedule_reset(){ this.storage_queue = {mod: {}, rm: {}}; }
   to_static(){
     let a = this.a, ret = [];
     for (let i=0; i<a.length; i++){
@@ -255,6 +267,13 @@ export default class Branch_table {
     if (!ret.branch)
       delete ret.branch;
     return ret;
+  }
+  row_from_static(data){
+    let {branch, seq, bseq, size} = data;
+    let bo = branch ? {branch, seq, bseq, size} : {seq, bseq, size};
+    this.a.push(bo);
+    if (branch)
+      this.branch.set(branch, bo);
   }
 }
 
@@ -319,3 +338,6 @@ Branch_table.br_seq_inc = br_seq_inc;
 // XXX: cleanup br_* api naming
 // XXX: review bseq_get api (we can use branch table to calc it)
 // XXX: verify all tests are testing btable&bseq together
+// XXX: better way
+//      let bo = branch ? {branch, seq, bseq, size} : {seq, bseq, size};
+// XXX: test btable.branch hash

@@ -56,6 +56,7 @@ export default class Storage_handler {
       yield scroll.lock();
       yield _this.load_conflict(M);
       yield _this.load_cfid(scroll.get_decl(0), 0);
+      yield _this.load_branch();
       yield scroll.unlock();
     }
     _this.sp.spawn(etask(function*db_updater(){
@@ -85,8 +86,12 @@ export default class Storage_handler {
         }
         for (let i=0; i<queue_cf.length; i++)
           yield db.store_put(store, queue_cf[i].data);
-        for (let i=0; i<queue_br.length; i++)
-          yield db.store_put(store_br, queue_br[i].data);
+        for (let i=0; i<queue_br.rm.length; i++){
+          let o = queue_br.rm[i];
+          yield db.store_delete(store_br, [o.scfid, o.seq]);
+        }
+        for (let i=0; i<queue_br.mod.length; i++)
+          yield db.store_put(store_br, queue_br.mod[i].data);
         for (let seq in queue_decl){
           seq = +seq;
           for (let cfid in queue_decl[seq]){
@@ -198,7 +203,7 @@ export default class Storage_handler {
       return;
     assert(_this.inited, 'storage_handler not inited');
     assert(_this.busy, 'end_update while not in update');
-    let queue_cf = [], queue_br = [];
+    let queue_cf = [], queue_br = {rm: [], mod: []};
     for (const [, o] of scroll.conflict){
       if (!o.db){
         o.db = {data: conflict_to_data(db, scroll, o)};
@@ -210,14 +215,18 @@ export default class Storage_handler {
         o.db.data = data;
         queue_cf.push({data: xutil.clone_deep(o.db.data)});
       }
+      assert(o.db.data.scroll, 'missing scroll');
+      let scfid = o.db.data.scfid;
       let btable = scroll.get_branch_table(o.cfid);
-      while (btable.storage_queue.length){
-        let bo = btable.storage_queue.shift();
-        assert(!bo.db, 'branch already have db section bseq '+bo.bseq);
+      for (let seq in btable.storage_queue.rm)
+        queue_br.rm.push({scfid, seq: +seq});
+      for (let seq in btable.storage_queue.mod){
+        seq = +seq;
+        let bo = btable.get_bo(seq);
         bo.db = {data: btable.row_to_static(bo)};
-        queue_br.push({data: xutil.clone_deep(bo.db.data)});
+        queue_br.mod.push({data: xutil.clone_deep(bo.db.data)});
       }
-      assert(o.db.data.scroll, 'missing scorll');
+      btable.schedule_reset();
     }
     _this.schedule_db_update({queue_cf, queue_cf_rm: _this.queue_cf_rm,
       queue_decl: _this.queue_decl, queue_br});
@@ -243,6 +252,27 @@ export default class Storage_handler {
       assert(o.db.data.scfid>=0, 'missing scfid');
       co.db = o.db;
     });
+  }); }
+  load_branch(){ return etask({_: this}, function*load_branch(){
+    this.on('uncaught', e=>xerr.xexit(e));
+    let _this = this._, scroll = _this.scroll, db = _this.db;
+    assert(_this.inited, 'storage_handler not inited');
+    for (let [cfid, o] of scroll.conflict){
+      cfid = +cfid;
+      if (!o.db)
+        continue;
+      let scfid = o.db.data.scfid;
+      assert(scfid>=0, 'missing scfid for c'+o.cfid);
+      let tx = db.transaction(['branch'], 'readonly');
+      let btable = scroll.get_branch_table(cfid);
+      btable.a = [];
+      for (let cursor = yield db.cursor(tx.store('branch').index('scfid'),
+        db.only(scfid)); cursor; cursor = yield cursor.next())
+      {
+        assert.equal(cfid, cursor.value.cfid, 'db branch corruption sc'+scfid);
+        btable.row_from_static(cursor.value);
+      }
+    }
   }); }
   load_conflict_static(M){ return etask({_: this},
     function*load_conflict_static()

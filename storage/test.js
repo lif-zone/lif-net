@@ -2541,13 +2541,22 @@ describe('scroll', ()=>{
                               bt_c1[1]={branch:b2 seq:5 bseq:1-2.0 size:1})`);
       });
       describe('db', ()=>{
-        t('write', `s..#(db_btable)
-          scroll(db) flush
-            #(db_bt_c0[0]={seq:0 bseq:0 size:1})
-          decl(1) flush #
+        t('no_branch', `s..#(db_btable)
+          soul.s.scroll(db) flush #db_bt_c0[0]={seq:0 bseq:0 size:1}
+          decl(1) flush #db_bt_c0[0]={seq:0 bseq:0 size:2}
+          decl(2) flush #db_bt_c0[0]={seq:0 bseq:0 size:3}
+          decl(3) flush #db_bt_c0[0]={seq:0 bseq:0 size:4}
+          Soul.db_copy(soul) S..#(bseq btable)
+          Soul.S.scroll(s..M0 db) #(bt_c0[0]={seq:0 bseq:0 size:4} bseq0=0)`);
+        t('xxx', `s..#(db_btable)
+          soul.s.scroll(db) flush #(db_bt_c0[0]={seq:0 bseq:0 size:1})
+          decl(1) flush #(db_bt_c0[0]={seq:0 bseq:0 size:2})
           decl(2 branch:b) flush
             #(db_bt_c0[1]={branch:b seq:2 bseq:1-1.0 size:1})
-          decl(2) flush #`);
+          decl(2) flush #(db_bt_c0[1]={branch:b seq:2 bseq:1-1.0 size:2})
+          Soul.db_copy(soul) S..#(bseq btable)
+          Soul.S.scroll(s..M0 db) #(bt_c0[0]={seq:0 bseq:0 size:2}
+            bt_c0[1]={branch:b seq:2 bseq:1-1.0 size:2} bseq0=0)`);
       });
     });
     describe('storage', ()=>{

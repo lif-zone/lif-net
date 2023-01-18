@@ -130,9 +130,8 @@ export default class Branch_table {
     this.branch = new Map();
     this.a = [];
     this.storage_queue = [];
-    // XXX: rm null from branch name
     if (!this.scroll.conflict.get(this.cfid).parent)
-      this.add({branch: null, seq: 0, bseq: '0'});
+      this.add({seq: 0, bseq: '0'});
   }
   get_branch(branch){ return this.branch.get(branch); }
   _get_bo(seq){ // XXX: optimize
@@ -195,8 +194,7 @@ export default class Branch_table {
   }
   add(opt){
     let {branch, seq, bseq} = opt, bo, bo_next;
-    if (!branch) // XXX: get branch from bseq
-      branch = null;
+    branch = branch||null;
     assert(Number.isInteger(seq) && seq>=0, 'invalid seq '+seq);
     assert(typeof bseq=='string', 'invalid bseq '+bseq); // XXX: need is_valid
     if (seq==0 && this._get_bo(seq))
@@ -219,12 +217,13 @@ export default class Branch_table {
         bo_next.size++; // XXX: this._inc_size
         bo_next.seq = seq;
         bo_next.bseq = bseq;
-        bo_next.branch = branch;
+        if (branch)
+          bo_next.branch = branch;
         // XXX: need to schedule storage_queue
         return;
       }
     }
-    bo = {branch, seq, bseq, size: 1};
+    bo = branch ? {branch, seq, bseq, size: 1} : {seq, bseq, size: 1};
     if (!this.branch.get(branch))
       this.branch.set(branch, bo);
     this.a.push(bo);
@@ -252,7 +251,10 @@ export default class Branch_table {
     let {branch, seq, bseq, size} = bo;
     let cfid = this.cfid, scfid = this.scroll.to_scfid(cfid);
     assert(scfid>=0, 'missing scfid for cfid '+cfid);
-    return {scfid, cfid, branch, seq, bseq, size};
+    let ret = {scfid, cfid, branch, seq, bseq, size};
+    if (!ret.branch)
+      delete ret.branch;
+    return ret;
   }
 }
 

@@ -2383,7 +2383,7 @@ describe('scroll', ()=>{
         // XXX: unite bseq/btable tests into one test
         t('no_branch', `s..#(bseq btable) scroll decl(1-10) #(bseq0=0 bseq1=1
           bseq2=2 bseq3=3 bseq4=4 bseq5=5 bseq6=6 bseq7=7 bseq8=8 bseq9=9
-          bseq10=_10 bt_c0[0]={branch:null seq:0 bseq:0 size:11}) !bseq11`);
+          bseq10=_10 bt_c0[0]={seq:0 bseq:0 size:11}) !bseq11`);
         t('one_branch_test_bseq', `s..#bseq
           scroll           #bseq0=0
           decl(1)          #bseq1=1
@@ -2396,16 +2396,16 @@ describe('scroll', ()=>{
           decl(8)          #bseq8=2-1.3
           decl(9 prev:6)   #bseq9=5`);
         t('one_branch_test_btable', `s..#btable
-          scroll           #bt_c0[0]={branch:null seq:0 bseq:0 size:1}
-          decl(1)          #bt_c0[0]={branch:null seq:0 bseq:0 size:2}
-          decl(2)          #bt_c0[0]={branch:null seq:0 bseq:0 size:3}
+          scroll           #bt_c0[0]={seq:0 bseq:0 size:1}
+          decl(1)          #bt_c0[0]={seq:0 bseq:0 size:2}
+          decl(2)          #bt_c0[0]={seq:0 bseq:0 size:3}
           decl(3 branch:b) #bt_c0[1]={branch:b seq:3 bseq:2-1.0 size:1}
           decl(4)          #bt_c0[1]={branch:b seq:3 bseq:2-1.0 size:2}
-          decl(5 prev:2)   #bt_c0[2]={branch:null seq:5 bseq:3 size:1}
-          decl(6)          #bt_c0[2]={branch:null seq:5 bseq:3 size:2}
-          decl(7 prev:4)   #bt_c0[3]={branch:null seq:7 bseq:2-1.2 size:1}
-          decl(8)          #bt_c0[3]={branch:null seq:7 bseq:2-1.2 size:2}
-          decl(9 prev:6)   #bt_c0[4]={branch:null seq:9 bseq:5 size:1}
+          decl(5 prev:2)   #bt_c0[2]={seq:5 bseq:3 size:1}
+          decl(6)          #bt_c0[2]={seq:5 bseq:3 size:2}
+          decl(7 prev:4)   #bt_c0[3]={seq:7 bseq:2-1.2 size:1}
+          decl(8)          #bt_c0[3]={seq:7 bseq:2-1.2 size:2}
+          decl(9 prev:6)   #bt_c0[4]={seq:9 bseq:5 size:1}
         `);
         t('two_branch_differnt', `s..#bseq
           scroll            #bseq0=0
@@ -2430,47 +2430,35 @@ describe('scroll', ()=>{
           decl(4 prev:1 branch:b2) #bseq4=1-2.0
           decl(5)                  #bseq5=1-2.1`);
         t('xxx_v0', `s..#(bseq btable)
-          scroll           #(bseq0=0
-                             bt_c0[0]={branch:null seq:0 bseq:0 size:1})
-          decl(1)          #(bseq1=1
-                             bt_c0[0]={branch:null seq:0 bseq:0 size:2})
+          scroll           #(bseq0=0 bt_c0[0]={seq:0 bseq:0 size:1})
+          decl(1)          #(bseq1=1 bt_c0[0]={seq:0 bseq:0 size:2})
           decl(2 branch:b) #(bseq2=1-1.0
                              bt_c0[1]={branch:b seq:2 bseq:1-1.0 size:1})
           decl(3)          #(bseq3=1-1.1
                              bt_c0[1]={branch:b seq:2 bseq:1-1.0 size:2})
-          decl(4 prev:1)   #(bseq4=2
-                             bt_c0[2]={branch:null seq:4 bseq:2 size:1})
+          decl(4 prev:1)   #(bseq4=2 bt_c0[2]={seq:4 bseq:2 size:1})
         `);
         t('xxx_v1', `s..#(bseq btable)
-          scroll           #(bseq0=0
-                             bt_c0[0]={branch:null seq:0 bseq:0 size:1})
-          decl(1)          #(bseq1=1
-                             bt_c0[0]={branch:null seq:0 bseq:0 size:2})
+          scroll           #(bseq0=0 bt_c0[0]={seq:0 bseq:0 size:1})
+          decl(1)          #(bseq1=1 bt_c0[0]={seq:0 bseq:0 size:2})
           decl(2 branch:b) #(bseq2=1-1.0
                              bt_c0[1]={branch:b seq:2 bseq:1-1.0 size:1})
           decl(3 branch:c) #(bseq3=1-1.0-1.0
                              bt_c0[2]={branch:c seq:3 bseq:1-1.0-1.0 size:1})
-          decl(4 prev:1)   #(bseq4=2
-                             bt_c0[3]={branch:null seq:4 bseq:2 size:1})
+          decl(4 prev:1)   #(bseq4=2 bt_c0[3]={seq:4 bseq:2 size:1})
         `);
         t('xxx_v0a', `s..#(bseq btable)
-          scroll           #(bseq0=0
-                             bt_c0[0]={branch:null seq:0 bseq:0 size:1})
-          decl(1)          #(bseq1=1
-                             bt_c0[0]={branch:null seq:0 bseq:0 size:2})
+          scroll           #(bseq0=0 bt_c0[0]={seq:0 bseq:0 size:1})
+          decl(1)          #(bseq1=1 bt_c0[0]={seq:0 bseq:0 size:2})
           decl(2 branch:b) #(bseq2=1-1.0
                              bt_c0[1]={branch:b seq:2 bseq:1-1.0 size:1})
           decl(3)          #(bseq3=1-1.1
                              bt_c0[1]={branch:b seq:2 bseq:1-1.0 size:2})
-          decl(4 prev:1)   #(bseq4=2
-                             bt_c0[2]={branch:null seq:4 bseq:2 size:1})
+          decl(4 prev:1)   #(bseq4=2 bt_c0[2]={seq:4 bseq:2 size:1})
           S..#(bseq btable) scroll(s..M0)
-          tput(0)          #(bseq0=0
-                             bt_c0[0]={branch:null seq:0 bseq:0 size:1})
-          tput(0 1)        #(bseq1=1
-                             bt_c0[0]={branch:null seq:0 bseq:0 size:2})
-          tput(0 2_3 4)    #(bseq4=2
-                             bt_c0[1]={branch:null seq:4 bseq:2 size:1})
+          tput(0)          #(bseq0=0 bt_c0[0]={seq:0 bseq:0 size:1})
+          tput(0 1)        #(bseq1=1 bt_c0[0]={seq:0 bseq:0 size:2})
+          tput(0 2_3 4)    #(bseq4=2 bt_c0[1]={seq:4 bseq:2 size:1})
         `);
       });
       describe('put', ()=>{
@@ -2486,18 +2474,18 @@ describe('scroll', ()=>{
           tput(0 1 2_3 4 5 6      ) #bseq6c1=6
           tput(0 1 2_3 4 5 6 7    ) #(bseq6=6 bseq7=7 !bseq6c1)`);
         t('no_branch_btable', `s..scroll decl(1-9) S..#btable scroll(s..M0)
-          tput(0)         #bt_c0[0]={branch:null seq:0 bseq:0 size:1}
-          tput(0 1      ) #bt_c0[0]={branch:null seq:0 bseq:0 size:2}
-          tput(0 1 2_3 4) #bt_c0[1]={branch:null seq:4 bseq:4 size:1}
-          tput(0 1 2 3  ) #(bt_c0[1]={branch:null seq:3 bseq:3 size:2})
-          tput(0 1 2    ) #(bt_c0[0]={branch:null seq:0 bseq:0 size:5}
+          tput(0)         #bt_c0[0]={seq:0 bseq:0 size:1}
+          tput(0 1      ) #bt_c0[0]={seq:0 bseq:0 size:2}
+          tput(0 1 2_3 4) #bt_c0[1]={seq:4 bseq:4 size:1}
+          tput(0 1 2 3  ) #(bt_c0[1]={seq:3 bseq:3 size:2})
+          tput(0 1 2    ) #(bt_c0[0]={seq:0 bseq:0 size:5}
                             !bt_c0[1])
-          tput(0 1 2_3 4 5 6_7 8  ) #bt_c0[1]={branch:null seq:8 bseq:8 size:1}
-          tput(0 1 2_3 4 5 6_7 8 9) #bt_c0[1]={branch:null seq:8 bseq:8 size:2}
-          tput(0 1 2_3 4 5        ) #bt_c0[0]={branch:null seq:0 bseq:0 size:6}
-          tput(0 1 2_3 4 5 6      ) #bt_c1[0]={branch:null seq:6 bseq:6 size:1}
+          tput(0 1 2_3 4 5 6_7 8  ) #bt_c0[1]={seq:8 bseq:8 size:1}
+          tput(0 1 2_3 4 5 6_7 8 9) #bt_c0[1]={seq:8 bseq:8 size:2}
+          tput(0 1 2_3 4 5        ) #bt_c0[0]={seq:0 bseq:0 size:6}
+          tput(0 1 2_3 4 5 6      ) #bt_c1[0]={seq:6 bseq:6 size:1}
           tput(0 1 2_3 4 5 6 7    )
-            #(!bt_c0[1] !bt_c1[0] bt_c0[0]={branch:null seq:0 bseq:0 size:10})
+            #(!bt_c0[1] !bt_c1[0] bt_c0[0]={seq:0 bseq:0 size:10})
         `);
         t('one_branch', `s..scroll decl(1) decl(2) decl(3 branch:b) decl(4)
           decl(5 prev:2) decl(6) decl(7 prev:4) decl(8) decl(9 prev:6)
@@ -2515,21 +2503,15 @@ describe('scroll', ()=>{
         `);
         t('conflict_no_branch', `s..scroll decl(1-4)
           s1..clone(s.M1) decl(2-4) S..#(bseq btable) S..scroll(s..M0)
-          #bt_c0[0]={branch:null seq:0 bseq:0 size=1}
-          tput(0) #(bseq0=0 bt_c0[0]={branch:null seq:0 bseq:0 size=1})
-          tput(0 1) #(bseq1=1 bt_c0[0]={branch:null seq:0 bseq:0 size=2})
-          tput(0 1 2    ) #(bseq2=2
-                            bt_c0[0]={branch:null seq:0 bseq:0 size=3})
-          tput(0 1 2 3  ) #(bseq3=3
-                            bt_c0[0]={branch:null seq:0 bseq:0 size=4})
-          tput(0 1 2 3 4) #(bseq4=4
-                            bt_c0[0]={branch:null seq:0 bseq:0 size=5})
-          tput(0_1 c    ) #(bseq2c1=2
-                            bt_c1[0]={branch:null seq:2 bseq:2 size=1})
-          tput(0_1 c d  ) #(bseq3c1=3
-                            bt_c1[0]={branch:null seq:2 bseq:2 size=2})
-          tput(0_1 c d e) #(bseq4c1=4
-                            bt_c1[0]={branch:null seq:2 bseq:2 size=3})`);
+          #bt_c0[0]={seq:0 bseq:0 size=1}
+          tput(0) #(bseq0=0 bt_c0[0]={seq:0 bseq:0 size=1})
+          tput(0 1) #(bseq1=1 bt_c0[0]={seq:0 bseq:0 size=2})
+          tput(0 1 2    ) #(bseq2=2 bt_c0[0]={seq:0 bseq:0 size=3})
+          tput(0 1 2 3  ) #(bseq3=3 bt_c0[0]={seq:0 bseq:0 size=4})
+          tput(0 1 2 3 4) #(bseq4=4 bt_c0[0]={seq:0 bseq:0 size=5})
+          tput(0_1 c    ) #(bseq2c1=2 bt_c1[0]={seq:2 bseq:2 size=1})
+          tput(0_1 c d  ) #(bseq3c1=3 bt_c1[0]={seq:2 bseq:2 size=2})
+          tput(0_1 c d e) #(bseq4c1=4 bt_c1[0]={seq:2 bseq:2 size=3})`);
         let s = `
           s..#bseq scroll          #bseq0=0
           decl(1)                  #bseq1=1
@@ -2543,10 +2525,8 @@ describe('scroll', ()=>{
           decl(5 prev:1 branch:b2) #bseq5=1-2.0`;
         t('conflict_two_branch_put', s+` S..#(bseq btable)
           S..# scroll(s..M0)
-          tput(0)           #(bseq0=0
-                              bt_c0[0]={branch:null seq:0 bseq:0 size:1})
-          tput(0 1)         #(bseq1=1
-                              bt_c0[0]={branch:null seq:0 bseq:0 size:2})
+          tput(0)           #(bseq0=0 bt_c0[0]={seq:0 bseq:0 size:1})
+          tput(0 1)         #(bseq1=1 bt_c0[0]={seq:0 bseq:0 size:2})
           tput(0 1 2      ) #(bseq2=1-1.0
                               bt_c0[1]={branch:b seq:2 bseq:1-1.0 size:1})
           tput(0 1 2 3    ) #(bseq3=1-1.1
@@ -2555,17 +2535,15 @@ describe('scroll', ()=>{
                               bt_c0[2]={branch:b2 seq:4 bseq:1-2.0 size:1})
           tput(0 1 2 3 4 5) #(bseq5=1-2.1
                               bt_c0[2]={branch:b2 seq:4 bseq:1-2.0 size:2})
-          tput(0_1 2 d    ) #(bseq3c1=1-1.1
-                              bt_c1[0]={branch:null seq:3 bseq:1-1.1 size:1})
-          tput(0_1 2 d e  ) #(bseq4c1=1-1.2
-                              bt_c1[0]={branch:null seq:3 bseq:1-1.1 size:2})
+          tput(0_1 2 d    ) #(bseq3c1=1-1.1 bt_c1[0]={seq:3 bseq:1-1.1 size:1})
+          tput(0_1 2 d e  ) #(bseq4c1=1-1.2 bt_c1[0]={seq:3 bseq:1-1.1 size:2})
           tput(0_1 2 d e f) #(bseq5c1=1-2.0
                               bt_c1[1]={branch:b2 seq:5 bseq:1-2.0 size:1})`);
       });
       describe('db', ()=>{
         t('write', `s..#(db_btable)
           scroll(db) flush
-            #(db_bt_c0[0]={branch:null seq:0 bseq:0 size:1})
+            #(db_bt_c0[0]={seq:0 bseq:0 size:1})
           decl(1) flush #
           decl(2 branch:b) flush
             #(db_bt_c0[1]={branch:b seq:2 bseq:1-1.0 size:1})

@@ -10,11 +10,29 @@ br:null seq:0 bseq:0
 br:b seq:2 bseq:1.0
 br:null seq:4 bseq:2
 
-db:
-branch table key: [scfid, seq]
-// XXX: rm {branch: null}
-{scfid: 1, branch: null, seq: 0 bseq: 0, size: 10}
-{scfid: 1, branch: b, seq: 10 bseq: 1-1.0}
+- we save bseq in decl header. during declare of new declaration, it is
+  auto-calculated based on previous bseq (or explicity provided)
+- if we don't know the previous bseq, we cannot auto-calc during declare
+- if we declare new branch, we cannot calcualte bseq unless we know all the
+  bseq up to that seq
+  0
+  1
+  2
+  3 branch:b1 prev:0 bseq:0-1.0
+  4 branch:b2 prev:0 bseq:0-2.0
+- memory/db branch table structure
+  {seq:0 bseq: 0, size:2}
+  {seq:4 bseq: 0, size:1}
+  ...
+  {branch: b, seq: 10 bseq: 1-1.0 size:3}
+  // XXX if we get later on 2/3 then we will merge
+  {seq:0 bseq: 0, size:5}
+  ...
+  {branch: b, seq: 10 bseq: 1-1.0 size:3}
+- optimizations:
+  - we need to find seq in branch table
+  - we need to find bseq in branch table
+
 // XXX: where to save full_seq/complete_data
 
 // example:
@@ -127,7 +145,6 @@ export default class Branch_table {
     this.scroll = opt.scroll;
     this.cfid = opt.cfid;
     assert(this.scroll && this.cfid!=undefined, 'missing scroll or cfid');
-    this.max_seq = -1;
     this.branch = new Map();
     this.a = [];
     this.schedule_reset();
@@ -181,8 +198,6 @@ export default class Branch_table {
     }
   }
   to_bseq(seq){
-    if (this.max_seq < seq)
-      return;
     let last = this.get_last(seq);
     if (!last) // XXX: can this happen?
       return br_enc(seq);

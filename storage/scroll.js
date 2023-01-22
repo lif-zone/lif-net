@@ -1092,7 +1092,12 @@ export default class Scroll extends EventEmitterAsync {
     return hconcat_safe(a);
   }
   seq_sig(cfid, seq){ return this.get_decl(seq)?.sig_get(cfid); }
-  bseq_get(cfid, seq){ return this.get_decl(seq)?.bseq_get(cfid); }
+  bseq_get(cfid, seq){
+    let btable = this.get_branch_table(this.to_c(cfid, seq));
+    let bseq = this.get_decl(seq)?.bseq_get(cfid);
+    assert.equal(bseq, btable.get_bseq(seq), 'bseq mismatch branch table');
+    return bseq;
+  }
   seq_d(cfid, seq){ return this.get_decl(seq).d_hash(cfid); }
   seq_D(cfid, seq){
     return this.get_decl(seq).fbuf_get(cfid).get_frames(); }
@@ -1223,7 +1228,6 @@ class Decl extends EventEmitterAsync {
   sig_set(cfid, sig){ return this.fbuf_get(cfid).sig_set(sig); }
   sig_get(cfid){ return this.fbuf_get(cfid).sig_get(); }
   bseq_get(cfid){
-    // XXX: use branch_table
     let h = this.get_header(cfid);
     if (!h)
       return null;

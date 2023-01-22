@@ -31,6 +31,12 @@ export default class Branch_table {
         return bo;
     }
   }
+  get_bseq(seq){
+    let bo = this.get_bo(seq);
+    if (!bo)
+      return null;
+    return br_inc(bo.bseq, bo.size-(bo.seq-seq)-1);
+  }
   find_avail_branch(bseq){
     let {scroll, cfid} = this, {parent} = scroll.conflict.get(cfid);
     if (parent){ // XXX: test this case

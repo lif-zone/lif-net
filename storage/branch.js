@@ -1,69 +1,52 @@
 // author: derry. coder: arik.
 'use strict';
 import assert from 'assert';
+import Tree from 'avl';
+
+function bo_cmp(a, b){ return a.seq - b.seq; }
 
 export default class Branch_table {
   constructor(opt){
     this.scroll = opt.scroll;
     this.cfid = opt.cfid;
     assert(this.scroll && this.cfid!=undefined, 'missing scroll or cfid');
-    this.branch = new Map();
-    this.a = [];
+    this.reset();
     this.schedule_reset();
     if (!this.scroll.conflict.get(this.cfid).parent)
       this.add({seq: 0, bseq: '0'});
   }
+  reset(){
+    this.branch = new Map();
+    this.avl = new Tree(bo_cmp, true);
+    this.bseq_branch = {};
+  }
   get_branch(branch){ return this.branch.get(branch); }
-  get_bo(seq){ // XXX: optimize
-    let a = this.a;
-    for (let i=0; i<a.length; i++){
-      let bo = a[i];
+  get_bo(seq){
+    for (let node = this.avl._root; node;
+      node = seq < node.key.seq ? node.left : node.right)
+    {
+      let bo = node.key;
       if (bo.seq<=seq && seq<bo.seq+bo.size)
         return bo;
     }
   }
-  get_last(seq){ // XXX: optimize + test
-    let {scroll, cfid} = this, {parent} = scroll.conflict.get(cfid), last;
-    if (parent)
-      last = scroll.get_branch_table(parent.cfid).get_last(seq, parent.seq);
-    let a = this.a;
-    for (let i=0; i<a.length; i++){
-      let bo = a[i];
-      if (!last && bo.seq <= seq)
-        last = bo;
-      else if (bo.seq <= seq && last.seq < bo.seq)
-        last = bo;
-    }
-    return last;
-  }
   find_avail_branch(bseq){ // XXX: need test
     let {scroll, cfid} = this, {parent} = scroll.conflict.get(cfid);
-    if (parent){
+    if (parent){ // XXX: test this case
       bseq = scroll.get_branch_table(parent.cfid).find_avail_branch(bseq,
         parent.seq);
     }
-    // XXX HACK: need sorted array & optimize conflict
-    while (true){
-      let a = this.a, exists;
-      for (let i=0; i<a.length; i++){
-        let bo = a[i];
-        if (bo.bseq==bseq)
-          exists = true;
-      }
-      if (!exists)
-        return bseq;
-      bseq = br_branch_inc(bseq);
-    }
+    for (; this.bseq_branch[bseq]; bseq = br_branch_inc(bseq));
+    return bseq;
   }
-  to_bseq(seq){
-    let last = this.get_last(seq);
-    if (!last) // XXX: can this happen?
-      return br_enc(seq);
-    return br_seq_inc(last.bseq, seq-last.seq);
+  _insert(bo){
+    this.avl.insert(bo);
+    if (/.*\.0/.test(bo.bseq))
+      this.bseq_branch[bo.bseq] = bo;
   }
-  to_branch(seq){
-    let last = this.get_last(seq);
-    return last?.branch;
+  _remove(bo){
+    this.avl.remove(bo);
+    delete this.bseq_branch[bo.bseq];
   }
   add(opt){
     let {branch, seq, bseq} = opt, bo, bo_next;
@@ -84,7 +67,9 @@ export default class Branch_table {
         if (bo.seq<=seq && seq<bo.seq+bo.size)
           return;
         assert.equal(bo.seq+bo.size, seq, 'branch corruption');
+        this._remove(bo); // XXX: can we avoid remove/insert
         bo.size++;
+        this._insert(bo);
         this._schedule_mod(bo.seq);
         bo_next = this.get_bo(seq+1);
         this._merge(bo, bo_next);
@@ -93,12 +78,14 @@ export default class Branch_table {
       bo_next = this.get_bo(seq+1);
       if (bo_next && br_branch_eq(bseq, bo_next.bseq)){
         assert.equal(bo_next.seq, seq+1, 'branch corruption');
+        this._remove(bo_next); // XXX: can we avoid remove/insert
         this._schedule_rm(bo_next.seq);
         bo_next.size++;
         bo_next.seq = seq;
         bo_next.bseq = bseq;
         if (branch)
           bo_next.branch = branch;
+        this._insert(bo_next);
         this._schedule_mod(bo_next.seq);
         return;
       }
@@ -106,7 +93,7 @@ export default class Branch_table {
     bo = branch ? {branch, seq, bseq, size: 1} : {seq, bseq, size: 1};
     if (!this.branch.get(branch))
       this.branch.set(branch, bo);
-    this.a.push(bo);
+    this._insert(bo);
     this._schedule_mod(bo.seq);
   }
   _merge(bo, bo_next){
@@ -115,9 +102,9 @@ export default class Branch_table {
     assert.equal(br_seq_inc(bo.bseq, bo.size), bo_next.bseq,
       'branch merge mismatch');
     bo.size += bo_next.size;
-    let i = this.a.indexOf(bo_next);
-    assert(i>=0, 'bo_next not found');
-    this.a.splice(i, 1);
+    this._remove(bo_next);
+    this._remove(bo); // XXX: can we avoid remove/insert or add api update
+    this._insert(bo);
     this._schedule_mod(bo.seq);
     this._schedule_rm(bo_next.seq);
   }
@@ -131,7 +118,7 @@ export default class Branch_table {
   }
   schedule_reset(){ this.storage_queue = {mod: {}, rm: {}}; }
   to_static(){
-    let a = this.a, ret = [];
+    let a = this.avl.keys(), ret = [];
     for (let i=0; i<a.length; i++){
       let o = {...a[i]};
       delete o.db;
@@ -151,7 +138,7 @@ export default class Branch_table {
   row_from_static(data){
     let {branch, seq, bseq, size} = data;
     let bo = branch ? {branch, seq, bseq, size} : {seq, bseq, size};
-    this.a.push(bo);
+    this._insert(bo);
     if (branch)
       this.branch.set(branch, bo);
   }

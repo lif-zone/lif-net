@@ -265,7 +265,7 @@ export default class Storage_handler {
       assert(scfid>=0, 'missing scfid for c'+o.cfid);
       let tx = db.transaction(['branch'], 'readonly');
       let btable = scroll.get_branch_table(cfid);
-      btable.a = [];
+      btable.reset();
       for (let cursor = yield db.cursor(tx.store('branch').index('scfid'),
         db.only(scfid)); cursor; cursor = yield cursor.next())
       {

@@ -67,9 +67,7 @@ export default class Branch_table {
         if (bo.seq<=seq && seq<bo.seq+bo.size)
           return;
         assert.equal(bo.seq+bo.size, seq, 'branch corruption');
-        this._remove(bo); // XXX: can we avoid remove/insert
         bo.size++;
-        this._insert(bo);
         this._schedule_mod(bo.seq);
         bo_next = this.get_bo(seq+1);
         this._merge(bo, bo_next);
@@ -78,10 +76,10 @@ export default class Branch_table {
       bo_next = this.get_bo(seq+1);
       if (bo_next && br_branch_eq(bseq, bo_next.bseq)){
         assert.equal(bo_next.seq, seq+1, 'branch corruption');
-        this._remove(bo_next); // XXX: can we avoid remove/insert
+        this._remove(bo_next);
         this._schedule_rm(bo_next.seq);
-        bo_next.size++;
         bo_next.seq = seq;
+        bo_next.size++;
         bo_next.bseq = bseq;
         if (branch)
           bo_next.branch = branch;
@@ -103,8 +101,6 @@ export default class Branch_table {
       'branch merge mismatch');
     bo.size += bo_next.size;
     this._remove(bo_next);
-    this._remove(bo); // XXX: can we avoid remove/insert or add api update
-    this._insert(bo);
     this._schedule_mod(bo.seq);
     this._schedule_rm(bo_next.seq);
   }

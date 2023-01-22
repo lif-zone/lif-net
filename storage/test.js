@@ -1590,10 +1590,14 @@ describe('scroll', ()=>{
       t('0', '1');
       t('0', 2, '2');
       t('1', '2');
-      t('_9', '_10');
-      t('_9', 2, '_11');
+      t('9', '_10');
+      t('9', 2, '_11');
       t('_10', '_11');
       t('__100', '__101');
+      t('9.8', '9.9');
+      t('9.9', '9._10');
+      t('9._10', '9._11');
+      t('_10._99', '_10.__100');
     });
     it('br_cmp', ()=>{
       const t = (a, b, exp)=>assert.equal(br_cmp(br_enc(a), br_enc(b)), exp);
@@ -2512,7 +2516,7 @@ describe('scroll', ()=>{
           tput(0_1 c    ) #(bseq2c1=2 bt_c1[0]={seq:2 bseq:2 size=1})
           tput(0_1 c d  ) #(bseq3c1=3 bt_c1[0]={seq:2 bseq:2 size=2})
           tput(0_1 c d e) #(bseq4c1=4 bt_c1[0]={seq:2 bseq:2 size=3})`);
-        let s = `
+        t('conflict_two_branch_put', `
           s..#bseq scroll          #bseq0=0
           decl(1)                  #bseq1=1
           decl(2 branch:b)         #bseq2=1-1.0
@@ -2522,9 +2526,8 @@ describe('scroll', ()=>{
           s1..#bseq clone(s.M2)    #(bseq0=0 bseq1=1 bseq2=1-1.0)
           decl(3)                  #bseq3=1-1.1
           decl(4)                  #bseq4=1-1.2
-          decl(5 prev:1 branch:b2) #bseq5=1-2.0`;
-        t('conflict_two_branch_put', s+` S..#(bseq btable)
-          S..# scroll(s..M0)
+          decl(5 prev:1 branch:b2) #bseq5=1-2.0
+          S..#(bseq btable) S..# scroll(s..M0)
           tput(0)           #(bseq0=0 bt_c0[0]={seq:0 bseq:0 size:1})
           tput(0 1)         #(bseq1=1 bt_c0[0]={seq:0 bseq:0 size:2})
           tput(0 1 2      ) #(bseq2=1-1.0
@@ -2557,6 +2560,52 @@ describe('scroll', ()=>{
           Soul.db_copy(soul) S..#(bseq btable)
           Soul.S.scroll(s..M0 db) #(bt_c0[0]={seq:0 bseq:0 size:2}
             bt_c0[1]={branch:b seq:2 bseq:1-1.0 size:2} bseq0=0)`);
+        t('conflict_two_branch_put', `s..#(bseq db_btable)
+          scroll(db)               #(bseq0=0 db_bt_c0[0]={seq:0 bseq:0 size:1})
+          decl(1)                  #(bseq1=1 db_bt_c0[0]={seq:0 bseq:0 size:2})
+          decl(2 branch:b)         #(bseq2=1-1.0
+            db_bt_c0[1]={branch:b seq:2 bseq:1-1.0 size:1})
+          decl(3)                  #(bseq3=1-1.1
+            db_bt_c0[1]={branch:b seq:2 bseq:1-1.0 size:2})
+          decl(4 prev:1 branch:b2) #(bseq4=1-2.0
+            db_bt_c0[2]={branch:b2 seq:4 bseq:1-2.0 size:1})
+          decl(5)                  #(bseq5=1-2.1
+            db_bt_c0[2]={branch:b2 seq:4 bseq:1-2.0 size:2})
+          s1..#(bseq db_btable)
+          clone(s.M2 db)           #(bseq0=0 bseq1=1 bseq2=1-1.0
+            db_bt_c0[0]={seq:0 bseq:0 size:2}
+            db_bt_c0[1]={branch:b seq:2 bseq:1-1.0 size:1})
+          decl(3)                  #(bseq3=1-1.1
+            db_bt_c0[1]={branch:b seq:2 bseq:1-1.0 size:2})
+          decl(4)                  #(bseq4=1-1.2
+            db_bt_c0[1]={branch:b seq:2 bseq:1-1.0 size:3})
+          decl(5 prev:1 branch:b2) #(bseq5=1-2.0
+            db_bt_c0[2]={branch:b2 seq:5 bseq:1-2.0 size:1})
+          S..#(bseq btable db_btable) S..# scroll(s..M0 db)
+          tput(0)           #(bseq0=0 bt_c0[0]={seq:0 bseq:0 size:1}
+                              db_bt_c0[0]={seq:0 bseq:0 size:1})
+          tput(0 1)         #(bseq1=1 bt_c0[0]={seq:0 bseq:0 size:2}
+                              db_bt_c0[0]={seq:0 bseq:0 size:2})
+          tput(0 1 2      ) #(bseq2=1-1.0
+                              bt_c0[1]={branch:b seq:2 bseq:1-1.0 size:1}
+                              db_bt_c0[1]={branch:b seq:2 bseq:1-1.0 size:1})
+          tput(0 1 2 3    ) #(bseq3=1-1.1
+                              bt_c0[1]={branch:b seq:2 bseq:1-1.0 size:2}
+                              db_bt_c0[1]={branch:b seq:2 bseq:1-1.0 size:2})
+          tput(0 1 2 3 4  ) #(bseq4=1-2.0
+                              bt_c0[2]={branch:b2 seq:4 bseq:1-2.0 size:1}
+                              db_bt_c0[2]={branch:b2 seq:4 bseq:1-2.0 size:1})
+          tput(0 1 2 3 4 5) #(bseq5=1-2.1
+                              bt_c0[2]={branch:b2 seq:4 bseq:1-2.0 size:2}
+                              db_bt_c0[2]={branch:b2 seq:4 bseq:1-2.0 size:2})
+          tput(0_1 2 d    ) #(bseq3c1=1-1.1 bt_c1[0]={seq:3 bseq:1-1.1 size:1}
+                              db_bt_c1[0]={seq:3 bseq:1-1.1 size:1})
+          tput(0_1 2 d e  ) #(bseq4c1=1-1.2 bt_c1[0]={seq:3 bseq:1-1.1 size:2}
+                              db_bt_c1[0]={seq:3 bseq:1-1.1 size:2})
+          tput(0_1 2 d e f) #(bseq5c1=1-2.0
+                              bt_c1[1]={branch:b2 seq:5 bseq:1-2.0 size:1}
+                              db_bt_c1[1]={branch:b2 seq:5 bseq:1-2.0 size:1})
+        `);
       });
     });
     describe('storage', ()=>{

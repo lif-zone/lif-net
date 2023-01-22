@@ -1,6 +1,7 @@
 // author: derry. coder: arik.
 'use strict';
 import assert from 'assert';
+import xerr from '../util/xerr.js';
 
 /* design:
 branch format: s-b.s-b.s-b.s
@@ -198,6 +199,12 @@ export default class Branch_table {
     assert(typeof bseq=='string', 'invalid bseq '+bseq); // XXX: need is_valid
     if (seq==0 && this.get_bo(seq))
       return;
+    bo = this.get_bo(seq);
+    if (bo){
+      assert(br_cmp(bseq, br_inc(bo.bseq, bo.size))<0, 'bseq mismatch');
+      assert(bo.seq+bo.size-seq>0, 'bo mismatch');
+      return;
+    }
     if (seq>0){
       bo = this.get_bo(seq-1);
       if (bo && br_branch_eq(bseq, bo.bseq)){
@@ -253,8 +260,9 @@ export default class Branch_table {
   to_static(){
     let a = this.a, ret = [];
     for (let i=0; i<a.length; i++){
-      let bo = a[i];
-      ret.push({...bo});
+      let o = {...a[i]};
+      delete o.db;
+      ret.push({...o});
     }
     return ret;
   }
@@ -291,8 +299,10 @@ function br_int(a){
 }
 
 function br_inc(a, n=1){
-  let num = br_int(a);
-  return br_enc(num+n);
+  let m = a.match(/^([\d.\-_]*\.)?([_]*[\d]+)$/);
+  assert(m[2], 'invalid br '+a);
+  let num = br_int(m[2]);
+  return (m[1]||'')+br_enc(num+n);
 }
 
 function br_cmp(a, b){ return a==b ? 0 : a<b ? -1 : 1; }

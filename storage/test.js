@@ -2396,14 +2396,18 @@ describe('scroll', ()=>{
           decl(7 prev:4)   #(bseq7=2-1.2 btc0[3]={seq:7 bseq:2-1.2 size:1})
           decl(8)          #(bseq8=2-1.3 btc0[3]={seq:7 bseq:2-1.2 size:2})
           decl(9 prev:6)   #(bseq9=5 btc0[4]={seq:9 bseq:5 size:1})`);
-        t('two_branch_differnt', `s..#bseq
-          scroll            #bseq0=0
-          decl(1)           #bseq1=1
-          decl(2 branch:b)  #bseq2=1-1.0
-          decl(3)           #bseq3=1-1.1
-          decl(4 branch:b2) #bseq4=1-1.1-1.0
-          decl(5)           #bseq5=1-1.1-1.1
-          decl(6 prev:3)    #bseq6=1-1.2`);
+        t('two_branch_differnt', `s..#(bseq btable)
+          scroll            #(bseq0=0 btc0[0]={seq:0 bseq:0 size:1})
+          decl(1)           #(bseq1=1 btc0[0]={seq:0 bseq:0 size:2})
+          decl(2 branch:b)  #(bseq2=1-1.0
+                              btc0[1]={branch:b seq:2 bseq:1-1.0 size:1})
+          decl(3)           #(bseq3=1-1.1
+                              btc0[1]={branch:b seq:2 bseq:1-1.0 size:2})
+          decl(4 branch:b2) #(bseq4=1-1.1-1.0
+                              btc0[2]={branch:b2 seq:4 bseq:1-1.1-1.0 size:1})
+          decl(5)           #(bseq5=1-1.1-1.1
+                              btc0[2]={branch:b2 seq:4 bseq:1-1.1-1.0 size:2})
+          decl(6 prev:3)    #(bseq6=1-1.2 btc0[3]={seq:6 bseq:1-1.2 size:1})`);
         t('child_branch', `s..#bseq
           scroll                   #bseq0=0
           decl(1)                  #bseq1=1

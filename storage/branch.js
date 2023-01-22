@@ -1,7 +1,6 @@
 // author: derry. coder: arik.
 'use strict';
 import assert from 'assert';
-import xerr from '../util/xerr.js';
 
 /* design:
 branch format: s-b.s-b.s-b.s
@@ -160,15 +159,13 @@ export default class Branch_table {
         return bo;
     }
   }
-  get_last(seq, max){ // XXX: optimize + test
+  get_last(seq){ // XXX: optimize + test
     let {scroll, cfid} = this, {parent} = scroll.conflict.get(cfid), last;
     if (parent)
       last = scroll.get_branch_table(parent.cfid).get_last(seq, parent.seq);
     let a = this.a;
     for (let i=0; i<a.length; i++){
       let bo = a[i];
-      if (bo.seq > max)
-        continue;
       if (!last && bo.seq <= seq)
         last = bo;
       else if (bo.seq <= seq && last.seq < bo.seq)
@@ -176,7 +173,7 @@ export default class Branch_table {
     }
     return last;
   }
-  find_avail_branch(bseq, max){ // XXX: need test
+  find_avail_branch(bseq){ // XXX: need test
     let {scroll, cfid} = this, {parent} = scroll.conflict.get(cfid);
     if (parent){
       bseq = scroll.get_branch_table(parent.cfid).find_avail_branch(bseq,
@@ -187,8 +184,6 @@ export default class Branch_table {
       let a = this.a, exists;
       for (let i=0; i<a.length; i++){
         let bo = a[i];
-        if (bo.seq > max)
-          continue;
         if (bo.bseq==bseq)
           exists = true;
       }

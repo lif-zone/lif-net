@@ -35,7 +35,7 @@ export default class Branch_table {
     let bo = this.get_bo(seq);
     if (!bo)
       return null;
-    return br_inc(bo.bseq, bo.size-(bo.seq-seq)-1);
+    return bseq_inc(bo.bseq, bo.size-(bo.seq-seq)-1);
   }
   find_avail_branch(bseq){
     let {scroll, cfid} = this, {parent} = scroll.conflict.get(cfid);
@@ -43,7 +43,7 @@ export default class Branch_table {
       bseq = scroll.get_branch_table(parent.cfid).find_avail_branch(bseq,
         parent.seq);
     }
-    for (; this.branch_bseq.get(bseq); bseq = br_branch_inc(bseq));
+    for (; this.branch_bseq.get(bseq); bseq = bseq_branch_inc(bseq));
     return bseq;
   }
   add(opt){
@@ -53,13 +53,13 @@ export default class Branch_table {
     assert(typeof bseq=='string', 'invalid bseq '+bseq); // XXX: need is_valid
     bo = this.get_bo(seq);
     if (bo){
-      assert(br_cmp(bseq, br_inc(bo.bseq, bo.size))<0, 'bseq mismatch');
+      assert(bseq_cmp(bseq, bseq_inc(bo.bseq, bo.size))<0, 'bseq mismatch');
       assert(bo.seq+bo.size-seq>0, 'bo mismatch');
       return;
     }
     // try to merge with prev
     bo = this.get_bo(seq-1);
-    if (bo && br_branch_eq(bseq, bo.bseq)){
+    if (bo && bseq_branch_eq(bseq, bo.bseq)){
       if (bo.seq<=seq && seq<bo.seq+bo.size)
         return;
       assert.equal(bo.seq+bo.size, seq, 'branch corruption');
@@ -71,7 +71,7 @@ export default class Branch_table {
     }
     // try to merge with next
     bo_next = this.get_bo(seq+1);
-    if (bo_next && br_branch_eq(bseq, bo_next.bseq)){
+    if (bo_next && bseq_branch_eq(bseq, bo_next.bseq)){
       assert.equal(bo_next.seq, seq+1, 'branch corruption');
       this._remove(bo_next);
       this._schedule_rm(bo_next.seq);
@@ -101,9 +101,9 @@ export default class Branch_table {
     this.branch_bseq.delete(bo.bseq);
   }
   _merge(bo, bo_next){
-    if (!bo_next || !br_branch_eq(bo.bseq, bo_next.bseq))
+    if (!bo_next || !bseq_branch_eq(bo.bseq, bo_next.bseq))
       return;
-    assert.equal(br_inc(bo.bseq, bo.size), bo_next.bseq,
+    assert.equal(bseq_inc(bo.bseq, bo.size), bo_next.bseq,
       'branch merge mismatch');
     bo.size += bo_next.size;
     this._remove(bo_next);
@@ -159,24 +159,24 @@ function bint2int(a){
   return i<a.length && Number.isInteger(num) ? num : undefined;
 }
 
-function br_inc(a, n=1){
+function bseq_inc(a, n=1){
   let m = a.match(/^([\d.\-_]*\.)?([_]*[\d]+)$/);
   assert(m[2], 'invalid br '+a);
   let num = bint2int(m[2]);
   return (m[1]||'')+bint(num+n);
 }
 
-function br_cmp(a, b){ return a==b ? 0 : a<b ? -1 : 1; }
+function bseq_cmp(a, b){ return a==b ? 0 : a<b ? -1 : 1; }
 
-function br_branch_new(a){ return a+'-1.0'; }
+function bseq_branch_new(a){ return a+'-1.0'; }
 
-function br_branch_inc(a){
+function bseq_branch_inc(a){
   let m = a.match(/^([\d.\-_]+)-([_]*[\d]+)\.0$/);
   assert(m?.[1] && m?.[2], 'invalid br '+a);
-  return m[1]+'-'+br_inc(m[2])+'.0';
+  return m[1]+'-'+bseq_inc(m[2])+'.0';
 }
 
-function br_branch_eq(a, b){
+function bseq_branch_eq(a, b){
   let ma = a.match(/^([\d.\-_]+)\.[_]*\d+$/);
   let mb = b.match(/^([\d.\-_]+)\.[_]*\d+$/);
   return ma?.[1]==mb?.[1];
@@ -184,11 +184,11 @@ function br_branch_eq(a, b){
 
 Branch_table.bint = bint;
 Branch_table.bint2int = bint2int;
-Branch_table.br_inc = br_inc;
-Branch_table.br_cmp = br_cmp;
-Branch_table.br_branch_new = br_branch_new;
-Branch_table.br_branch_inc = br_branch_inc;
-Branch_table.br_branch_eq = br_branch_eq;
+Branch_table.bseq_inc = bseq_inc;
+Branch_table.bseq_cmp = bseq_cmp;
+Branch_table.bseq_branch_new = bseq_branch_new;
+Branch_table.bseq_branch_inc = bseq_branch_inc;
+Branch_table.bseq_branch_eq = bseq_branch_eq;
 
 // XXX derry:
 // XXX: verify btable is correct during conflict merge/delete and that we

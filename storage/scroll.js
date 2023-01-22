@@ -14,7 +14,7 @@ import {r_fix, r_parent, r_eq, r_includes, r_str, r_split} from './range.js';
 const s2b = buf_util.buf_from_str, b2s = buf_util.buf_to_str;
 const beq = buf_util.buf_eq;
 const stringify = JSON.stringify.bind(JSON);
-const {bint, br_branch_new, br_inc} = Branch_table;
+const {bint, bseq_branch_new, bseq_inc} = Branch_table;
 // https://en.wikipedia.org/wiki/Merkle_tree#Second_preimage_attack
 const LEAF_TYPE = enc_u64(0), PARENT_TYPE = enc_u64(1), ROOT_TYPE = enc_u64(2);
 function enc_u64(v){ return enc.encode(enc.uint64, v); }
@@ -512,9 +512,9 @@ export default class Scroll extends EventEmitterAsync {
       else if (branch){
         let btable = _this.get_branch_table(cfid);
         // XXX: we need to have complete branch table up to seq
-        bseq = btable.find_avail_branch(br_branch_new(bseq_prev));
+        bseq = btable.find_avail_branch(bseq_branch_new(bseq_prev));
       } else
-        bseq = br_inc(bseq_prev);
+        bseq = bseq_inc(bseq_prev);
     }
     if (0) // XXX: how to handle
       assert(bseq, 'missing bseq for seq'+seq);

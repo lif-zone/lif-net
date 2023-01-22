@@ -21,8 +21,8 @@ import {r_str, r_from_str, r_parent, r_includes, r_eq, r_split}
 const {rm_parentesis, parse_get_next, parse_exp_arg_pair, parse_exp,
   parse_exp_arg, parse_push} = tparser;
 const {b2s, s2b, b2s_obj} = buf_util;
-const {bint2int, bint, br_cmp, br_branch_new, br_branch_inc, br_inc,
-  br_branch_eq} = Branch_table;
+const {bint2int, bint, bseq_cmp, bseq_branch_new, bseq_branch_inc, bseq_inc,
+  bseq_branch_eq} = Branch_table;
 
 function enc_u64(v){ return enc.encode(enc.uint64, v); }
 let t_soul, t_soul_id, t_soul_mode, t_state;
@@ -1579,13 +1579,13 @@ describe('scroll', ()=>{
       t(10000, '____10000');
       // XXX: test bint2int(1-1._1)
     });
-    it('br_inc', ()=>{
+    it('bseq_inc', ()=>{
       const t = (val, n, exp)=>{
         if (exp==undefined){
           [n, exp] = [undefined, n];
-          assert.equal(br_inc(val), exp);
+          assert.equal(bseq_inc(val), exp);
         } else
-          assert.equal(br_inc(val, n), exp);
+          assert.equal(bseq_inc(val, n), exp);
       };
       t('0', '1');
       t('0', 2, '2');
@@ -1606,8 +1606,8 @@ describe('scroll', ()=>{
       t('1-1.9', '1-1._10');
       t('1-1._10', '1-1._11');
     });
-    it('br_cmp', ()=>{
-      const t = (a, b, exp)=>assert.equal(br_cmp(bint(a), bint(b)), exp);
+    it('bseq_cmp', ()=>{
+      const t = (a, b, exp)=>assert.equal(bseq_cmp(bint(a), bint(b)), exp);
       t(0, 0, 0);
       t(0, 1, -1);
       t(1, 0, 1);
@@ -1617,8 +1617,8 @@ describe('scroll', ()=>{
       t(11, 10, 1);
       t(99, 100, -1);
     });
-    it('br_branch_new', ()=>{
-      const t = (val, exp)=>assert.equal(br_branch_new(val), exp);
+    it('bseq_branch_new', ()=>{
+      const t = (val, exp)=>assert.equal(bseq_branch_new(val), exp);
       t('0', '0-1.0');
       t('1', '1-1.0');
       t('_10', '_10-1.0');
@@ -1627,8 +1627,8 @@ describe('scroll', ()=>{
       t('1-2.3', '1-2.3-1.0');
       t('1-2.3', '1-2.3-1.0');
     });
-    it('br_branch_inc', ()=>{
-      const t = (val, exp)=>assert.equal(br_branch_inc(val), exp);
+    it('bseq_branch_inc', ()=>{
+      const t = (val, exp)=>assert.equal(bseq_branch_inc(val), exp);
       t('0-0.0', '0-1.0');
       t('0-1.0', '0-2.0');
       t('0-2.0', '0-3.0');
@@ -1641,8 +1641,8 @@ describe('scroll', ()=>{
       t('1-2.3-1.0', '1-2.3-2.0');
       t('1-2.3-9.0', '1-2.3-_10.0');
     });
-    it('br_branch_eq', ()=>{
-      const t = (a, b, exp)=>assert.equal(br_branch_eq(a, b), exp);
+    it('bseq_branch_eq', ()=>{
+      const t = (a, b, exp)=>assert.equal(bseq_branch_eq(a, b), exp);
       t('0', '0', true);
       t('0', '1', true);
       t('0', '_10', true);

@@ -79,7 +79,7 @@ export default class Branch_table {
       return;
     }
     // new entry
-    bo = branch ? {branch, seq, bseq, size: 1} : {seq, bseq, size: 1};
+    bo = {...branch&&{branch}, seq, bseq, size: 1};
     if (!this.branch_name.get(branch))
       this.branch_name.set(branch, bo);
     this._insert(bo);
@@ -189,6 +189,4 @@ Branch_table.br_branch_eq = br_branch_eq;
 // remove old entries
 // XXX: change default hash to sha256 instead of blake
 // XXX: check with derry etask.ps() of decl->sign
-// XXX: coding: is there better way?
-//      let bo = branch ? {branch, seq, bseq, size} : {seq, bseq, size};
 // XXX: test btable.branch_name

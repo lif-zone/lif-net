@@ -189,7 +189,6 @@ Branch_table.br_branch_eq = br_branch_eq;
 // remove old entries
 // XXX: change default hash to sha256 instead of blake
 // XXX: check with derry etask.ps() of decl->sign
-// XXX: verify all tests are testing btable&bseq together
 // XXX: coding: is there better way?
 //      let bo = branch ? {branch, seq, bseq, size} : {seq, bseq, size};
 // XXX: test btable.branch_name

@@ -2430,7 +2430,7 @@ describe('scroll', ()=>{
             btc0[2]={branch:b2 seq:4 bseq:1-2.0 size:1})
           decl(5)                  #(bseq5=1-2.1
             btc0[2]={branch:b2 seq:4 bseq:1-2.0 size:2})`);
-        t('xxx_v0', `s..#(bseq btable)
+        t('branch_prev', `s..#(bseq btable)
           scroll           #(bseq0=0 btc0[0]={seq:0 bseq:0 size:1})
           decl(1)          #(bseq1=1 btc0[0]={seq:0 bseq:0 size:2})
           decl(2 branch:b) #(bseq2=1-1.0
@@ -2439,7 +2439,7 @@ describe('scroll', ()=>{
                              btc0[1]={branch:b seq:2 bseq:1-1.0 size:2})
           decl(4 prev:1)   #(bseq4=2 btc0[2]={seq:4 bseq:2 size:1})
         `);
-        t('xxx_v1', `s..#(bseq btable)
+        t('two_branch_prev', `s..#(bseq btable)
           scroll           #(bseq0=0 btc0[0]={seq:0 bseq:0 size:1})
           decl(1)          #(bseq1=1 btc0[0]={seq:0 bseq:0 size:2})
           decl(2 branch:b) #(bseq2=1-1.0
@@ -2447,19 +2447,6 @@ describe('scroll', ()=>{
           decl(3 branch:c) #(bseq3=1-1.0-1.0
                              btc0[2]={branch:c seq:3 bseq:1-1.0-1.0 size:1})
           decl(4 prev:1)   #(bseq4=2 btc0[3]={seq:4 bseq:2 size:1})
-        `);
-        t('xxx_v0a', `s..#(bseq btable)
-          scroll           #(bseq0=0 btc0[0]={seq:0 bseq:0 size:1})
-          decl(1)          #(bseq1=1 btc0[0]={seq:0 bseq:0 size:2})
-          decl(2 branch:b) #(bseq2=1-1.0
-                             btc0[1]={branch:b seq:2 bseq:1-1.0 size:1})
-          decl(3)          #(bseq3=1-1.1
-                             btc0[1]={branch:b seq:2 bseq:1-1.0 size:2})
-          decl(4 prev:1)   #(bseq4=2 btc0[2]={seq:4 bseq:2 size:1})
-          S..#(bseq btable) scroll(s..M0)
-          tput(0)          #(bseq0=0 btc0[0]={seq:0 bseq:0 size:1})
-          tput(0 1)        #(bseq1=1 btc0[0]={seq:0 bseq:0 size:2})
-          tput(0 2_3 4)    #(bseq4=2 btc0[1]={seq:4 bseq:2 size:1})
         `);
       });
       describe('put', ()=>{
@@ -2527,6 +2514,22 @@ describe('scroll', ()=>{
           tput(0_1 2 d e  ) #(bseq4c1=1-1.2 btc1[0]={seq:3 bseq:1-1.1 size:2})
           tput(0_1 2 d e f) #(bseq5c1=1-2.0
                               btc1[1]={branch:b2 seq:5 bseq:1-2.0 size:1})`);
+        t('branch_prev', `s..#(bseq btable)
+          scroll           #(bseq0=0 btc0[0]={seq:0 bseq:0 size:1})
+          decl(1)          #(bseq1=1 btc0[0]={seq:0 bseq:0 size:2})
+          decl(2 branch:b) #(bseq2=1-1.0
+                             btc0[1]={branch:b seq:2 bseq:1-1.0 size:1})
+          decl(3)          #(bseq3=1-1.1
+                             btc0[1]={branch:b seq:2 bseq:1-1.0 size:2})
+          decl(4 prev:1)   #(bseq4=2 btc0[2]={seq:4 bseq:2 size:1})
+          S..#(bseq btable) scroll(s..M0)
+          tput(0        ) #(bseq0=0 btc0[0]={seq:0 bseq:0 size:1})
+          tput(0 1      ) #(bseq1=1 btc0[0]={seq:0 bseq:0 size:2})
+          tput(0 1 2_3 4) #(bseq4=2 btc0[1]={seq:4 bseq:2 size:1})
+          tput(0 1 2 3  ) #(bseq3=1-1.1 btc0[1]={seq:3 bseq:1-1.1 size:1}
+            btc0[2]={seq:4 bseq:2 size:1})
+          tput(0 1 2    ) #(bseq2=1-1.0
+            btc0[1]={branch:b seq:2 bseq:1-1.0 size:2})`);
       });
       describe('db', ()=>{
         t('no_branch', `s..#(db_btable)

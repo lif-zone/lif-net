@@ -11,15 +11,16 @@ export default class Branch_table {
     this.cfid = opt.cfid;
     assert(this.scroll && this.cfid!=undefined, 'missing scroll or cfid');
     this.reset();
-    this.schedule_reset();
-    if (!this.scroll.conflict.get(this.cfid).parent)
+    if (this.cfid==0)
       this.add({seq: 0, bseq: '0'});
   }
   reset(){
     this.avl = new Tree(bo_cmp, true);
     this.branch_name = new Map();
     this.branch_bseq = new Map();
+    this.reset_schedule();
   }
+  reset_schedule(){ this.storage_queue = {mod: {}, rm: {}}; }
   get_branch(branch){ return this.branch_name.get(branch); }
   get_bo(seq){
     for (let node = this.avl._root; node;
@@ -39,6 +40,51 @@ export default class Branch_table {
     for (; this.branch_bseq.get(bseq); bseq = br_branch_inc(bseq));
     return bseq;
   }
+  add(opt){
+    let {branch, seq, bseq} = opt, bo, bo_next;
+    branch = branch||null;
+    assert(Number.isInteger(seq) && seq>=0, 'invalid seq '+seq);
+    assert(typeof bseq=='string', 'invalid bseq '+bseq); // XXX: need is_valid
+    bo = this.get_bo(seq);
+    if (bo){
+      assert(br_cmp(bseq, br_inc(bo.bseq, bo.size))<0, 'bseq mismatch');
+      assert(bo.seq+bo.size-seq>0, 'bo mismatch');
+      return;
+    }
+    // try to merge with prev
+    bo = this.get_bo(seq-1);
+    if (bo && br_branch_eq(bseq, bo.bseq)){
+      if (bo.seq<=seq && seq<bo.seq+bo.size)
+        return;
+      assert.equal(bo.seq+bo.size, seq, 'branch corruption');
+      bo.size++;
+      this._schedule_mod(bo.seq);
+      bo_next = this.get_bo(seq+1);
+      this._merge(bo, bo_next);
+      return;
+    }
+    // try to merge with next
+    bo_next = this.get_bo(seq+1);
+    if (bo_next && br_branch_eq(bseq, bo_next.bseq)){
+      assert.equal(bo_next.seq, seq+1, 'branch corruption');
+      this._remove(bo_next);
+      this._schedule_rm(bo_next.seq);
+      bo_next.seq = seq;
+      bo_next.size++;
+      bo_next.bseq = bseq;
+      if (branch)
+        bo_next.branch = branch;
+      this._insert(bo_next);
+      this._schedule_mod(bo_next.seq);
+      return;
+    }
+    // new entry
+    bo = branch ? {branch, seq, bseq, size: 1} : {seq, bseq, size: 1};
+    if (!this.branch_name.get(branch))
+      this.branch_name.set(branch, bo);
+    this._insert(bo);
+    this._schedule_mod(bo.seq);
+  }
   _insert(bo){
     this.avl.insert(bo);
     if (/.*\.0/.test(bo.bseq))
@@ -47,52 +93,6 @@ export default class Branch_table {
   _remove(bo){
     this.avl.remove(bo);
     this.branch_bseq.delete(bo.bseq);
-  }
-  add(opt){
-    let {branch, seq, bseq} = opt, bo, bo_next;
-    branch = branch||null;
-    assert(Number.isInteger(seq) && seq>=0, 'invalid seq '+seq);
-    assert(typeof bseq=='string', 'invalid bseq '+bseq); // XXX: need is_valid
-    if (seq==0 && this.get_bo(seq))
-      return;
-    bo = this.get_bo(seq);
-    if (bo){
-      assert(br_cmp(bseq, br_inc(bo.bseq, bo.size))<0, 'bseq mismatch');
-      assert(bo.seq+bo.size-seq>0, 'bo mismatch');
-      return;
-    }
-    if (seq>0){
-      bo = this.get_bo(seq-1);
-      if (bo && br_branch_eq(bseq, bo.bseq)){
-        if (bo.seq<=seq && seq<bo.seq+bo.size)
-          return;
-        assert.equal(bo.seq+bo.size, seq, 'branch corruption');
-        bo.size++;
-        this._schedule_mod(bo.seq);
-        bo_next = this.get_bo(seq+1);
-        this._merge(bo, bo_next);
-        return;
-      }
-      bo_next = this.get_bo(seq+1);
-      if (bo_next && br_branch_eq(bseq, bo_next.bseq)){
-        assert.equal(bo_next.seq, seq+1, 'branch corruption');
-        this._remove(bo_next);
-        this._schedule_rm(bo_next.seq);
-        bo_next.seq = seq;
-        bo_next.size++;
-        bo_next.bseq = bseq;
-        if (branch)
-          bo_next.branch = branch;
-        this._insert(bo_next);
-        this._schedule_mod(bo_next.seq);
-        return;
-      }
-    }
-    bo = branch ? {branch, seq, bseq, size: 1} : {seq, bseq, size: 1};
-    if (!this.branch_name.get(branch))
-      this.branch_name.set(branch, bo);
-    this._insert(bo);
-    this._schedule_mod(bo.seq);
   }
   _merge(bo, bo_next){
     if (!bo_next || !br_branch_eq(bo.bseq, bo_next.bseq))
@@ -112,7 +112,6 @@ export default class Branch_table {
     this.storage_queue.rm[seq] = true;
     delete this.storage_queue.mod[seq];
   }
-  schedule_reset(){ this.storage_queue = {mod: {}, rm: {}}; }
   to_static(){
     let a = this.avl.keys(), ret = [];
     for (let i=0; i<a.length; i++){

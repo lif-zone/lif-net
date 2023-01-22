@@ -226,7 +226,7 @@ export default class Storage_handler {
         bo.db = {data: btable.row_to_static(bo)};
         queue_br.mod.push({data: xutil.clone_deep(bo.db.data)});
       }
-      btable.schedule_reset();
+      btable.reset_schedule();
     }
     _this.schedule_db_update({queue_cf, queue_cf_rm: _this.queue_cf_rm,
       queue_decl: _this.queue_decl, queue_br});

@@ -16,11 +16,11 @@ export default class Branch_table {
       this.add({seq: 0, bseq: '0'});
   }
   reset(){
-    this.branch = new Map();
     this.avl = new Tree(bo_cmp, true);
-    this.bseq_branch = {};
+    this.branch_name = new Map();
+    this.branch_bseq = new Map();
   }
-  get_branch(branch){ return this.branch.get(branch); }
+  get_branch(branch){ return this.branch_name.get(branch); }
   get_bo(seq){
     for (let node = this.avl._root; node;
       node = seq < node.key.seq ? node.left : node.right)
@@ -30,23 +30,23 @@ export default class Branch_table {
         return bo;
     }
   }
-  find_avail_branch(bseq){ // XXX: need test
+  find_avail_branch(bseq){
     let {scroll, cfid} = this, {parent} = scroll.conflict.get(cfid);
     if (parent){ // XXX: test this case
       bseq = scroll.get_branch_table(parent.cfid).find_avail_branch(bseq,
         parent.seq);
     }
-    for (; this.bseq_branch[bseq]; bseq = br_branch_inc(bseq));
+    for (; this.branch_bseq.get(bseq); bseq = br_branch_inc(bseq));
     return bseq;
   }
   _insert(bo){
     this.avl.insert(bo);
     if (/.*\.0/.test(bo.bseq))
-      this.bseq_branch[bo.bseq] = bo;
+      this.branch_bseq.set(bo.bseq, bo);
   }
   _remove(bo){
     this.avl.remove(bo);
-    delete this.bseq_branch[bo.bseq];
+    this.branch_bseq.delete(bo.bseq);
   }
   add(opt){
     let {branch, seq, bseq} = opt, bo, bo_next;
@@ -89,8 +89,8 @@ export default class Branch_table {
       }
     }
     bo = branch ? {branch, seq, bseq, size: 1} : {seq, bseq, size: 1};
-    if (!this.branch.get(branch))
-      this.branch.set(branch, bo);
+    if (!this.branch_name.get(branch))
+      this.branch_name.set(branch, bo);
     this._insert(bo);
     this._schedule_mod(bo.seq);
   }
@@ -136,7 +136,7 @@ export default class Branch_table {
     let bo = branch ? {branch, seq, bseq, size} : {seq, bseq, size};
     this._insert(bo);
     if (branch)
-      this.branch.set(branch, bo);
+      this.branch_name.set(branch, bo);
   }
 }
 
@@ -187,20 +187,18 @@ Branch_table.br_enc = br_enc;
 Branch_table.br_int = br_int;
 Branch_table.br_inc = br_inc;
 Branch_table.br_cmp = br_cmp;
+Branch_table.br_seq_inc = br_seq_inc;
 Branch_table.br_branch_new = br_branch_new;
 Branch_table.br_branch_inc = br_branch_inc;
 Branch_table.br_branch_eq = br_branch_eq;
-Branch_table.br_seq_inc = br_seq_inc;
 
 // XXX derry:
 // XXX: verify btable is correct during conflict merge/delete and that we
 // remove old entries
 // XXX: change default hash to sha256 instead of blake
 // XXX: check with derry etask.ps() of decl->sign
-// XXX: rm null from branch name
 // XXX: cleanup br_* api naming
-// XXX: review bseq_get api (we can use branch table to calc it)
 // XXX: verify all tests are testing btable&bseq together
-// XXX: better way
+// XXX: coding: is there better way?
 //      let bo = branch ? {branch, seq, bseq, size} : {seq, bseq, size};
-// XXX: test btable.branch hash
+// XXX: test btable.branch_name

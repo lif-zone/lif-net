@@ -2465,18 +2465,21 @@ describe('scroll', ()=>{
             !btc0[1] !btc1[0] btc0[0]={seq:0 bseq:0 size:10})`);
         t('one_branch', `s..scroll decl(1) decl(2) decl(3 branch:b) decl(4)
           decl(5 prev:2) decl(6) decl(7 prev:4) decl(8) decl(9 prev:6)
-          S..scroll(s..M0) #bseq
-          tput(0)         #bseq0=0
-          tput(0 1      ) #bseq1=1
-          tput(0 1 2_3 4) #bseq4=2-1.1
-          tput(0 1 2 3  ) #bseq3=2-1.0
-          tput(0 1 2    ) #bseq2=2
-          tput(0 1 2_3 4 5 6_7 8  ) #bseq8=2-1.3
-          tput(0 1 2_3 4 5 6_7 8 9) #bseq9=5
-          tput(0 1 2_3 4 5        ) #bseq5=3
-          tput(0 1 2_3 4 5 6      ) #bseq6c1=4
-          tput(0 1 2_3 4 5 6 7    ) #(bseq6=4 bseq7=2-1.2 !bseq6c1)
-        `);
+          S..scroll(s..M0) #(bseq btable)
+          tput(0)         #(bseq0=0 btc0[0]={seq:0 bseq:0 size:1})
+          tput(0 1      ) #(bseq1=1 btc0[0]={seq:0 bseq:0 size:2})
+          tput(0 1 2_3 4) #(bseq4=2-1.1 btc0[1]={seq:4 bseq:2-1.1 size:1})
+          tput(0 1 2 3  ) #(bseq3=2-1.0
+            btc0[1]={branch:b seq:3 bseq:2-1.0 size:2})
+          tput(0 1 2    ) #(bseq2=2 btc0[0]={seq:0 bseq:0 size:3})
+          tput(0 1 2_3 4 5 6_7 8  ) #(bseq8=2-1.3
+            btc0[2]={seq:8 bseq:2-1.3 size:1})
+          tput(0 1 2_3 4 5 6_7 8 9) #(bseq9=5 btc0[3]={seq:9 bseq:5 size:1})
+          tput(0 1 2_3 4 5        ) #(bseq5=3 btc0[2]={seq:5 bseq:3 size:1}
+            btc0[3]={seq:8 bseq:2-1.3 size:1} btc0[4]={seq:9 bseq:5 size:1})
+          tput(0 1 2_3 4 5 6      ) #(bseq6c1=4 btc1[0]={seq:6 bseq:4 size:1})
+          tput(0 1 2_3 4 5 6 7    ) #(bseq6=4 bseq7=2-1.2 !bseq6c1 !btc1[0]
+            btc0[2]={seq:5 bseq:3 size:2} btc0[3]={seq:7 bseq:2-1.2 size:2})`);
         t('conflict_no_branch', `s..scroll decl(1-4)
           s1..clone(s.M1) decl(2-4) S..#(bseq btable) S..scroll(s..M0)
           #btc0[0]={seq:0 bseq:0 size=1}

@@ -143,10 +143,10 @@ function parse_var(v){
   v = m ? m[3] : v;
   if (['db_c', 'db_data', 'mem_c'].includes(v))
     return {type: v, ctx, def};
-  if (m = v.match(/^bt_c(\d+)\[(\d+)\]$/))
-    return {type: 'bt_c', cfid: +m[1], index: +m[2], ctx, def};
-  if (m = v.match(/^db_bt_c(\d+)\[(\d+)\]$/))
-    return {type: 'db_bt_c', cfid: +m[1], index: +m[2], ctx, def};
+  if (m = v.match(/^btc(\d+)\[(\d+)\]$/))
+    return {type: 'btc', cfid: +m[1], index: +m[2], ctx, def};
+  if (m = v.match(/^db_btc(\d+)\[(\d+)\]$/))
+    return {type: 'db_btc', cfid: +m[1], index: +m[2], ctx, def};
   if (m = v.match(/^(bseq|sig|m|M|d|D|mem|db)((\d+)|((\d+)_(\d+)))(c(\d+))?$/))
   {
     let type = m[1], range = r_from_str(m[2]), seq = range[1];
@@ -587,9 +587,9 @@ function state_split_var(v, def){
   let name = o.ctx||def||get_def('left');
   if (['db_c', 'db_data', 'mem_c'].includes(type))
     return {name, type};
-  if (['bt_c'].includes(type))
+  if (['btc'].includes(type))
     return {name, type, cfid, index};
-  if (['db_bt_c'].includes(type))
+  if (['db_btc'].includes(type))
     return {name, type, cfid, index};
   if (type=='bseq')
     return {name, type, seq, cfid};
@@ -609,9 +609,9 @@ const state_split = (exp, def)=>etask(function*state_split(){
       return {...state_split_var(o.l, def), val: yield get_val(o.r, 'right')};
     if (['db_c', 'mem_c'].includes(o.l))
       return {...state_split_var(o.l, def), val: yield get_static_c(o.r)};
-    if (/^bt_c/.test(o.l))
+    if (/^btc/.test(o.l))
       return {...state_split_var(o.l, def), val: yield get_btable(o.r)};
-    if (/^db_bt_c/.test(o.l))
+    if (/^db_btc/.test(o.l))
       return {...state_split_var(o.l, def), val: yield get_btable(o.r)};
     return {...state_split_var(o.l, def),
       val: fix_buf(yield get_val(o.r, 'right'))};
@@ -628,11 +628,11 @@ function state_apply(state, o){
       delete state[type];
     return;
   }
-  if (['bt_c', 'db_bt_c'].includes(type)){
+  if (['btc', 'db_btc'].includes(type)){
     let so;
-    if (type=='bt_c')
+    if (type=='btc')
       so = state.btable = state.btable||{};
-    else if (type=='db_bt_c')
+    else if (type=='db_btc')
       so = state.db_btable = state.db_btable||{};
     else
       assert.fail('invalid type '+type);
@@ -1221,13 +1221,13 @@ describe('test_util', ()=>{
   it('parse_var', ()=>{
     const t = (v, exp)=>{
       let a = exp.split(' '), ret = parse_var(v), exp2;
-      if (['bt_c'].includes(a[0])){
+      if (['btc'].includes(a[0])){
         let cfid = +a[1], index = +a[2], ctx = a[3]||'', def = a[4]=='def';
-        exp2 = {type: 'bt_c', cfid, index, ctx, def};
+        exp2 = {type: 'btc', cfid, index, ctx, def};
       }
-      else if (['db_bt_c'].includes(a[0])){
+      else if (['db_btc'].includes(a[0])){
         let cfid = +a[1], index = +a[2], ctx = a[3]||'', def = a[4]=='def';
-        exp2 = {type: 'db_bt_c', cfid, index, ctx, def};
+        exp2 = {type: 'db_btc', cfid, index, ctx, def};
       }
       else if (['struct'].includes(a[0])){
         exp2 = {type: 'struct', val: a.splice(1).join(' ')};
@@ -1262,12 +1262,12 @@ describe('test_util', ()=>{
     t('s2.m0_1c10', 'm 0_1 10 s2');
     t('s2..d0', 'd 0 0 s2 def');
     t('s2..m0_1c10', 'm 0_1 10 s2 def');
-    t('bt_c0[2]', 'bt_c 0 2');
-    t('s.bt_c0[2]', 'bt_c 0 2 s');
-    t('s..bt_c0[2]', 'bt_c 0 2 s def');
-    t('db_bt_c0[2]', 'db_bt_c 0 2');
-    t('s.db_bt_c0[2]', 'db_bt_c 0 2 s');
-    t('s..db_bt_c0[2]', 'db_bt_c 0 2 s def');
+    t('btc0[2]', 'btc 0 2');
+    t('s.btc0[2]', 'btc 0 2 s');
+    t('s..btc0[2]', 'btc 0 2 s def');
+    t('db_btc0[2]', 'db_btc 0 2');
+    t('s.db_btc0[2]', 'db_btc 0 2 s');
+    t('s..db_btc0[2]', 'db_btc 0 2 s def');
     t('mem_c', 'mem_c');
     t('s.mem_c', 'mem_c s');
     t('s..mem_c', 'mem_c s def');
@@ -2375,7 +2375,6 @@ describe('scroll', ()=>{
       });
     });
     describe('branch', ()=>{
-      // XXX: test with db
       // XXX: test invalid format (eg. same branch appear twice, prev to wrong
       // location etc)
       // XXX: verify behavior on conflict delete/merge and verify we removed
@@ -2384,8 +2383,8 @@ describe('scroll', ()=>{
         // XXX: unite bseq/btable tests into one test
         t('no_branch', `s..#(bseq btable) scroll decl(1-10) #(bseq0=0 bseq1=1
           bseq2=2 bseq3=3 bseq4=4 bseq5=5 bseq6=6 bseq7=7 bseq8=8 bseq9=9
-          bseq10=_10 bt_c0[0]={seq:0 bseq:0 size:11}) !bseq11`);
-        t('one_branch_test_bseq', `s..#bseq
+          bseq10=_10 btc0[0]={seq:0 bseq:0 size:11}) !bseq11`);
+        t('one_branch_test', `s..#bseq
           scroll           #bseq0=0
           decl(1)          #bseq1=1
           decl(2)          #bseq2=2
@@ -2397,16 +2396,16 @@ describe('scroll', ()=>{
           decl(8)          #bseq8=2-1.3
           decl(9 prev:6)   #bseq9=5`);
         t('one_branch_test_btable', `s..#btable
-          scroll           #bt_c0[0]={seq:0 bseq:0 size:1}
-          decl(1)          #bt_c0[0]={seq:0 bseq:0 size:2}
-          decl(2)          #bt_c0[0]={seq:0 bseq:0 size:3}
-          decl(3 branch:b) #bt_c0[1]={branch:b seq:3 bseq:2-1.0 size:1}
-          decl(4)          #bt_c0[1]={branch:b seq:3 bseq:2-1.0 size:2}
-          decl(5 prev:2)   #bt_c0[2]={seq:5 bseq:3 size:1}
-          decl(6)          #bt_c0[2]={seq:5 bseq:3 size:2}
-          decl(7 prev:4)   #bt_c0[3]={seq:7 bseq:2-1.2 size:1}
-          decl(8)          #bt_c0[3]={seq:7 bseq:2-1.2 size:2}
-          decl(9 prev:6)   #bt_c0[4]={seq:9 bseq:5 size:1}
+          scroll           #btc0[0]={seq:0 bseq:0 size:1}
+          decl(1)          #btc0[0]={seq:0 bseq:0 size:2}
+          decl(2)          #btc0[0]={seq:0 bseq:0 size:3}
+          decl(3 branch:b) #btc0[1]={branch:b seq:3 bseq:2-1.0 size:1}
+          decl(4)          #btc0[1]={branch:b seq:3 bseq:2-1.0 size:2}
+          decl(5 prev:2)   #btc0[2]={seq:5 bseq:3 size:1}
+          decl(6)          #btc0[2]={seq:5 bseq:3 size:2}
+          decl(7 prev:4)   #btc0[3]={seq:7 bseq:2-1.2 size:1}
+          decl(8)          #btc0[3]={seq:7 bseq:2-1.2 size:2}
+          decl(9 prev:6)   #btc0[4]={seq:9 bseq:5 size:1}
         `);
         t('two_branch_differnt', `s..#bseq
           scroll            #bseq0=0
@@ -2431,35 +2430,35 @@ describe('scroll', ()=>{
           decl(4 prev:1 branch:b2) #bseq4=1-2.0
           decl(5)                  #bseq5=1-2.1`);
         t('xxx_v0', `s..#(bseq btable)
-          scroll           #(bseq0=0 bt_c0[0]={seq:0 bseq:0 size:1})
-          decl(1)          #(bseq1=1 bt_c0[0]={seq:0 bseq:0 size:2})
+          scroll           #(bseq0=0 btc0[0]={seq:0 bseq:0 size:1})
+          decl(1)          #(bseq1=1 btc0[0]={seq:0 bseq:0 size:2})
           decl(2 branch:b) #(bseq2=1-1.0
-                             bt_c0[1]={branch:b seq:2 bseq:1-1.0 size:1})
+                             btc0[1]={branch:b seq:2 bseq:1-1.0 size:1})
           decl(3)          #(bseq3=1-1.1
-                             bt_c0[1]={branch:b seq:2 bseq:1-1.0 size:2})
-          decl(4 prev:1)   #(bseq4=2 bt_c0[2]={seq:4 bseq:2 size:1})
+                             btc0[1]={branch:b seq:2 bseq:1-1.0 size:2})
+          decl(4 prev:1)   #(bseq4=2 btc0[2]={seq:4 bseq:2 size:1})
         `);
         t('xxx_v1', `s..#(bseq btable)
-          scroll           #(bseq0=0 bt_c0[0]={seq:0 bseq:0 size:1})
-          decl(1)          #(bseq1=1 bt_c0[0]={seq:0 bseq:0 size:2})
+          scroll           #(bseq0=0 btc0[0]={seq:0 bseq:0 size:1})
+          decl(1)          #(bseq1=1 btc0[0]={seq:0 bseq:0 size:2})
           decl(2 branch:b) #(bseq2=1-1.0
-                             bt_c0[1]={branch:b seq:2 bseq:1-1.0 size:1})
+                             btc0[1]={branch:b seq:2 bseq:1-1.0 size:1})
           decl(3 branch:c) #(bseq3=1-1.0-1.0
-                             bt_c0[2]={branch:c seq:3 bseq:1-1.0-1.0 size:1})
-          decl(4 prev:1)   #(bseq4=2 bt_c0[3]={seq:4 bseq:2 size:1})
+                             btc0[2]={branch:c seq:3 bseq:1-1.0-1.0 size:1})
+          decl(4 prev:1)   #(bseq4=2 btc0[3]={seq:4 bseq:2 size:1})
         `);
         t('xxx_v0a', `s..#(bseq btable)
-          scroll           #(bseq0=0 bt_c0[0]={seq:0 bseq:0 size:1})
-          decl(1)          #(bseq1=1 bt_c0[0]={seq:0 bseq:0 size:2})
+          scroll           #(bseq0=0 btc0[0]={seq:0 bseq:0 size:1})
+          decl(1)          #(bseq1=1 btc0[0]={seq:0 bseq:0 size:2})
           decl(2 branch:b) #(bseq2=1-1.0
-                             bt_c0[1]={branch:b seq:2 bseq:1-1.0 size:1})
+                             btc0[1]={branch:b seq:2 bseq:1-1.0 size:1})
           decl(3)          #(bseq3=1-1.1
-                             bt_c0[1]={branch:b seq:2 bseq:1-1.0 size:2})
-          decl(4 prev:1)   #(bseq4=2 bt_c0[2]={seq:4 bseq:2 size:1})
+                             btc0[1]={branch:b seq:2 bseq:1-1.0 size:2})
+          decl(4 prev:1)   #(bseq4=2 btc0[2]={seq:4 bseq:2 size:1})
           S..#(bseq btable) scroll(s..M0)
-          tput(0)          #(bseq0=0 bt_c0[0]={seq:0 bseq:0 size:1})
-          tput(0 1)        #(bseq1=1 bt_c0[0]={seq:0 bseq:0 size:2})
-          tput(0 2_3 4)    #(bseq4=2 bt_c0[1]={seq:4 bseq:2 size:1})
+          tput(0)          #(bseq0=0 btc0[0]={seq:0 bseq:0 size:1})
+          tput(0 1)        #(bseq1=1 btc0[0]={seq:0 bseq:0 size:2})
+          tput(0 2_3 4)    #(bseq4=2 btc0[1]={seq:4 bseq:2 size:1})
         `);
       });
       describe('put', ()=>{
@@ -2475,18 +2474,18 @@ describe('scroll', ()=>{
           tput(0 1 2_3 4 5 6      ) #bseq6c1=6
           tput(0 1 2_3 4 5 6 7    ) #(bseq6=6 bseq7=7 !bseq6c1)`);
         t('no_branch_btable', `s..scroll decl(1-9) S..#btable scroll(s..M0)
-          tput(0)         #bt_c0[0]={seq:0 bseq:0 size:1}
-          tput(0 1      ) #bt_c0[0]={seq:0 bseq:0 size:2}
-          tput(0 1 2_3 4) #bt_c0[1]={seq:4 bseq:4 size:1}
-          tput(0 1 2 3  ) #(bt_c0[1]={seq:3 bseq:3 size:2})
-          tput(0 1 2    ) #(bt_c0[0]={seq:0 bseq:0 size:5}
-                            !bt_c0[1])
-          tput(0 1 2_3 4 5 6_7 8  ) #bt_c0[1]={seq:8 bseq:8 size:1}
-          tput(0 1 2_3 4 5 6_7 8 9) #bt_c0[1]={seq:8 bseq:8 size:2}
-          tput(0 1 2_3 4 5        ) #bt_c0[0]={seq:0 bseq:0 size:6}
-          tput(0 1 2_3 4 5 6      ) #bt_c1[0]={seq:6 bseq:6 size:1}
+          tput(0)         #btc0[0]={seq:0 bseq:0 size:1}
+          tput(0 1      ) #btc0[0]={seq:0 bseq:0 size:2}
+          tput(0 1 2_3 4) #btc0[1]={seq:4 bseq:4 size:1}
+          tput(0 1 2 3  ) #(btc0[1]={seq:3 bseq:3 size:2})
+          tput(0 1 2    ) #(btc0[0]={seq:0 bseq:0 size:5}
+                            !btc0[1])
+          tput(0 1 2_3 4 5 6_7 8  ) #btc0[1]={seq:8 bseq:8 size:1}
+          tput(0 1 2_3 4 5 6_7 8 9) #btc0[1]={seq:8 bseq:8 size:2}
+          tput(0 1 2_3 4 5        ) #btc0[0]={seq:0 bseq:0 size:6}
+          tput(0 1 2_3 4 5 6      ) #btc1[0]={seq:6 bseq:6 size:1}
           tput(0 1 2_3 4 5 6 7    )
-            #(!bt_c0[1] !bt_c1[0] bt_c0[0]={seq:0 bseq:0 size:10})
+            #(!btc0[1] !btc1[0] btc0[0]={seq:0 bseq:0 size:10})
         `);
         t('one_branch', `s..scroll decl(1) decl(2) decl(3 branch:b) decl(4)
           decl(5 prev:2) decl(6) decl(7 prev:4) decl(8) decl(9 prev:6)
@@ -2504,15 +2503,15 @@ describe('scroll', ()=>{
         `);
         t('conflict_no_branch', `s..scroll decl(1-4)
           s1..clone(s.M1) decl(2-4) S..#(bseq btable) S..scroll(s..M0)
-          #bt_c0[0]={seq:0 bseq:0 size=1}
-          tput(0) #(bseq0=0 bt_c0[0]={seq:0 bseq:0 size=1})
-          tput(0 1) #(bseq1=1 bt_c0[0]={seq:0 bseq:0 size=2})
-          tput(0 1 2    ) #(bseq2=2 bt_c0[0]={seq:0 bseq:0 size=3})
-          tput(0 1 2 3  ) #(bseq3=3 bt_c0[0]={seq:0 bseq:0 size=4})
-          tput(0 1 2 3 4) #(bseq4=4 bt_c0[0]={seq:0 bseq:0 size=5})
-          tput(0_1 c    ) #(bseq2c1=2 bt_c1[0]={seq:2 bseq:2 size=1})
-          tput(0_1 c d  ) #(bseq3c1=3 bt_c1[0]={seq:2 bseq:2 size=2})
-          tput(0_1 c d e) #(bseq4c1=4 bt_c1[0]={seq:2 bseq:2 size=3})`);
+          #btc0[0]={seq:0 bseq:0 size=1}
+          tput(0) #(bseq0=0 btc0[0]={seq:0 bseq:0 size=1})
+          tput(0 1) #(bseq1=1 btc0[0]={seq:0 bseq:0 size=2})
+          tput(0 1 2    ) #(bseq2=2 btc0[0]={seq:0 bseq:0 size=3})
+          tput(0 1 2 3  ) #(bseq3=3 btc0[0]={seq:0 bseq:0 size=4})
+          tput(0 1 2 3 4) #(bseq4=4 btc0[0]={seq:0 bseq:0 size=5})
+          tput(0_1 c    ) #(bseq2c1=2 btc1[0]={seq:2 bseq:2 size=1})
+          tput(0_1 c d  ) #(bseq3c1=3 btc1[0]={seq:2 bseq:2 size=2})
+          tput(0_1 c d e) #(bseq4c1=4 btc1[0]={seq:2 bseq:2 size=3})`);
         t('conflict_two_branch_put', `
           s..#bseq scroll          #bseq0=0
           decl(1)                  #bseq1=1
@@ -2525,83 +2524,83 @@ describe('scroll', ()=>{
           decl(4)                  #bseq4=1-1.2
           decl(5 prev:1 branch:b2) #bseq5=1-2.0
           S..#(bseq btable) S..# scroll(s..M0)
-          tput(0)           #(bseq0=0 bt_c0[0]={seq:0 bseq:0 size:1})
-          tput(0 1)         #(bseq1=1 bt_c0[0]={seq:0 bseq:0 size:2})
+          tput(0)           #(bseq0=0 btc0[0]={seq:0 bseq:0 size:1})
+          tput(0 1)         #(bseq1=1 btc0[0]={seq:0 bseq:0 size:2})
           tput(0 1 2      ) #(bseq2=1-1.0
-                              bt_c0[1]={branch:b seq:2 bseq:1-1.0 size:1})
+                              btc0[1]={branch:b seq:2 bseq:1-1.0 size:1})
           tput(0 1 2 3    ) #(bseq3=1-1.1
-                              bt_c0[1]={branch:b seq:2 bseq:1-1.0 size:2})
+                              btc0[1]={branch:b seq:2 bseq:1-1.0 size:2})
           tput(0 1 2 3 4  ) #(bseq4=1-2.0
-                              bt_c0[2]={branch:b2 seq:4 bseq:1-2.0 size:1})
+                              btc0[2]={branch:b2 seq:4 bseq:1-2.0 size:1})
           tput(0 1 2 3 4 5) #(bseq5=1-2.1
-                              bt_c0[2]={branch:b2 seq:4 bseq:1-2.0 size:2})
-          tput(0_1 2 d    ) #(bseq3c1=1-1.1 bt_c1[0]={seq:3 bseq:1-1.1 size:1})
-          tput(0_1 2 d e  ) #(bseq4c1=1-1.2 bt_c1[0]={seq:3 bseq:1-1.1 size:2})
+                              btc0[2]={branch:b2 seq:4 bseq:1-2.0 size:2})
+          tput(0_1 2 d    ) #(bseq3c1=1-1.1 btc1[0]={seq:3 bseq:1-1.1 size:1})
+          tput(0_1 2 d e  ) #(bseq4c1=1-1.2 btc1[0]={seq:3 bseq:1-1.1 size:2})
           tput(0_1 2 d e f) #(bseq5c1=1-2.0
-                              bt_c1[1]={branch:b2 seq:5 bseq:1-2.0 size:1})`);
+                              btc1[1]={branch:b2 seq:5 bseq:1-2.0 size:1})`);
       });
       describe('db', ()=>{
         t('no_branch', `s..#(db_btable)
-          soul.s.scroll(db) flush #db_bt_c0[0]={seq:0 bseq:0 size:1}
-          decl(1) flush #db_bt_c0[0]={seq:0 bseq:0 size:2}
-          decl(2) flush #db_bt_c0[0]={seq:0 bseq:0 size:3}
-          decl(3) flush #db_bt_c0[0]={seq:0 bseq:0 size:4}
+          soul.s.scroll(db) flush #db_btc0[0]={seq:0 bseq:0 size:1}
+          decl(1) flush #db_btc0[0]={seq:0 bseq:0 size:2}
+          decl(2) flush #db_btc0[0]={seq:0 bseq:0 size:3}
+          decl(3) flush #db_btc0[0]={seq:0 bseq:0 size:4}
           Soul.db_copy(soul) S..#(bseq btable)
-          Soul.S.scroll(s..M0 db) #(bt_c0[0]={seq:0 bseq:0 size:4} bseq0=0)`);
+          Soul.S.scroll(s..M0 db) #(btc0[0]={seq:0 bseq:0 size:4} bseq0=0)`);
         t('xxx', `s..#(db_btable)
-          soul.s.scroll(db) flush #(db_bt_c0[0]={seq:0 bseq:0 size:1})
-          decl(1) flush #(db_bt_c0[0]={seq:0 bseq:0 size:2})
+          soul.s.scroll(db) flush #(db_btc0[0]={seq:0 bseq:0 size:1})
+          decl(1) flush #(db_btc0[0]={seq:0 bseq:0 size:2})
           decl(2 branch:b) flush
-            #(db_bt_c0[1]={branch:b seq:2 bseq:1-1.0 size:1})
-          decl(2) flush #(db_bt_c0[1]={branch:b seq:2 bseq:1-1.0 size:2})
+            #(db_btc0[1]={branch:b seq:2 bseq:1-1.0 size:1})
+          decl(2) flush #(db_btc0[1]={branch:b seq:2 bseq:1-1.0 size:2})
           Soul.db_copy(soul) S..#(bseq btable)
-          Soul.S.scroll(s..M0 db) #(bt_c0[0]={seq:0 bseq:0 size:2}
-            bt_c0[1]={branch:b seq:2 bseq:1-1.0 size:2} bseq0=0)`);
+          Soul.S.scroll(s..M0 db) #(btc0[0]={seq:0 bseq:0 size:2}
+            btc0[1]={branch:b seq:2 bseq:1-1.0 size:2} bseq0=0)`);
         t('conflict_two_branch_put', `s..#(bseq db_btable)
-          scroll(db)               #(bseq0=0 db_bt_c0[0]={seq:0 bseq:0 size:1})
-          decl(1)                  #(bseq1=1 db_bt_c0[0]={seq:0 bseq:0 size:2})
+          scroll(db)               #(bseq0=0 db_btc0[0]={seq:0 bseq:0 size:1})
+          decl(1)                  #(bseq1=1 db_btc0[0]={seq:0 bseq:0 size:2})
           decl(2 branch:b)         #(bseq2=1-1.0
-            db_bt_c0[1]={branch:b seq:2 bseq:1-1.0 size:1})
+            db_btc0[1]={branch:b seq:2 bseq:1-1.0 size:1})
           decl(3)                  #(bseq3=1-1.1
-            db_bt_c0[1]={branch:b seq:2 bseq:1-1.0 size:2})
+            db_btc0[1]={branch:b seq:2 bseq:1-1.0 size:2})
           decl(4 prev:1 branch:b2) #(bseq4=1-2.0
-            db_bt_c0[2]={branch:b2 seq:4 bseq:1-2.0 size:1})
+            db_btc0[2]={branch:b2 seq:4 bseq:1-2.0 size:1})
           decl(5)                  #(bseq5=1-2.1
-            db_bt_c0[2]={branch:b2 seq:4 bseq:1-2.0 size:2})
+            db_btc0[2]={branch:b2 seq:4 bseq:1-2.0 size:2})
           s1..#(bseq db_btable)
           clone(s.M2 db)           #(bseq0=0 bseq1=1 bseq2=1-1.0
-            db_bt_c0[0]={seq:0 bseq:0 size:2}
-            db_bt_c0[1]={branch:b seq:2 bseq:1-1.0 size:1})
+            db_btc0[0]={seq:0 bseq:0 size:2}
+            db_btc0[1]={branch:b seq:2 bseq:1-1.0 size:1})
           decl(3)                  #(bseq3=1-1.1
-            db_bt_c0[1]={branch:b seq:2 bseq:1-1.0 size:2})
+            db_btc0[1]={branch:b seq:2 bseq:1-1.0 size:2})
           decl(4)                  #(bseq4=1-1.2
-            db_bt_c0[1]={branch:b seq:2 bseq:1-1.0 size:3})
+            db_btc0[1]={branch:b seq:2 bseq:1-1.0 size:3})
           decl(5 prev:1 branch:b2) #(bseq5=1-2.0
-            db_bt_c0[2]={branch:b2 seq:5 bseq:1-2.0 size:1})
+            db_btc0[2]={branch:b2 seq:5 bseq:1-2.0 size:1})
           S..#(bseq btable db_btable) S..# scroll(s..M0 db)
-          tput(0)           #(bseq0=0 bt_c0[0]={seq:0 bseq:0 size:1}
-                              db_bt_c0[0]={seq:0 bseq:0 size:1})
-          tput(0 1)         #(bseq1=1 bt_c0[0]={seq:0 bseq:0 size:2}
-                              db_bt_c0[0]={seq:0 bseq:0 size:2})
+          tput(0)           #(bseq0=0 btc0[0]={seq:0 bseq:0 size:1}
+                              db_btc0[0]={seq:0 bseq:0 size:1})
+          tput(0 1)         #(bseq1=1 btc0[0]={seq:0 bseq:0 size:2}
+                              db_btc0[0]={seq:0 bseq:0 size:2})
           tput(0 1 2      ) #(bseq2=1-1.0
-                              bt_c0[1]={branch:b seq:2 bseq:1-1.0 size:1}
-                              db_bt_c0[1]={branch:b seq:2 bseq:1-1.0 size:1})
+                              btc0[1]={branch:b seq:2 bseq:1-1.0 size:1}
+                              db_btc0[1]={branch:b seq:2 bseq:1-1.0 size:1})
           tput(0 1 2 3    ) #(bseq3=1-1.1
-                              bt_c0[1]={branch:b seq:2 bseq:1-1.0 size:2}
-                              db_bt_c0[1]={branch:b seq:2 bseq:1-1.0 size:2})
+                              btc0[1]={branch:b seq:2 bseq:1-1.0 size:2}
+                              db_btc0[1]={branch:b seq:2 bseq:1-1.0 size:2})
           tput(0 1 2 3 4  ) #(bseq4=1-2.0
-                              bt_c0[2]={branch:b2 seq:4 bseq:1-2.0 size:1}
-                              db_bt_c0[2]={branch:b2 seq:4 bseq:1-2.0 size:1})
+                              btc0[2]={branch:b2 seq:4 bseq:1-2.0 size:1}
+                              db_btc0[2]={branch:b2 seq:4 bseq:1-2.0 size:1})
           tput(0 1 2 3 4 5) #(bseq5=1-2.1
-                              bt_c0[2]={branch:b2 seq:4 bseq:1-2.0 size:2}
-                              db_bt_c0[2]={branch:b2 seq:4 bseq:1-2.0 size:2})
-          tput(0_1 2 d    ) #(bseq3c1=1-1.1 bt_c1[0]={seq:3 bseq:1-1.1 size:1}
-                              db_bt_c1[0]={seq:3 bseq:1-1.1 size:1})
-          tput(0_1 2 d e  ) #(bseq4c1=1-1.2 bt_c1[0]={seq:3 bseq:1-1.1 size:2}
-                              db_bt_c1[0]={seq:3 bseq:1-1.1 size:2})
+                              btc0[2]={branch:b2 seq:4 bseq:1-2.0 size:2}
+                              db_btc0[2]={branch:b2 seq:4 bseq:1-2.0 size:2})
+          tput(0_1 2 d    ) #(bseq3c1=1-1.1 btc1[0]={seq:3 bseq:1-1.1 size:1}
+                              db_btc1[0]={seq:3 bseq:1-1.1 size:1})
+          tput(0_1 2 d e  ) #(bseq4c1=1-1.2 btc1[0]={seq:3 bseq:1-1.1 size:2}
+                              db_btc1[0]={seq:3 bseq:1-1.1 size:2})
           tput(0_1 2 d e f) #(bseq5c1=1-2.0
-                              bt_c1[1]={branch:b2 seq:5 bseq:1-2.0 size:1}
-                              db_bt_c1[1]={branch:b2 seq:5 bseq:1-2.0 size:1})
+                              btc1[1]={branch:b2 seq:5 bseq:1-2.0 size:1}
+                              db_btc1[1]={branch:b2 seq:5 bseq:1-2.0 size:1})
         `);
       });
     });

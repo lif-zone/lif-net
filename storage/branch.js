@@ -97,7 +97,7 @@ export default class Branch_table {
   _merge(bo, bo_next){
     if (!bo_next || !br_branch_eq(bo.bseq, bo_next.bseq))
       return;
-    assert.equal(br_seq_inc(bo.bseq, bo.size), bo_next.bseq,
+    assert.equal(br_inc(bo.bseq, bo.size), bo_next.bseq,
       'branch merge mismatch');
     bo.size += bo_next.size;
     this._remove(bo_next);
@@ -140,14 +140,14 @@ export default class Branch_table {
   }
 }
 
-function br_enc(num){
+function bint(num){
   assert(Number.isInteger(num) && num>=0, 'invalid num '+num);
   let s = '';
   for (let i=10; i<=num; i*=10, s += '_');
   return s+num;
 }
 
-function br_int(a){
+function bint2int(a){
   let num, i;
   for (i=0; a[i]=='_'; i++);
   num = +a.substr(i);
@@ -157,8 +157,8 @@ function br_int(a){
 function br_inc(a, n=1){
   let m = a.match(/^([\d.\-_]*\.)?([_]*[\d]+)$/);
   assert(m[2], 'invalid br '+a);
-  let num = br_int(m[2]);
-  return (m[1]||'')+br_enc(num+n);
+  let num = bint2int(m[2]);
+  return (m[1]||'')+bint(num+n);
 }
 
 function br_cmp(a, b){ return a==b ? 0 : a<b ? -1 : 1; }
@@ -177,17 +177,10 @@ function br_branch_eq(a, b){
   return ma?.[1]==mb?.[1];
 }
 
-function br_seq_inc(a, n=1){
-  let m = a.match(/^(([\d.-]+)\.)?_*([\d]+)$/);
-  assert(m, 'invalid br '+a);
-  return (m[1]||'')+br_inc(m[3], n);
-}
-
-Branch_table.br_enc = br_enc;
-Branch_table.br_int = br_int;
+Branch_table.bint = bint;
+Branch_table.bint2int = bint2int;
 Branch_table.br_inc = br_inc;
 Branch_table.br_cmp = br_cmp;
-Branch_table.br_seq_inc = br_seq_inc;
 Branch_table.br_branch_new = br_branch_new;
 Branch_table.br_branch_inc = br_branch_inc;
 Branch_table.br_branch_eq = br_branch_eq;
@@ -197,7 +190,6 @@ Branch_table.br_branch_eq = br_branch_eq;
 // remove old entries
 // XXX: change default hash to sha256 instead of blake
 // XXX: check with derry etask.ps() of decl->sign
-// XXX: cleanup br_* api naming
 // XXX: verify all tests are testing btable&bseq together
 // XXX: coding: is there better way?
 //      let bo = branch ? {branch, seq, bseq, size} : {seq, bseq, size};

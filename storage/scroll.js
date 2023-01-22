@@ -14,7 +14,7 @@ import {r_fix, r_parent, r_eq, r_includes, r_str, r_split} from './range.js';
 const s2b = buf_util.buf_from_str, b2s = buf_util.buf_to_str;
 const beq = buf_util.buf_eq;
 const stringify = JSON.stringify.bind(JSON);
-const {br_enc, br_branch_new, br_seq_inc} = Branch_table;
+const {bint, br_branch_new, br_inc} = Branch_table;
 // https://en.wikipedia.org/wiki/Merkle_tree#Second_preimage_attack
 const LEAF_TYPE = enc_u64(0), PARENT_TYPE = enc_u64(1), ROOT_TYPE = enc_u64(2);
 function enc_u64(v){ return enc.encode(enc.uint64, v); }
@@ -499,8 +499,8 @@ export default class Scroll extends EventEmitterAsync {
     if (branch)
       header.branch = branch;
     if (seq==0){
-      assert(bseq==br_enc(0) || !bseq, 'invalid bseq for seq'+seq);
-      bseq = br_enc(0);
+      assert(bseq==bint(0) || !bseq, 'invalid bseq for seq'+seq);
+      bseq = bint(0);
     }
     else if (!bseq && seq>0){
       let decl_prev = _this.get_decl(prev||seq-1);
@@ -514,11 +514,11 @@ export default class Scroll extends EventEmitterAsync {
         // XXX: we need to have complete branch table up to seq
         bseq = btable.find_avail_branch(br_branch_new(bseq_prev));
       } else
-        bseq = br_seq_inc(bseq_prev);
+        bseq = br_inc(bseq_prev);
     }
     if (0) // XXX: how to handle
       assert(bseq, 'missing bseq for seq'+seq);
-    if (bseq && br_enc(seq)!=bseq)
+    if (bseq && bint(seq)!=bseq)
         header.bseq = bseq;
     let data = new Data({scroll: _this, seq, frames: [header].concat(frames)});
     let decl = new Decl({scroll: _this, seq, data});
@@ -1166,7 +1166,7 @@ export default class Scroll extends EventEmitterAsync {
     let {data, seq, cfid} = e, h = data.get_header(cfid);
     if (!h)
       return;
-    let bseq = h.bseq||br_enc(seq), branch = h.branch;
+    let bseq = h.bseq||bint(seq), branch = h.branch;
     let btable = this.get_branch_table(cfid);
     btable.add({branch, seq, bseq});
   };
@@ -1227,7 +1227,7 @@ class Decl extends EventEmitterAsync {
     let h = this.get_header(cfid);
     if (!h)
       return null;
-    return h.bseq ? h.bseq : br_enc(this.seq);
+    return h.bseq ? h.bseq : bint(this.seq);
   }
   fbuf_get(cfid){ return this.data.get(this.to_c(cfid)); }
   data_get(){ return this.data; }

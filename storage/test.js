@@ -21,8 +21,8 @@ import {r_str, r_from_str, r_parent, r_includes, r_eq, r_split}
 const {rm_parentesis, parse_get_next, parse_exp_arg_pair, parse_exp,
   parse_exp_arg, parse_push} = tparser;
 const {b2s, s2b, b2s_obj} = buf_util;
-const {br_int, br_enc, br_cmp, br_branch_new, br_branch_inc, br_inc,
-  br_seq_inc, br_branch_eq} = Branch_table;
+const {bint2int, bint, br_cmp, br_branch_new, br_branch_inc, br_inc,
+  br_branch_eq} = Branch_table;
 
 function enc_u64(v){ return enc.encode(enc.uint64, v); }
 let t_soul, t_soul_id, t_soul_mode, t_state;
@@ -1561,10 +1561,10 @@ describe('scroll', ()=>{
     });
   });
   describe('branch', ()=>{
-    it('br_enc', ()=>{
+    it('bint', ()=>{
       const t = (val, exp)=>{
-        assert.equal(br_enc(val), exp);
-        assert.equal(br_int(exp), val);
+        assert.equal(bint(val), exp);
+        assert.equal(bint2int(exp), val);
       };
       t(0, '0');
       t(1, '1');
@@ -1577,7 +1577,7 @@ describe('scroll', ()=>{
       t(999, '__999');
       t(1000, '___1000');
       t(10000, '____10000');
-      // XXX: test br_int(1-1._1)
+      // XXX: test bint2int(1-1._1)
     });
     it('br_inc', ()=>{
       const t = (val, n, exp)=>{
@@ -1598,9 +1598,16 @@ describe('scroll', ()=>{
       t('9.9', '9._10');
       t('9._10', '9._11');
       t('_10._99', '_10.__100');
+      t('0', '1');
+      t('1', '2');
+      t('9', '_10');
+      t('_10', '_11');
+      t('1-1.0', '1-1.1');
+      t('1-1.9', '1-1._10');
+      t('1-1._10', '1-1._11');
     });
     it('br_cmp', ()=>{
-      const t = (a, b, exp)=>assert.equal(br_cmp(br_enc(a), br_enc(b)), exp);
+      const t = (a, b, exp)=>assert.equal(br_cmp(bint(a), bint(b)), exp);
       t(0, 0, 0);
       t(0, 1, -1);
       t(1, 0, 1);
@@ -1648,16 +1655,6 @@ describe('scroll', ()=>{
       t('1-_10.1', '1-_11.2', false);
       t('1-1.0', '1-1._10', true);
       t('1-2.0', '1-1._10', false);
-    });
-    it('br_seq_inc', ()=>{
-      const t = (val, exp)=>assert.equal(br_seq_inc(val), exp);
-      t('0', '1');
-      t('1', '2');
-      t('9', '_10');
-      t('_10', '_11');
-      t('1-1.0', '1-1.1');
-      t('1-1.9', '1-1._10');
-      t('1-1._10', '1-1._11');
     });
   });
   describe('macro', ()=>{

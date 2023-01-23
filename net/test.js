@@ -11,7 +11,6 @@ import ReqHandler from './req_handler.js';
 import etask from '../util/etask.js';
 import xurl from '../util/url.js';
 import date from '../util/date.js';
-import proc from '../util/proc.js';
 import LBuffer from './lbuffer.js';
 import xescape from '../util/escape.js';
 import xutil from '../util/util.js';
@@ -29,7 +28,7 @@ const DEF_RTT = 100;
 
 Router.t.xxx_rt = false; // XXX WIP
 
-proc.init();
+xtest.init();
 
 function get_fuzzy(name){ return name && name[0]=='~' ? name[0] : ''; }
 function N(name, opt){

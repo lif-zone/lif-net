@@ -18,11 +18,7 @@ const E = {};
 export default E;
 
 E.currentTest = undefined;
-if (xutil.is_mocha())
-{
-    beforeEach(function(){ E.currentTest = this.currentTest; });
-    afterEach(()=>E.currentTest = null);
-}
+
 E.currentTest_title = ()=>{
     if (!E.currentTest)
         return '';
@@ -86,10 +82,6 @@ E.hook_assert = ()=>{
       },
     });
 };
-E.hook_assert();
-
-if (xutil.is_mocha())
-    xerr.on_unhandled_exception = err=>assert(false, err);
 
 E.test = (app, test_func, hooks)=>{
     hooks = hooks||{};
@@ -204,13 +196,6 @@ let on_test_prop_changed = ()=>{
             delete old_val.obj[old_val.prop];
     }
 };
-if (xutil.is_mocha())
-{
-    afterEach(()=>{
-        if (test_prop_changes.length)
-            on_test_prop_changed();
-    });
-}
 
 E.r_push_pop_prop = function(obj, prop, val){
     let prev, a = arguments, exist;
@@ -267,17 +252,6 @@ E.seq_uninit = ()=>{
     }
     E.seq_curr = undefined;
 };
-if (xutil.is_mocha())
-{
-    beforeEach(()=>{
-        E.seq_init();
-    });
-    afterEach(()=>{
-        E.seq_uninit();
-    });
-    // XXX: add sinon.sandbox.create() and this.sinon.restore()
-    // and other settings/restores possible
-}
 
 E.assert_no_etasks = ()=>{
     let ps = etask.ps({TIME: 0});
@@ -790,21 +764,29 @@ E.xerr_level = function(level){
   xerr.register(xerr_cb);
 };
 
-if (xutil.is_mocha())
-{
+E.init = function(){
+  proc.init();
+  // XXX: is it needed?
+  xerr.on_unhandled_exception = err=>assert(false, err);
   proc.xexit_init();
   E.xerr_level(xerr.L.ERR);
+  E.hook_assert();
+  beforeEach(function(){
+    E.currentTest = this.currentTest;
+    E.seq_init();
+    if (!xutil.is_inspect())
+      xerr.set_buffered(true, 1000);
+  });
+  afterEach(function(){
+    E.currentTest = null;
+    if (test_prop_changes.length)
+      on_test_prop_changed();
+    E.seq_uninit();
+    if (this.currentTest.timedOut){
+      xerr.notice(this.currentTest.err.stack);
+      assert.fail(this.currentTest.fullTitle()+': FAILED TIMEOUT');
+    }
+    xerr.clear();
+    xerr.set_buffered(false);
+  });
 }
-
-if (!xutil.is_inspect())
-  beforeEach(function(){ xerr.set_buffered(true, 1000); });
-
-afterEach(function(){
-  if (this.currentTest.timedOut){
-    xerr.notice(this.currentTest.err.stack);
-    assert.fail(this.currentTest.fullTitle()+': FAILED TIMEOUT');
-  }
-  xerr.clear();
-  xerr.set_buffered(false);
-});
-

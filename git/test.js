@@ -1,8 +1,7 @@
 'use strict'; /*eslint-env mocha*/
 import assert from 'assert';
 import xutil from '../util/util.js';
-import proc from '../util/proc.js';
-import xtest from '../util/test_lib.js'; // eslint-disable-line no-unused-vars
+import xtest from '../util/test_lib.js';
 import etask from '../util/etask.js';
 import Soul from '../storage/soul.js'; // eslint-disable-line no-unused-vars
 import lib from './lib.js';
@@ -10,7 +9,7 @@ import git_util from './util.js';
 import buf_util from '../net/buf_util.js';
 const s2b = buf_util.buf_from_str;
 
-proc.init();
+xtest.init();
 
 function dump_lines(a){
   for (let i=0; i<a.length; i++){

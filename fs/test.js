@@ -1,9 +1,7 @@
 'use strict'; /*eslint-env mocha*/
-import proc from '../util/proc.js';
-// XXX xtest.init()
-import xtest from '../util/test_lib.js'; // eslint-disable-line no-unused-vars
+import xtest from '../util/test_lib.js';
 
-proc.init();
+xtest.init();
 
 it('xxx', ()=>{
   const t = ()=>{};

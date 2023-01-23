@@ -1,10 +1,9 @@
 'use strict'; /*eslint-env mocha*/
 import assert from 'assert';
-import proc from '../util/proc.js';
 import xerr from '../util/xerr.js';
 import enc from 'compact-encoding';
 import tparser from './test_parser.js';
-import xtest from '../util/test_lib.js'; // eslint-disable-line no-unused-vars
+import xtest from '../util/test_lib.js';
 import etask from '../util/etask.js';
 import xutil from '../util/util.js';
 import crypto from '../util/crypto.js';
@@ -24,6 +23,8 @@ const {b2s, s2b, b2s_obj} = buf_util;
 const {bint2int, bint, bseq_cmp, bseq_branch_new, bseq_branch_inc, bseq_inc,
   bseq_branch_eq, bseq_valid, bint_valid} = Branch_table;
 
+xtest.init();
+
 function enc_u64(v){ return enc.encode(enc.uint64, v); }
 let t_soul, t_soul_id, t_soul_mode, t_state;
 let t_scroll, t_genesis_scroll, t_prev_scroll, t_def, t_keypair;
@@ -31,8 +32,6 @@ let t_scroll, t_genesis_scroll, t_prev_scroll, t_def, t_keypair;
 // XXX: use memoryDatabase: ':memory:'
 DB.init({shim_conf: {checkOrigin: false, databaseBasePath: '/tmp',
   deleteDatabaseFiles: true, useSQLiteIndexes: true}});
-
-proc.init();
 
 function space(s){ return s ? s+' ' : ''; }
 

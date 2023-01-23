@@ -19,6 +19,7 @@ import sinon from 'sinon';
 import D from 'd.js';
 import _ from 'underscore';
 import when from 'when';
+xtest.init();
 const seq = xtest.seq, ms = date.ms, assign = Object.assign;
 
 if (xutil.is_inspect())

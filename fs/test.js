@@ -8,7 +8,7 @@ it('xxx', ()=>{
   const t = ()=>{};
   // XXX: how to add blob
   t('xxx1', `
-    s..scroll(type:fs)              #seq0=... // topic?
+    s..scroll(topic:fs)              #seq0=... // XXX TODO
     add(/)                          #seq1={op:add dir:/}
     add(/f1 blob1)                  #seq2={op:add file:/f1} D2F2=blob1
     commit                          #seq3={group:2 op:commit} // XXX: needed?

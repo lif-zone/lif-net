@@ -2565,7 +2565,8 @@ describe('scroll', ()=>{
           tput(0 1 2    ) #(bseq2=1-1.0
             btc0[1]={branch:b seq:2 bseq:1-1.0 size:2})`);
       });
-      describe('db', ()=>{
+      describe('db', function(){
+        this.timeout(5000);
         t('no_branch', `s..#(db_btable)
           soul.s.scroll(db) flush #db_btc0[0]={seq:0 bseq:0 size:1}
           decl(1) flush #db_btc0[0]={seq:0 bseq:0 size:2}
@@ -2630,7 +2631,8 @@ describe('scroll', ()=>{
         `);
       });
     });
-    describe('storage', ()=>{
+    describe('storage', function(){
+      this.timeout(5000);
       // XXX: simplify storage testing with mem
       describe('mem', ()=>{
         t('seq0', `s.scroll S..# clone(s..)

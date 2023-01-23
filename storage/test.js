@@ -141,7 +141,7 @@ function parse_var(v){
   m = v.match(/^([a-zA-Z]\d*)(\.|\.\.)([^.]*)$/);
   let ctx = m ? m[1] : '', def = m ? m[2]=='..' : false;
   v = m ? m[3] : v;
-  if (['db_c', 'db_data', 'mem_c'].includes(v))
+  if (['db_c', 'db_data', 'mem_c', 'bname'].includes(v))
     return {type: v, ctx, def};
   if (m = v.match(/^btc(\d+)\[(\d+)\]$/))
     return {type: 'btc', cfid: +m[1], index: +m[2], ctx, def};
@@ -584,7 +584,7 @@ function state_split_var(v, def){
   if (o.def)
     set_def('left', o.ctx);
   let name = o.ctx||def||get_def('left');
-  if (['db_c', 'db_data', 'mem_c'].includes(type))
+  if (['db_c', 'db_data', 'mem_c', 'bname'].includes(type))
     return {name, type};
   if (['btc'].includes(type))
     return {name, type, cfid, index};
@@ -608,6 +608,8 @@ const state_split = (exp, def)=>etask(function*state_split(){
       return {...state_split_var(o.l, def), val: yield get_val(o.r, 'right')};
     if (['db_c', 'mem_c'].includes(o.l))
       return {...state_split_var(o.l, def), val: yield get_static_c(o.r)};
+    if (['bname'].includes(o.l))
+      return {...state_split_var(o.l, def), val: yield get_static_bname(o.r)};
     if (/^btc/.test(o.l))
       return {...state_split_var(o.l, def), val: yield get_btable(o.r)};
     if (/^db_btc/.test(o.l))
@@ -620,7 +622,7 @@ const state_split = (exp, def)=>etask(function*state_split(){
 
 function state_apply(state, o){
   let {type, seq, cfid, index, val} = o;
-  if (['db_c', 'db_data', 'mem_c'].includes(type)){
+  if (['db_c', 'db_data', 'mem_c', 'bname'].includes(type)){
     if (val)
       state[type] = val;
     else
@@ -677,6 +679,7 @@ function get_filter(s){
     case 'db_c': break;
     case 'mem': break;
     case 'mem_c': break;
+    case 'bname': break;
     case 'btable': break;
     case 'bseq': break;
     case 'db_btable': break;
@@ -703,6 +706,7 @@ const cmd_state = t=>etask(function*cmd_state(){
     }
     state.mem_c = yield mem_get_c(scroll);
     state.btable = yield mem_get_btable(scroll);
+    state.bname = yield mem_get_bname(scroll);
     // XXX: create api with next (like decl) and clean all over
     for (const [cfid] of scroll.conflict){
       for (let decl = scroll.get_decl(0, {create: false}); decl;
@@ -769,6 +773,10 @@ const cmd_state = t=>etask(function*cmd_state(){
   if (t_state.filter.includes('bseq')){
     assert_b2s_obj(state.bseq, t_state[name].bseq,
       'bseq state mismach '+t.meta.s);
+  }
+  if (t_state.filter.includes('bname')){
+    assert_b2s_obj(state.bname, t_state[name].bname,
+      'bname state mismach '+t.meta.s);
   }
   if (t_state.filter.includes('db_btable')){
     assert_b2s_obj(state.db_btable, t_state[name].db_btable,
@@ -954,14 +962,27 @@ const db_get_db_data = db=>etask(function*db_get_db_data(){
 
 const get_static_c = s=>etask(function*get_static_c(){
   s = rm_parentesis(s, '{');
-  let o = {};
+  let ret = {};
   for (let curr=s; curr = parse_get_next(curr);){
     let m = curr.exp.match(/^(\d+):(.*)$/);
     assert(m?.length==3, 'invalid db_c '+curr.exp);
-    o[m[1]] = parse_conflict(m[2]);
-    o[m[1]].top.M = b2s(yield get_val(o[m[1]].top.M));
+    ret[m[1]] = parse_conflict(m[2]);
+    ret[m[1]].top.M = b2s(yield get_val(ret[m[1]].top.M));
   }
-  return o;
+  return ret;
+});
+
+const get_static_bname = s=>etask(function*get_static_bname(){
+  s = rm_parentesis(s, '{');
+  let ret = {};
+  for (let curr=s; curr = parse_get_next(curr);){
+    let m = curr.exp.match(/^(\d+):([^:]+):(\d+)$/);
+    assert(m?.length==4, 'invalid bname '+s);
+    let cfid = +m[1], name = m[2], seq = +m[3];
+    ret[cfid] = ret[cfid]||{};
+    ret[cfid][name] = seq;
+  }
+  return ret;
 });
 
 const get_btable = s=>etask(function*get_btable(){
@@ -1041,6 +1062,19 @@ const mem_get_btable = scroll=>etask(function mem_get_btable(){
     ret[cfid] = btable.to_static();
     if (!ret[cfid].length)
       delete ret[cfid];
+  }
+  return ret;
+});
+
+const mem_get_bname = scroll=>etask(function mem_get_bname(){
+  let ret;
+  for (const [cfid] of scroll.conflict){
+    let btable = scroll.get_branch_table(cfid);
+    for (const [name, bo] of btable.branch_name){
+      ret = ret||{};
+      ret[cfid] = ret[cfid]||{};
+      ret[cfid][name] = bo.seq;
+    }
   }
   return ret;
 });
@@ -2410,15 +2444,16 @@ describe('scroll', ()=>{
       // XXX: verify behavior on conflict delete/merge and verify we removed
       // uneeded branch table
       describe('decl', ()=>{
-        t('no_branch', `s..#(bseq btable) scroll decl(1-10) #(bseq0=0 bseq1=1
-          bseq2=2 bseq3=3 bseq4=4 bseq5=5 bseq6=6 bseq7=7 bseq8=8 bseq9=9
-          bseq10=_10 btc0[0]={seq:0 bseq:0 size:11}) !bseq11`);
-        t('one_branch_test', `s..#(bseq btable)
+        t('no_branch', `s..#(bseq btable bname) scroll decl(1-10)
+          #(bseq0=0 bseq1=1 bseq2=2 bseq3=3 bseq4=4 bseq5=5 bseq6=6 bseq7=7
+          bseq8=8 bseq9=9 bseq10=_10 btc0[0]={seq:0 bseq:0 size:11}) !bseq11`);
+        t('one_branch_test', `s..#(bseq btable bname)
           scroll           #(bseq0=0 btc0[0]={seq:0 bseq:0 size:1})
           decl(1)          #(bseq1=1 btc0[0]={seq:0 bseq:0 size:2})
           decl(2)          #(bseq2=2 btc0[0]={seq:0 bseq:0 size:3})
           decl(3 branch:b) #(bseq3=2-1.0
-                             btc0[1]={branch:b seq:3 bseq:2-1.0 size:1})
+                             btc0[1]={branch:b seq:3 bseq:2-1.0 size:1}
+                             bname={0:b:3})
           decl(4)          #(bseq4=2-1.1
                              btc0[1]={branch:b seq:3 bseq:2-1.0 size:2})
           decl(5 prev:2)   #(bseq5=3 btc0[2]={seq:5 bseq:3 size:1})
@@ -2426,27 +2461,30 @@ describe('scroll', ()=>{
           decl(7 prev:4)   #(bseq7=2-1.2 btc0[3]={seq:7 bseq:2-1.2 size:1})
           decl(8)          #(bseq8=2-1.3 btc0[3]={seq:7 bseq:2-1.2 size:2})
           decl(9 prev:6)   #(bseq9=5 btc0[4]={seq:9 bseq:5 size:1})`);
-        t('two_branch_differnt', `s..#(bseq btable)
+        t('two_branch_differnt', `s..#(bseq btable bname)
           scroll            #(bseq0=0 btc0[0]={seq:0 bseq:0 size:1})
           decl(1)           #(bseq1=1 btc0[0]={seq:0 bseq:0 size:2})
           decl(2 branch:b)  #(bseq2=1-1.0
-                              btc0[1]={branch:b seq:2 bseq:1-1.0 size:1})
+                              btc0[1]={branch:b seq:2 bseq:1-1.0 size:1}
+                              bname={0:b:2})
           decl(3)           #(bseq3=1-1.1
                               btc0[1]={branch:b seq:2 bseq:1-1.0 size:2})
           decl(4 branch:b2) #(bseq4=1-1.1-1.0
-                              btc0[2]={branch:b2 seq:4 bseq:1-1.1-1.0 size:1})
+                              btc0[2]={branch:b2 seq:4 bseq:1-1.1-1.0 size:1}
+                              bname={0:b:2 0:b2:4})
           decl(5)           #(bseq5=1-1.1-1.1
                               btc0[2]={branch:b2 seq:4 bseq:1-1.1-1.0 size:2})
           decl(6 prev:3)    #(bseq6=1-1.2 btc0[3]={seq:6 bseq:1-1.2 size:1})`);
-        t('child_branch', `s..#(bseq btable)
+        t('child_branch', `s..#(bseq btable bname)
           scroll                   #(bseq0=0 btc0[0]={seq:0 bseq:0 size:1})
           decl(1)                  #(bseq1=1 btc0[0]={seq:0 bseq:0 size:2})
           decl(2 branch:b)         #(bseq2=1-1.0
-            btc0[1]={branch:b seq:2 bseq:1-1.0 size:1})
+            btc0[1]={branch:b seq:2 bseq:1-1.0 size:1} bname={0:b:2})
           decl(3)                  #(bseq3=1-1.1
             btc0[1]={branch:b seq:2 bseq:1-1.0 size:2})
           decl(4 prev:2 branch:b2) #(bseq4=1-1.0-1.0
-            btc0[2]={branch:b2 seq:4 bseq:1-1.0-1.0 size:1})
+            btc0[2]={branch:b2 seq:4 bseq:1-1.0-1.0 size:1}
+            bname={0:b:2 0:b2:4})
           decl(5)                  #(bseq5=1-1.0-1.1
             btc0[2]={branch:b2 seq:4 bseq:1-1.0-1.0 size:2})`);
         t('two_branch_same', `s..#(bseq btable)
@@ -2532,21 +2570,25 @@ describe('scroll', ()=>{
           decl(3)                  #bseq3=1-1.1
           decl(4)                  #bseq4=1-1.2
           decl(5 prev:1 branch:b2) #bseq5=1-2.0
-          S..#(bseq btable) S..# scroll(s..M0)
+          S..#(bseq btable bname) S..# scroll(s..M0)
           tput(0)           #(bseq0=0 btc0[0]={seq:0 bseq:0 size:1})
           tput(0 1)         #(bseq1=1 btc0[0]={seq:0 bseq:0 size:2})
           tput(0 1 2      ) #(bseq2=1-1.0
-                              btc0[1]={branch:b seq:2 bseq:1-1.0 size:1})
+                              btc0[1]={branch:b seq:2 bseq:1-1.0 size:1}
+                              bname={0:b:2})
           tput(0 1 2 3    ) #(bseq3=1-1.1
                               btc0[1]={branch:b seq:2 bseq:1-1.0 size:2})
           tput(0 1 2 3 4  ) #(bseq4=1-2.0
-                              btc0[2]={branch:b2 seq:4 bseq:1-2.0 size:1})
+                              btc0[2]={branch:b2 seq:4 bseq:1-2.0 size:1}
+                              bname={0:b:2 0:b2:4})
           tput(0 1 2 3 4 5) #(bseq5=1-2.1
                               btc0[2]={branch:b2 seq:4 bseq:1-2.0 size:2})
-          tput(0_1 2 d    ) #(bseq3c1=1-1.1 btc1[0]={seq:3 bseq:1-1.1 size:1})
+          tput(0_1 2 d    ) #(bseq3c1=1-1.1 btc1[0]={seq:3 bseq:1-1.1 size:1}
+                              bname={0:b:2 0:b2:4})
           tput(0_1 2 d e  ) #(bseq4c1=1-1.2 btc1[0]={seq:3 bseq:1-1.1 size:2})
           tput(0_1 2 d e f) #(bseq5c1=1-2.0
-                              btc1[1]={branch:b2 seq:5 bseq:1-2.0 size:1})`);
+                              btc1[1]={branch:b2 seq:5 bseq:1-2.0 size:1}
+                              bname={0:b:2 0:b2:4 1:b2:5})`);
         t('branch_prev', `s..#(bseq btable)
           scroll           #(bseq0=0 btc0[0]={seq:0 bseq:0 size:1})
           decl(1)          #(bseq1=1 btc0[0]={seq:0 bseq:0 size:2})
@@ -2579,9 +2621,10 @@ describe('scroll', ()=>{
           decl(2 branch:b) flush
             #(db_btc0[1]={branch:b seq:2 bseq:1-1.0 size:1})
           decl(2) flush #(db_btc0[1]={branch:b seq:2 bseq:1-1.0 size:2})
-          Soul.db_copy(soul) S..#(bseq btable)
+          Soul.db_copy(soul) S..#(bseq btable bname)
           Soul.S.scroll(s..M0 db) #(btc0[0]={seq:0 bseq:0 size:2}
-            btc0[1]={branch:b seq:2 bseq:1-1.0 size:2} bseq0=0)`);
+            btc0[1]={branch:b seq:2 bseq:1-1.0 size:2} bseq0=0
+            bname={0:b:2})`);
         t('conflict_two_branch_put', `s..#(bseq db_btable)
           scroll(db)               #(bseq0=0 db_btc0[0]={seq:0 bseq:0 size:1})
           decl(1)                  #(bseq1=1 db_btc0[0]={seq:0 bseq:0 size:2})

@@ -84,7 +84,7 @@ export default class Branch_table {
     }
     // new entry
     bo = {...branch&&{branch}, seq, bseq, size: 1};
-    if (!this.branch_name.get(branch))
+    if (branch && !this.branch_name.get(branch))
       this.branch_name.set(branch, bo);
     this._insert(bo);
     this._schedule_mod(bo.seq);
@@ -211,8 +211,5 @@ Branch_table.bseq_branch_eq = bseq_branch_eq;
 Branch_table.bseq_valid = bseq_valid;
 
 // XXX derry:
-// XXX: verify btable is correct during conflict merge/delete and that we
-// remove old entries
 // XXX: change default hash to sha256 instead of blake
 // XXX: check with derry etask.ps() of decl->sign
-// XXX: test btable.branch_name

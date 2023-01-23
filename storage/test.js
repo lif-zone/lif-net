@@ -243,7 +243,7 @@ function c_id2pos(scroll, cfid){
 const get_val = (exp, def_type='right', encode=false)=>etask(
   function*_get_val()
 {
-  let m;
+  let m, crypt = Scroll.supported_crypt[0];
   assert(typeof exp=='string', 'invalid get_val '+exp);
   if (exp=='null')
     return null;
@@ -259,13 +259,13 @@ const get_val = (exp, def_type='right', encode=false)=>etask(
     let a=[], vars = m[1].split('+');
     for (let i=0; i<vars.length; i++)
       a.push(yield get_val(vars[i], def_type, true));
-    return Scroll.hconcat_safe(a);
+    return Scroll.hconcat_safe(crypt, a);
   }
   if (m = exp.match(/^hleaf\((.*)\)$/)){
     let a=[Scroll.LEAF_TYPE], vars = m[1].split('+');
     for (let i=0; i<vars.length; i++)
       a.push(yield get_val(vars[i], def_type, true));
-    return Scroll.hconcat(a);
+    return Scroll.hconcat(crypt, a);
   }
   if (m = exp.match(/^hroot\((.*)\)$/)){
     let a=[Scroll.ROOT_TYPE], vars = m[1].split('+');
@@ -276,10 +276,10 @@ const get_val = (exp, def_type='right', encode=false)=>etask(
       a.push(enc_u64(r[0]));
       a.push(enc_u64(r[1]-r[0]+1));
     }
-    return Scroll.hconcat(a);
+    return Scroll.hconcat(crypt, a);
   }
   if (m = exp.match(/^sign\((.*)\+(.*)\)$/)){ // sign(d10+M9)
-    return crypto.sign(Scroll.hconcat([yield get_val(m[1]),
+    return crypto.sign(Scroll.hconcat(crypto, [yield get_val(m[1]),
       yield get_val(m[2])], def_type, true), t_keypair.key);
   }
   if (m = exp.match(/^sign\((.*)\)$/)){ // sign(d10)

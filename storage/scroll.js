@@ -39,7 +39,7 @@ class Data extends EventEmitterAsync {
     this.seq = opt.seq;
     this.scroll = opt.scroll;
     this.cmap = new Map();
-    let fbuf = new Frame_buffer(opt);
+    let fbuf = new Frame_buffer({...opt, crypt: this.scroll.crypt});
     fbuf.on('hash', this.on_hash);
     fbuf.on('data', this.on_data);
     fbuf.on('sig', this.on_sig);
@@ -61,7 +61,7 @@ class Data extends EventEmitterAsync {
     let fbuf = this.cmap.get(cfid);
     if (fbuf)
       return fbuf;
-    fbuf = new Frame_buffer();
+    fbuf = new Frame_buffer({crypt: this.scroll.crypt});
     fbuf.ctx = {data: this, scroll: this.scroll, seq: this.seq, cfid};
     fbuf.on('hash', this.on_hash);
     fbuf.on('data', this.on_data);
@@ -93,11 +93,12 @@ class Data extends EventEmitterAsync {
 class Frame_buffer extends EventEmitterAsync {
   constructor(opt={}){
     super();
-    let {frames} = opt;
+    let {frames, crypt} = opt;
+    assert(support_crypt(crypt), 'unsupported crypt');
     this.frames = [{}]; // first frame reserved for {sig, h_rest}
     for (let i=0; i<frames?.length; i++)
       this.frames.push(to_frame(frames[i]));
-    let h_rest = Frame_buffer.calc_hash(this.frames, {safe: true});
+    let h_rest = Frame_buffer.calc_hash(this.frames, {safe: true, crypt});
     if (h_rest)
       this.frames[0].h_rest = h_rest;
   }
@@ -136,8 +137,8 @@ class Frame_buffer extends EventEmitterAsync {
       yield _this.emit_async('hash');
     yield _this.emit_async('data');
     if (!_this.h_rest){
-      yield _this.set_hash(Frame_buffer.calc_hash(_this.frames, {safe: true}),
-        opt);
+      yield _this.set_hash(Frame_buffer.calc_hash(_this.frames, {safe: true,
+        crypt: _this.crypt}), opt);
     if (!sig && _this.frames[0].sig)
       yield _this.emit_async('sig');
     else
@@ -149,15 +150,17 @@ class Frame_buffer extends EventEmitterAsync {
     assert(f, 'no frame '+i);
     assert(!f.buf, 'buf aleady exist');
     assert(i>0, 'cannot change frame '+i);
-    let h = crypto.blake2b(buf);
+    let h = crypto.hash(this.crypt, buf);
     if (f.h)
       assert(h.equals(f.h), 'invalid hash');
     else
       f.h = h;
     f.buf = buf;
     yield _this.emit_async('data');
-    if (!_this.h_rest)
-      yield _this.set_hash(Frame_buffer.calc_hash(_this.frames, {safe: true}));
+    if (!_this.h_rest){
+      yield _this.set_hash(Frame_buffer.calc_hash(_this.frames, {safe: true,
+        crypt: _this.crypt}));
+    }
   }); }
   get_hash(opt={}){ return this.frames[0].h_rest; }
   set_hash(h, opt){ return etask({_: this}, function*set_hash(){
@@ -211,12 +214,12 @@ Frame_buffer.calc_hash = function(frames, opt={}){
     } else if (!f.buf)
         return null;
     if (!f.h)
-      f.h = crypto.blake2b(f.buf);
+      f.h = crypto.hash(opt.crypt, f.buf);
     buf = buf ? Buffer.concat([buf, f.h]) : f.h;
   }
   if (!buf)
     return null;
-  return crypto.blake2b(buf);
+  return crypto.hash(opt.crypt, buf);
 };
 
 function parse_buf_ref(ref){
@@ -240,17 +243,17 @@ function resolve_link(links, l){ // XXX: need test
   return seq;
 }
 
-function hconcat(a){ return crypto.blake2b(Buffer.concat(a)); }
-function hconcat_safe(a){
+function hconcat(crypt, a){ return crypto.hash(crypt, Buffer.concat(a)); }
+function hconcat_safe(crypt, a){
   if (a.findIndex(o=>!o)!=-1)
     return null;
-  return hconcat(a);
+  return hconcat(crypt, a);
 }
-function hparent(size, left, right){
-  return hconcat([PARENT_TYPE, enc_u64(size), left, right]); }
-function hparent_safe(size, left, right){
-  return left && right ? hparent(size, left, right) : null; }
-function hleaf(h, sig){ return hconcat([LEAF_TYPE, h, sig]); }
+function hparent(crypt, size, left, right){
+  return hconcat(crypt, [PARENT_TYPE, enc_u64(size), left, right]); }
+function hparent_safe(crypt, size, left, right){
+  return left && right ? hparent(crypt, size, left, right) : null; }
+function hleaf(crypt, h, sig){ return hconcat(crypt, [LEAF_TYPE, h, sig]); }
 
 
 function get_d_hash(data, seq){ return data[seq]?.d; }
@@ -264,10 +267,10 @@ function set_d(data, seq, d, D){
     o.D = D;
   return data;
 }
-function calc_D_hash(D){
+function calc_D_hash(crypt, D){
   if (!D)
     return;
-  return Frame_buffer.calc_hash(D);
+  return Frame_buffer.calc_hash(D, {crypt});
 }
 
 function get_sig(data, seq){ return data[seq]?.sig; }
@@ -277,7 +280,7 @@ function set_sig(data, seq, val){
   return o.sig = val;
 }
 
-function get_m_hash(data, r, use_d_sig){
+function get_m_hash(crypt, data, r, use_d_sig){
   r = r_fix(r);
   let m = data[r[1]]?.m;
   m = m && m[r[0]] || null;
@@ -286,8 +289,8 @@ function get_m_hash(data, r, use_d_sig){
   let D, d = get_d_hash(data, r[1]);
   let sig = get_sig(data, r[1]);
   if (!d && (D=get_D(data, r[1])))
-    d = calc_D_hash(D);
-  return d && sig ? hleaf(d, sig) : null;
+    d = calc_D_hash(crypt, D);
+  return d && sig ? hleaf(crypt, d, sig) : null;
 }
 
 function set_m_hash(data, r, val){
@@ -300,14 +303,14 @@ function set_m_hash(data, r, val){
   return o.m[r[0]] = val;
 }
 
-function check_set_sig(sketch, errors, seq, m, d, D, sig){
+function check_set_sig(crypt, sketch, errors, seq, m, d, D, sig){
   if (!d && !sig)
     return;
   if (!d)
     return push_error(errors, 'missing d'+seq);
   if (!sig)
     return push_error(errors, 'missing sig'+seq);
-  if (!beq(m, hleaf(d, sig))){
+  if (!beq(m, hleaf(crypt, d, sig))){
     push_error(errors, 'invalid sig'+seq);
     return {conflict: true};
   }
@@ -391,8 +394,8 @@ function is_null(val, errors, err){
   return true;
 }
 
-function is_m_valid(m, d, sig, errors, err){
-  if (beq(m, hleaf(d, sig)))
+function is_m_valid(crypt, m, d, sig, errors, err){
+  if (beq(m, hleaf(crypt, d, sig)))
     return true;
   push_error(errors, err);
   return false;
@@ -413,8 +416,7 @@ export default class Scroll extends EventEmitterAsync {
     this.key = opt.key;
     this.storage = opt.storage;
     this.crypt = opt.crypt||Scroll.supported_crypt[0];
-    if (!support_crypt(this.crypt))
-      throw new Error('unsupported crypt');
+    assert(support_crypt(this.crypt), 'unsupported crypt');
     this.prev_scroll = opt.prev_scroll;
     this.top = null;
     this.dmap = new Map();
@@ -648,8 +650,8 @@ export default class Scroll extends EventEmitterAsync {
     {
       return false;
     }
-    let mp = hparent(po.parent[1]-po.parent[0]+1, r_eq(range, po.left) ?
-      m : m2, r_eq(range, po.left) ? m2 : m);
+    let mp = hparent(_this.crypt, po.parent[1]-po.parent[0]+1,
+      r_eq(range, po.left) ? m : m2, r_eq(range, po.left) ? m2 : m);
     if (!(yield _this.copy_extra_m(mp, po.parent, max_range, diff, opt)))
       return false;
     set_m_hash(sketch, range, m);
@@ -660,10 +662,11 @@ export default class Scroll extends EventEmitterAsync {
   {
     let _this = this._, cfid=opt.cfid||0, decl=_this.get_decl(seq);
     yield decl.load(cfid);
-    let top = _this.conflict.get(cfid).top, m=get_m_hash(diff, seq), sketch={};
+    let top = _this.conflict.get(cfid).top;
+    let m=get_m_hash(_this.crypt, diff, seq), sketch={};
     let D=get_D(diff, seq), sig=get_sig(diff, seq), d=get_d_hash(diff, seq);
-    let dD=calc_D_hash(D), vm=decl.m_hash(cfid, seq), vsig=decl.sig_get(cfid);
-    let vd=decl.d_hash(cfid);
+    let dD=calc_D_hash(_this.crypt, D), vd=decl.d_hash(cfid);
+    let vm=decl.m_hash(cfid, seq), vsig=decl.sig_get(cfid);
     if (dD){
       if (vd){
         if (!beq(dD, vd)){
@@ -695,9 +698,9 @@ export default class Scroll extends EventEmitterAsync {
     if (sig && !d)
       push_error(errors, 'missing d'+seq);
     if (sig && d)
-      m = m||hleaf(d, sig);
+      m = m||hleaf(_this.crypt, d, sig);
     if (vm){
-      let ret = check_set_sig(sketch, errors, seq, vm, d, D, sig);
+      let ret = check_set_sig(_this.crypt, sketch, errors, seq, vm, d, D, sig);
       yield _this.put_verified(sketch, {cfid});
       return ret;
     }
@@ -712,14 +715,14 @@ export default class Scroll extends EventEmitterAsync {
         push_error(errors, 'invalid M'+top.seq);
         return {conflict: true}; // XXX: need test
       }
-      check_set_sig(sketch, errors, seq, m, d, D, sig);
+      check_set_sig(_this.crypt, sketch, errors, seq, m, d, D, sig);
       yield _this.put_verified(sketch, {cfid});
       return;
     }
     // new top
     if (!sig || !d)
       return push_error(errors, 'missing '+(sig ? 'd' : 'sig')+seq);
-    if (!is_m_valid(m, d, sig, errors, 'invalid sig'+seq))
+    if (!is_m_valid(_this.crypt, m, d, sig, errors, 'invalid sig'+seq))
       return;
     let prev_top = _this.get_decl(top.seq);
     yield prev_top.load(cfid);
@@ -734,7 +737,7 @@ export default class Scroll extends EventEmitterAsync {
     if (!verify_sig(sig, _this.pub, d, prev_M))
       return push_error(errors, 'invalid sig'+seq);
     set_sig(sketch, seq, sig);
-    check_set_sig(sketch, errors, seq, m, d, D, sig);
+    check_set_sig(_this.crypt, sketch, errors, seq, m, d, D, sig);
     if (vsig && !vsig.equals(sig))
       return {conflict: true};
     yield _this.put_verified(sketch, {cfid});
@@ -754,16 +757,16 @@ export default class Scroll extends EventEmitterAsync {
         return null;
       a.push(mr, enc_u64(r[0]), enc_u64(r[1]-r[0]+1));
     }
-    return hconcat(a);
+    return hconcat(_this.crypt, a);
   }); }
   sketch_calc_m(opt){ return etask({_: this}, function*sketch_calc_m(){
     let _this = this._;
-    let {cfid, range, sketch, diff, errors, force} = opt;
+    let {cfid, range, sketch, diff, errors, force} = opt, crypt = _this.crypt;
     if (force && r_eq(range, force.range))
       return set_m_hash(sketch, range, force.m);
     let seq = range[1], decl = _this.get_decl(seq);
     yield decl.load(cfid);
-    let m = get_m_hash(diff, range), vm = decl.m_hash(cfid, range);
+    let m = get_m_hash(crypt, diff, range), vm = decl.m_hash(cfid, range);
     if ((vm||m) && (!force || !r_includes(range, force.range))){
       if (m && !vm)
         set_m_hash(sketch, range, m);
@@ -774,7 +777,7 @@ export default class Scroll extends EventEmitterAsync {
       let d = get_d_hash(diff, seq), sig = get_sig(diff, seq);
       if (is_null(d&&sig, errors, 'missing m'+r_str(range)))
         return null;
-      return set_m_hash(sketch, seq, hleaf(d, sig));
+      return set_m_hash(sketch, seq, hleaf(crypt, d, sig));
     }
     let [r1, r2] = r_split(range);
     let m1, vm1, m2, vm2, decl1 = _this.get_decl(r1[1]), decl2=decl;
@@ -783,7 +786,7 @@ export default class Scroll extends EventEmitterAsync {
       m1 = yield _this.sketch_calc_m({cfid, range: r1, sketch, diff, errors,
         force});
     } else if (vm1 = decl1.m_hash(cfid, r1));
-    else if (m1 = get_m_hash(sketch, r1)||get_m_hash(diff, r1));
+    else if (m1 = get_m_hash(crypt, sketch, r1)||get_m_hash(crypt, diff, r1));
     else if (m1 = yield _this.sketch_calc_m({cfid, range: r1, sketch, diff,
       errors}));
     if (is_null(m1||vm1, errors, 'missing m'+r_str(r1)))
@@ -793,7 +796,7 @@ export default class Scroll extends EventEmitterAsync {
       m2 = yield _this.sketch_calc_m({cfid, range: r2, sketch, diff, errors,
         force});
     } else if (vm2 = decl2.m_hash(cfid, r2));
-    else if (m2 = get_m_hash(sketch, r2)||get_m_hash(diff, r2));
+    else if (m2 = get_m_hash(crypt, sketch, r2)||get_m_hash(crypt, diff, r2));
     else if (m2 = yield _this.sketch_calc_m({cfid, range: r2, sketch, diff,
       errors}));
     if (is_null(m2||vm2, errors, 'missing m'+r_str(r2)))
@@ -802,7 +805,7 @@ export default class Scroll extends EventEmitterAsync {
       set_m_hash(sketch, r1, m1);
     if (m2)
       set_m_hash(sketch, r2, m2);
-    m = hparent(range[1]-range[0]+1, vm1||m1, vm2||m2);
+    m = hparent(crypt, range[1]-range[0]+1, vm1||m1, vm2||m2);
     set_m_hash(sketch, range, m);
     return m;
   }); }
@@ -1043,7 +1046,7 @@ export default class Scroll extends EventEmitterAsync {
   }); }
   calc_m(opt){
     let {range, diff, diff_c} = opt;
-    let m = diff ? get_m_hash(diff, range, true) :
+    let m = diff ? get_m_hash(this.crypt, diff, range, true) :
       this.m_hash(diff_c, range);
     if (m)
       return m;
@@ -1056,7 +1059,7 @@ export default class Scroll extends EventEmitterAsync {
     let m2 = this.calc_m({range: r2, diff, diff_c});
     if (!m2)
       return null;
-    return hparent(range[1]-range[0]+1, m1, m2);
+    return hparent(this.crypt, range[1]-range[0]+1, m1, m2);
   }
   put_verified(verified, opt={}){ return etask({_: this},
     function*put_verified()
@@ -1092,7 +1095,7 @@ export default class Scroll extends EventEmitterAsync {
       assert(h, 'cannot calc root');
       a.push(h, enc_u64(r[0]), enc_u64(r[1]-r[0]+1));
     }
-    return hconcat_safe(a);
+    return hconcat_safe(this.crypt, a);
   }
   seq_sig(cfid, seq){ return this.get_decl(seq)?.sig_get(cfid); }
   bseq_get(cfid, seq){
@@ -1417,7 +1420,7 @@ class Merkel_node extends EventEmitterAsync {
         if (this.get_hash(cfid))
           return;
         if ((d = decl.d_hash(cfid)) && (sig = decl.sig_get(cfid)))
-          return this.set_hash(cfid, hleaf(d, sig));
+          return this.set_hash(cfid, hleaf(this.decl.scroll.crypt, d, sig));
       };
       decl.data.on('hash', on_hash);
       decl.data.on('sig', on_hash);
@@ -1440,7 +1443,8 @@ class Merkel_node extends EventEmitterAsync {
             if (!(h2 = m2.get_hash(cfid)))
               return;
           }
-          yield _this.set_hash(cfid, hparent_safe(e-s+1, h1, h2));
+          yield _this.set_hash(cfid, hparent_safe(_this.decl.scroll.crypt,
+            e-s+1, h1, h2));
         });
       };
       m1.on('hash', on_hash_m);
@@ -1553,7 +1557,7 @@ Scroll.open = opt=>etask(function*scroll_open(){
 });
 
 function support_crypt(crypt){
-  return !!Scroll.supported_crypt.find(o=>o.sig==crypt.sig &&
+  return crypt && !!Scroll.supported_crypt.find(o=>o.sig==crypt.sig &&
     o.hash==crypt.hash && o.lif==crypt.lif);
 }
 

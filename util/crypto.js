@@ -23,13 +23,15 @@ E.keypair = seed=>{
   return {pub: Buffer.from(pub), key: Buffer.from(key)};
 };
 
-E.sign = (buf, key)=>{
+E.sign = (crypt, buf, key)=>{
   const sig = b4a.allocUnsafe(sodium.crypto_sign_BYTES);
   sodium.crypto_sign_detached(sig, buf, key);
   return Buffer.from(sig);
 };
 
-E.verify = (sig, pub, buf)=>sodium.crypto_sign_verify_detached(sig, buf, pub);
+E.verify = (crypt, sig, pub, buf)=>{
+  return sodium.crypto_sign_verify_detached(sig, buf, pub);
+};
 
 E.keypair_to_str = keys=>stringify({pub: b2s(keys.pub), key: b2s(keys.key)});
 
@@ -47,3 +49,6 @@ E.blake2b = buf=>{
   blake2b(blake2b.BYTES).update(buf).digest(out);
   return Buffer.from(out);
 };
+
+E.hash = (crypt, buf)=>E.blake2b(buf);
+

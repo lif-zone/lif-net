@@ -279,12 +279,12 @@ const get_val = (exp, def_type='right', encode=false)=>etask(
     return Scroll.hconcat(crypt, a);
   }
   if (m = exp.match(/^sign\((.*)\+(.*)\)$/)){ // sign(d10+M9)
-    return crypto.sign(Scroll.hconcat(crypto, [yield get_val(m[1]),
+    return crypto.sign(crypt, Scroll.hconcat(crypt, [yield get_val(m[1]),
       yield get_val(m[2])], def_type, true), t_keypair.key);
   }
   if (m = exp.match(/^sign\((.*)\)$/)){ // sign(d10)
-    return crypto.sign(crypto.blake2b(yield get_val(m[1], def_type, true)),
-      t_keypair.key);
+    return crypto.sign(crypt, crypto.hash(crypt,
+      yield get_val(m[1], def_type, true)), t_keypair.key);
   }
   let o = parse_var(exp), {type, seq, cfid} = o;
   if (o.def)

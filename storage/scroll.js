@@ -384,7 +384,7 @@ function calc_merge_info(seq){
 
 function verify_sig(crypt, sig, pub, d, M_prev){
   let buf = M_prev ? Buffer.concat([d, M_prev]) : d;
-  return crypto.verify(sig, pub, crypto.hash(crypt, buf));
+  return crypto.verify(crypt, sig, pub, crypto.hash(crypt, buf));
 }
 
 function is_null(val, errors, err){
@@ -1218,7 +1218,7 @@ class Decl extends EventEmitterAsync {
   next(){ return this.scroll.get_decl(this.seq+1, {create: false}); }
   to_c(cfid){ return this.scroll.to_c(cfid, this.seq); }
   sign(cfid){ return etask({_: this}, function*sign(){
-    let _this = this._;
+    let _this = this._, crypt = _this.crypt;
     let scroll = _this.scroll, d = _this.fbuf_get(cfid).get_hash();
     assert(scroll.key, 'cannot sign without key');
     if (_this.seq)
@@ -1228,7 +1228,7 @@ class Decl extends EventEmitterAsync {
     if (_this.seq && !M_prev)
       throw new Error('cannot decl without prev M'+(_this.seq-1));
     let buf = M_prev ? Buffer.concat([d, M_prev]) : d;
-    let sig = crypto.sign(crypto.hash(_this.crypt, buf), scroll.key);
+    let sig = crypto.sign(crypt, crypto.hash(crypt, buf), scroll.key);
     yield _this.sig_set(cfid, sig);
   }); }
   sig_set(cfid, sig){ return this.fbuf_get(cfid).sig_set(sig); }

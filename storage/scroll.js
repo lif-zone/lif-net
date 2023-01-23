@@ -413,7 +413,8 @@ export default class Scroll extends EventEmitterAsync {
     this.key = opt.key;
     this.storage = opt.storage;
     this.crypt = opt.crypt||Scroll.supported_crypt[0];
-    assert.deepEqual(this.crypt, Scroll.supported_crypt[0], 'unsupported');
+    if (!support_crypt(this.crypt))
+      throw new Error('unsupported crypt');
     this.prev_scroll = opt.prev_scroll;
     this.top = null;
     this.dmap = new Map();
@@ -1528,7 +1529,7 @@ class Merkel_root extends EventEmitterAsync {
 Scroll.create = (opt, d)=>etask(function*scroll_create(){
   let scroll = new Scroll(opt);
   yield scroll.init();
-  scroll.decl([{scroll: {crypt: Scroll.supported_crypt,
+  scroll.decl([{scroll: {crypt: Scroll.supported_crypt[0],
     pub: b2s(opt.pub), ...d}}]);
   return scroll;
 });
@@ -1551,7 +1552,16 @@ Scroll.open = opt=>etask(function*scroll_open(){
   return scroll;
 });
 
+function support_crypt(crypt){
+  return !!Scroll.supported_crypt.find(o=>o.sig==crypt.sig &&
+    o.hash==crypt.hash && o.lif==crypt.lif);
+}
+
+Scroll.supported_crypt = [
+  {sig: 'ed25519', hash: 'blake2b', lif: 'lif1'},
+  {sig: 'secp256k1', hash: 'sha256', lif: 'lif1'}];
 Scroll.supported_crypt = [{sig: 'ed25519', hash: 'blake2b', lif: 'lif1'}];
+Scroll.support_crypt = support_crypt;
 Scroll.parse_buf_ref = parse_buf_ref;
 Scroll.resolve_link = resolve_link;
 Scroll.hconcat = hconcat; // XXX need test

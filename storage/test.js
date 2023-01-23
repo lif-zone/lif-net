@@ -1750,35 +1750,35 @@ describe('scroll', ()=>{
     describe('soul', ()=>{
       t('manual', `conf(soul:manual) soul1.s0..scroll(!prev_scroll d:1)
         soul1.s1.scroll(M0:s0..M0) soul2.s2.scroll(M0)
-        M1=0x9ae687b90fd63ad629061a53e491e4f5fec8a6adebcb9afe374851ae42b62552
+        M1=0xa2c939a5e4a653d6d7e7dc2ec358f0b46fc9f2b9337c05522fcc3442e1cab39f
         s1.M1=M1 !s2.M1`);
       t('same', `conf(soul:same) s0..scroll(!prev_scroll d:1)
         s1.scroll(M0:s0..M0) s2.scroll(M0)
-        M1=0x9ae687b90fd63ad629061a53e491e4f5fec8a6adebcb9afe374851ae42b62552
+        M1=0xa2c939a5e4a653d6d7e7dc2ec358f0b46fc9f2b9337c05522fcc3442e1cab39f
         s1.M1=M1 s2.M1=M1`);
       t('differnt', `conf(soul:differnt) s0..scroll(!prev_scroll d:1)
         s1.scroll(M0:s0..M0) s2.scroll(M0)
-        M1=0x9ae687b90fd63ad629061a53e491e4f5fec8a6adebcb9afe374851ae42b62552
+        M1=0xa2c939a5e4a653d6d7e7dc2ec358f0b46fc9f2b9337c05522fcc3442e1cab39f
         !s1.M1 !s2.M1`);
       t('default', `s0..scroll(!prev_scroll d:1)
         s1.scroll(M0:s0..M0) s2.scroll(M0)
-        M1=0x9ae687b90fd63ad629061a53e491e4f5fec8a6adebcb9afe374851ae42b62552
+        M1=0xa2c939a5e4a653d6d7e7dc2ec358f0b46fc9f2b9337c05522fcc3442e1cab39f
         !s1.M1 !s2.M1`);
     });
     describe('basic', ()=>{
-      let sig0 = '0x9d73f19857885309cb311a8ec7d635ca2898da1b1fb8e31e9b7e01bb'+
-        'bc6de68a5b9d756ff02462a3b2f8900e46a496ace5d3acb4f3e73180be515e93600'+
-         '9e70c';
+      let sig0 = '0xe5d13d55feb4942be34ce3271767b851e87a937b9712a64ab1b616d88'+
+        'df86266600022f97b7f264c8c983c3343dc47d6f66a7b19f52974fe8035641771759'+
+        '100';
       t('no_prev_scroll', `s...scroll(!prev_scroll d:1) sig0=${sig0}
-        d0=0x750e42c4c40d2914db1fd0cdfa2ea853d00b468d78f23df882fe9cc1839b71b8
-        m0=0xa0d3dfd96822872daa1351808936ebce919fd82f3af2a14abbac987446d48017
+        d0=0x1a5910351886fd33253356695df6e3d4765dc4446df8212c1af460a6879b0fd0
+        m0=0xd0edd20c6c8a49475b7e9edcb5c72de5c87c61181635668e5b435a7bd8dc2553
         m0=hleaf(d0+sig0) sig0=sign(d0) M0=hroot(m0)
         m1=hleaf(d1+sig1) sig1=sign(d1+M0) M1=hroot(m0_1)`);
-      sig0 = '0xb34dd640e4fb8f08593c91840b1175d1014a96a9e211b5f790a363980913'+
-        '5a3c26a4f98b3c7798566d7241e4f7a9e97d99b2d7e075ec1e1f4e71a28e3c0dba0c';
+      sig0 = '0xf288c9aa0c61818e519fe668b7be99434a93415f2d12dae35b00ae3c0fb85'+
+        '945ed9b3ee5a6c18e0cd9483d6d4817ea98817fd519de54b76f202823ee563b8604';
       t('with_prev_scroll', `s...scroll(d:1) sig0=${sig0}
-        d0=0x750e42c4c40d2914db1fd0cdfa2ea853d00b468d78f23df882fe9cc1839b71b8
-        m0=0x0d7b0519668a3c03ba5b206d8dd92846fdb00b282d35d4b5c0a29bd230489eee
+        d0=0x1a5910351886fd33253356695df6e3d4765dc4446df8212c1af460a6879b0fd0
+        m0=0xfa4dbf4aba501db245c5264a9a1ac8c39d957d63cc426a0794d9ca565a2cefae
         m0=hleaf(d0+sig0) sig0=sign(d0+prev_scroll1) M0=hroot(m0)
         m1=hleaf(d1+sig1) sig1=sign(d1+M0) M1=hroot(m0_1)`);
       t('merkel', `s...scroll(d:1-32)

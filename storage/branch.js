@@ -7,11 +7,11 @@ function bo_cmp(a, b){ return a.seq - b.seq; }
 
 export default class Branch_table {
   constructor(opt){
-    this.scroll = opt.scroll;
-    this.cfid = opt.cfid;
-    assert(this.scroll && this.cfid!=undefined, 'missing scroll or cfid');
+    let scroll = this.scroll = opt.scroll;
+    let cfid = this.cfid = opt.cfid;
+    assert(scroll && cfid!=undefined, 'missing scroll or cfid');
     this.reset();
-    if (this.cfid==0)
+    if (!cfid)
       this.add({seq: 0, bseq: '0'});
   }
   reset(){
@@ -23,10 +23,8 @@ export default class Branch_table {
   reset_schedule(){ this.storage_queue = {mod: {}, rm: {}}; }
   get_branch(branch){ return this.branch_name.get(branch); }
   get_bo(seq){
-    for (let node = this.avl._root; node;
-      node = seq < node.key.seq ? node.left : node.right)
-    {
-      let bo = node.key;
+    for (let n = this.avl._root; n; n = seq < n.key.seq ? n.left : n.right){
+      let bo = n.key;
       if (bo.seq<=seq && seq<bo.seq+bo.size)
         return bo;
     }
@@ -57,7 +55,7 @@ export default class Branch_table {
       assert(bo.seq+bo.size-seq>0, 'bo mismatch');
       return;
     }
-    // try to merge with prev
+    // try to merge with prev bo
     bo = this.get_bo(seq-1);
     if (bo && bseq_branch_eq(bseq, bo.bseq)){
       if (bo.seq<=seq && seq<bo.seq+bo.size)
@@ -69,7 +67,7 @@ export default class Branch_table {
       this._merge(bo, bo_next);
       return;
     }
-    // try to merge with next
+    // try to merge with next bo
     bo_next = this.get_bo(seq+1);
     if (bo_next && bseq_branch_eq(bseq, bo_next.bseq)){
       assert.equal(bo_next.seq, seq+1, 'branch corruption');

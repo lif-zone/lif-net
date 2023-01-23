@@ -1576,7 +1576,6 @@ describe('scroll', ()=>{
       t(999, '__999');
       t(1000, '___1000');
       t(10000, '____10000');
-      // XXX: test bint2int(1-1._1)
     });
     it('bint_valid', ()=>{
       const t = (val, exp)=>assert.equal(bint_valid(val), exp, 'exp '+val);

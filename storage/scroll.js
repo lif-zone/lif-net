@@ -382,9 +382,9 @@ function calc_merge_info(seq){
   return {seq, all, any};
 }
 
-function verify_sig(sig, pub, d, M_prev){
+function verify_sig(crypt, sig, pub, d, M_prev){
   let buf = M_prev ? Buffer.concat([d, M_prev]) : d;
-  return crypto.verify(sig, pub, crypto.blake2b(buf));
+  return crypto.verify(sig, pub, crypto.hash(crypt, buf));
 }
 
 function is_null(val, errors, err){
@@ -734,7 +734,7 @@ export default class Scroll extends EventEmitterAsync {
       force: prev_force, sketch, diff, errors, cfid});
     if (is_null(prev_M, errors, 'missing M'+(seq-1)))
       return {conflict: true};
-    if (!verify_sig(sig, _this.pub, d, prev_M))
+    if (!verify_sig(_this.crypt, sig, _this.pub, d, prev_M))
       return push_error(errors, 'invalid sig'+seq);
     set_sig(sketch, seq, sig);
     check_set_sig(_this.crypt, sketch, errors, seq, m, d, D, sig);
@@ -1228,7 +1228,7 @@ class Decl extends EventEmitterAsync {
     if (_this.seq && !M_prev)
       throw new Error('cannot decl without prev M'+(_this.seq-1));
     let buf = M_prev ? Buffer.concat([d, M_prev]) : d;
-    let sig = crypto.sign(crypto.blake2b(buf), scroll.key);
+    let sig = crypto.sign(crypto.hash(_this.crypt, buf), scroll.key);
     yield _this.sig_set(cfid, sig);
   }); }
   sig_set(cfid, sig){ return this.fbuf_get(cfid).sig_set(sig); }
@@ -1561,10 +1561,9 @@ function support_crypt(crypt){
     o.hash==crypt.hash && o.lif==crypt.lif);
 }
 
-Scroll.supported_crypt = [
+Scroll.supported_crypt = [ // XXX: change order
   {sig: 'ed25519', hash: 'blake2b', lif: 'lif1'},
   {sig: 'secp256k1', hash: 'sha256', lif: 'lif1'}];
-Scroll.supported_crypt = [{sig: 'ed25519', hash: 'blake2b', lif: 'lif1'}];
 Scroll.support_crypt = support_crypt;
 Scroll.parse_buf_ref = parse_buf_ref;
 Scroll.resolve_link = resolve_link;

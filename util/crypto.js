@@ -5,6 +5,7 @@ import sodium from 'sodium-universal';
 import b4a from 'b4a'; // XXX: rm
 import blake2b from 'blake2b';
 import crypto from 'crypto';
+import assert from 'assert';
 import {Buffer} from 'buffer';
 import buf_util from '../net/buf_util.js';
 const s2b = buf_util.buf_from_str, b2s = buf_util.buf_to_str;
@@ -13,7 +14,15 @@ const stringify = JSON.stringify;
 const E = {};
 export default E;
 
-E.keypair = seed=>{
+E.keypair = (crypt, seed)=>{
+  switch (crypt.sig){
+    case 'secp256k1': return E.keypair_ed25519(seed); // XXX
+    case 'ed25519': return E.keypair_ed25519(seed);
+    default: assert.fail('unsupported sig '+crypt.sig);
+  }
+};
+
+E.keypair_ed25519 = seed=>{
   const pub = b4a.allocUnsafe(sodium.crypto_sign_PUBLICKEYBYTES);
   const key = b4a.allocUnsafe(sodium.crypto_sign_SECRETKEYBYTES);
   if (seed)
@@ -24,14 +33,29 @@ E.keypair = seed=>{
 };
 
 E.sign = (crypt, buf, key)=>{
+  switch (crypt.sig){
+    case 'secp256k1': return E.sign_ed25519(buf, key); // XXX
+    case 'ed25519': return E.sign_ed25519(buf, key);
+    default: assert.fail('unsupported sig '+crypt.sig);
+  }
+};
+
+E.verify = (crypt, sig, pub, buf)=>{
+  switch (crypt.sig){
+    case 'secp256k1': return E.verify_ed25519(sig, pub, buf); // XXX
+    case 'ed25519': return E.verify_ed25519(sig, pub, buf);
+    default: assert.fail('unsupported sig '+crypt.sig);
+  }
+};
+
+E.sign_ed25519 = (buf, key)=>{
   const sig = b4a.allocUnsafe(sodium.crypto_sign_BYTES);
   sodium.crypto_sign_detached(sig, buf, key);
   return Buffer.from(sig);
 };
 
-E.verify = (crypt, sig, pub, buf)=>{
-  return sodium.crypto_sign_verify_detached(sig, buf, pub);
-};
+E.verify_ed25519 = (sig, pub, buf)=>sodium.crypto_sign_verify_detached(sig,
+  buf, pub);
 
 E.keypair_to_str = keys=>stringify({pub: b2s(keys.pub), key: b2s(keys.key)});
 
@@ -50,5 +74,11 @@ E.blake2b = buf=>{
   return Buffer.from(out);
 };
 
-E.hash = (crypt, buf)=>E.blake2b(buf);
+E.hash = (crypt, buf)=>{
+  switch (crypt.hash){
+    case 'sha256': return E.sha256(buf);
+    case 'blake2b': return E.blake2b(buf);
+    default: assert.fail('unsupported hash '+crypt.hash);
+  }
+};
 

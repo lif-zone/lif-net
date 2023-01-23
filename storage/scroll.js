@@ -14,7 +14,7 @@ import {r_fix, r_parent, r_eq, r_includes, r_str, r_split} from './range.js';
 const s2b = buf_util.buf_from_str, b2s = buf_util.buf_to_str;
 const beq = buf_util.buf_eq;
 const stringify = JSON.stringify.bind(JSON);
-const {bint, bseq_branch_new, bseq_inc} = Branch_table;
+const {bint, bseq_branch_new, bseq_inc, bseq_valid} = Branch_table;
 // https://en.wikipedia.org/wiki/Merkle_tree#Second_preimage_attack
 const LEAF_TYPE = enc_u64(0), PARENT_TYPE = enc_u64(1), ROOT_TYPE = enc_u64(2);
 function enc_u64(v){ return enc.encode(enc.uint64, v); }
@@ -518,8 +518,10 @@ export default class Scroll extends EventEmitterAsync {
     }
     if (0) // XXX: how to handle
       assert(bseq, 'missing bseq for seq'+seq);
-    if (bseq && bint(seq)!=bseq)
-        header.bseq = bseq;
+    if (bseq && bint(seq)!=bseq){
+      assert(bseq_valid(bseq), 'invalid bseq '+bseq);
+      header.bseq = bseq;
+    }
     let data = new Data({scroll: _this, seq, frames: [header].concat(frames)});
     let decl = new Decl({scroll: _this, seq, data});
     _this.dmap.set(seq, decl);

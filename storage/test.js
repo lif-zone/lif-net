@@ -22,7 +22,7 @@ const {rm_parentesis, parse_get_next, parse_exp_arg_pair, parse_exp,
   parse_exp_arg, parse_push} = tparser;
 const {b2s, s2b, b2s_obj} = buf_util;
 const {bint2int, bint, bseq_cmp, bseq_branch_new, bseq_branch_inc, bseq_inc,
-  bseq_branch_eq} = Branch_table;
+  bseq_branch_eq, bseq_valid, bint_valid} = Branch_table;
 
 function enc_u64(v){ return enc.encode(enc.uint64, v); }
 let t_soul, t_soul_id, t_soul_mode, t_state;
@@ -159,9 +159,8 @@ function parse_var(v){
     let seq = +m[1], range = [seq, seq], type = 'D'+m[2], i = +m[3];
     return {seq, type, range, i, cfid, ctx, def};
   }
-  if (/^[_\d,.-]+$/.test(v)) // XXX: need is_valid_branch
-    return v;
-  assert.fail('invalid var '+v);
+  assert(bseq_valid(v), 'invalid bseq '+v);
+  return v;
 }
 
 function get_scroll(name, may_not_exist){
@@ -252,7 +251,7 @@ const get_val = (exp, def_type='right', encode=false)=>etask(
     return t_prev_scroll.M_hash(0, 1);
   if (/^\d+$/.test(exp))
     return encode ? enc.encode(enc.uint64, +exp) : +exp;
-  if (/^[_\d,.-]+$/.test(exp)) // XXX: need is_valid_branch
+  if (bseq_valid(exp))
     return exp;
   if (m = exp.match(/^0x([0-9a-f]+)$/))
     return s2b(m[1]);
@@ -1578,6 +1577,38 @@ describe('scroll', ()=>{
       t(1000, '___1000');
       t(10000, '____10000');
       // XXX: test bint2int(1-1._1)
+    });
+    it('bint_valid', ()=>{
+      const t = (val, exp)=>assert.equal(bint_valid(val), exp, 'exp '+val);
+      t('', false);
+      t('0', true);
+      t('_0', false);
+      t('9', true);
+      t('_10', true);
+      t('_100', false);
+      t('__100', true);
+      t('0-1', false);
+      t('0.0', false);
+      t('0-1.0', false);
+    });
+    it('bseq_valid', ()=>{
+      const t = (val, exp)=>assert.equal(bseq_valid(val), exp, 'exp '+val);
+      t('', false);
+      t('0', true);
+      t('_0', false);
+      t('9', true);
+      t('_10', true);
+      t('_100', false);
+      t('__100', true);
+      t('0-1', false);
+      t('0.0', false);
+      t('0-1.0', true);
+      t('10-1.0', false);
+      t('_10-1.0', true);
+      t('_10-__100._11-__101.0', true);
+      t('_10-__100._11-__101.1', true);
+      t('_10-__100._11-__101.___1000', true);
+      t('_10-__100._11-__101.__1000', false);
     });
     it('bseq_inc', ()=>{
       const t = (val, n, exp)=>{

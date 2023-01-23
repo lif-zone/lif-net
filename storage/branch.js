@@ -50,7 +50,7 @@ export default class Branch_table {
     let {branch, seq, bseq} = opt, bo, bo_next;
     branch = branch||null;
     assert(Number.isInteger(seq) && seq>=0, 'invalid seq '+seq);
-    assert(typeof bseq=='string', 'invalid bseq '+bseq); // XXX: need is_valid
+    assert(bseq_valid(bseq), 'invalid bseq '+bseq);
     bo = this.get_bo(seq);
     if (bo){
       assert(bseq_cmp(bseq, bseq_inc(bo.bseq, bo.size))<0, 'bseq mismatch');
@@ -152,11 +152,21 @@ function bint(num){
   return s+num;
 }
 
-function bint2int(a){
+function bint2int(s){
+  assert(bint_valid(s), 'invalid bint '+s);
   let num, i;
-  for (i=0; a[i]=='_'; i++);
-  num = +a.substr(i);
-  return i<a.length && Number.isInteger(num) ? num : undefined;
+  for (i=0; s[i]=='_'; i++);
+  num = +s.substr(i);
+  return i<s.length && Number.isInteger(num) ? num : undefined;
+}
+
+function bint_valid(s){
+  if (s=='0')
+    return true;
+  let m = s.match(/^(_*)([1-9]\d*)$/);
+  if (!m)
+    return false;
+  return m[2] && m[1].length==m[2].length-1;
 }
 
 function bseq_inc(a, n=1){
@@ -182,13 +192,25 @@ function bseq_branch_eq(a, b){
   return ma?.[1]==mb?.[1];
 }
 
+function bseq_valid(s){
+  let m = s.split('.');
+  for (let i=0; i<m.length-1; i++){
+    let mm = m[i].match(/^([_\d]*)-([_\d]*)/);
+    if (!mm || !bint_valid(mm[1]) || !bint_valid(mm[2]))
+      return false;
+  }
+  return bint_valid(m[m.length-1]);
+}
+
 Branch_table.bint = bint;
 Branch_table.bint2int = bint2int;
+Branch_table.bint_valid = bint_valid;
 Branch_table.bseq_inc = bseq_inc;
 Branch_table.bseq_cmp = bseq_cmp;
 Branch_table.bseq_branch_new = bseq_branch_new;
 Branch_table.bseq_branch_inc = bseq_branch_inc;
 Branch_table.bseq_branch_eq = bseq_branch_eq;
+Branch_table.bseq_valid = bseq_valid;
 
 // XXX derry:
 // XXX: verify btable is correct during conflict merge/delete and that we

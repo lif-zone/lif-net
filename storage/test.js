@@ -2441,8 +2441,6 @@ describe('scroll', ()=>{
     describe('branch', ()=>{
       // XXX: test invalid format (eg. same branch appear twice, prev to wrong
       // location etc)
-      // XXX: verify behavior on conflict delete/merge and verify we removed
-      // uneeded branch table
       describe('decl', ()=>{
         t('no_branch', `s..#(bseq btable bname) scroll decl(1-10)
           #(bseq0=0 bseq1=1 bseq2=2 bseq3=3 bseq4=4 bseq5=5 bseq6=6 bseq7=7

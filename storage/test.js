@@ -323,10 +323,12 @@ const test_start = ()=>etask(function*test_start(){
   t_scroll = {};
   t_def = {};
   t_state = {};
-  t_keypair = {pub: s2b('44659cb51dec397ea66085679442505345e159940762c15ef75'+
-    'ad279ecf05033'),
-    key: s2b('46f45a62f4c5971228747aa2d8ee66bd669ebd805c725286ee385b1d4a06dd'+
-      'bc44659cb51dec397ea66085679442505345e159940762c15ef75ad279ecf05033')};
+  t_keypair = {
+    pub: s2b('020ece1895f758dded9b436f8ce4a2ae36f394f0ee27349046e84222b8b6e0'+
+      '12c8'),
+    key: s2b('716b25e25964d9b1072035acc96f1b29d1d9196668ef52c49423e7fecb158b'+
+      'e2')
+  };
   xsinon.clock_set({now: 0, auto_inc: true});
   t_genesis_scroll = yield Scroll.create({key: t_keypair.key,
     pub: t_keypair.pub}, {topic: 'genesis'});
@@ -1750,35 +1752,35 @@ describe('scroll', ()=>{
     describe('soul', ()=>{
       t('manual', `conf(soul:manual) soul1.s0..scroll(!prev_scroll d:1)
         soul1.s1.scroll(M0:s0..M0) soul2.s2.scroll(M0)
-        M1=0xa2c939a5e4a653d6d7e7dc2ec358f0b46fc9f2b9337c05522fcc3442e1cab39f
+        M1=0x4ee4702ffc734ae80f1487d1c21b819c06adb58cbfd5c0e42b407cb42edfa492
         s1.M1=M1 !s2.M1`);
       t('same', `conf(soul:same) s0..scroll(!prev_scroll d:1)
         s1.scroll(M0:s0..M0) s2.scroll(M0)
-        M1=0xa2c939a5e4a653d6d7e7dc2ec358f0b46fc9f2b9337c05522fcc3442e1cab39f
+        M1=0x4ee4702ffc734ae80f1487d1c21b819c06adb58cbfd5c0e42b407cb42edfa492
         s1.M1=M1 s2.M1=M1`);
       t('differnt', `conf(soul:differnt) s0..scroll(!prev_scroll d:1)
         s1.scroll(M0:s0..M0) s2.scroll(M0)
-        M1=0xa2c939a5e4a653d6d7e7dc2ec358f0b46fc9f2b9337c05522fcc3442e1cab39f
+        M1=0x4ee4702ffc734ae80f1487d1c21b819c06adb58cbfd5c0e42b407cb42edfa492
         !s1.M1 !s2.M1`);
       t('default', `s0..scroll(!prev_scroll d:1)
         s1.scroll(M0:s0..M0) s2.scroll(M0)
-        M1=0xa2c939a5e4a653d6d7e7dc2ec358f0b46fc9f2b9337c05522fcc3442e1cab39f
+        M1=0x4ee4702ffc734ae80f1487d1c21b819c06adb58cbfd5c0e42b407cb42edfa492
         !s1.M1 !s2.M1`);
     });
     describe('basic', ()=>{
-      let sig0 = '0xe5d13d55feb4942be34ce3271767b851e87a937b9712a64ab1b616d88'+
-        'df86266600022f97b7f264c8c983c3343dc47d6f66a7b19f52974fe8035641771759'+
-        '100';
+      let sig0 = '0xe29914890efc4aeeaab74a48e24c8da0e3963bd8c4b956dce01027063'+
+        'a042d631ec0bb457286f905268a8336971355011657db16317c8805071da3e8674a1'+
+        'a44';
       t('no_prev_scroll', `s...scroll(!prev_scroll d:1) sig0=${sig0}
-        d0=0x1a5910351886fd33253356695df6e3d4765dc4446df8212c1af460a6879b0fd0
-        m0=0xd0edd20c6c8a49475b7e9edcb5c72de5c87c61181635668e5b435a7bd8dc2553
+        d0=0x530e284a0c12c90771056e2c3ae66487e5d35e2afa05df4786a007dac1db9144
+        m0=0x6ba72e8df53db7db293e3a50220404e2c791fb6a635fc03661f1f16751fb4c96
         m0=hleaf(d0+sig0) sig0=sign(d0) M0=hroot(m0)
         m1=hleaf(d1+sig1) sig1=sign(d1+M0) M1=hroot(m0_1)`);
-      sig0 = '0xf288c9aa0c61818e519fe668b7be99434a93415f2d12dae35b00ae3c0fb85'+
-        '945ed9b3ee5a6c18e0cd9483d6d4817ea98817fd519de54b76f202823ee563b8604';
+      sig0 = '0xcdbb0717822b4f0521142f9a065e510eab024c4073373121d3e635df50125'+
+        '73f1fa7ed22e9bbd2529e25026a0fd18bdb0f990cbd79a69bcfaab9b7d433df1ebb';
       t('with_prev_scroll', `s...scroll(d:1) sig0=${sig0}
-        d0=0x1a5910351886fd33253356695df6e3d4765dc4446df8212c1af460a6879b0fd0
-        m0=0xfa4dbf4aba501db245c5264a9a1ac8c39d957d63cc426a0794d9ca565a2cefae
+        d0=0x530e284a0c12c90771056e2c3ae66487e5d35e2afa05df4786a007dac1db9144
+        m0=0x144d8e6ac1541f3ba3e6621f4daad86f0168cdf5a7923e97c079fbf941fc4eac
         m0=hleaf(d0+sig0) sig0=sign(d0+prev_scroll1) M0=hroot(m0)
         m1=hleaf(d1+sig1) sig1=sign(d1+M0) M1=hroot(m0_1)`);
       t('merkel', `s...scroll(d:1-32)

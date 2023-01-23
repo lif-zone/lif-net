@@ -5,6 +5,7 @@ import sodium from 'sodium-universal';
 import b4a from 'b4a'; // XXX: rm
 import blake2b from 'blake2b';
 import crypto from 'crypto';
+import secp256k1 from 'secp256k1';
 import assert from 'assert';
 import {Buffer} from 'buffer';
 import buf_util from '../net/buf_util.js';
@@ -16,10 +17,18 @@ export default E;
 
 E.keypair = (crypt, seed)=>{
   switch (crypt.sig){
-    case 'secp256k1': return E.keypair_ed25519(seed); // XXX
+    case 'secp256k1': return E.keypair_secp256k1(seed);
     case 'ed25519': return E.keypair_ed25519(seed);
     default: assert.fail('unsupported sig '+crypt.sig);
   }
+};
+
+E.keypair_secp256k1 = seed=>{
+  let key;
+  // XXX: check if secp256k1 is the right library to use
+  while ((key = crypto.randomBytes(32)) && !secp256k1.privateKeyVerify(key));
+  let pub = secp256k1.publicKeyCreate(key);
+  return {pub: Buffer.from(pub), key: Buffer.from(key)};
 };
 
 E.keypair_ed25519 = seed=>{
@@ -34,7 +43,7 @@ E.keypair_ed25519 = seed=>{
 
 E.sign = (crypt, buf, key)=>{
   switch (crypt.sig){
-    case 'secp256k1': return E.sign_ed25519(buf, key); // XXX
+    case 'secp256k1': return E.sign_secp256k1(buf, key);
     case 'ed25519': return E.sign_ed25519(buf, key);
     default: assert.fail('unsupported sig '+crypt.sig);
   }
@@ -42,20 +51,22 @@ E.sign = (crypt, buf, key)=>{
 
 E.verify = (crypt, sig, pub, buf)=>{
   switch (crypt.sig){
-    case 'secp256k1': return E.verify_ed25519(sig, pub, buf); // XXX
+    case 'secp256k1': return E.verify_secp256k1(sig, pub, buf);
     case 'ed25519': return E.verify_ed25519(sig, pub, buf);
     default: assert.fail('unsupported sig '+crypt.sig);
   }
 };
+
+E.sign_secp256k1 = (buf, key)=>Buffer.from(secp256k1.ecdsaSign(buf, key)
+.signature);
+
+E.verify_secp256k1 = (sig, pub, buf)=>secp256k1.ecdsaVerify(sig, buf, pub);
 
 E.sign_ed25519 = (buf, key)=>{
   const sig = b4a.allocUnsafe(sodium.crypto_sign_BYTES);
   sodium.crypto_sign_detached(sig, buf, key);
   return Buffer.from(sig);
 };
-
-E.verify_ed25519 = (sig, pub, buf)=>sodium.crypto_sign_verify_detached(sig,
-  buf, pub);
 
 E.keypair_to_str = keys=>stringify({pub: b2s(keys.pub), key: b2s(keys.key)});
 

@@ -95,6 +95,7 @@ class Frame_buffer extends EventEmitterAsync {
     super();
     let {frames, crypt} = opt;
     assert(support_crypt(crypt), 'unsupported crypt');
+    this.crypt = crypt;
     this.frames = [{}]; // first frame reserved for {sig, h_rest}
     for (let i=0; i<frames?.length; i++)
       this.frames.push(to_frame(frames[i]));
@@ -150,7 +151,7 @@ class Frame_buffer extends EventEmitterAsync {
     assert(f, 'no frame '+i);
     assert(!f.buf, 'buf aleady exist');
     assert(i>0, 'cannot change frame '+i);
-    let h = crypto.hash(this.crypt, buf);
+    let h = crypto.hash(_this.crypt, buf);
     if (f.h)
       assert(h.equals(f.h), 'invalid hash');
     else
@@ -1218,7 +1219,7 @@ class Decl extends EventEmitterAsync {
   next(){ return this.scroll.get_decl(this.seq+1, {create: false}); }
   to_c(cfid){ return this.scroll.to_c(cfid, this.seq); }
   sign(cfid){ return etask({_: this}, function*sign(){
-    let _this = this._, crypt = _this.crypt;
+    let _this = this._, crypt = _this.scroll.crypt;
     let scroll = _this.scroll, d = _this.fbuf_get(cfid).get_hash();
     assert(scroll.key, 'cannot sign without key');
     if (_this.seq)
@@ -1563,7 +1564,8 @@ function support_crypt(crypt){
 
 Scroll.supported_crypt = [ // XXX: change order
   {sig: 'ed25519', hash: 'blake2b', lif: 'lif1'},
-  {sig: 'secp256k1', hash: 'sha256', lif: 'lif1'}];
+  {sig: 'secp256k1', hash: 'sha256', lif: 'lif1'},
+];
 Scroll.support_crypt = support_crypt;
 Scroll.parse_buf_ref = parse_buf_ref;
 Scroll.resolve_link = resolve_link;

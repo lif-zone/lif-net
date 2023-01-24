@@ -109,6 +109,10 @@ describe('fs', ()=>{
       s..fs           #seq0={} // XXX: todo
       add(/f buf:b)   #seq1={op:add file:/f f2:b}
       add(/f2 buf:b2) #seq2={op:add file:/f2 f2:b2}`);
+    t('link', `s..#seq buf(b val:0)
+      s..fs          #seq0={} // XXX: todo
+      add(/f buf:b)  #seq1={op:add file:/f f2:b}
+      add(/f2 buf:b) #seq2={op:add file:/f2 link:1}`);
   });
   return;
   // XXX: how to add blob

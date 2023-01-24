@@ -152,7 +152,7 @@ export function parse_var(v){
   return v;
 }
 
-function get_scroll(name, may_not_exist){
+export function get_scroll(name, may_not_exist){
   let scroll = t_scroll[name];
   if (!may_not_exist)
     assert(scroll, 'scroll not found '+name);
@@ -165,7 +165,7 @@ function set_def(type, val){
   return t_def[type] = val;
 }
 
-function get_def(type){
+export function get_def(type){
   assert(['left', 'right'].includes(type), 'invalid default type '+type);
   assert(t_def[type], 'no default type '+type);
   return t_def[type];
@@ -461,8 +461,9 @@ const cmd_db_copy = t=>etask(function*cmd_db_copy(){
   yield soul.db.copy(s_soul.db);
 });
 
-const new_scroll = (name, M, prev_scroll, sname, db_opt, scroll_decl)=>etask(
-  function*new_scroll(){
+export const new_scroll = (name, M, prev_scroll, sname, db_opt,
+  scroll_decl, create_func, open_func)=>etask(function*new_scroll()
+{
   let soul, scroll;
   if (t_soul_mode=='differnt'){
     sname = sname || 'auto_soul'+t_soul_id++;
@@ -487,11 +488,11 @@ const new_scroll = (name, M, prev_scroll, sname, db_opt, scroll_decl)=>etask(
   }
   if (M){
     assert(!scroll_decl, 'cannot modify scroll_decl in clone');
-    scroll = yield Scroll.open({soul, key: t_keypair.key,
+    scroll = yield (open_func||Scroll.open)({soul, key: t_keypair.key,
       pub: t_keypair.pub, M, storage});
   }
   else {
-    scroll = yield Scroll.create({soul, key: t_keypair.key,
+    scroll = yield (create_func||Scroll.create)({soul, key: t_keypair.key,
       pub: t_keypair.pub, prev_scroll, storage},
       {topic: 'test', ...scroll_decl});
   }
@@ -540,7 +541,8 @@ const cmd_scroll = t=>etask(function*cmd_scroll(){
       assert.fail('invalid arg '+tt.cmd+' in '+t.meta.s);
     }
   }
-  scroll = yield new_scroll(name, M, prev_scroll, t.prev?.ctx, db_opt);
+  scroll = yield new_scroll(name, M, prev_scroll, t.prev?.ctx, db_opt, null,
+    null, null);
   if (d!==undefined){
     for (let j=d[0]; j<=d[1]; j++)
       yield test_decl(scroll, ''+j);
@@ -565,7 +567,7 @@ const cmd_clone = (curr, t)=>etask(function*cmd_clone(){
     set_def('right', src);
   let s_src = get_scroll(src);
   let s_dst = yield new_scroll(dst, s_src.M_hash(0, 0), null, t.prev?.ctx,
-    db_opt, null);
+    db_opt, null, null, null);
   let seq = m[6] ? +m[7] : s_src.top.seq;
   yield s_dst.lock();
   if (Array.from(s_src.conflict.keys()).length>1){

@@ -1,12 +1,22 @@
 'use strict'; /*eslint-env mocha*/
+import assert from 'assert';
 import xtest from '../util/test_lib.js';
 import etask from '../util/etask.js';
-import xerr from '../util/xerr.js';
-import {test_run, test_run_register_hook} from '../storage/test_cmd.js';
+import FS from './fs.js';
+import {test_run, test_run_register_hook, new_scroll, get_scroll, get_def}
+  from '../storage/test_cmd.js';
 
 xtest.init();
 
 const cmd_fs = t=>etask(function*cmd_fs(){
+  let name = t.ctx||get_def('left');
+  assert(!t.l, 'invalid arg '+t.meta.s);
+  assert(!get_scroll(name, true), 'scroll already exist '+name);
+  assert(!t.r, 'invalid arg '+t.r);
+  let db_opt;
+  new_scroll(name, null, null, t.prev?.ctx, db_opt, null,
+    function create_func(opt, d){ return FS.create(opt); },
+    function open_func(){ assert.fail('XXX TODO fs.open_func'); });
 });
 
 const test_run_single = (curr, o)=>etask(function*_test_run_single(){

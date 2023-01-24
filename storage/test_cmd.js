@@ -30,6 +30,9 @@ function tjoin(v, cmd, arg){
   return arg ? s+'('+arg+')' : s;
 }
 
+let get_seq_cb;
+export function test_register_get_seq(cb){ get_seq_cb = cb; }
+
 export function macro_to_m(val, dst){
   const to_nd = ch=>{
     let n = /[a-z]/.test(ch) ? ch.charCodeAt(0)-'a'.charCodeAt(0) :
@@ -136,7 +139,8 @@ export function parse_var(v){
     return {type: 'btc', cfid: +m[1], index: +m[2], ctx, def};
   if (m = v.match(/^db_btc(\d+)\[(\d+)\]$/))
     return {type: 'db_btc', cfid: +m[1], index: +m[2], ctx, def};
-  if (m = v.match(/^(bseq|sig|m|M|d|D|mem|db)((\d+)|((\d+)_(\d+)))(c(\d+))?$/))
+  if (m = v.match(
+    /^(seq|bseq|sig|m|M|d|D|mem|db)((\d+)|((\d+)_(\d+)))(c(\d+))?$/))
   {
     let type = m[1], range = r_from_str(m[2]), seq = range[1];
     let cfid = m[8] ? +m[8] : 0;
@@ -644,6 +648,8 @@ function state_split_var(v, def){
     return {name, type, cfid, index};
   if (['db_btc'].includes(type))
     return {name, type, cfid, index};
+  if (type=='seq')
+    return {name, type, seq, cfid};
   if (type=='bseq')
     return {name, type, seq, cfid};
   assert(['mem', 'db'].includes(type), 'invalid type '+type);
@@ -658,6 +664,8 @@ const state_split = (exp, def)=>etask(function*state_split(){
   case '=':
     if (['db_data'].includes(o.l))
       return {...state_split_var(o.l, def), val: yield get_db_data(o.r)};
+    if (/^seq/.test(o.l))
+      return {...state_split_var(o.l, def), val: yield get_seq_cb(o.r)};
     if (/^bseq/.test(o.l))
       return {...state_split_var(o.l, def), val: yield get_val(o.r, 'right')};
     if (['db_c', 'mem_c'].includes(o.l))
@@ -706,16 +714,16 @@ function state_apply(state, o){
     }
     return;
   }
-  if (['bseq'].includes(type)){
+  if (['seq', 'bseq'].includes(type)){
     if (val!==null && val!==undefined){
-      state.bseq[cfid] = state.bseq[cfid]||{};
-      assert(state.bseq[cfid][seq] != val,
-        'uneeded state_apply bseq'+seq+(cfid ? 'c0' : '')+'='+val);
-      state.bseq[cfid][seq] = val;
-    } else if (state.bseq[cfid])
-      delete state.bseq[cfid][seq];
-    if (state.bseq[cfid] && !Object.keys(state.bseq[cfid]).length)
-      delete state.bseq[cfid];
+      state[type][cfid] = state[type][cfid]||{};
+      assert(state[type][cfid][seq] != val,
+        'uneeded state_apply '+type+seq+(cfid ? 'c0' : '')+'='+val);
+      state[type][cfid][seq] = val;
+    } else if (state[type][cfid])
+      delete state[type][cfid][seq];
+    if (state[type][cfid] && !Object.keys(state[type][cfid]).length)
+      delete state[type][cfid];
     return;
   }
   if (val)
@@ -751,6 +759,7 @@ const cmd_state = t=>etask(function*cmd_state(){
   let soul = scroll?.soul;
   state.mem = {};
   state.bseq = {};
+  state.seq = {};
   // XXX: optimize, get state only if is in filter
   if (scroll){
     // XXX: use decl.next (and clean all over code)
@@ -770,6 +779,10 @@ const cmd_state = t=>etask(function*cmd_state(){
         if (decl.to_c(cfid)!=cfid)
           continue;
         let seq = decl.seq, bseq = decl.bseq_get(cfid, seq);
+        if (scroll.test_get_seq){
+          state.seq[cfid] = state.seq[cfid]||{};
+          state.seq[cfid][seq] = scroll.test_get_seq(cfid, seq);
+        }
         if (bseq){
           state.bseq[cfid] = state.bseq[cfid]||{};
           state.bseq[cfid][seq] = bseq;

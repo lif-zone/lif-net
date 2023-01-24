@@ -70,6 +70,7 @@ class Data extends EventEmitterAsync {
     return fbuf;
   }
   get_header(cfid){ return this.get(cfid).get_header(); }
+  get_body(cfid){ return this.get(cfid).get_body(); }
   copy(cdst, csrc){ return etask({_: this}, function*copy(){
     let _this = this._, fsrc = _this.get(csrc);
     if (fsrc.frames.length==1 && !fsrc.frames[0].h_rest)
@@ -200,6 +201,7 @@ class Frame_buffer extends EventEmitterAsync {
     return f.json = JSON.parse(f.buf.toString());
   }
   get_header(){ return this.get_json(1); }
+  get_body(){ return this.get_json(2); }
 }
 
 Frame_buffer.calc_hash = function(frames, opt={}){
@@ -1243,6 +1245,7 @@ class Decl extends EventEmitterAsync {
   fbuf_get(cfid){ return this.data.get(this.to_c(cfid)); }
   data_get(){ return this.data; }
   get_header(cfid){ return this.data_get().get_header(cfid); }
+  get_body(cfid){ return this.data_get().get_body(cfid); }
   d_hash(cfid){ return this.fbuf_get(cfid).get_hash(); }
   m_get(range){
     let i = merkel_array_pos(range);

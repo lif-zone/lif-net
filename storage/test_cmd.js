@@ -18,6 +18,7 @@ const {bseq_valid} = Branch_table;
 const {rm_parentesis, parse_get_next, parse_exp_arg_pair, parse_exp,
   parse_exp_arg, parse_push} = tparser;
 const {b2s, s2b, b2s_obj} = buf_util;
+const test_run_hooks = [];
 
 function enc_u64(v){ return enc.encode(enc.uint64, v); }
 let t_soul, t_soul_id, t_soul_mode, t_state;
@@ -350,8 +351,19 @@ const test_end = ()=>etask(function*test_end(){
   Scroll.soul.clear();
 });
 
+const test_run_single_hooks = (curr, o)=>etask(function*_test_run_single(){
+  for (let i=0; i<test_run_hooks.length; i++){
+    let cb = test_run_hooks[i];
+    if (yield cb(curr, o))
+      return true;
+  }
+  return false;
+});
+
+export function test_run_register_hook(cb){ test_run_hooks.push(cb); }
+
 const test_run_single = (curr, o, i)=>etask(function*_test_run_single(){
-  if (i)
+  if (Number.isInteger(i))
     xerr.notice('cmd %s %s', i, o.meta.s);
   let o2;
   switch (o.cmd){
@@ -392,6 +404,7 @@ const test_run_single = (curr, o, i)=>etask(function*_test_run_single(){
       yield cmd_eq({cmd: '=', l: o.meta.s.substr(1), r: 'null',
         meta: {s: o.meta.s}});
     }
+    else if (yield test_run_single_hooks(curr, o));
     else
       assert.fail('invalid cmd "'+o.cmd+'" in '+o.meta.s);
   }

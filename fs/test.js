@@ -2,13 +2,16 @@
 import assert from 'assert';
 import xtest from '../util/test_lib.js';
 import etask from '../util/etask.js';
+import {Buffer} from 'buffer';
 import FS from './fs.js';
 import tparser from '../storage/test_parser.js';
-const {parse_get_next, parse_exp_arg} = tparser;
-import {test_run, test_run_register_hook, new_scroll, get_scroll, get_def}
-  from '../storage/test_cmd.js';
+const {parse_get_next, parse_exp, parse_exp_arg, rm_parentesis} = tparser;
+import {test_run, test_run_register_hook, new_scroll, get_scroll, get_def,
+  test_register_get_seq} from '../storage/test_cmd.js';
 
 xtest.init();
+
+let t_buf = {}; // XXX: reset on test_start
 
 const cmd_fs = t=>etask(function*cmd_fs(){
   let name = t.ctx||get_def('left');
@@ -22,35 +25,89 @@ const cmd_fs = t=>etask(function*cmd_fs(){
 });
 
 const cmd_add = t=>etask(function*cmd_add(){
-  let name = t.ctx||get_def('left'), fs = get_scroll(name), dir;
+  let name = t.ctx||get_def('left'), fs = get_scroll(name), dir, file, buf;
   assert(t.r, 'missing arg '+t.meta.s);
   for (let curr=t.r, i=0; curr = parse_get_next(curr); i++){
     let tt = parse_exp_arg(curr.exp);
-    switch (tt.cmd){
-    default:
-      assert(!dir, 'invalid arg '+tt.cmd+' in '+t.meta.s);
-      dir = tt.cmd;
-      assert(FS.valid_dir(dir), 'invalid dir '+dir);
+    if (/^buf/.test(tt.cmd)){
+      buf = t_buf[tt.r];
+      assert(buf, 'buf not found '+tt.r);
+    } else {
+      assert(!dir && !file, 'invalid arg '+tt.cmd+' in '+t.meta.s);
+      if (FS.valid_dir(tt.cmd))
+        dir = tt.cmd;
+      else if (FS.valid_file(tt.cmd))
+        file = tt.cmd;
+      else
+        assert.fail('invalid file/dir '+tt.cmd);
     }
   }
-  yield fs.add_dir(dir);
+  if (file)
+    yield fs.add_file(file, buf);
+  else
+    yield fs.add_dir(dir);
 });
 
-const test_run_single = (curr, o)=>etask(function*_test_run_single(){
+const cmd_buf = t=>etask(function*cmd_buf(){
+  assert(!t.l, 'invalid left arg '+t.meta.s);
+  assert(t.r, 'missing arg '+t.meta.s);
+  let name, val;
+  for (let curr=t.r, i=0; curr = parse_get_next(curr); i++){
+    let tt = parse_exp_arg(curr.exp);
+    if (!name){
+      name = tt.cmd;
+      continue;
+    }
+    switch(tt.cmd){
+    case 'val': val = tt.r; break;
+    default: assert.fail('invalid arg '+tt.cmd);
+    }
+  }
+  t_buf[name] = Buffer.from(val);
+});
+
+const test_run_single = (curr, o, step)=>etask(function*_test_run_single(){
   switch (o.cmd){
   case 'fs': yield cmd_fs(o); break;
   case 'add': yield cmd_add(o); break;
+  case 'buf': yield cmd_buf(o); break;
   default: return false;
   }
   return true;
 });
 test_run_register_hook(test_run_single);
 
+const get_seq = s=>etask(function*get_seq(){
+  let bo = {};
+  s = rm_parentesis(s, '{');
+  for (let curr=s; curr = parse_get_next(curr);){
+    let o = parse_exp(curr.exp);
+    // XXX yield get_val(o.r);
+    if (o.l=='f2')
+      bo[o.l] = t_buf[o.r];
+    else
+      bo[o.l] = o.r;
+  }
+  return bo;
+});
+test_register_get_seq(get_seq);
+
 describe('fs', ()=>{
   const t = (name, test)=>it(name, ()=>test_run(test));
-  t('xxx', `// XXX s..#(seq)
-    s..fs
-    add(/) // XXX #seq1={op:add dir:/}
+  t('add_dir', `s..#seq
+    s..fs          #seq0={} // XXX: todo
+    add(/)         #seq1={op:add dir:/}
+    add(/d/)       #seq2={op:add dir:/d/}
+    add(/d/dd/)    #seq3={op:add dir:/d/dd/}
+    add(/d/dd2/)   #seq4={op:add dir:/d/dd2/}
+    add(/d2/)      #seq5={op:add dir:/d2/}
+    add(/d2/d2d/)  #seq6={op:add dir:/d2/d2d/}
+    add(/d2/d2d2/) #seq7={op:add dir:/d2/d2d2/}`);
+  t('xxx', `s..#seq
+    buf(b val:0123456789)
+    s..fs #seq0={} // XXX: todo
+    add(/)        #seq1={op:add dir:/}
+    add(/f buf:b) #seq2={op:add file:/f f2:b}
   `);
   return;
   // XXX: how to add blob

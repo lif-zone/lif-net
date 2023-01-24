@@ -510,7 +510,7 @@ const cmd_flush = t=>etask(function*cmd_flush(){
 
 const cmd_scroll = t=>etask(function*cmd_scroll(){
   let prev_scroll = yield t_prev_scroll.M_hash(0, 1), db_opt;
-  let name = t.ctx||get_def('left'), M, a, scroll, d, feature;
+  let name = t.ctx||get_def('left'), M, a, scroll, d;
   assert(!t.l, 'invalid arg '+t.meta.s);
   assert(!t_scroll[name], 'scroll already exist '+name);
   for (let curr=t.r, i=0; curr = parse_get_next(curr); i++){
@@ -529,7 +529,6 @@ const cmd_scroll = t=>etask(function*cmd_scroll(){
       else if (a=tt.r.match(/^(\d+)$/))
         d = [+a[1], +a[1]];
       break;
-    case 'feature': feature = tt.r.split(' '); break;
     default:
       t2 = parse_exp_arg_pair(curr.exp);
       if (a = t2.l.match(/^M(\d+)$/)){
@@ -541,8 +540,7 @@ const cmd_scroll = t=>etask(function*cmd_scroll(){
       assert.fail('invalid arg '+tt.cmd+' in '+t.meta.s);
     }
   }
-  scroll = yield new_scroll(name, M, prev_scroll, t.prev?.ctx, db_opt,
-    feature && {feature});
+  scroll = yield new_scroll(name, M, prev_scroll, t.prev?.ctx, db_opt);
   if (d!==undefined){
     for (let j=d[0]; j<=d[1]; j++)
       yield test_decl(scroll, ''+j);

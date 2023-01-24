@@ -3,6 +3,8 @@ import assert from 'assert';
 import xtest from '../util/test_lib.js';
 import etask from '../util/etask.js';
 import FS from './fs.js';
+import tparser from '../storage/test_parser.js';
+const {parse_get_next, parse_exp_arg} = tparser;
 import {test_run, test_run_register_hook, new_scroll, get_scroll, get_def}
   from '../storage/test_cmd.js';
 
@@ -19,9 +21,25 @@ const cmd_fs = t=>etask(function*cmd_fs(){
     function open_func(){ assert.fail('XXX TODO fs.open_func'); });
 });
 
+const cmd_add = t=>etask(function*cmd_add(){
+  let name = t.ctx||get_def('left'), fs = get_scroll(name), dir;
+  assert(t.r, 'missing arg '+t.meta.s);
+  for (let curr=t.r, i=0; curr = parse_get_next(curr); i++){
+    let tt = parse_exp_arg(curr.exp);
+    switch (tt.cmd){
+    default:
+      assert(!dir, 'invalid arg '+tt.cmd+' in '+t.meta.s);
+      dir = tt.cmd;
+      assert(FS.valid_dir(dir), 'invalid dir '+dir);
+    }
+  }
+  yield fs.add_dir(dir);
+});
+
 const test_run_single = (curr, o)=>etask(function*_test_run_single(){
   switch (o.cmd){
   case 'fs': yield cmd_fs(o); break;
+  case 'add': yield cmd_add(o); break;
   default: return false;
   }
   return true;
@@ -30,14 +48,17 @@ test_run_register_hook(test_run_single);
 
 describe('fs', ()=>{
   const t = (name, test)=>it(name, ()=>test_run(test));
-  t('xxx', `s..fs`);
+  t('xxx', `// XXX s..#(seq)
+    s..fs
+    add(/) // XXX #seq1={op:add dir:/}
+  `);
   return;
   // XXX: how to add blob
   // XXX: rm commit
   t('xxx1', `
     s..fs                           #seq0=... // XXX TODO
     add(/)                          #seq1={op:add dir:/}
-    add(/f1 blob1)                  #seq2={op:add file:/f1} D2F2=blob1
+    add(/f1 blob1)                  #seq2={op:add file:/f1 F2=blob1}
     commit                          #seq3={group:2 op:commit} // XXX: needed?
     add(/f2 blob1)                  #seq4={op:add link:2)
     commit                          #seq5={group:1 op:commit}

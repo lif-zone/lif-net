@@ -351,10 +351,12 @@ const test_end = ()=>etask(function*test_end(){
   Scroll.soul.clear();
 });
 
-const test_run_single_hooks = (curr, o)=>etask(function*_test_run_single(){
+const test_run_single_hooks = (curr, o, step)=>etask(
+  function*_test_run_single()
+{
   for (let i=0; i<test_run_hooks.length; i++){
     let cb = test_run_hooks[i];
-    if (yield cb(curr, o))
+    if (yield cb(curr, o, step))
       return true;
   }
   return false;
@@ -362,9 +364,9 @@ const test_run_single_hooks = (curr, o)=>etask(function*_test_run_single(){
 
 export function test_run_register_hook(cb){ test_run_hooks.push(cb); }
 
-const test_run_single = (curr, o, i)=>etask(function*_test_run_single(){
-  if (Number.isInteger(i))
-    xerr.notice('cmd %s %s', i, o.meta.s);
+const test_run_single = (curr, o, step)=>etask(function*_test_run_single(){
+  if (step || step!='')
+    xerr.notice('cmd %s %s', step, o.meta.s);
   let o2;
   switch (o.cmd){
   case 'conf': yield cmd_conf(o); break;
@@ -404,7 +406,7 @@ const test_run_single = (curr, o, i)=>etask(function*_test_run_single(){
       yield cmd_eq({cmd: '=', l: o.meta.s.substr(1), r: 'null',
         meta: {s: o.meta.s}});
     }
-    else if (yield test_run_single_hooks(curr, o));
+    else if (yield test_run_single_hooks(curr, o, step));
     else
       assert.fail('invalid cmd "'+o.cmd+'" in '+o.meta.s);
   }
@@ -731,6 +733,7 @@ function get_filter(s){
     case 'db_c': break;
     case 'mem': break;
     case 'mem_c': break;
+    case 'seq': break;
     case 'bname': break;
     case 'btable': break;
     case 'bseq': break;
@@ -789,52 +792,58 @@ const cmd_state = t=>etask(function*cmd_state(){
   state = fix_buf(state);
   if (get_filter(t.r)){
     t_state[name] = state;
-    t_state.filter = get_filter(t.r);
+    t_state[name].filter = get_filter(t.r);
     return;
   }
   if (!t_state[name]){
     assert(!t.r, 'first # must be empty or list of types');
     t_state[name] = state;
-    t_state.filter = ['db', 'db_data', 'db_c', 'mem', 'mem_c'];
+    t_state[name].filter = ['db', 'db_data', 'db_c', 'mem', 'mem_c'];
     return;
   }
   for (let curr=t.r; curr = parse_get_next(curr);)
     state_apply(t_state[name], yield state_split(curr.exp, name));
-  if (t_state.filter.includes('mem_c')){
+  if (t_state[name].filter.includes('mem_c')){
     assert_b2s_obj(state.mem_c, t_state[name].mem_c,
       'mem conflict state mismach '+t.meta.s);
   }
-  if (t_state.filter.includes('mem')){
+  if (t_state[name].filter.includes('mem')){
     assert_b2s_obj(state.mem, t_state[name].mem,
       'mem state mismach '+t.meta.s);
   }
-  if (t_state.filter.includes('db_c')){
+  if (t_state[name].filter.includes('seq')){
+    assert_b2s_obj(state.seq, t_state[name].seq,
+      'seq state mismach '+t.meta.s);
+  }
+  if (t_state[name].filter.includes('db_c')){
     assert_b2s_obj(state.db_c, t_state[name].db_c,
       'db conflict state mismach '+t.meta.s);
   }
-  if (t_state.filter.includes('db'))
+  if (t_state[name].filter.includes('db'))
     assert_b2s_obj(state.db, t_state[name].db, 'db state mismach '+t.meta.s);
-  if (t_state.filter.includes('db_data')){
+  if (t_state[name].filter.includes('db_data')){
     assert_b2s_obj(state.db_data, t_state[name].db_data,
       'db_data state mismach '+t.meta.s);
   }
-  if (t_state.filter.includes('btable')){
+  if (t_state[name].filter.includes('btable')){
     assert_b2s_obj(state.btable, t_state[name].btable,
       'btable state mismach '+t.meta.s);
   }
-  if (t_state.filter.includes('bseq')){
+  if (t_state[name].filter.includes('bseq')){
     assert_b2s_obj(state.bseq, t_state[name].bseq,
       'bseq state mismach '+t.meta.s);
   }
-  if (t_state.filter.includes('bname')){
+  if (t_state[name].filter.includes('bname')){
     assert_b2s_obj(state.bname, t_state[name].bname,
       'bname state mismach '+t.meta.s);
   }
-  if (t_state.filter.includes('db_btable')){
+  if (t_state[name].filter.includes('db_btable')){
     assert_b2s_obj(state.db_btable, t_state[name].db_btable,
       'db_btable state mismach '+t.meta.s);
   }
+  let filter = t_state[name].filter;
   t_state[name] = state;
+  t_state[name].filter = filter;
 });
 
 function cmd_tput(curr, t){

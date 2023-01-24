@@ -1166,7 +1166,7 @@ describe('scroll', ()=>{
           tput(0_1_2_3 4_5 6    ) c(M2 1t0.M4 3t1.M6)
           tput(0_1_2_3 4_5_6_7 8) c(M2 1t0.M4 3t1.M6 3t2.M8)
           tput(0_1 2 3 4 5 6 7) c(M8)`);
-       t('t4_a_full', `${s} S..scroll(s..M0) #(mem)
+       t('t4_a_full', `${s} S..scroll(s..M0) #mem
           tput(0 1 2 3 4          ) c(M4) #(mem0={m0 M0} mem1={m1 m0_1 M1}
             mem2={m2 M2} mem3={m3 m2_3 m0_3 M3} mem4={m4 M4 sig4 D4})
           tput(0_1_2_3 4_5 6_7 8 9) c(M4 3t0.M9) #(mem5={S.m4_5c1 S.M5c1}

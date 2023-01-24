@@ -1,10 +1,27 @@
 'use strict'; /*eslint-env mocha*/
 import xtest from '../util/test_lib.js';
+import etask from '../util/etask.js';
+import xerr from '../util/xerr.js';
+import {test_run, test_run_register_hook} from '../storage/test_cmd.js';
 
 xtest.init();
 
-it('xxx', ()=>{
-  const t = ()=>{};
+const cmd_fs = t=>etask(function*cmd_fs(){
+});
+
+const test_run_single = (curr, o)=>etask(function*_test_run_single(){
+  switch (o.cmd){
+  case 'fs': yield cmd_fs(o); break;
+  default: return false;
+  }
+  return true;
+});
+test_run_register_hook(test_run_single);
+
+describe('fs', ()=>{
+  const t = (name, test)=>it(name, ()=>test_run(test));
+  t('xxx', `s..fs`);
+  return;
   // XXX: how to add blob
   // XXX: rm commit
   t('xxx1', `

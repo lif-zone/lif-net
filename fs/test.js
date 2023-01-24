@@ -105,14 +105,20 @@ describe('fs', ()=>{
     add(/d2/d2d2/) #seq7={op:add dir:/d2/d2d2/}`);
   describe('file', ()=>{
     // XXX: support buf(b:123 b2:1234)
-    t('basic', `s..#seq buf(b val:0) buf(b2 val:1)
+    t('basic', `s..#seq buf(b1 val:0) buf(b2 val:1)
       s..fs           #seq0={} // XXX: todo
-      add(/f buf:b)   #seq1={op:add file:/f f2:b}
+      add(/f1 buf:b1) #seq1={op:add file:/f1 f2:b1}
       add(/f2 buf:b2) #seq2={op:add file:/f2 f2:b2}`);
-    t('link', `s..#seq buf(b val:0)
-      s..fs          #seq0={} // XXX: todo
-      add(/f buf:b)  #seq1={op:add file:/f f2:b}
-      add(/f2 buf:b) #seq2={op:add file:/f2 link:1}`);
+    if (0) // XXX WIP
+    t('diff', `s..#seq buf(b1 val:0123456789) buf(b2 val:01234567890)
+      buf(bdiff val:xxx)
+      s..fs           #seq0={} // XXX: todo
+      add(/f1 buf:b1) #seq1={op:add file:/f1 f2:b1}
+      mod(/f1 buf:b2) #seq2={op:add file:/f1 link:1 diff:1 f2:bdiff}`);
+    t('link', `s..#seq buf(b1 val:0)
+      s..fs           #seq0={} // XXX: todo
+      add(/f1 buf:b1) #seq1={op:add file:/f1 f2:b1}
+      add(/f2 buf:b1) #seq2={op:add file:/f2 link:1}`);
   });
   return;
   // XXX: how to add blob

@@ -13,18 +13,15 @@ export default class FS extends Scroll {
     this.buf_hash_to_seq = new Map();
   }
   add_file(file, buf){ return etask({_: this}, function*add_file(){
+    // XXX: throw error if trying to add the same file twice
     let _this = this._;
     if (!buf)
       return _this.decl({op: 'add', file});
     let h = b2s(crypto.hash(_this.crypt, buf)); // XXX _this.hash
-    xerr.notice('XXX h %s', h);
     let link = _this.buf_hash_to_seq.get(h);
-    if (link){
-      xerr.notice('XXX link %s h %s', link, h.toString('hex'));
+    if (link)
       return _this.decl({link}, [{op: 'add', file}]);
-    }
     let decl = yield _this.decl([{op: 'add', file}, buf]);
-    xerr.notice('XXX seq %s h %s', decl.seq, h);
     _this.buf_hash_to_seq.set(h, decl.seq);
     return decl;
   }); }

@@ -1662,7 +1662,7 @@ describe('scroll', ()=>{
             mem1={M1 m1 m0_1} mem3={M3 m3 m2_3 m0_3} mem4={M4 sig4 D4 m4}
             mem5={M5c1:M5 m4_5c1:m4_5}
             mem7={M7c1:M7 m6_7c1:m6_7 m4_7c1:m4_7 m0_7c1:m0_7})
-          tput(0_1_2_3 4 5 6      )
+          tput(0_1_2_3 4 5 6      ) flush
           #(mem_c={0:M9 2:5t0.M6} mem5={M5 m5 m4_5}
             mem6={M6c2:M6 sig6c2:sig6 D6c2:D6 m6c2:m6} mem7={M7 m6_7 m4_7 m0_7}
             mem9={M9 sig9 D9 m9 m8_9})`);
@@ -1671,7 +1671,7 @@ describe('scroll', ()=>{
           tput(0 1 2 3 4          )
           flush Soul2.db_copy(Soul) S2..#(mem_c mem) Soul2.S2.scroll(M0 db)
           #(mem0={M0 m0} mem_c={0:M4})
-          tput(0_1 2_3 4 5 6)
+          tput(0_1 2_3 4 5 6) flush
           #(mem_c={0:M6} mem1={M1 m1 m0_1} mem3={M3 m3 m2_3 m0_3}
             mem4={M4 m4 sig4 D4} mem5={M5 m5 m4_5} mem6={M6 m6 sig6 D6})`);
         t('on_demand_v3', `conf(soul:manual)
@@ -1686,7 +1686,7 @@ describe('scroll', ()=>{
           tput(0 1 2 3 4          )
           flush Soul2.db_copy(Soul) S2..#(mem_c mem) Soul2.S2.scroll(M0 db)
           #(mem0={M0 m0} mem_c={0:M4})
-          tput(0_1_2_3 4_5 6_7 8 9)
+          tput(0_1_2_3 4_5 6_7 8 9) flush
           #(mem_c={0:M4 1:3t0.M9} mem3={M3:S2..M3 m3 m2_3 m0_3}
             mem4={M4 m4 sig4 D4} mem5={M5c1 m4_5c1}
             mem7={M7c1 m6_7c1 m4_7c1 m0_7c1} mem8={M8c1 m8c1}
@@ -1703,7 +1703,7 @@ describe('scroll', ()=>{
           flush Soul2.db_copy(Soul) S2..#(mem_c mem) Soul2.S2.scroll(M0 db)
           #(mem0={M0 m0} mem_c={0:M4})
           tput(0_1_2_3 4_5 6_7 8 9)
-          tput(0_1_2_3 4 5 6      )
+          tput(0_1_2_3 4 5 6      ) flush
           #(mem_c={0:M9 2:5t0.M6} mem3={M3:S2..M3 m3 m2_3 m0_3}
             mem4={M4 m4 sig4 D4} mem5={M5 m5 m4_5} mem6={M6c2 sig6c2 D6c2 m6c2}
             mem7={M7 m6_7 m4_7 m0_7} mem8={M8 m8} mem9={M9 sig9 D9 m9 m8_9})

@@ -336,8 +336,10 @@ const test_start = ()=>etask(function*test_start(){
 });
 
 const test_end = ()=>etask(function*test_end(){
+  xerr.notice('test_end');
   yield xsinon.wait();
-  yield cmd_state(parse_exp('#'));
+  for (let name in t_scroll)
+    yield test_run_single('', parse_exp(name+'.#'), 'test_end');
   for (let name in t_scroll){
     let scroll = t_scroll[name];
     if (scroll.storage)
@@ -348,7 +350,9 @@ const test_end = ()=>etask(function*test_end(){
   Scroll.soul.clear();
 });
 
-const test_run_single = (curr, o)=>etask(function*_test_run_single(){
+const test_run_single = (curr, o, i)=>etask(function*_test_run_single(){
+  if (i)
+    xerr.notice('cmd %s %s', i, o.meta.s);
   let o2;
   switch (o.cmd){
   case 'conf': yield cmd_conf(o); break;
@@ -381,7 +385,7 @@ const test_run_single = (curr, o)=>etask(function*_test_run_single(){
       set_def('right', o.l);
     } else if (o.cmd=='..')
       set_def('left', o.l);
-    yield test_run_single(curr, o2);
+    yield test_run_single(curr, o2, '');
     break;
   default:
     if (o.cmd[0]=='!'){
@@ -727,7 +731,7 @@ function get_filter(s){
 const cmd_state = t=>etask(function*cmd_state(){
   let state = {mem: {}, db: {}};
   let name = t.ctx||get_def('left');
-  let scroll = get_scroll(t.ctx||get_def('left'), true);
+  let scroll = get_scroll(name, true);
   let soul = scroll?.soul;
   state.mem = {};
   state.bseq = {};
@@ -1167,8 +1171,7 @@ export const test_run = test=>etask(function*test_run(){
   yield test_start();
   for (let curr=test, i=0; curr = parse_get_next(curr); i++){
     let o = parse_exp(curr.exp);
-    xerr.notice('cmd %s %s', i, o.meta.s);
-    yield test_run_single(curr, o);
+    yield test_run_single(curr, o, i);
   }
   yield test_end();
 });

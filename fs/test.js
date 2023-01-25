@@ -29,10 +29,15 @@ const cmd_fs = t=>etask(function*cmd_fs(){
 
 const cmd_add = t=>etask(function*cmd_add(){
   let name = t.ctx||get_def('left'), fs = get_scroll(name), dir, file, buf;
+  let branch;
   assert(t.r, 'missing arg '+t.meta.s);
   for (let curr=t.r, i=0; curr = parse_get_next(curr); i++){
     let tt = parse_exp_arg(curr.exp);
-    if (/^buf/.test(tt.cmd)){
+    if (tt.cmd=='branch')
+      branch = tt.r;
+    else if (tt.cmd=='main')
+      branch = null;
+    else if (/^buf/.test(tt.cmd)){
       buf = t_buf[tt.r];
       assert(buf, 'buf not found '+tt.r);
     } else {
@@ -47,9 +52,9 @@ const cmd_add = t=>etask(function*cmd_add(){
   }
   assert(file||dir, 'missing file/dir');
   if (file)
-    yield fs.add_file(file, buf);
+    yield fs.add_file(file, buf, {branch});
   else
-    yield fs.add_dir(dir);
+    yield fs.add_dir(dir, {branch});
 });
 
 const cmd_mod = t=>etask(function*cmd_mod(){
@@ -153,36 +158,48 @@ describe('fs', ()=>{
     add(/d2/d2d/)  #seq6={op:add dir:/d2/d2d/}
     add(/d2/d2d2/) #seq7={op:add dir:/d2/d2d2/}`);
   describe('file', ()=>{
-    let b1, b2, b3, b = 'x'.repeat(68);
+    let d1, d2, d3, d = 'x'.repeat(68);
     // XXX: create low-level scroll using decl to check all possible
     // combinations
     // XXX: test empty file
     // XXX: test binary
     // XXX: test branches+conflict
-    // XXX: support buf(b:123 b2:1234)
+    // XXX: support buf(d:123 d2:1234)
     // XXX: test seq0
     // XXX: test binary
     // XXX: test mv/rm file/dir
-    t('basic', `s..#seq buf(b1 val:0) buf(b2 val:1) s..fs #seq0={}
-      add(/f1 buf:b1) #seq1={op:add file:/f1 content:1 f2:b1}
-      add(/f2 buf:b2) #seq2={op:add file:/f2 content:1 f2:b2}`);
-    [b1, b2, b3] = [b+'x1', b+'x2', b+'x3'];
-    t('mod_same', `s..#seq buf(b val:b) s..fs #seq0={}
-      add(/f buf:b) #seq1={op:add file:/f content:1 f2:b}
-      mod(/f buf:b) #seq2={op:mod file:/f link:1}`);
+    t('add_diff', `s..#seq buf(d1 val:0) buf(d2 val:1) s..fs #seq0={}
+      add(/f1 buf:d1) #seq1={op:add file:/f1 content:1 f2:d1}
+      add(/f2 buf:d2) #seq2={op:add file:/f2 content:1 f2:d2}`);
+    t('add_same', `s..#seq buf(d1 val:0) s..fs #seq0={}
+      add(/f1 buf:d1) #seq1={op:add file:/f1 content:1 f2:d1}
+      add(/f2 buf:d1) #seq2={op:add file:/f2 link:1}`);
+    [d1, d2, d3] = [d+'x1', d+'x2', d+'x3'];
+    t('mod_same', `s..#seq buf(d val:d) s..fs #seq0={}
+      add(/f buf:d) #seq1={op:add file:/f content:1 f2:d}
+      mod(/f buf:d) #seq2={op:mod file:/f link:1}`);
     t('mod_diff', `s..#seq
-      buf(b1 val:${b1}) buf(b2 val:${b2}) buf(b3 val:${b3}) s..fs #seq0={}
-      add(/f1 buf:b1) #seq1={op:add file:/f1 content:1 f2:b1}
-      mod(/f1 buf:b2) #seq2={op:mod file:/f1 link:1 diff:1 f2:diff(b1,b2)}
-      mod(/f1 buf:b3) #seq3={op:mod file:/f1 link:2 diff:1 f2:diff(b2,b3)}`);
-    [b1, b2] = [b+'1', b+'2'];
-    t('mod_nodiff', `s..#seq buf(b1 val:${b1}) buf(b2 val:${b2}) s..fs #seq0={}
-      add(/f1 buf:b1) #seq1={op:add file:/f1 content:1 f2:b1}
-      mod(/f1 buf:b2) #seq2={op:mod file:/f1 content:1 f2:b2}`);
-    t('link', `s..#seq buf(b1 val:0) s..fs #seq0={}
-      add(/f1 buf:b1) #seq1={op:add file:/f1 content:1 f2:b1}
-      add(/f2 buf:b1) #seq2={op:add file:/f2 link:1}`);
+      buf(d1 val:${d1}) buf(d2 val:${d2}) buf(d3 val:${d3}) s..fs #seq0={}
+      add(/f1 buf:d1) #seq1={op:add file:/f1 content:1 f2:d1}
+      mod(/f1 buf:d2) #seq2={op:mod file:/f1 link:1 diff:1 f2:diff(d1,d2)}
+      mod(/f1 buf:d3) #seq3={op:mod file:/f1 link:2 diff:1 f2:diff(d2,d3)}`);
+    [d1, d2] = [d+'1', d+'2'];
+    t('mod_nodiff', `s..#seq buf(d1 val:${d1}) buf(d2 val:${d2}) s..fs #seq0={}
+      add(/f1 buf:d1) #seq1={op:add file:/f1 content:1 f2:d1}
+      mod(/f1 buf:d2) #seq2={op:mod file:/f1 content:1 f2:d2}`);
   });
+  describe('branch', ()=>{
+    t('file_add', `s..#seq buf(d1 val:1) buf(d2 val:2) buf(d3 val:3)
+      buf(d4 val:4) buf(d5 val:5)
+      s..fs #seq0={}
+      add(/f1 buf:d1) #seq1={op:add file:/f1 content:1 f2:d1}
+      add(/f2 branch:b buf:d2)
+        #seq2={bseq:1-1.0 branch:b op:add file:/f2 content:1 f2:d2}
+      add(/f3 buf:d3) #seq3={bseq:1-1.1 op:add file:/f3 content:1 f2:d3}
+      add(/f4 buf:d4) #seq4={bseq:1-1.2 op:add file:/f4 content:1 f2:d4}
+      add(/f5 main buf:d5) #seq5={bseq:2 op:add file:/f5 content:1 f2:d5}`);
+  });
+  // XXX: test tag
   return;
   // XXX: how to add blob
   // XXX: rm commit

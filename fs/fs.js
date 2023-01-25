@@ -15,25 +15,35 @@ export default class FS extends Scroll {
     this.buf_hash_to_seq = new Map();
     this.file_to_seq = new Map();
   }
+  // XXX: support cfid/branch
+  add_dir(dir, opt={}){ return this.decl({op: 'add', dir}); }
   // XXX: support cfid
-  add_dir(dir){ return this.decl({op: 'add', dir}); }
-  // XXX: support cfid
-  add_file(file, buf){ return etask({_: this}, function*add_file(){
+  add_file(file, buf, opt={}){ return etask({_: this}, function*add_file(){
     // XXX: throw error if trying to add the same file twice
     let _this = this._;
+    let {branch, cfid} = opt, prev;
+    cfid = cfid||0;
+    if (branch!==undefined){
+      let top = _this.get_branch_top(cfid, branch);
+      if (top){
+        prev = top.seq;
+        branch = undefined;
+      }
+    }
     if (!buf){
-      let decl = yield _this.decl({op: 'add', file});
+      let decl = yield _this.decl({branch, prev}, {op: 'add', file});
       _this.file_to_seq.set(file, decl.seq);
       return;
     }
     let h = _this.hash_str(buf);
     let link = _this.buf_hash_to_seq.get(h);
     if (link){
-      let decl = _this.decl({link}, [{op: 'add', file}]);
+      let decl = _this.decl({branch, prev, link}, [{op: 'add', file}]);
       _this.file_to_seq.set(file, decl.seq);
       return;
     }
-    let decl = yield _this.decl([{op: 'add', file, content: 1}, buf]);
+    let decl = yield _this.decl({branch, prev},
+      [{op: 'add', file, content: 1}, buf]);
     _this.file_to_seq.set(file, decl.seq);
     _this.buf_hash_to_seq.set(h, decl.seq);
     return decl;
@@ -99,6 +109,10 @@ export default class FS extends Scroll {
     let body = decl.get_body(cfid);
     let f2 = decl.data_get().get(cfid).get(3); // XXX: need api
     let ret = {};
+    if (header.bseq)
+      ret.bseq = header.bseq;
+    if (header.branch)
+      ret.branch = header.branch;
     if (body.op)
       ret.op = body.op;
     if (body.dir)

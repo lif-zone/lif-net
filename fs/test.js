@@ -160,28 +160,24 @@ describe('fs', ()=>{
     // XXX: test binary
     // XXX: test branches+conflict
     // XXX: support buf(b:123 b2:1234)
-    t('basic', `s..#seq buf(b1 val:0) buf(b2 val:1)
-      s..fs           #seq0={} // XXX: todo
+    // XXX: test seq0
+    t('basic', `s..#seq buf(b1 val:0) buf(b2 val:1) s..fs #seq0={}
       add(/f1 buf:b1) #seq1={op:add file:/f1 content:1 f2:b1}
       add(/f2 buf:b2) #seq2={op:add file:/f2 content:1 f2:b2}`);
     [b1, b2, b3] = [b+'x1', b+'x2', b+'x3'];
-    t('mod_same', `s..#seq buf(b val:b)
-      s..fs           #seq0={} // XXX: todo
+    t('mod_same', `s..#seq buf(b val:b) s..fs #seq0={}
       add(/f buf:b) #seq1={op:add file:/f content:1 f2:b}
       mod(/f buf:b) #seq2={op:mod file:/f link:1}`);
     t('mod_diff', `s..#seq
-      buf(b1 val:${b1}) buf(b2 val:${b2}) buf(b3 val:${b3})
-      s..fs           #seq0={} // XXX: todo
+      buf(b1 val:${b1}) buf(b2 val:${b2}) buf(b3 val:${b3}) s..fs #seq0={}
       add(/f1 buf:b1) #seq1={op:add file:/f1 content:1 f2:b1}
       mod(/f1 buf:b2) #seq2={op:mod file:/f1 link:1 diff:1 f2:diff(b1,b2)}
       mod(/f1 buf:b3) #seq3={op:mod file:/f1 link:2 diff:1 f2:diff(b2,b3)}`);
     [b1, b2] = [b+'1', b+'2'];
-    t('mod_nodiff', `s..#seq buf(b1 val:${b1}) buf(b2 val:${b2})
-      s..fs           #seq0={} // XXX: todo
+    t('mod_nodiff', `s..#seq buf(b1 val:${b1}) buf(b2 val:${b2}) s..fs #seq0={}
       add(/f1 buf:b1) #seq1={op:add file:/f1 content:1 f2:b1}
       mod(/f1 buf:b2) #seq2={op:mod file:/f1 content:1 f2:b2}`);
-    t('link', `s..#seq buf(b1 val:0)
-      s..fs           #seq0={} // XXX: todo
+    t('link', `s..#seq buf(b1 val:0) s..fs #seq0={}
       add(/f1 buf:b1) #seq1={op:add file:/f1 content:1 f2:b1}
       add(/f2 buf:b1) #seq2={op:add file:/f2 link:1}`);
   });

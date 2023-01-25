@@ -1,7 +1,6 @@
 // author: derry. coder: arik.
 'use strict';
 import Scroll from '../storage/scroll.js';
-import crypto from '../util/crypto.js';
 import etask from '../util/etask.js';
 import xerr from '../util/xerr.js';
 import assert from 'assert';
@@ -27,7 +26,7 @@ export default class FS extends Scroll {
       _this.file_to_seq.set(file, decl.seq);
       return;
     }
-    let h = b2s(crypto.hash(_this.crypt, buf)); // XXX _this.hash
+    let h = _this.hash_str(buf);
     let link = _this.buf_hash_to_seq.get(h);
     if (link){
       let decl = _this.decl({link}, [{op: 'add', file}]);
@@ -45,7 +44,7 @@ export default class FS extends Scroll {
     let _this = this._;
     _this.on('uncaught', e=>xerr.xexit(e));
     assert(buf, 'XXX TODO empty file'); // XXX
-    let h = b2s(crypto.hash(_this.crypt, buf)); // XXX _this.hash
+    let h = _this.hash_str(buf);
     let link = _this.buf_hash_to_seq.get(h);
     if (link){
       let decl = _this.decl({link}, [{op: 'mod', file}]);

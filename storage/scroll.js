@@ -1179,6 +1179,8 @@ export default class Scroll extends EventEmitterAsync {
     this.branch.set(cfid, btable);
     return btable;
   }
+  get_branch_top(cfid, branch){
+    return this.branch.get(cfid)?.get_branch_top(branch); }
   hash(buf){ return crypto.hash(this.crypt, buf); }
   hash_str(buf){ return b2s(crypto.hash(this.crypt, buf)); }
 }

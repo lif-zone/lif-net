@@ -18,10 +18,34 @@ export default class Branch_table {
     this.avl = new Tree(bo_cmp, true);
     this.branch_name = new Map();
     this.branch_bseq = new Map();
+    this.bseqb_top = new Map();
     this.reset_schedule();
   }
   reset_schedule(){ this.storage_queue = {mod: {}, rm: {}}; }
-  get_branch(branch){ return this.branch_name.get(branch); }
+  get_branch(branch){ // XXX: need test
+    let bo = this.branch_name.get(branch||null);
+    if (bo)
+      return bo;
+    let {scroll, cfid} = this, {parent} = scroll.conflict.get(cfid);
+    if (!parent)
+      return;
+    return scroll.get_branch_table(parent.cfid).get_branch(branch);
+  }
+  get_branch_top(branch){ // XXX: need test
+    let bo = this.get_branch(branch);
+    if (!bo)
+      return;
+    return this.get_bseq_top(bo.bseq);
+  }
+  get_bseq_top(bseq){ // XXX: need test
+    let top = this.bseqb_top.get(bseq_branch(bseq));
+    if (top)
+      return top;
+    let {scroll, cfid} = this, {parent} = scroll.conflict.get(cfid);
+    if (!parent)
+      return;
+    return scroll.get_branch_table(parent.cfid).get_bseq_top(bseq);
+  }
   get_bo(seq){
     for (let n = this.avl._root; n; n = seq < n.key.seq ? n.left : n.right){
       let bo = n.key;
@@ -62,6 +86,7 @@ export default class Branch_table {
         return;
       assert.equal(bo.seq+bo.size, seq, 'branch corruption');
       bo.size++;
+      this._update_top(bseq, seq); // XXX: need test
       this._schedule_mod(bo.seq);
       bo_next = this.get_bo(seq+1);
       this._merge(bo, bo_next);
@@ -84,9 +109,10 @@ export default class Branch_table {
     }
     // new entry
     bo = {...branch&&{branch}, seq, bseq, size: 1};
-    if (branch && !this.branch_name.get(branch))
+    if ((branch || this.cfid==0) && !this.branch_name.get(branch))
       this.branch_name.set(branch, bo);
     this._insert(bo);
+    this._update_top(bseq, seq); // XXX: need test
     this._schedule_mod(bo.seq);
   }
   _insert(bo){
@@ -107,6 +133,13 @@ export default class Branch_table {
     this._remove(bo_next);
     this._schedule_mod(bo.seq);
     this._schedule_rm(bo_next.seq);
+  }
+  _update_top(bseq, seq){ // XXX: need test
+    let bseqb = bseq_branch(bseq);
+    let top = this.bseqb_top.get(bseqb);
+    if (top?.seq>=seq)
+      return;
+    this.bseqb_top.set(bseqb, {seq, bseq});
   }
   _schedule_mod(seq){
     this.storage_queue.mod[seq] = true;
@@ -136,9 +169,10 @@ export default class Branch_table {
   }
   row_from_static(data){
     let {branch, seq, bseq, size} = data;
+    branch = branch||null;
     let bo = branch ? {branch, seq, bseq, size} : {seq, bseq, size};
     this._insert(bo);
-    if (branch)
+    if (branch || this.cfid==0)
       this.branch_name.set(branch, bo);
   }
 }
@@ -184,10 +218,15 @@ function bseq_branch_inc(a){
   return m[1]+'-'+bseq_inc(m[2])+'.0';
 }
 
+function bseq_branch(bseq){
+  assert(bseq_valid(bseq), 'invalid bseq '+bseq);
+  return bseq.match(/^([\d.\-_]+)\.[_]*\d+$/)?.[1]||null;
+}
+
 function bseq_branch_eq(a, b){
-  let ma = a.match(/^([\d.\-_]+)\.[_]*\d+$/);
-  let mb = b.match(/^([\d.\-_]+)\.[_]*\d+$/);
-  return ma?.[1]==mb?.[1];
+  let ba = bseq_branch(a);
+  let bb = bseq_branch(b);
+  return ba==bb;
 }
 
 function bseq_valid(s){
@@ -205,6 +244,7 @@ Branch_table.bint2int = bint2int;
 Branch_table.bint_valid = bint_valid;
 Branch_table.bseq_inc = bseq_inc;
 Branch_table.bseq_cmp = bseq_cmp;
+Branch_table.bseq_branch = bseq_branch;
 Branch_table.bseq_branch_new = bseq_branch_new;
 Branch_table.bseq_branch_inc = bseq_branch_inc;
 Branch_table.bseq_branch_eq = bseq_branch_eq;

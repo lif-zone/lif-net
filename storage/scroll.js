@@ -225,24 +225,11 @@ Frame_buffer.calc_hash = function(frames, opt={}){
   return crypto.hash(opt.crypt, buf);
 };
 
-function parse_buf_ref(ref){
-  if (ref===undefined || ref===null)
-    return {l: '_'};
-  if (Number.isInteger(ref))
-    return {d: ref};
-  if (typeof ref=='string')
-    return {buf: Buffer.from(ref)};
-  if (Number.isInteger(ref.d))
-    return {d: ref.d};
-  if (typeof ref.d=='string')
-    return {l: ref.d};
-  assert.fail('invalid ref %o', ref);
-}
-
 function resolve_link(links, l){ // XXX: need test
   links = Number.isInteger(links) ? {_: links} : links||{};
   let seq = links[l];
-  assert(seq>=0, 'invalid link '+l);
+  if (!Number.isInteger(seq) || seq<0)
+    throw new Error('missing link '+l);
   return seq;
 }
 
@@ -1192,6 +1179,8 @@ export default class Scroll extends EventEmitterAsync {
     this.branch.set(cfid, btable);
     return btable;
   }
+  hash(buf){ return crypto.hash(this.crypt, buf); }
+  hash_str(buf){ return b2s(crypto.hash(this.crypt, buf)); }
 }
 
 class Decl extends EventEmitterAsync {
@@ -1568,7 +1557,6 @@ function support_crypt(crypt){
 Scroll.supported_crypt = [{sig: 'secp256k1', hash: 'sha256', lif: 'lif1'},
   {sig: 'ed25519', hash: 'blake2b', lif: 'lif1'}];
 Scroll.support_crypt = support_crypt;
-Scroll.parse_buf_ref = parse_buf_ref;
 Scroll.resolve_link = resolve_link;
 Scroll.hconcat = hconcat; // XXX need test
 Scroll.hconcat_safe = hconcat_safe; // XXX need test

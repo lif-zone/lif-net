@@ -154,6 +154,8 @@ describe('fs', ()=>{
     add(/d2/d2d2/) #seq7={op:add dir:/d2/d2d2/}`);
   describe('file', ()=>{
     let b1, b2, b3, b = 'x'.repeat(68);
+    // XXX: create low-level scroll using decl to check all possible
+    // combinations
     // XXX: test empty file
     // XXX: test binary
     // XXX: test branches+conflict

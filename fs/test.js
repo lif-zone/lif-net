@@ -190,14 +190,16 @@ describe('fs', ()=>{
   });
   describe('branch', ()=>{
     t('file_add', `s..#seq buf(d1 val:1) buf(d2 val:2) buf(d3 val:3)
-      buf(d4 val:4) buf(d5 val:5)
-      s..fs #seq0={}
+      buf(d4 val:4) buf(d5 val:5) buf(d6 val:6) buf(d7 val:7) s..fs #seq0={}
       add(/f1 buf:d1) #seq1={op:add file:/f1 content:1 f2:d1}
       add(/f2 branch:b buf:d2)
         #seq2={bseq:1-1.0 branch:b op:add file:/f2 content:1 f2:d2}
       add(/f3 buf:d3) #seq3={bseq:1-1.1 op:add file:/f3 content:1 f2:d3}
       add(/f4 buf:d4) #seq4={bseq:1-1.2 op:add file:/f4 content:1 f2:d4}
-      add(/f5 main buf:d5) #seq5={bseq:2 op:add file:/f5 content:1 f2:d5}`);
+      add(/f5 main buf:d5) #seq5={bseq:2 op:add file:/f5 content:1 f2:d5}
+      add(/f6 buf:d6) #seq6={bseq:3 op:add file:/f6 content:1 f2:d6}
+      add(/f7 branch:b buf:d7)
+        #seq7={bseq:1-1.3 op:add file:/f7 content:1 f2:d7}`);
   });
   // XXX: test tag
   return;

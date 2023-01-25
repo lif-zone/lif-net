@@ -161,6 +161,8 @@ describe('fs', ()=>{
     // XXX: test branches+conflict
     // XXX: support buf(b:123 b2:1234)
     // XXX: test seq0
+    // XXX: test binary
+    // XXX: test mv/rm file/dir
     t('basic', `s..#seq buf(b1 val:0) buf(b2 val:1) s..fs #seq0={}
       add(/f1 buf:b1) #seq1={op:add file:/f1 content:1 f2:b1}
       add(/f2 buf:b2) #seq2={op:add file:/f2 content:1 f2:b2}`);

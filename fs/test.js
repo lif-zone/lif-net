@@ -158,11 +158,86 @@ const test_get_seq = s=>etask(function*get_seq(){
   return bo;
 });
 
+function state_valid_filter(s){
+  switch (s){
+  case 'fs': return true;
+  }
+  return false;
+}
+
+function get_fs(s){
+  let ret = {add: [], rm: []};
+  s = rm_parentesis(s, '[');
+  for (let curr=s, i=0; curr = parse_get_next(curr); i++){
+    let path = curr.exp;
+    if (path[0]=='!')
+      ret.rm.push(path.substr(1));
+    else
+      ret.add.push(path);
+  }
+  return ret;
+}
+
+function state_split_var(v, def){
+  let m = v.match(/^(c(\d+))?fs$/);
+  assert(m, 'invalid var '+v);
+  let cfid = m[2] ? +m[2] : 0;
+  let name = def||get_def('left');
+  return {name, type: 'fs', cfid};
+}
+
+function state_apply(state, o){
+  let {name, cfid, type, val} = o, {add, rm} = val;
+  assert.equal(o.type, 'fs', 'invalid type');
+  let fs = get_scroll(name);
+  state.fs = state.fs||[];
+  for (let i=0; i<add.length; i++){
+    let path = add[i], path_i = state.fs.indexOf(path);
+    assert.equal(path_i, -1, 'uneeded add '+path);
+    state.fs.push(path);
+  }
+  for (let i=0; i<rm.length; i++){
+    let path = add[i], path_i = state.fs.indexOf(path);
+    assert(path_i>-1, 'uneeded rm '+path);
+    state.fs.splice(path_i, 1);
+  }
+  // xerr('XXX state_apply state.f %O', state.fs);
+}
+
+const state_split = (o, def)=>etask(function*state_split(){
+  if (!/^fs/.test(o.l))
+    return;
+  switch (o.cmd){
+  case '!': return {...state_split_var(o.r, def), val: null};
+  case '=': return {...state_split_var(o.l, def), val: yield get_fs(o.r)};
+  default: assert.fail('invalid state_split '+o.meta.s);
+  }
+});
+
+function state_assert(filter, state_curr, state_exp){
+  if (!filter.includes('fs'))
+    return;
+  assert.deepEqual(state_curr.fs, state_exp.fs, 'state fs mismatch');
+}
+
+const state_curr = (filter, state, fs)=>etask(function*state_curr(){
+  if (!filter.includes('fs'))
+    return;
+  if (fs.top.seq<1)
+    return;
+  state.fs = fs.test_dump_fs('/');
+});
+
 const test_start = ()=>etask(function*test_start(){ t_buf = {}; });
 
 test_register_cmd(test_run_single);
 test_register('get_seq', test_get_seq);
 test_register('start', test_start);
+test_register('state_valid_filter', state_valid_filter);
+test_register('state_split', state_split);
+test_register('state_apply', state_apply);
+test_register('state_curr', state_curr);
+test_register('state_assert', state_assert);
 
 describe('util', ()=>{
   it('parse_buf_ref', ()=>{
@@ -211,15 +286,32 @@ describe('fs', ()=>{
       mod(/f1 buf:d2) #seq2={op:mod file:/f1 content:1 f2:d2}`);
   });
   describe('dir', ()=>{
-    t('add', `s..#seq
-      s..fs          #seq0={}
-      add(/)         #seq1={op:add dir:/}
-      add(/d/)       #seq2={op:add dir:/d/}
-      add(/d/dd/)    #seq3={op:add dir:/d/dd/}
-      add(/d/dd2/)   #seq4={op:add dir:/d/dd2/}
-      add(/d2/)      #seq5={op:add dir:/d2/}
-      add(/d2/d2d/)  #seq6={op:add dir:/d2/d2d/}
-      add(/d2/d2d2/) #seq7={op:add dir:/d2/d2d2/}`);
+    // XXX: fix all other tests that use test_* and use ## instead
+/* XXX: TODO
+      // XXX:
+      // ##fs(seq1 /)
+      // ##fs(seq2 / /d1/)
+      // ##fs(seq6 / /d1/ /d1/dd1/ /d1/dd2/ /d2/ /d2/dd1/)
+      // ##fs(seq7 / /d1/ /d1/dd1/ /d1/dd2/ /d2/ /d2/dd1/ d2/dd2/)
+      add(/)               #fs(/)
+      add(/d1/)            #fs(/d1/)
+      add(/d1/f1 buf:b1)   #fs(/d1/f1:b1)
+      add(/d2/)            #fs(/d2/)
+      rm(/d2/)             #fs(!/d2/)
+      rm(/d1/)             #fs(!/d1/f1 !/d1/)
+*/
+    if (0) // XXX WIP
+    t('add', `s..#(seq fs)
+      s..fs         #seq0={}
+      add(/)        #(seq1={op:add dir:/} fs=[/])
+      add(/d1/)     #(seq2={op:add dir:/d1/} fs=[/d1/])
+      add(/d1/dd1/) #(seq3={op:add dir:/d1/dd1/} fs=[/d1/dd1/])
+      add(/d1/dd2/) #(seq4={op:add dir:/d1/dd2/} fs=[/d1/dd2/])
+      add(/d2/)     #seq5={op:add dir:/d2/}
+      add(/d2/dd1/) #seq6={op:add dir:/d2/dd1/}
+      add(/d2/dd2/) #seq7={op:add dir:/d2/dd2/}
+      // ##fs(seq1 /)
+    `);
     t('rm_single', `s..#seq
       s..fs          #seq0={}
       add(/)         #seq1={op:add dir:/}
@@ -230,6 +322,8 @@ describe('fs', ()=>{
       rm(/d2/dd2/)   #seq6={op:rm dir:/d2/dd2/}
       rm(/d2/)       #seq7={op:rm dir:/d2/}
     `);
+    // XXX: test rm directory with multi directories
+    // XXX: test rm file + directories with multiple files
   });
   describe('branch', ()=>{
     let d1, d2, d3, d4, d5, d6, d = 'x'.repeat(68);

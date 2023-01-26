@@ -167,6 +167,14 @@ export default class FS extends Scroll {
       ret.f2 = f2;
     return ret;
   }
+  test_ls(dir){
+    assert(valid_dir(dir), 'invalid dir '+dir);
+  }
+  test_dump_fs(dir){
+    assert(valid_dir(dir), 'invalid dir '+dir);
+    let a = this.test_ls(dir);
+    return a;
+  }
 }
 
 FS.create = (opt, d)=>etask(function*scroll_create(){
@@ -178,9 +186,9 @@ FS.create = (opt, d)=>etask(function*scroll_create(){
 });
 
 // XXX: need test + improve
-function valid_dir(dir){ return dir[dir.length-1]=='/'; }
+function valid_dir(dir){ return dir[0]=='/' && dir[dir.length-1]=='/'; }
 // XXX: need test + improve
-function valid_file(dir){ return dir[dir.length-1]!='/'; }
+function valid_file(dir){ return dir[0]=='/' && dir[dir.length-1]!='/'; }
 
 function parse_buf_ref(ref){
   if (ref===undefined || ref===null)

@@ -17,6 +17,7 @@ export default class FS extends Scroll {
     this.buf_hash_to_seq = new Map();
     this.file_to_seq = new Map();
   }
+  // XXX: throw error on invalid file/dir
   // XXX: support cfid
   add_dir(dir, opt={}){ return etask({_: this}, function*add_dir(){
     // XXX: throw error if trying to add the dir twice
@@ -24,6 +25,9 @@ export default class FS extends Scroll {
     yield _this.decl({cfid, branch, prev}, {op: 'add', dir});
   }); }
   rm_dir(dir, opt={}){ return etask({_: this}, function*rm_dir(){
+    // XXX: throw error if dir doesn't exist
+    let _this = this._, {branch, prev, cfid} = _this.parse_opt(opt);
+    yield _this.decl({cfid, branch, prev}, {op: 'rm', dir});
   }); }
   // XXX: support cfid
   add_file(file, buf, opt={}){ return etask({_: this}, function*add_file(){

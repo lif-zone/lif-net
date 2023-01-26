@@ -220,12 +220,15 @@ describe('fs', ()=>{
       add(/d2/)      #seq5={op:add dir:/d2/}
       add(/d2/d2d/)  #seq6={op:add dir:/d2/d2d/}
       add(/d2/d2d2/) #seq7={op:add dir:/d2/d2d2/}`);
-    if (0) // XXX: WIP
     t('rm_single', `s..#seq
       s..fs          #seq0={}
       add(/)         #seq1={op:add dir:/}
-      add(/d/)       #seq2={op:add dir:/d/}
-      rm(/d/)        #seq3={op:rm dir:/d/}
+      add(/d1/)      #seq2={op:add dir:/d1/}
+      add(/d2/)      #seq3={op:add dir:/d2/}
+      add(/d2/dd2/)  #seq4={op:add dir:/d2/dd2/}
+      rm(/d1/)       #seq5={op:rm dir:/d1/}
+      rm(/d2/dd2/)   #seq6={op:rm dir:/d2/dd2/}
+      rm(/d2/)       #seq7={op:rm dir:/d2/}
     `);
   });
   describe('branch', ()=>{

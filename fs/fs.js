@@ -17,8 +17,20 @@ export default class FS extends Scroll {
     this.buf_hash_to_seq = new Map();
     this.file_to_seq = new Map();
   }
-  // XXX: support cfid/branch
-  add_dir(dir, opt={}){ return this.decl({op: 'add', dir}); }
+  // XXX: support cfid
+  add_dir(dir, opt={}){ return etask({_: this}, function*add_dir(){
+    let _this = this._, {branch, cfid} = opt, prev;
+    cfid = cfid||0;
+    if (branch!==undefined){
+      let top = _this.get_branch_top(cfid, branch);
+      if (top){
+        prev = top.seq;
+        branch = undefined;
+      }
+    }
+    yield _this.decl({branch, prev}, {op: 'add', dir});
+    // XXX: throw error if trying to add the dir twice
+  }); }
   // XXX: support cfid
   add_file(file, buf, opt={}){ return etask({_: this}, function*add_file(){
     // XXX: throw error if trying to add the same file twice

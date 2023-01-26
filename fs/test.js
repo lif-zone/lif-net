@@ -196,7 +196,15 @@ describe('fs', ()=>{
   });
   describe('branch', ()=>{
     let d1, d2, d3, d4, d5, d6, d = 'x'.repeat(68);
-    // XXX: test dir
+    t('dir', `s..#seq s..fs #seq0={}
+      add(/) #seq1={op:add dir:/}
+      add(/d1/) #seq2={op:add dir:/d1/}
+      add(/d2/ branch:b) #seq3={bseq:2-1.0 branch:b op:add dir:/d2/}
+      add(/d3/) #seq4={bseq:2-1.1 op:add dir:/d3/}
+      add(/d2/ main) #seq5={bseq:3 op:add dir:/d2/}
+      add(/d3/ main) #seq6={bseq:4 op:add dir:/d3/}
+      add(/d4/ branch:b) #seq7={bseq:2-1.2 op:add dir:/d4/}
+    `);
     t('file_add', `s..#seq buf(d1 val:1) buf(d2 val:2) buf(d3 val:3)
       buf(d4 val:4) buf(d5 val:5) buf(d6 val:6) buf(d7 val:7) s..fs #seq0={}
       add(/f1 buf:d1) #seq1={op:add file:/f1 content:1 f2:d1}

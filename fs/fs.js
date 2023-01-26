@@ -15,19 +15,22 @@ export default class FS extends Scroll {
   constructor(opt){
     super(opt);
     this.buf_hash_to_seq = new Map();
-    this.file_to_seq = new Map();
+    this.path_to_seq = new Map();
+    this.all = [];
   }
   // XXX: throw error on invalid file/dir
   // XXX: support cfid
   add_dir(dir, opt={}){ return etask({_: this}, function*add_dir(){
     // XXX: throw error if trying to add the dir twice
     let _this = this._, {branch, prev, cfid} = _this.parse_opt(opt);
-    yield _this.decl({cfid, branch, prev}, {op: 'add', dir});
+    let decl = yield _this.decl({cfid, branch, prev}, {op: 'add', dir});
+    _this._set_seq(dir, decl.seq, decl.bseq_get(cfid));
   }); }
   rm_dir(dir, opt={}){ return etask({_: this}, function*rm_dir(){
     // XXX: throw error if dir doesn't exist
     let _this = this._, {branch, prev, cfid} = _this.parse_opt(opt);
-    yield _this.decl({cfid, branch, prev}, {op: 'rm', dir});
+    let decl = yield _this.decl({cfid, branch, prev}, {op: 'rm', dir});
+    _this._set_seq(dir, decl.seq, decl.bseq_get(cfid), true);
   }); }
   // XXX: support cfid
   add_file(file, buf, opt={}){ return etask({_: this}, function*add_file(){
@@ -35,7 +38,7 @@ export default class FS extends Scroll {
     let _this = this._, {branch, prev, cfid} = _this.parse_opt(opt);
     if (!buf){
       let decl = yield _this.decl({cfid, branch, prev}, {op: 'add', file});
-      _this._set_file_seq(file, decl.seq, decl.bseq_get(cfid));
+      _this._set_seq(file, decl.seq, decl.bseq_get(cfid));
       return;
     }
     let h = _this.hash_str(buf);
@@ -43,12 +46,12 @@ export default class FS extends Scroll {
     if (link){
       let decl = yield _this.decl({cfid, branch, prev, link},
         [{op: 'add', file}]);
-      _this._set_file_seq(file, decl.seq, decl.bseq_get(cfid));
+      _this._set_seq(file, decl.seq, decl.bseq_get(cfid));
       return;
     }
     let decl = yield _this.decl({cfid, branch, prev},
       [{op: 'add', file, content: 1}, buf]);
-    _this._set_file_seq(file, decl.seq, decl.bseq_get(cfid));
+    _this._set_seq(file, decl.seq, decl.bseq_get(cfid));
     _this.buf_hash_to_seq.set(h, decl.seq);
     return decl;
   }); }
@@ -62,14 +65,14 @@ export default class FS extends Scroll {
     if (link){
       let decl = yield _this.decl({cfid, branch, prev, link},
         [{op: 'mod', file}]);
-      _this._set_file_seq(file, decl.seq, decl.bseq_get(cfid));
+      _this._set_seq(file, decl.seq, decl.bseq_get(cfid));
       return;
     }
     // XXX: we can use branch table without loading decl
     let decl_prev = _this.get_decl(prev>=0 ? prev :
       _this.conflict.get(cfid).top.seq);
     yield decl_prev.load(cfid);
-    link = _this._get_file_seq(file, decl_prev.bseq_get(cfid));
+    link = _this._get_seq(file, decl_prev.bseq_get(cfid));
     if (!link)
       throw new Error('file not found '+file);
     let _buf = yield _this.resolve_buf(0, link), decl;
@@ -85,7 +88,7 @@ export default class FS extends Scroll {
       decl = yield _this.decl({cfid, branch, prev},
         [{op: 'mod', file, content: 1}, buf]);
     }
-    _this._set_file_seq(file, decl.seq, decl.bseq_get(cfid));
+    _this._set_seq(file, decl.seq, decl.bseq_get(cfid));
   }); }
   resolve_buf(cfid, seq){ return etask({_: this}, function*resolve_buf(){
     // XXX: verify we test every part of it
@@ -115,19 +118,21 @@ export default class FS extends Scroll {
     return Buffer.from(Diff.patch_apply(Diff.patch_fromText(buf.toString()),
       _buf.toString())[0]);
   }); }
-  _set_file_seq(file, seq, bseq){
+  _set_seq(path, seq, bseq, rm){
+    this.all.push({path, seq, bseq, rm});
+    this.all.sort((a, b)=>b.seq-a.seq);
     let bseqb = bseq_branch(bseq);
-    let map = this.file_to_seq.get(bseqb);
+    let map = this.path_to_seq.get(bseqb);
     if (!map)
-      this.file_to_seq.set(bseqb, map = new Map());
-    map.set(file, seq);
+      this.path_to_seq.set(bseqb, map = new Map());
+    map.set(path, seq);
   }
-  _get_file_seq(file, bseq){
+  _get_seq(path, bseq){
     let bseqb = bseq_branch(bseq);
-    let map = this.file_to_seq.get(bseqb);
+    let map = this.path_to_seq.get(bseqb);
     if (!map)
       return;
-    return map.get(file);
+    return map.get(path);
   }
   parse_opt(opt){
     let {cfid, branch} = opt, prev;
@@ -167,13 +172,27 @@ export default class FS extends Scroll {
       ret.f2 = f2;
     return ret;
   }
-  test_ls(dir){
+  test_ls(seq, dir){
+    let ret = [], rm = [];
     assert(valid_dir(dir), 'invalid dir '+dir);
+    for (let i=0; i<this.all.length; i++){
+      let o = this.all[i];
+      if (o.seq>seq)
+        continue;
+      if (ret.find(oo=>o.path==oo.path) || rm.find(oo=>o.path==oo.path))
+        continue;
+      if (o.rm)
+        rm.push(o);
+      else
+        ret.push(o.path);
+    }
+    return ret;
   }
-  test_dump_fs(dir){
+  test_dump_fs(seq, dir){
     assert(valid_dir(dir), 'invalid dir '+dir);
-    let a = this.test_ls(dir);
-    return a;
+    let ret = this.test_ls(seq, dir);
+    ret.sort((a, b)=>a<b ? -1 : a>b ? 1 : 0);
+    return ret;
   }
 }
 

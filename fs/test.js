@@ -159,6 +159,7 @@ const test_get_seq = s=>etask(function*get_seq(){
 });
 
 function state_valid_filter(s){
+  // XXX: mv seq from storage/test_cmd.js to this file
   switch (s){
   case 'fs': return true;
   }
@@ -197,11 +198,10 @@ function state_apply(state, o){
     state.fs.push(path);
   }
   for (let i=0; i<rm.length; i++){
-    let path = add[i], path_i = state.fs.indexOf(path);
+    let path = rm[i], path_i = state.fs.indexOf(path);
     assert(path_i>-1, 'uneeded rm '+path);
     state.fs.splice(path_i, 1);
   }
-  // xerr('XXX state_apply state.f %O', state.fs);
 }
 
 const state_split = (o, def)=>etask(function*state_split(){
@@ -225,7 +225,8 @@ const state_curr = (filter, state, fs)=>etask(function*state_curr(){
     return;
   if (fs.top.seq<1)
     return;
-  state.fs = fs.test_dump_fs('/');
+  // XXX: support cfid
+  state.fs = fs.test_dump_fs(fs.top.seq, '/');
 });
 
 const test_start = ()=>etask(function*test_start(){ t_buf = {}; });
@@ -255,6 +256,7 @@ describe('util', ()=>{
 
 describe('fs', ()=>{
   const t = (name, test)=>it(name, ()=>test_run(test));
+  // XXX: add by date
   describe('file', ()=>{
     let d1, d2, d3, d = 'x'.repeat(68);
     // XXX: create low-level scroll using decl to check all possible
@@ -300,28 +302,25 @@ describe('fs', ()=>{
       rm(/d2/)             #fs(!/d2/)
       rm(/d1/)             #fs(!/d1/f1 !/d1/)
 */
-    if (0) // XXX WIP
     t('add', `s..#(seq fs)
       s..fs         #seq0={}
-      add(/)        #(seq1={op:add dir:/} fs=[/])
-      add(/d1/)     #(seq2={op:add dir:/d1/} fs=[/d1/])
-      add(/d1/dd1/) #(seq3={op:add dir:/d1/dd1/} fs=[/d1/dd1/])
-      add(/d1/dd2/) #(seq4={op:add dir:/d1/dd2/} fs=[/d1/dd2/])
-      add(/d2/)     #seq5={op:add dir:/d2/}
-      add(/d2/dd1/) #seq6={op:add dir:/d2/dd1/}
-      add(/d2/dd2/) #seq7={op:add dir:/d2/dd2/}
-      // ##fs(seq1 /)
+      add(/)        #(seq1={op:add dir:/} fs=/)
+      add(/d1/)     #(seq2={op:add dir:/d1/} fs=/d1/)
+      add(/d1/dd1/) #(seq3={op:add dir:/d1/dd1/} fs=/d1/dd1/)
+      add(/d1/dd2/) #(seq4={op:add dir:/d1/dd2/} fs=/d1/dd2/)
+      add(/d2/)     #(seq5={op:add dir:/d2/} fs=/d2/)
+      add(/d2/dd1/) #(seq6={op:add dir:/d2/dd1/} fs=/d2/dd1/)
+      add(/d2/dd2/) #(seq7={op:add dir:/d2/dd2/} fs=/d2/dd2/)
     `);
-    t('rm_single', `s..#seq
-      s..fs          #seq0={}
-      add(/)         #seq1={op:add dir:/}
-      add(/d1/)      #seq2={op:add dir:/d1/}
-      add(/d2/)      #seq3={op:add dir:/d2/}
-      add(/d2/dd2/)  #seq4={op:add dir:/d2/dd2/}
-      rm(/d1/)       #seq5={op:rm dir:/d1/}
-      rm(/d2/dd2/)   #seq6={op:rm dir:/d2/dd2/}
-      rm(/d2/)       #seq7={op:rm dir:/d2/}
-    `);
+    t('rm_single', `s..#(seq fs)
+      s..fs          #(seq0={})
+      add(/)         #(seq1={op:add dir:/} fs=/)
+      add(/d1/)      #(seq2={op:add dir:/d1/} fs=/d1/)
+      add(/d2/)      #(seq3={op:add dir:/d2/} fs=/d2/)
+      add(/d2/dd2/)  #(seq4={op:add dir:/d2/dd2/} fs=/d2/dd2/)
+      rm(/d1/)       #(seq5={op:rm dir:/d1/} fs=!/d1/)
+      rm(/d2/dd2/)   #(seq6={op:rm dir:/d2/dd2/} fs=!/d2/dd2/)
+      rm(/d2/)       #(seq7={op:rm dir:/d2/} fs=!/d2/)`);
     // XXX: test rm directory with multi directories
     // XXX: test rm file + directories with multiple files
   });

@@ -6,6 +6,8 @@ import xerr from '../util/xerr.js';
 import assert from 'assert';
 import buf_util from '../net/buf_util.js';
 import DiffMatchAndPath from 'diff-match-patch';
+import Branch_table from '../storage/branch.js';
+const {bseq_branch} = Branch_table;
 const Diff = new DiffMatchAndPath();
 const b2s = buf_util.buf_to_str;
 
@@ -20,8 +22,7 @@ export default class FS extends Scroll {
   // XXX: support cfid
   add_file(file, buf, opt={}){ return etask({_: this}, function*add_file(){
     // XXX: throw error if trying to add the same file twice
-    let _this = this._;
-    let {branch, cfid} = opt, prev;
+    let _this = this._, {branch, cfid} = opt, prev;
     cfid = cfid||0;
     if (branch!==undefined){
       let top = _this.get_branch_top(cfid, branch);
@@ -32,36 +33,47 @@ export default class FS extends Scroll {
     }
     if (!buf){
       let decl = yield _this.decl({branch, prev}, {op: 'add', file});
-      _this.file_to_seq.set(file, decl.seq);
+      _this._set_file_seq(file, decl.seq, decl.bseq_get(cfid));
       return;
     }
     let h = _this.hash_str(buf);
     let link = _this.buf_hash_to_seq.get(h);
     if (link){
-      let decl = _this.decl({branch, prev, link}, [{op: 'add', file}]);
-      _this.file_to_seq.set(file, decl.seq);
+      let decl = yield _this.decl({branch, prev, link}, [{op: 'add', file}]);
+      _this._set_file_seq(file, decl.seq, decl.bseq_get(cfid));
       return;
     }
     let decl = yield _this.decl({branch, prev},
       [{op: 'add', file, content: 1}, buf]);
-    _this.file_to_seq.set(file, decl.seq);
+    _this._set_file_seq(file, decl.seq, decl.bseq_get(cfid));
     _this.buf_hash_to_seq.set(h, decl.seq);
     return decl;
   }); }
   // XXX: support cfid
-  mod_file(file, buf){ return etask({_: this}, function*mod_file(){
+  mod_file(file, buf, opt={}){ return etask({_: this}, function*mod_file(){
     // XXX: handle case of same buf
-    let _this = this._;
-    _this.on('uncaught', e=>xerr.xexit(e));
+    let _this = this._, {branch, cfid} = opt, prev;
+    cfid = cfid||0;
+    if (branch!==undefined){
+      let top = _this.get_branch_top(cfid, branch);
+      if (top){
+        prev = top.seq;
+        branch = undefined;
+      }
+    }
     assert(buf, 'XXX TODO empty file'); // XXX
     let h = _this.hash_str(buf);
     let link = _this.buf_hash_to_seq.get(h);
     if (link){
-      let decl = _this.decl({link}, [{op: 'mod', file}]);
-      _this.file_to_seq.set(file, decl.seq);
+      let decl = yield _this.decl({branch, prev, link}, [{op: 'mod', file}]);
+      _this._set_file_seq(file, decl.seq, decl.bseq_get(cfid));
       return;
     }
-    link = _this.file_to_seq.get(file);
+    // XXX: we can use branch table without loading decl
+    let decl_prev = _this.get_decl(prev>=0 ? prev :
+      _this.conflict.get(cfid).top.seq);
+    yield decl_prev.load(cfid);
+    link = _this._get_file_seq(file, decl_prev.bseq_get(cfid));
     if (!link)
       throw new Error('file not found '+file);
     let _buf = yield _this.resolve_buf(0, link), decl;
@@ -69,11 +81,15 @@ export default class FS extends Scroll {
     let _s = Buffer.from(_buf).toString();
     let s = Buffer.from(buf).toString();
     let diff = Buffer.from(Diff.patch_toText(Diff.patch_make(_s, s)));
-    if (diff.length < 0.5*buf.length)
-      decl = yield _this.decl({link}, [{op: 'mod', file, diff: 1}, diff]);
-    else
-      decl = yield _this.decl([{op: 'mod', file, content: 1}, buf]);
-    _this.file_to_seq.set(file, decl.seq);
+    if (diff.length < 0.5*buf.length){
+      decl = yield _this.decl({branch, prev, link},
+        [{op: 'mod', file, diff: 1}, diff]);
+    }
+    else {
+      decl = yield _this.decl({branch, prev},
+        [{op: 'mod', file, content: 1}, buf]);
+    }
+    _this._set_file_seq(file, decl.seq, decl.bseq_get(cfid));
   }); }
   resolve_buf(cfid, seq){ return etask({_: this}, function*resolve_buf(){
     // XXX: verify we test every part of it
@@ -103,6 +119,20 @@ export default class FS extends Scroll {
     return Buffer.from(Diff.patch_apply(Diff.patch_fromText(buf.toString()),
       _buf.toString())[0]);
   }); }
+  _set_file_seq(file, seq, bseq){
+    let bseqb = bseq_branch(bseq);
+    let map = this.file_to_seq.get(bseqb);
+    if (!map)
+      this.file_to_seq.set(bseqb, map = new Map());
+    map.set(file, seq);
+  }
+  _get_file_seq(file, bseq){
+    let bseqb = bseq_branch(bseq);
+    let map = this.file_to_seq.get(bseqb);
+    if (!map)
+      return;
+    return map.get(file);
+  }
   test_get_seq(cfid, seq){
     let decl = this.get_decl(seq);
     let header = decl.get_header(cfid);
@@ -134,7 +164,7 @@ export default class FS extends Scroll {
 FS.create = (opt, d)=>etask(function*scroll_create(){
   let fs = new FS(opt);
   yield fs.init();
-  fs.decl([{scroll: {crypt: Scroll.supported_crypt[0],
+  yield fs.decl([{scroll: {crypt: Scroll.supported_crypt[0],
     pub: b2s(opt.pub), ...d}}]);
   return fs;
 });

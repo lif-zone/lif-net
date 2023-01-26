@@ -59,11 +59,15 @@ const cmd_add = t=>etask(function*cmd_add(){
 
 const cmd_mod = t=>etask(function*cmd_mod(){
   this.on('uncaught', e=>xerr.xexit(e)); // XXX: need xtest.etask
-  let name = t.ctx||get_def('left'), fs = get_scroll(name), file, buf;
+  let name = t.ctx||get_def('left'), fs = get_scroll(name), file, buf, branch;
   assert(t.r, 'missing arg '+t.meta.s);
   for (let curr=t.r, i=0; curr = parse_get_next(curr); i++){
     let tt = parse_exp_arg(curr.exp);
-    if (/^buf/.test(tt.cmd)){
+    if (tt.cmd=='branch')
+      branch = tt.r;
+    else if (tt.cmd=='main')
+      branch = null;
+    else if (/^buf/.test(tt.cmd)){
       buf = t_buf[tt.r];
       assert(buf, 'buf not found '+tt.r);
     } else {
@@ -73,7 +77,7 @@ const cmd_mod = t=>etask(function*cmd_mod(){
     }
   }
   assert(FS.valid_file(file), 'missing file');
-  yield fs.mod_file(file, buf);
+  yield fs.mod_file(file, buf, {branch});
 });
 
 const cmd_buf = t=>etask(function*cmd_buf(){
@@ -116,8 +120,10 @@ const get_seq = s=>etask(function*get_seq(){
       let oo = parse_exp(o.r), a;
       switch (oo.cmd){
       case 'diff':
-        a = oo.r.split(',');
+        a = oo.r.split(' ');
         assert(a.length==2, 'invalid diff '+o.r);
+        assert(t_buf[a[0]], 'buf not found '+a[0]);
+        assert(t_buf[a[1]], 'buf not found '+a[1]);
         bo[o.l] = Buffer.from(Diff.patch_toText(
           Diff.patch_make(t_buf[a[0]].toString(), t_buf[a[1]].toString())));
         break;
@@ -168,27 +174,30 @@ describe('fs', ()=>{
     // XXX: test seq0
     // XXX: test binary
     // XXX: test mv/rm file/dir
-    t('add_diff', `s..#seq buf(d1 val:0) buf(d2 val:1) s..fs #seq0={}
+    t('add_two_diff', `s..#seq buf(d1 val:0) buf(d2 val:1) s..fs #seq0={}
       add(/f1 buf:d1) #seq1={op:add file:/f1 content:1 f2:d1}
       add(/f2 buf:d2) #seq2={op:add file:/f2 content:1 f2:d2}`);
-    t('add_same', `s..#seq buf(d1 val:0) s..fs #seq0={}
+    t('add_two_same', `s..#seq buf(d1 val:0) s..fs #seq0={}
       add(/f1 buf:d1) #seq1={op:add file:/f1 content:1 f2:d1}
       add(/f2 buf:d1) #seq2={op:add file:/f2 link:1}`);
     [d1, d2, d3] = [d+'x1', d+'x2', d+'x3'];
     t('mod_same', `s..#seq buf(d val:d) s..fs #seq0={}
       add(/f buf:d) #seq1={op:add file:/f content:1 f2:d}
       mod(/f buf:d) #seq2={op:mod file:/f link:1}`);
+    // XXX: test modify with same buffer as another file
     t('mod_diff', `s..#seq
       buf(d1 val:${d1}) buf(d2 val:${d2}) buf(d3 val:${d3}) s..fs #seq0={}
       add(/f1 buf:d1) #seq1={op:add file:/f1 content:1 f2:d1}
-      mod(/f1 buf:d2) #seq2={op:mod file:/f1 link:1 diff:1 f2:diff(d1,d2)}
-      mod(/f1 buf:d3) #seq3={op:mod file:/f1 link:2 diff:1 f2:diff(d2,d3)}`);
+      mod(/f1 buf:d2) #seq2={op:mod file:/f1 link:1 diff:1 f2:diff(d1 d2)}
+      mod(/f1 buf:d3) #seq3={op:mod file:/f1 link:2 diff:1 f2:diff(d2 d3)}`);
     [d1, d2] = [d+'1', d+'2'];
     t('mod_nodiff', `s..#seq buf(d1 val:${d1}) buf(d2 val:${d2}) s..fs #seq0={}
       add(/f1 buf:d1) #seq1={op:add file:/f1 content:1 f2:d1}
       mod(/f1 buf:d2) #seq2={op:mod file:/f1 content:1 f2:d2}`);
   });
   describe('branch', ()=>{
+    let d1, d2, d3, d4, d5, d6, d = 'x'.repeat(68);
+    // XXX: test dir
     t('file_add', `s..#seq buf(d1 val:1) buf(d2 val:2) buf(d3 val:3)
       buf(d4 val:4) buf(d5 val:5) buf(d6 val:6) buf(d7 val:7) s..fs #seq0={}
       add(/f1 buf:d1) #seq1={op:add file:/f1 content:1 f2:d1}
@@ -200,6 +209,32 @@ describe('fs', ()=>{
       add(/f6 buf:d6) #seq6={bseq:3 op:add file:/f6 content:1 f2:d6}
       add(/f7 branch:b buf:d7)
         #seq7={bseq:1-1.3 op:add file:/f7 content:1 f2:d7}`);
+    t('file_mod_nodiff', `s..#seq buf(d1 val:1) buf(d2 val:2) buf(d3 val:3)
+      buf(d4 val:4) buf(d5 val:5) buf(d6 val:6) buf(d7 val:7) s..fs #seq0={}
+      add(/f buf:d1) #seq1={op:add file:/f content:1 f2:d1}
+      mod(/f branch:b buf:d2)
+        #seq2={bseq:1-1.0 branch:b op:mod file:/f content:1 f2:d2}
+      mod(/f buf:d3) #seq3={bseq:1-1.1 op:mod file:/f content:1 f2:d3}
+      mod(/f buf:d4) #seq4={bseq:1-1.2 op:mod file:/f content:1 f2:d4}
+      mod(/f main buf:d5) #seq5={bseq:2 op:mod file:/f content:1 f2:d5}
+      mod(/f buf:d6) #seq6={bseq:3 op:mod file:/f content:1 f2:d6}
+      mod(/f branch:b buf:d7)
+        #seq7={bseq:1-1.3 op:mod file:/f content:1 f2:d7}`);
+    [d1, d2, d3, d4, d5, d6] = [d+'x1', d+'x2', d+'x3', d+'x4', d+'x5',
+      d+'x6'];
+    t('file_mod_diff', `s..#seq s..fs #seq0={} buf(d1 val:${d1})
+      buf(d2 val:${d2}) buf(d3 val:${d3}) buf(d4 val:${d4}) buf(d5 val:${d5})
+      buf(d6 val:${d6})
+      add(/f buf:d1) #seq1={op:add file:/f content:1 f2:d1}
+      mod(/f branch:b buf:d2)
+        #seq2={bseq:1-1.0 branch:b op:mod file:/f link:1 diff:1 f2:diff(d1 d2)}
+      mod(/f buf:d3)
+        #seq3={bseq:1-1.1 op:mod file:/f link:2 diff:1 f2:diff(d2 d3)}
+      mod(/f main buf:d4)
+        #seq4={bseq:2 op:mod file:/f link:1 diff:1 f2:diff(d1 d4)}
+      mod(/f buf:d5) #seq5={bseq:3 op:mod file:/f link:4 diff:1 f2:diff(d4 d5)}
+      mod(/f branch:b buf:d6)
+        #seq6={bseq:1-1.2 op:mod file:/f link:3 diff:1 f2:diff(d3 d6)}`);
   });
   // XXX: test tag
   return;

@@ -19,43 +19,30 @@ export default class FS extends Scroll {
   }
   // XXX: support cfid
   add_dir(dir, opt={}){ return etask({_: this}, function*add_dir(){
-    let _this = this._, {branch, cfid} = opt, prev;
-    cfid = cfid||0;
-    if (branch!==undefined){
-      let top = _this.get_branch_top(cfid, branch);
-      if (top){
-        prev = top.seq;
-        branch = undefined;
-      }
-    }
-    yield _this.decl({branch, prev}, {op: 'add', dir});
     // XXX: throw error if trying to add the dir twice
+    let _this = this._, {branch, prev, cfid} = _this.parse_opt(opt);
+    yield _this.decl({cfid, branch, prev}, {op: 'add', dir});
+  }); }
+  rm_dir(dir, opt={}){ return etask({_: this}, function*rm_dir(){
   }); }
   // XXX: support cfid
   add_file(file, buf, opt={}){ return etask({_: this}, function*add_file(){
     // XXX: throw error if trying to add the same file twice
-    let _this = this._, {branch, cfid} = opt, prev;
-    cfid = cfid||0;
-    if (branch!==undefined){
-      let top = _this.get_branch_top(cfid, branch);
-      if (top){
-        prev = top.seq;
-        branch = undefined;
-      }
-    }
+    let _this = this._, {branch, prev, cfid} = _this.parse_opt(opt);
     if (!buf){
-      let decl = yield _this.decl({branch, prev}, {op: 'add', file});
+      let decl = yield _this.decl({cfid, branch, prev}, {op: 'add', file});
       _this._set_file_seq(file, decl.seq, decl.bseq_get(cfid));
       return;
     }
     let h = _this.hash_str(buf);
     let link = _this.buf_hash_to_seq.get(h);
     if (link){
-      let decl = yield _this.decl({branch, prev, link}, [{op: 'add', file}]);
+      let decl = yield _this.decl({cfid, branch, prev, link},
+        [{op: 'add', file}]);
       _this._set_file_seq(file, decl.seq, decl.bseq_get(cfid));
       return;
     }
-    let decl = yield _this.decl({branch, prev},
+    let decl = yield _this.decl({cfid, branch, prev},
       [{op: 'add', file, content: 1}, buf]);
     _this._set_file_seq(file, decl.seq, decl.bseq_get(cfid));
     _this.buf_hash_to_seq.set(h, decl.seq);
@@ -64,20 +51,13 @@ export default class FS extends Scroll {
   // XXX: support cfid
   mod_file(file, buf, opt={}){ return etask({_: this}, function*mod_file(){
     // XXX: handle case of same buf
-    let _this = this._, {branch, cfid} = opt, prev;
-    cfid = cfid||0;
-    if (branch!==undefined){
-      let top = _this.get_branch_top(cfid, branch);
-      if (top){
-        prev = top.seq;
-        branch = undefined;
-      }
-    }
+    let _this = this._, {branch, prev, cfid} = _this.parse_opt(opt);
     assert(buf, 'XXX TODO empty file'); // XXX
     let h = _this.hash_str(buf);
     let link = _this.buf_hash_to_seq.get(h);
     if (link){
-      let decl = yield _this.decl({branch, prev, link}, [{op: 'mod', file}]);
+      let decl = yield _this.decl({cfid, branch, prev, link},
+        [{op: 'mod', file}]);
       _this._set_file_seq(file, decl.seq, decl.bseq_get(cfid));
       return;
     }
@@ -94,11 +74,11 @@ export default class FS extends Scroll {
     let s = Buffer.from(buf).toString();
     let diff = Buffer.from(Diff.patch_toText(Diff.patch_make(_s, s)));
     if (diff.length < 0.5*buf.length){
-      decl = yield _this.decl({branch, prev, link},
+      decl = yield _this.decl({cfid, branch, prev, link},
         [{op: 'mod', file, diff: 1}, diff]);
     }
     else {
-      decl = yield _this.decl({branch, prev},
+      decl = yield _this.decl({cfid, branch, prev},
         [{op: 'mod', file, content: 1}, buf]);
     }
     _this._set_file_seq(file, decl.seq, decl.bseq_get(cfid));
@@ -144,6 +124,18 @@ export default class FS extends Scroll {
     if (!map)
       return;
     return map.get(file);
+  }
+  parse_opt(opt){
+    let {cfid, branch} = opt, prev;
+    cfid = cfid||0;
+    if (branch===undefined)
+      return {cfid, branch, prev};
+    let top = this.get_branch_top(cfid, branch);
+    if (!top)
+      return {cfid, branch, prev};
+    prev = top.seq;
+    branch = undefined;
+    return {cfid, branch, prev};
   }
   test_get_seq(cfid, seq){
     let decl = this.get_decl(seq);

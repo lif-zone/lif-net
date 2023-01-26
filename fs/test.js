@@ -80,6 +80,34 @@ const cmd_mod = t=>etask(function*cmd_mod(){
   yield fs.mod_file(file, buf, {branch});
 });
 
+const cmd_rm = t=>etask(function*cmd_rm(){
+  let name = t.ctx||get_def('left'), fs = get_scroll(name), dir, file;
+  let branch;
+  assert(t.r, 'missing arg '+t.meta.s);
+  for (let curr=t.r, i=0; curr = parse_get_next(curr); i++){
+    let tt = parse_exp_arg(curr.exp);
+    if (tt.cmd=='branch')
+      branch = tt.r;
+    else if (tt.cmd=='main')
+      branch = null;
+    else {
+      assert(!file && !dir, 'invalid arg '+tt.cmd+' in '+t.meta.s);
+      if (FS.valid_dir(tt.cmd))
+        dir = tt.cmd;
+      else if (FS.valid_file(tt.cmd))
+        file = tt.cmd;
+      else
+        assert.fail('invalid file/dir '+tt.cmd);
+    }
+  }
+  assert(file||dir, 'missing file/dir');
+  if (file)
+    yield fs.rm_file(file, {branch});
+  else
+    yield fs.rm_dir(dir, {branch});
+});
+
+
 const cmd_buf = t=>etask(function*cmd_buf(){
   assert(!t.l, 'invalid left arg '+t.meta.s);
   assert(t.r, 'missing arg '+t.meta.s);
@@ -96,6 +124,7 @@ const test_run_single = (curr, o, step)=>etask(function*_test_run_single(){
   case 'fs': yield cmd_fs(o); break;
   case 'add': yield cmd_add(o); break;
   case 'mod': yield cmd_mod(o); break;
+  case 'rm': yield cmd_rm(o); break;
   case 'buf': yield cmd_buf(o); break;
   default: return false;
   }
@@ -151,25 +180,16 @@ describe('util', ()=>{
 
 describe('fs', ()=>{
   const t = (name, test)=>it(name, ()=>test_run(test));
-  t('dir', `s..#seq
-    s..fs          #seq0={} // XXX: todo
-    add(/)         #seq1={op:add dir:/}
-    add(/d/)       #seq2={op:add dir:/d/}
-    add(/d/dd/)    #seq3={op:add dir:/d/dd/}
-    add(/d/dd2/)   #seq4={op:add dir:/d/dd2/}
-    add(/d2/)      #seq5={op:add dir:/d2/}
-    add(/d2/d2d/)  #seq6={op:add dir:/d2/d2d/}
-    add(/d2/d2d2/) #seq7={op:add dir:/d2/d2d2/}`);
   describe('file', ()=>{
     let d1, d2, d3, d = 'x'.repeat(68);
     // XXX: create low-level scroll using decl to check all possible
     // combinations
-    // XXX: test empty file
-    // XXX: test binary
-    // XXX: test branches+conflict
+    // XXX: test empty file/binary file
+    // XXX: test conflict
     // XXX: test seq0
-    // XXX: test binary
     // XXX: test mv/rm file/dir
+    // XXX: what if trying to add file without directory that exists
+    // (create directory if it doesn't exist)
     t('add_two_diff', `s..#seq buf(d1:0) buf(d2:1) s..fs #seq0={}
       add(/f1 buf:d1) #seq1={op:add file:/f1 content:1 f2:d1}
       add(/f2 buf:d2) #seq2={op:add file:/f2 content:1 f2:d2}`);
@@ -190,17 +210,26 @@ describe('fs', ()=>{
       add(/f1 buf:d1) #seq1={op:add file:/f1 content:1 f2:d1}
       mod(/f1 buf:d2) #seq2={op:mod file:/f1 content:1 f2:d2}`);
   });
+  describe('dir', ()=>{
+    t('add', `s..#seq
+      s..fs          #seq0={}
+      add(/)         #seq1={op:add dir:/}
+      add(/d/)       #seq2={op:add dir:/d/}
+      add(/d/dd/)    #seq3={op:add dir:/d/dd/}
+      add(/d/dd2/)   #seq4={op:add dir:/d/dd2/}
+      add(/d2/)      #seq5={op:add dir:/d2/}
+      add(/d2/d2d/)  #seq6={op:add dir:/d2/d2d/}
+      add(/d2/d2d2/) #seq7={op:add dir:/d2/d2d2/}`);
+    if (0) // XXX: WIP
+    t('rm_single', `s..#seq
+      s..fs          #seq0={}
+      add(/)         #seq1={op:add dir:/}
+      add(/d/)       #seq2={op:add dir:/d/}
+      rm(/d/)        #seq3={op:rm dir:/d/}
+    `);
+  });
   describe('branch', ()=>{
     let d1, d2, d3, d4, d5, d6, d = 'x'.repeat(68);
-    t('dir', `s..#seq s..fs #seq0={}
-      add(/) #seq1={op:add dir:/}
-      add(/d1/) #seq2={op:add dir:/d1/}
-      add(/d2/ branch:b) #seq3={bseq:2-1.0 branch:b op:add dir:/d2/}
-      add(/d3/) #seq4={bseq:2-1.1 op:add dir:/d3/}
-      add(/d2/ main) #seq5={bseq:3 op:add dir:/d2/}
-      add(/d3/ main) #seq6={bseq:4 op:add dir:/d3/}
-      add(/d4/ branch:b) #seq7={bseq:2-1.2 op:add dir:/d4/}
-    `);
     t('file_add', `s..#seq buf(d1:1) buf(d2:2) buf(d3:3)
       buf(d4:4) buf(d5:5) buf(d6:6) buf(d7:7) s..fs #seq0={}
       add(/f1 buf:d1) #seq1={op:add file:/f1 content:1 f2:d1}
@@ -238,6 +267,15 @@ describe('fs', ()=>{
       mod(/f buf:d5) #seq5={bseq:3 op:mod file:/f link:4 diff:1 f2:diff(d4 d5)}
       mod(/f branch:b buf:d6)
         #seq6={bseq:1-1.2 op:mod file:/f link:3 diff:1 f2:diff(d3 d6)}`);
+    t('dir', `s..#seq s..fs #seq0={}
+      add(/) #seq1={op:add dir:/}
+      add(/d1/) #seq2={op:add dir:/d1/}
+      add(/d2/ branch:b) #seq3={bseq:2-1.0 branch:b op:add dir:/d2/}
+      add(/d3/) #seq4={bseq:2-1.1 op:add dir:/d3/}
+      add(/d2/ main) #seq5={bseq:3 op:add dir:/d2/}
+      add(/d3/ main) #seq6={bseq:4 op:add dir:/d3/}
+      add(/d4/ branch:b) #seq7={bseq:2-1.2 op:add dir:/d4/}
+    `);
   });
   // XXX: test tag
   return;

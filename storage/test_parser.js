@@ -87,6 +87,9 @@ E.parse_push = function(curr, s){
 E._parse_exp = function(s){
   s = s.trim();
   let c, parentesis = [], first, meta = {s};
+  // XXX: rm special handling for # and ##
+  if ('##'==s.substr(0, 2))
+    return {cmd: '##', l: '', r: rm_parentesis(s.substr(2).trim()), meta};
   if ('#'==s.charAt(0))
     return {cmd: '#', l: '', r: rm_parentesis(s.substr(1).trim()), meta};
   if ('//'==s.substr(0, 2))

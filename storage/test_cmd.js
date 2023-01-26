@@ -166,7 +166,7 @@ export function get_scroll(name, may_not_exist){
   return scroll;
 }
 
-function set_def(type, val){
+export function set_def(type, val){
   assert(['left', 'right'].includes(type), 'invalid default type '+type);
   assert(val, 'invalid default '+type+' val '+val);
   return t_def[type] = val;
@@ -391,7 +391,8 @@ const test_run_single = (curr, o, step)=>etask(function*_test_run_single(){
   case 'unload': yield cmd_unload(curr, o); break;
   case 'load_c': yield cmd_load_c(o); break;
   case 'tput': yield cmd_tput(curr, o); break;
-  case '#': yield cmd_state(o); break;
+  case '#': yield cmd_state_diff(o); break;
+  case '##': yield cmd_state_check(o); break;
   case 'def': yield cmd_def(o); break;
   case '=': yield cmd_eq(o); break;
   case '==': yield cmd_test(o); break;
@@ -665,7 +666,7 @@ function state_split_var(v, def){
 }
 
 const state_split = (exp, def)=>etask(function*state_split(){
-  let o = parse_exp(exp);
+  let o = parse_exp(exp), ret;
   switch (o.cmd){
   case '!': return {...state_split_var(o.r, def), val: null};
   case '=':
@@ -683,6 +684,9 @@ const state_split = (exp, def)=>etask(function*state_split(){
       return {...state_split_var(o.l, def), val: yield get_btable(o.r)};
     if (/^db_btc/.test(o.l))
       return {...state_split_var(o.l, def), val: yield get_btable(o.r)};
+    ret = yield t_hooks.state_split?.(o, def);
+    if (ret!==undefined)
+      return ret;
     return {...state_split_var(o.l, def),
       val: fix_buf(yield get_val(o.r, 'right'))};
   default: assert.fail('invalid state_split '+exp);
@@ -691,6 +695,8 @@ const state_split = (exp, def)=>etask(function*state_split(){
 
 function state_apply(state, o){
   let {type, seq, cfid, index, val} = o;
+  if (t_hooks.state_valid_filter?.(type))
+    return t_hooks.state_apply(state, o);
   if (['db_c', 'db_data', 'mem_c', 'bname'].includes(type)){
     if (val)
       state[type] = val;
@@ -753,13 +759,25 @@ function get_filter(s){
     case 'btable': break;
     case 'bseq': break;
     case 'db_btable': break;
-    default: return;
+    default:
+      if (t_hooks.state_valid_filter?.(a[i]))
+        break;
+      return;
     }
   }
   return a;
 }
 
-const cmd_state = t=>etask(function*cmd_state(){
+const cmd_state_check = t=>etask(function*cmd_state_check(){
+/* XXX WIP
+  let name = t.ctx||get_def('left');
+  let scroll = get_scroll(name, true);
+  for (let curr=t.r; curr = parse_get_next(curr);)
+    xerr('XXX exp %s', curr.exp);
+*/
+});
+
+const cmd_state_diff = t=>etask(function*cmd_state_diff(){
   let state = {mem: {}, db: {}};
   let name = t.ctx||get_def('left');
   let scroll = get_scroll(name, true);
@@ -821,6 +839,7 @@ const cmd_state = t=>etask(function*cmd_state(){
     t_state[name].filter = ['db', 'db_data', 'db_c', 'mem', 'mem_c'];
     return;
   }
+  t_hooks.state_curr?.(t_state[name].filter, state, scroll);
   for (let curr=t.r; curr = parse_get_next(curr);)
     state_apply(t_state[name], yield state_split(curr.exp, name));
   if (t_state[name].filter.includes('mem_c')){
@@ -862,6 +881,8 @@ const cmd_state = t=>etask(function*cmd_state(){
       'db_btable state mismach '+t.meta.s);
   }
   let filter = t_state[name].filter;
+  if (t_hooks.state_assert)
+    t_hooks.state_assert(filter, state, t_state[name]);
   t_state[name] = state;
   t_state[name].filter = filter;
 });

@@ -18,7 +18,7 @@ const {bseq_valid} = Branch_table;
 const {rm_parentesis, parse_get_next, parse_exp_arg_pair, parse_exp,
   parse_exp_arg, parse_push} = tparser;
 const {b2s, s2b, b2s_obj} = buf_util;
-const test_run_hooks = [];
+const test_cmd_hooks = [];
 
 function enc_u64(v){ return enc.encode(enc.uint64, v); }
 let t_soul, t_soul_id, t_soul_mode, t_state;
@@ -30,8 +30,11 @@ function tjoin(v, cmd, arg){
   return arg ? s+'('+arg+')' : s;
 }
 
-let get_seq_cb;
-export function test_register_get_seq(cb){ get_seq_cb = cb; }
+let t_hooks = {};
+export function test_register(name, cb){
+  assert(!t_hooks[name], 'hook already registred '+name);
+  t_hooks[name] = cb;
+}
 
 export function macro_to_m(val, dst){
   const to_nd = ch=>{
@@ -338,10 +341,14 @@ const test_start = ()=>etask(function*test_start(){
   yield t_prev_scroll.decl('1');
   assert(t_prev_scroll.M_hash(0, 0), 'missing M0');
   assert(t_prev_scroll.M_hash(0, 1), 'missing M1');
+  if (t_hooks['start'])
+    yield t_hooks['start']();
 });
 
 const test_end = ()=>etask(function*test_end(){
   xerr.notice('test_end');
+  if (t_hooks['end'])
+    yield t_hooks['end']();
   yield xsinon.wait();
   for (let name in t_scroll)
     yield test_run_single('', parse_exp(name+'.#'), 'test_end');
@@ -355,18 +362,18 @@ const test_end = ()=>etask(function*test_end(){
   Scroll.soul.clear();
 });
 
-const test_run_single_hooks = (curr, o, step)=>etask(
+const test_run_cmd_hooks = (curr, o, step)=>etask(
   function*_test_run_single()
 {
-  for (let i=0; i<test_run_hooks.length; i++){
-    let cb = test_run_hooks[i];
+  for (let i=0; i<test_cmd_hooks.length; i++){
+    let cb = test_cmd_hooks[i];
     if (yield cb(curr, o, step))
       return true;
   }
   return false;
 });
 
-export function test_run_register_hook(cb){ test_run_hooks.push(cb); }
+export function test_register_cmd(cb){ test_cmd_hooks.push(cb); }
 
 const test_run_single = (curr, o, step)=>etask(function*_test_run_single(){
   if (step || step!='')
@@ -410,7 +417,7 @@ const test_run_single = (curr, o, step)=>etask(function*_test_run_single(){
       yield cmd_eq({cmd: '=', l: o.meta.s.substr(1), r: 'null',
         meta: {s: o.meta.s}});
     }
-    else if (yield test_run_single_hooks(curr, o, step));
+    else if (yield test_run_cmd_hooks(curr, o, step));
     else
       assert.fail('invalid cmd "'+o.cmd+'" in '+o.meta.s);
   }
@@ -665,7 +672,7 @@ const state_split = (exp, def)=>etask(function*state_split(){
     if (['db_data'].includes(o.l))
       return {...state_split_var(o.l, def), val: yield get_db_data(o.r)};
     if (/^seq/.test(o.l))
-      return {...state_split_var(o.l, def), val: yield get_seq_cb(o.r)};
+      return {...state_split_var(o.l, def), val: yield t_hooks.get_seq(o.r)};
     if (/^bseq/.test(o.l))
       return {...state_split_var(o.l, def), val: yield get_val(o.r, 'right')};
     if (['db_c', 'mem_c'].includes(o.l))

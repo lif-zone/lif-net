@@ -9,12 +9,12 @@ import tparser from '../storage/test_parser.js';
 import DiffMatchAndPath from 'diff-match-patch';
 const Diff = new DiffMatchAndPath();
 const {parse_get_next, parse_exp, parse_exp_arg, rm_parentesis} = tparser;
-import {test_run, test_run_register_hook, new_scroll, get_scroll, get_def,
-  test_register_get_seq} from '../storage/test_cmd.js';
+import {test_run, new_scroll, get_scroll, get_def, test_register,
+  test_register_cmd} from '../storage/test_cmd.js';
 
 xtest.init();
 
-let t_buf = {}; // XXX: reset on test_start
+let t_buf;
 
 const cmd_fs = t=>etask(function*cmd_fs(){
   let name = t.ctx||get_def('left');
@@ -86,7 +86,7 @@ const cmd_buf = t=>etask(function*cmd_buf(){
   for (let curr=t.r, i=0; curr = parse_get_next(curr); i++){
     let tt = parse_exp_arg(curr.exp);
     let name = tt.cmd, val = tt.r;
-//    assert(!t_buf[name], 'buf already exist '+name);
+    assert(!t_buf[name], 'buf already exist '+name);
     t_buf[name] = Buffer.from(val+'\n');
   }
 });
@@ -101,9 +101,8 @@ const test_run_single = (curr, o, step)=>etask(function*_test_run_single(){
   }
   return true;
 });
-test_run_register_hook(test_run_single);
 
-const get_seq = s=>etask(function*get_seq(){
+const test_get_seq = s=>etask(function*get_seq(){
   let bo = {};
   s = rm_parentesis(s, '{');
   for (let curr=s; curr = parse_get_next(curr);){
@@ -129,7 +128,12 @@ const get_seq = s=>etask(function*get_seq(){
   }
   return bo;
 });
-test_register_get_seq(get_seq);
+
+const test_start = ()=>etask(function*test_start(){ t_buf = {}; });
+
+test_register_cmd(test_run_single);
+test_register('get_seq', test_get_seq);
+test_register('start', test_start);
 
 describe('util', ()=>{
   it('parse_buf_ref', ()=>{

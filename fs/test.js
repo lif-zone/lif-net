@@ -321,10 +321,10 @@ describe('fs', ()=>{
     t('add_two_same', `s..#seq buf(d1:0) s..fs #seq0={}
       add(/f1 buf:d1) #seq1={op:add file:/f1 content:1 f2:d1}
       add(/f2 buf:d1) #seq2={op:add file:/f2 link:1}`);
-    [d1, d2, d3] = [d+'x1', d+'x2', d+'x3'];
     t('mod_same', `s..#seq buf(d:d) s..fs #seq0={}
       add(/f buf:d) #seq1={op:add file:/f content:1 f2:d}
       mod(/f buf:d) #seq2={op:mod file:/f link:1}`);
+    [d1, d2, d3] = [d+'x1', d+'x2', d+'x3'];
     t('mod_diff', `s..#seq
       buf(d1:${d1}) buf(d2:${d2}) buf(d3:${d3}) s..fs #seq0={}
       add(/f1 buf:d1) #seq1={op:add file:/f1 content:1 f2:d1}
@@ -338,7 +338,15 @@ describe('fs', ()=>{
       s..fs          #(seq0={})
       add(/)         #(seq1={op:add dir:/} fs=/)
       add(/f buf:d)  #(seq2={op:add file:/f content:1 f2:d} fs=/f)
-      rm(/f)         #(seq3={op:rm file:/f} fs=!/f)`);
+      rm(/f)         #(seq3={op:rm file:/f} fs=!/f)
+      add(/f buf:d)  #(seq4={op:add file:/f link:2} fs=/f)`);
+    [d1, d2] = [d+'x1', d+'x2'];
+    t('rm_add_diff', `s..#(seq fs) buf(d1:${d1}) buf(d2:${d2})
+      s..fs          #(seq0={})
+      add(/)         #(seq1={op:add dir:/} fs=/)
+      add(/f buf:d1)  #(seq2={op:add file:/f content:1 f2:d1} fs=/f)
+      rm(/f)         #(seq3={op:rm file:/f} fs=!/f)
+      add(/f buf:d2)  #(seq4={op:add file:/f content:1 f2:d2} fs=/f)`);
   });
   describe('branch', ()=>{
     let d1, d2, d3, d4, d5, d6, d = 'x'.repeat(68);

@@ -256,37 +256,6 @@ describe('util', ()=>{
 
 describe('fs', ()=>{
   const t = (name, test)=>it(name, ()=>test_run(test));
-  // XXX: add by date
-  describe('file', ()=>{
-    let d1, d2, d3, d = 'x'.repeat(68);
-    // XXX: create low-level scroll using decl to check all possible
-    // combinations
-    // XXX: test empty file/binary file
-    // XXX: test conflict
-    // XXX: test seq0
-    // XXX: test mv/rm file/dir
-    // XXX: what if trying to add file without directory that exists
-    // (create directory if it doesn't exist)
-    t('add_two_diff', `s..#seq buf(d1:0) buf(d2:1) s..fs #seq0={}
-      add(/f1 buf:d1) #seq1={op:add file:/f1 content:1 f2:d1}
-      add(/f2 buf:d2) #seq2={op:add file:/f2 content:1 f2:d2}`);
-    t('add_two_same', `s..#seq buf(d1:0) s..fs #seq0={}
-      add(/f1 buf:d1) #seq1={op:add file:/f1 content:1 f2:d1}
-      add(/f2 buf:d1) #seq2={op:add file:/f2 link:1}`);
-    [d1, d2, d3] = [d+'x1', d+'x2', d+'x3'];
-    t('mod_same', `s..#seq buf(d:d) s..fs #seq0={}
-      add(/f buf:d) #seq1={op:add file:/f content:1 f2:d}
-      mod(/f buf:d) #seq2={op:mod file:/f link:1}`);
-    t('mod_diff', `s..#seq
-      buf(d1:${d1}) buf(d2:${d2}) buf(d3:${d3}) s..fs #seq0={}
-      add(/f1 buf:d1) #seq1={op:add file:/f1 content:1 f2:d1}
-      mod(/f1 buf:d2) #seq2={op:mod file:/f1 link:1 diff:1 f2:diff(d1 d2)}
-      mod(/f1 buf:d3) #seq3={op:mod file:/f1 link:2 diff:1 f2:diff(d2 d3)}`);
-    [d1, d2] = [d+'1', d+'2'];
-    t('mod_nodiff', `s..#seq buf(d1:${d1}) buf(d2:${d2}) s..fs #seq0={}
-      add(/f1 buf:d1) #seq1={op:add file:/f1 content:1 f2:d1}
-      mod(/f1 buf:d2) #seq2={op:mod file:/f1 content:1 f2:d2}`);
-  });
   describe('dir', ()=>{
     // XXX: fix all other tests that use test_* and use ## instead
 /* XXX: TODO
@@ -321,8 +290,55 @@ describe('fs', ()=>{
       rm(/d1/)       #(seq5={op:rm dir:/d1/} fs=!/d1/)
       rm(/d2/dd2/)   #(seq6={op:rm dir:/d2/dd2/} fs=!/d2/dd2/)
       rm(/d2/)       #(seq7={op:rm dir:/d2/} fs=!/d2/)`);
+    if (0) // XXX WIP
+    t('rm_multi', `s..#(seq fs)
+      s..fs          #(seq0={})
+      add(/)         #(seq1={op:add dir:/} fs=/)
+      add(/d/)       #(seq2={op:add dir:/d/} fs=/d/)
+      add(/d/dd1/)   #(seq3={op:add dir:/d/dd1/} fs=/d/dd1/)
+      add(/d/dd2/)   #(seq4={op:add dir:/d/dd2/} fs=/d/dd2/)
+      rm(/d/)
+        #(seq5={op:rm dir:/d/} seq6={op:rm dir:/d/} seq7={op:rm dir:/d/}
+        fs=[!/d/ !/d/dd1/ !/d/dd2])
+    `);
     // XXX: test rm directory with multi directories
     // XXX: test rm file + directories with multiple files
+  });
+  // XXX: add by date
+  describe('file', ()=>{ // XXX: test fs in all
+    let d1, d2, d3, d = 'x'.repeat(68);
+    // XXX: create low-level scroll using decl to check all possible
+    // combinations
+    // XXX: test empty file/binary file
+    // XXX: test conflict
+    // XXX: test seq0
+    // XXX: test mv/rm file/dir
+    // XXX: what if trying to add file without directory that exists
+    // (create directory if it doesn't exist)
+    t('add_two_diff', `s..#seq buf(d1:0) buf(d2:1) s..fs #seq0={}
+      add(/f1 buf:d1) #seq1={op:add file:/f1 content:1 f2:d1}
+      add(/f2 buf:d2) #seq2={op:add file:/f2 content:1 f2:d2}`);
+    t('add_two_same', `s..#seq buf(d1:0) s..fs #seq0={}
+      add(/f1 buf:d1) #seq1={op:add file:/f1 content:1 f2:d1}
+      add(/f2 buf:d1) #seq2={op:add file:/f2 link:1}`);
+    [d1, d2, d3] = [d+'x1', d+'x2', d+'x3'];
+    t('mod_same', `s..#seq buf(d:d) s..fs #seq0={}
+      add(/f buf:d) #seq1={op:add file:/f content:1 f2:d}
+      mod(/f buf:d) #seq2={op:mod file:/f link:1}`);
+    t('mod_diff', `s..#seq
+      buf(d1:${d1}) buf(d2:${d2}) buf(d3:${d3}) s..fs #seq0={}
+      add(/f1 buf:d1) #seq1={op:add file:/f1 content:1 f2:d1}
+      mod(/f1 buf:d2) #seq2={op:mod file:/f1 link:1 diff:1 f2:diff(d1 d2)}
+      mod(/f1 buf:d3) #seq3={op:mod file:/f1 link:2 diff:1 f2:diff(d2 d3)}`);
+    [d1, d2] = [d+'1', d+'2'];
+    t('mod_nodiff', `s..#seq buf(d1:${d1}) buf(d2:${d2}) s..fs #seq0={}
+      add(/f1 buf:d1) #seq1={op:add file:/f1 content:1 f2:d1}
+      mod(/f1 buf:d2) #seq2={op:mod file:/f1 content:1 f2:d2}`);
+    t('rm', `s..#(seq fs) buf(d:1)
+      s..fs          #(seq0={})
+      add(/)         #(seq1={op:add dir:/} fs=/)
+      add(/f buf:d)  #(seq2={op:add file:/f content:1 f2:d} fs=/f)
+      rm(/f)         #(seq3={op:rm file:/f} fs=!/f)`);
   });
   describe('branch', ()=>{
     let d1, d2, d3, d4, d5, d6, d = 'x'.repeat(68);

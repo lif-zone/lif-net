@@ -32,6 +32,12 @@ export default class FS extends Scroll {
     let decl = yield _this.decl({cfid, branch, prev}, {op: 'rm', dir});
     _this._set_seq(dir, decl.seq, decl.bseq_get(cfid), true);
   }); }
+  rm_file(file, opt={}){ return etask({_: this}, function*rm_file(){
+    // XXX: throw error if file doesn't exist
+    let _this = this._, {branch, prev, cfid} = _this.parse_opt(opt);
+    let decl = yield _this.decl({cfid, branch, prev}, {op: 'rm', file});
+    _this._set_seq(file, decl.seq, decl.bseq_get(cfid), true);
+  }); }
   // XXX: support cfid
   add_file(file, buf, opt={}){ return etask({_: this}, function*add_file(){
     // XXX: throw error if trying to add the same file twice

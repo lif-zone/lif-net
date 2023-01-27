@@ -349,18 +349,21 @@ describe('fs', ()=>{
       add(/f buf:d2)  #(seq4={op:add file:/f content:1 f2:d2} fs=/f)`);
   });
   describe('branch', ()=>{
+    // XXX: add test with mutli-branch
+    // XXX: test prev
     let d1, d2, d3, d4, d5, d6, d = 'x'.repeat(68);
     t('file_add', `s..#seq buf(d1:1) buf(d2:2) buf(d3:3)
       buf(d4:4) buf(d5:5) buf(d6:6) buf(d7:7) s..fs #seq0={}
-      add(/f1 buf:d1) #seq1={op:add file:/f1 content:1 f2:d1}
+      add(/)          #seq1={op:add dir:/}
+      add(/f1 buf:d1) #seq2={op:add file:/f1 content:1 f2:d1}
       add(/f2 branch:b buf:d2)
-        #seq2={bseq:1-1.0 branch:b op:add file:/f2 content:1 f2:d2}
-      add(/f3 buf:d3) #seq3={bseq:1-1.1 op:add file:/f3 content:1 f2:d3}
-      add(/f4 buf:d4) #seq4={bseq:1-1.2 op:add file:/f4 content:1 f2:d4}
-      add(/f5 main buf:d5) #seq5={bseq:2 op:add file:/f5 content:1 f2:d5}
-      add(/f6 buf:d6) #seq6={bseq:3 op:add file:/f6 content:1 f2:d6}
+        #seq3={bseq:2-1.0 branch:b op:add file:/f2 content:1 f2:d2}
+      add(/f3 buf:d3) #seq4={bseq:2-1.1 op:add file:/f3 content:1 f2:d3}
+      add(/f4 buf:d4) #seq5={bseq:2-1.2 op:add file:/f4 content:1 f2:d4}
+      add(/f5 main buf:d5) #seq6={bseq:3 op:add file:/f5 content:1 f2:d5}
+      add(/f6 buf:d6) #seq7={bseq:4 op:add file:/f6 content:1 f2:d6}
       add(/f7 branch:b buf:d7)
-        #seq7={bseq:1-1.3 op:add file:/f7 content:1 f2:d7}`);
+        #seq8={bseq:2-1.3 op:add file:/f7 content:1 f2:d7}`);
     t('file_mod_nodiff', `s..#seq buf(d1:1) buf(d2:2) buf(d3:3)
       buf(d4:4) buf(d5:5) buf(d6:6) buf(d7:7) s..fs #seq0={}
       add(/f buf:d1) #seq1={op:add file:/f content:1 f2:d1}

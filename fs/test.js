@@ -187,9 +187,9 @@ function state_split_var(v, def){
 }
 
 function state_apply(state, o){
-  let {name, cfid, type, val, branch} = o, {add, rm} = val;
+  // XXX TODO: cfd, type let fs = get_scroll(name);
+  let {val, branch} = o, {add, rm} = val;
   assert.equal(o.type, 'fs', 'invalid type');
-  let fs = get_scroll(name);
   branch = branch||'main';
   state.fs = state.fs||{};
   for (let i=0; i<add.length; i++){
@@ -207,7 +207,6 @@ function state_apply(state, o){
 }
 
 const state_split = (o, def)=>etask(function*state_split(){
-  xerr.notice('XXX state_split %O', o);
   if (!/^fs/.test(o.l))
     return;
   switch (o.cmd){
@@ -217,21 +216,42 @@ const state_split = (o, def)=>etask(function*state_split(){
   }
 });
 
-function state_assert(filter, state_curr, state_exp){
-  if (!filter.includes('fs'))
-    return;
-  assert.deepEqual(state_curr.fs, state_exp.fs, 'state fs mismatch');
-}
-
 const state_curr = (filter, state, fs)=>etask(function*state_curr(){
-  if (!filter.includes('fs'))
+  let f;
+  if (!(f = filter.find(s=>/^fs/.test(s))))
     return;
   if (fs.top.seq<1)
     return;
   let cfid = 0; // XXX: support cfid
-  let seq = fs.top.seq, decl = fs.get_decl(seq), bseq = decl.bseq_get(cfid);
-  state.fs = yield fs.test_dump_fs(cfid, seq, '/');
+  let m = f.match(/^fs(\d+)$/), seq;
+  if (m)
+    seq = +m[1];
+  else
+    seq = fs.top.seq;
+  state.fs = yield fs.test_dump_fs(cfid, seq);
 });
+
+function state_assert(filter, state_curr, state_exp){
+  if (!filter.find(s=>/^fs/.test(s)))
+    return;
+  assert.deepEqual(state_curr.fs, state_exp.fs, 'state fs mismatch');
+}
+
+function state_get_steps(filter, name, s){
+  if (!filter.find(s=>/^fs/.test(s)))
+    return;
+  let steps = '';
+  s = rm_parentesis(s);
+  for (let curr=s; curr = parse_get_next(curr);){
+    let o = parse_exp_arg(curr.exp);
+    assert(!o.l || o.l==':', 'invalid arg '+curr.exp);
+    if (!o.l && !o.r)
+      steps += (steps&&' ')+'fs='+o.cmd;
+    else
+      steps += (steps&&' ')+'fs_'+o.cmd+'='+o.r;
+  }
+  return steps;
+}
 
 const test_start = ()=>etask(function*test_start(){ t_buf = {}; });
 
@@ -243,6 +263,7 @@ test_register('state_split', state_split);
 test_register('state_apply', state_apply);
 test_register('state_curr', state_curr);
 test_register('state_assert', state_assert);
+test_register('state_get_steps', state_get_steps);
 
 describe('util', ()=>{
   it('parse_buf_ref', ()=>{
@@ -284,6 +305,14 @@ describe('fs', ()=>{
       add(/d2/)     #(seq5={op:add dir:/d2/} fs=/d2/)
       add(/d2/dd1/) #(seq6={op:add dir:/d2/dd1/} fs=/d2/dd1/)
       add(/d2/dd2/) #(seq7={op:add dir:/d2/dd2/} fs=/d2/dd2/)
+      ##fs1=[/]
+      ##fs2=[/ /d1/]
+      ##fs3=[/ /d1/ /d1/dd1/]
+      ##fs4=[/ /d1/ /d1/dd1/ /d1/dd2/]
+      ##fs5=[/ /d1/ /d1/dd1/ /d1/dd2/ /d2/]
+      ##fs6=[/ /d1/ /d1/dd1/ /d1/dd2/ /d2/ /d2/dd1/]
+      ##fs7=[/ /d1/ /d1/dd1/ /d1/dd2/ /d2/ /d2/dd1/ /d2/dd2/]
+      ##fs=[/ /d1/ /d1/dd1/ /d1/dd2/ /d2/ /d2/dd1/ /d2/dd2/]
     `);
     t('rm_single', `s..#(seq fs)
       s..fs          #(seq0={})
@@ -293,7 +322,15 @@ describe('fs', ()=>{
       add(/d2/dd2/)  #(seq4={op:add dir:/d2/dd2/} fs=/d2/dd2/)
       rm(/d1/)       #(seq5={op:rm dir:/d1/} fs=!/d1/)
       rm(/d2/dd2/)   #(seq6={op:rm dir:/d2/dd2/} fs=!/d2/dd2/)
-      rm(/d2/)       #(seq7={op:rm dir:/d2/} fs=!/d2/)`);
+      rm(/d2/)       #(seq7={op:rm dir:/d2/} fs=!/d2/)
+      ##fs1=[/]
+      ##fs2=[/ /d1/]
+      ##fs3=[/ /d1/ /d2/]
+      ##fs4=[/ /d1/ /d2/ /d2/dd2/]
+      ##fs5=[/ /d2/ /d2/dd2/]
+      ##fs6=[/ /d2/]
+      ##fs7=[/]
+      ##fs=[/]`);
     if (0) // XXX WIP
     t('rm_multi', `s..#(seq fs)
       s..fs          #(seq0={})
@@ -353,6 +390,7 @@ describe('fs', ()=>{
       add(/f buf:d2)  #(seq4={op:add file:/f content:1 f2:d2} fs=/f)`);
   });
   describe('branch', ()=>{
+    // XXX: test branch deletion of file/dir
     // XXX: add test with mutli-branch
     // XXX: test prev
     let d1, d2, d3, d4, d5, d6, d = 'x'.repeat(68);
@@ -372,7 +410,16 @@ describe('fs', ()=>{
       add(/f6 buf:d6) #(seq7={bseq:4 op:add file:/f6 content:1 f2:d6}
         fs=/f6)
       add(/f7 branch:b buf:d7)
-        #(seq8={bseq:2-1.3 op:add file:/f7 content:1 f2:d7} fs_b=/f7)`);
+        #(seq8={bseq:2-1.3 op:add file:/f7 content:1 f2:d7} fs_b=/f7)
+      ##fs1=[/]
+      ##fs2=[/ /f1]
+      ##fs3=([/ /f1]         b:[/ /f1 /f2])
+      ##fs4=([/ /f1]         b:[/ /f1 /f2 /f3])
+      ##fs5=([/ /f1]         b:[/ /f1 /f2 /f3 /f4])
+      ##fs6=([/ /f1 /f5]     b:[/ /f1 /f2 /f3 /f4])
+      ##fs7=([/ /f1 /f5 /f6] b:[/ /f1 /f2 /f3 /f4])
+      ##fs8=([/ /f1 /f5 /f6] b:[/ /f1 /f2 /f3 /f4 /f7])
+      ##fs=([/ /f1 /f5 /f6]  b([/ /f1 /f2 /f3 /f4 /f7]))`);
     t('file_mod_nodiff', `s..#seq buf(d1:1) buf(d2:2) buf(d3:3)
       buf(d4:4) buf(d5:5) buf(d6:6) buf(d7:7) s..fs #seq0={}
       add(/f buf:d1) #seq1={op:add file:/f content:1 f2:d1}
@@ -410,23 +457,4 @@ describe('fs', ()=>{
     `);
   });
   // XXX: test tag
-  return;
-  // XXX: how to add blob
-  // XXX: rm commit
-  t('xxx1', `
-    s..fs                           #seq0=... // XXX TODO
-    add(/)                          #seq1={op:add dir:/}
-    add(/f1 blob1)                  #seq2={op:add file:/f1 F2=blob1}
-    commit                          #seq3={group:2 op:commit} // XXX: needed?
-    add(/f2 blob1)                  #seq4={op:add link:2)
-    commit                          #seq5={group:1 op:commit}
-    mod(/f2 content:1)              #seq6={op:mod content:1}
-    commit                          #seq7={group:1 op:commit}
-    tag(t1 seq:5)                   #seq8={link:5}
-    add(/f3 branch:b prev:3 blob1)  #seq9={op:add branch:b prev:3 bseq:3-1.0
-                                      file:/f3 link:2}
-    commit                          #seq10={bseq:3-1.1 group:1 op:commit}
-    mod(/f1 prev:7 blob2)           #seq11={prev:7 bseq:8 file:/f1} D11F2=blob2
-  `);
 });
-// XXX: change default hash to sha256

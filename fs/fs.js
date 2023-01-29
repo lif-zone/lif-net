@@ -177,38 +177,50 @@ export default class FS extends Scroll {
       ret.f2 = f2;
     return ret;
   }
-  test_ls(bseq_top, seq, dir){
-    let ret = [], rm = [];
-    assert(valid_dir(dir), 'invalid dir '+dir);
-    for (let i=0; i<this.all.length; i++){
-      let o = this.all[i];
+  ls_foreach(bseq_top, seq, dir, cb){ // XXX: optimize
+    return etask({_: this}, function*ls_foreach()
+  {
+    let _this = this._, done = {};
+    for (let i=0; i<_this.all.length; i++){
+      let o = _this.all[i];
       if (o.seq>seq)
         continue;
       if (!bseq_branch_belongs(o.bseq, bseq_top))
         continue;
-      if (ret.find(oo=>o.path==oo.path) || rm.find(oo=>o.path==oo.path))
+      if (done[o.path])
         continue;
+      let opath = split(o.path);
+      if (opath.parent!=dir)
+        continue;
+      done[o.path] = true;
       if (o.rm)
-        rm.push(o);
-      else
-        ret.push(o.path);
+        continue;
+      yield cb(opath);
     }
+  }); }
+  test_ls(bseq_top, seq, dir){ return etask({_: this}, function*test_ls(){
+    let _this = this._, ret = [];
+    assert(dir=='' || valid_dir(dir), 'invalid dir '+dir);
+    let cb = opath=>{
+      ret.push(opath.path);
+      if (valid_dir(opath.path))
+        return _this.ls_foreach(bseq_top, seq, opath.path, cb);
+    };
+    yield _this.ls_foreach(bseq_top, seq, dir, cb);
     ret.sort((a, b)=>a<b ? -1 : a>b ? 1 : 0);
     return ret;
-  }
-  test_dump_fs(cfid, seq, dir){
-    assert(valid_dir(dir), 'invalid dir '+dir);
-    let ret = {};
-    let top = this.get_branch_top(cfid, null);
-    ret.main = this.test_ls(top.bseq, Math.min(top.seq, seq), dir);
-    let branches = this.get_branches(cfid, seq);
+  }); }
+  test_dump_fs(cfid, seq){ return etask({_: this}, function*test_dump_fs(){
+    let _this = this._, ret = {}, top = _this.get_branch_top(cfid, null);
+    ret.main = yield _this.test_ls(top.bseq, Math.min(top.seq, seq), '');
+    let branches = _this.get_branches(cfid, seq);
     for (let i=0; i<branches.length; i++){
       let branch = branches[i];
-      top = this.get_branch_top(cfid, branch);
-      ret[branch] = this.test_ls(top.bseq, Math.min(top.seq, seq), dir);
+      top = _this.get_branch_top(cfid, branch);
+      ret[branch] = yield _this.test_ls(top.bseq, Math.min(top.seq, seq), '');
     }
     return ret;
-  }
+  }); }
 }
 
 FS.create = (opt, d)=>etask(function*scroll_create(){
@@ -223,6 +235,13 @@ FS.create = (opt, d)=>etask(function*scroll_create(){
 function valid_dir(dir){ return dir[0]=='/' && dir[dir.length-1]=='/'; }
 // XXX: need test + improve
 function valid_file(dir){ return dir[0]=='/' && dir[dir.length-1]!='/'; }
+// XXX: need test + improve
+function split(path){
+  if (path=='/')
+    return {path, parent: '', name: '/'};
+  let i = path.lastIndexOf('/', path.length - (valid_dir(path) ? 2 : 1));
+  return {path, parent: path.substr(0, i+1), name: path.substr(i+1)};
+}
 
 function parse_buf_ref(ref){
   if (ref===undefined || ref===null)
@@ -240,6 +259,9 @@ function parse_buf_ref(ref){
 
 FS.valid_dir = valid_dir;
 FS.valid_file = valid_file;
+FS.split = split;
 FS.parse_buf_ref = parse_buf_ref;
 
 // XXX: change all branch api to be async
+// XXX: index for ls of directory
+// XXX: checkout by date

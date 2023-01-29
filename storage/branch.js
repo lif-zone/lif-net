@@ -22,6 +22,13 @@ export default class Branch_table {
     this.reset_schedule();
   }
   reset_schedule(){ this.storage_queue = {mod: {}, rm: {}}; }
+  bseq_to_branch(bseq){
+    let bseqb = bseq_branch(bseq);
+    if (!bseq)
+      return null;
+    let bo = this.branch_bseq.get(bseqb+'.0');
+    return bo?.branch;
+  }
   get_branch(branch){ // XXX: need test
     let bo = this.branch_name.get(branch||null);
     if (bo)
@@ -30,6 +37,19 @@ export default class Branch_table {
     if (!parent)
       return;
     return scroll.get_branch_table(parent.cfid).get_branch(branch);
+  }
+  get_branches(seq, ret){ // XXX: optimize + test
+    ret = ret||[];
+    this.avl.range({seq: 0}, {seq}, node=>{
+      let bo = node.key;
+      if (bo.branch)
+        ret.push(bo.branch);
+    });
+    let {scroll, cfid} = this, {parent} = scroll.conflict.get(cfid);
+    if (!parent)
+      return ret;
+    scroll.get_branch_table(parent.cfid).get_branches(seq, ret);
+    return ret;
   }
   get_branch_top(branch){ // XXX: need test
     let bo = this.get_branch(branch);
@@ -223,6 +243,16 @@ function bseq_branch(bseq){
   return bseq.match(/^([\d.\-_]+)\.[_]*\d+$/)?.[1]||null;
 }
 
+function bseq_branch_belongs(bseq, bseq2){
+  let bseqb = bseq_branch(bseq), bseqb2 = bseq_branch(bseq2);
+  if (bseqb==bseqb2 && bseq<=bseq2)
+    return true;
+  if (!bseqb2)
+    return false;
+  let i = bseqb2.lastIndexOf('-');
+  return bseq_branch_belongs(bseq, bseqb2.substr(0, i));
+}
+
 function bseq_branch_eq(a, b){
   let ba = bseq_branch(a);
   let bb = bseq_branch(b);
@@ -245,6 +275,7 @@ Branch_table.bint_valid = bint_valid;
 Branch_table.bseq_inc = bseq_inc;
 Branch_table.bseq_cmp = bseq_cmp;
 Branch_table.bseq_branch = bseq_branch;
+Branch_table.bseq_branch_belongs = bseq_branch_belongs;
 Branch_table.bseq_branch_new = bseq_branch_new;
 Branch_table.bseq_branch_inc = bseq_branch_inc;
 Branch_table.bseq_branch_eq = bseq_branch_eq;

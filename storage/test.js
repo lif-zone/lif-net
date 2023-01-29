@@ -12,7 +12,8 @@ import {r_str, r_from_str, r_parent, r_includes, r_eq, r_split}
 const {parse_get_next, parse_exp_arg_pair, parse_exp,
   parse_exp_arg} = tparser;
 const {bint2int, bint, bseq_cmp, bseq_branch_new, bseq_branch_inc, bseq_inc,
-  bseq_branch, bseq_branch_eq, bseq_valid, bint_valid} = Branch_table;
+  bseq_branch, bseq_branch_belongs, bseq_branch_eq, bseq_valid, bint_valid}
+  = Branch_table;
 
 xtest.init();
 
@@ -541,6 +542,32 @@ describe('scroll', ()=>{
       t('1-2.3', '1-2');
       t('1-_10.1', '1-_10');
       t('_10-__100.___1000', '_10-__100');
+    });
+    it('bseq_branch_belongs', ()=>{
+      const t = (a, b, exp)=>assert.equal(bseq_branch_belongs(a, b), exp);
+      t('0', '0', true);
+      t('0', '1', true);
+      t('1', '0', false);
+      t('9', '_10', true);
+      t('_10', '9', false);
+      t('_10', '_11', true);
+      t('_11', '_10', false);
+      t('2-1.3', '2-1.3', true);
+      t('2-1.0', '2-1.3', true);
+      t('2', '2-1.3', true);
+      t('0', '2-1.3', true);
+      t('2-2.3', '2-1.3', false);
+      t('2-2.0', '2-1.3', false);
+      t('1-1.0', '2-1.3', false);
+      t('2-1.3-4.5', '2-1.3-4.5', true);
+      t('2-1.3-4.0', '2-1.3-4.5', true);
+      t('2-1.3-4.6', '2-1.3-4.5', false);
+      t('2-1.3-3.0', '2-1.3-4.5', false);
+      t('2-1.3', '2-1.3-4.5', true);
+      t('2-1.0', '2-1.3-4.5', true);
+      t('2', '2-1.3-4.5', true);
+      t('3', '2-1.3-4.5', false);
+      t('1', '2-1.3-4.5', true);
     });
     it('bseq_branch_eq', ()=>{
       const t = (a, b, exp)=>assert.equal(bseq_branch_eq(a, b), exp);

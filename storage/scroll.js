@@ -1181,6 +1181,11 @@ export default class Scroll extends EventEmitterAsync {
   }
   get_branch_top(cfid, branch){
     return this.branch.get(cfid)?.get_branch_top(branch); }
+  get_branch_bseq(cfid, branch){
+    return this.branch.get(cfid)?.get_branch(branch)?.bseq; }
+  get_branches(cfid, seq){ return this.branch.get(cfid)?.get_branches(seq); }
+  bseq_to_branch(cfid, bseq){
+    return this.branch.get(cfid)?.bseq_to_branch(bseq); }
   hash(buf){ return crypto.hash(this.crypt, buf); }
   hash_str(buf){ return b2s(crypto.hash(this.crypt, buf)); }
 }

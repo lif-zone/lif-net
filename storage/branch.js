@@ -77,7 +77,7 @@ export default class Branch_table {
     let bo = this.get_bo(seq);
     if (!bo)
       return null;
-    return bseq_inc(bo.bseq, bo.size-(bo.seq-seq)-1);
+    return bseq_inc(bo.bseq, seq-bo.seq);
   }
   find_avail_branch(bseq){
     let {scroll, cfid} = this, {parent} = scroll.conflict.get(cfid);

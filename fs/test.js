@@ -282,20 +282,6 @@ describe('util', ()=>{
 describe('fs', ()=>{
   const t = (name, test)=>it(name, ()=>test_run(test));
   describe('dir', ()=>{
-    // XXX: fix all other tests that use test_* and use ## instead
-/* XXX: TODO
-      // XXX:
-      // ##fs(seq1 /)
-      // ##fs(seq2 / /d1/)
-      // ##fs(seq6 / /d1/ /d1/dd1/ /d1/dd2/ /d2/ /d2/dd1/)
-      // ##fs(seq7 / /d1/ /d1/dd1/ /d1/dd2/ /d2/ /d2/dd1/ d2/dd2/)
-      add(/)               #fs(/)
-      add(/d1/)            #fs(/d1/)
-      add(/d1/f1 buf:b1)   #fs(/d1/f1:b1)
-      add(/d2/)            #fs(/d2/)
-      rm(/d2/)             #fs(!/d2/)
-      rm(/d1/)             #fs(!/d1/f1 !/d1/)
-*/
     t('add', `s..#(seq fs)
       s..fs         #seq0={}
       add(/)        #(seq1={op:add dir:/} fs=/)
@@ -331,15 +317,56 @@ describe('fs', ()=>{
       ##fs6=[/ /d2/]
       ##fs7=[/]
       ##fs=[/]`);
-    t('rm_multi', `s..#(seq fs)
-      s..fs          #(seq0={})
+    t('rm_multi', `s..#(seq fs) s..fs #(seq0={})
       add(/)         #(seq1={op:add dir:/} fs=/)
       add(/d/)       #(seq2={op:add dir:/d/} fs=/d/)
       add(/d/dd1/)   #(seq3={op:add dir:/d/dd1/} fs=/d/dd1/)
       add(/d/dd2/)   #(seq4={op:add dir:/d/dd2/} fs=/d/dd2/)
       rm(/d/)        #(seq5={op:rm dir:/d/dd2/} seq6={op:rm dir:/d/dd1/}
-                       seq7={op:rm dir:/d/} fs=[!/d/ !/d/dd1/ !/d/dd2/])`);
-    // XXX: test rm directory with multi directories
+                       seq7={op:rm dir:/d/} fs=[!/d/ !/d/dd1/ !/d/dd2/])
+      ##fs1=[/]
+      ##fs2=[/ /d/]
+      ##fs3=[/ /d/ /d/dd1/]
+      ##fs4=[/ /d/ /d/dd1/ /d/dd2/]
+      ##fs5=[/ /d/ /d/dd1/]
+      ##fs6=[/ /d/]
+      ##fs7=[/]
+      ##fs=[/]`);
+    let stest = `s..#(seq fs) s..fs #(seq0={})
+      add(/)            #(seq1={op:add dir:/} fs=/)
+      add(/d/)          #(seq2={op:add dir:/d/} fs=/d/)
+      add(/d/dd1/)      #(seq3={op:add dir:/d/dd1/} fs=/d/dd1/)
+      add(/d/dd1/ddd1/) #(seq4={op:add dir:/d/dd1/ddd1/} fs=/d/dd1/ddd1/)
+      add(/d/dd2/)      #(seq5={op:add dir:/d/dd2/} fs=/d/dd2/)
+      add(/d/dd2/ddd1/) #(seq6={op:add dir:/d/dd2/ddd1/} fs=/d/dd2/ddd1/)
+      add(/d/dd2/ddd2/) #(seq7={op:add dir:/d/dd2/ddd2/} fs=/d/dd2/ddd2/)`;
+    t('rm_multi_deep_rm_/', stest+` rm(/) #(
+      seq8={op:rm dir:/d/dd2/ddd2/}
+      seq9={op:rm dir:/d/dd2/ddd1/}
+      seq10={op:rm dir:/d/dd2/}
+      seq11={op:rm dir:/d/dd1/ddd1/}
+      seq12={op:rm dir:/d/dd1/}
+      seq13={op:rm dir:/d/}
+      seq14={op:rm dir:/}
+      fs=[!/ !/d/ !/d/dd1/ !/d/dd1/ddd1/ !/d/dd2/ !/d/dd2/ddd1/ !/d/dd2/ddd2/]
+    )`);
+    t('rm_multi_deep_rm_/d/', stest+` rm(/d/) #(
+      seq8={op:rm dir:/d/dd2/ddd2/}
+      seq9={op:rm dir:/d/dd2/ddd1/}
+      seq10={op:rm dir:/d/dd2/}
+      seq11={op:rm dir:/d/dd1/ddd1/}
+      seq12={op:rm dir:/d/dd1/}
+      seq13={op:rm dir:/d/}
+      fs=[!/d/ !/d/dd1/ !/d/dd1/ddd1/ !/d/dd2/ !/d/dd2/ddd1/ !/d/dd2/ddd2/])`);
+    t('rm_multi_deep_rm_/d/dd1/', stest+` rm(/d/dd1/) #(
+      seq8={op:rm dir:/d/dd1/ddd1/}
+      seq9={op:rm dir:/d/dd1/}
+      fs=[!/d/dd1/ !/d/dd1/ddd1/])`);
+    t('rm_multi_deep_rm_/d/dd2', stest+` rm(/d/dd2/) #(
+      seq8={op:rm dir:/d/dd2/ddd2/}
+      seq9={op:rm dir:/d/dd2/ddd1/}
+      seq10={op:rm dir:/d/dd2/}
+      fs=[!/d/dd2/ !/d/dd2/ddd1/ !/d/dd2/ddd2/])`);
     // XXX: test rm file + directories with multiple files
   });
   // XXX: add by date

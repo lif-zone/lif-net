@@ -159,13 +159,13 @@ export default class FS extends Scroll {
       return;
     return map.get(path);
   }
-  parse_opt(opt){
-    let {cfid, branch} = opt, prev;
+  parse_opt(opt){ // XXX: need test
+    let {cfid, prev, branch} = opt;
     cfid = cfid||0;
     if (branch===undefined)
       return {cfid, branch, prev};
     let top = this.get_branch_top(cfid, branch);
-    if (!top)
+    if (!top || prev!==undefined)
       return {cfid, branch, prev};
     prev = top.seq;
     branch = undefined;

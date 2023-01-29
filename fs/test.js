@@ -29,7 +29,7 @@ const cmd_fs = t=>etask(function*cmd_fs(){
 
 const cmd_add = t=>etask(function*cmd_add(){
   let name = t.ctx||get_def('left'), fs = get_scroll(name), dir, file, buf;
-  let branch;
+  let branch, prev;
   assert(t.r, 'missing arg '+t.meta.s);
   for (let curr=t.r, i=0; curr = parse_get_next(curr); i++){
     let tt = parse_exp_arg(curr.exp);
@@ -37,6 +37,8 @@ const cmd_add = t=>etask(function*cmd_add(){
       branch = tt.r;
     else if (tt.cmd=='main')
       branch = null;
+    else if (tt.cmd=='prev')
+      prev = +tt.r;
     else if (/^buf/.test(tt.cmd)){
       buf = t_buf[tt.r];
       assert(buf, 'buf not found '+tt.r);
@@ -52,9 +54,9 @@ const cmd_add = t=>etask(function*cmd_add(){
   }
   assert(file||dir, 'missing file/dir');
   if (file)
-    yield fs.add_file(file, buf, {branch});
+    yield fs.add_file(file, buf, {branch, prev});
   else
-    yield fs.add_dir(dir, {branch});
+    yield fs.add_dir(dir, {branch, prev});
 });
 
 const cmd_mod = t=>etask(function*cmd_mod(){
@@ -487,6 +489,23 @@ describe('fs', ()=>{
       add(/d3/ main) #seq6={bseq:4 op:add dir:/d3/}
       add(/d4/ branch:b) #seq7={bseq:2-1.2 op:add dir:/d4/}
     `);
+    t('multi_branch', `s..#(seq fs) s..fs #seq0={}
+      add(/) #(seq1={op:add dir:/} fs=/)
+      add(/d1/) #(seq2={op:add dir:/d1/} fs=/d1/)
+      add(/d1/dd1/ branch:b1)
+        #(seq3={branch:b1 bseq:2-1.0 op:add dir:/d1/dd1/}
+        fs_b1=[/ /d1/ /d1/dd1/])
+      add(/d1/dd2/)
+        #(seq4={bseq:2-1.1 op:add dir:/d1/dd2/} fs_b1=/d1/dd2/)
+      add(/d1/dd3/)
+        #(seq5={bseq:2-1.2 op:add dir:/d1/dd3/} fs_b1=/d1/dd3/)
+      add(/d1/dd1/ddd1/ branch:b2 prev:4)
+        #(seq6={branch:b2 bseq:2-1.1-1.0 op:add dir:/d1/dd1/ddd1/}
+        fs_b2=[/ /d1/ /d1/dd1/ /d1/dd1/ddd1/ /d1/dd2/])
+      add(/d2/ main) #(seq7={bseq:3 op:add dir:/d2/} fs=/d2/)
+      add(/d2/ branch:b3 prev:2)
+      #(seq8={bseq:2-2.0 branch:b3 op:add dir:/d2/}
+        fs_b3=[/ /d1/ /d2/])`);
   });
   // XXX: test tag
 });

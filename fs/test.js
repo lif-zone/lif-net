@@ -412,6 +412,14 @@ describe('fs', ()=>{
       add(/f buf:d1)  #(seq2={op:add file:/f content:1 f2:d1} fs=/f)
       rm(/f)         #(seq3={op:rm file:/f} fs=!/f)
       add(/f buf:d2)  #(seq4={op:add file:/f content:1 f2:d2} fs=/f)`);
+    t('rm_multi', `s..#(seq fs) buf(d1:1) buf(d2:2)
+      s..fs             #(seq0={})
+      add(/)            #(seq1={op:add dir:/} fs=/)
+      add(/d/)          #(seq2={op:add dir:/d/} fs=/d/)
+      add(/d/f1 buf:d1) #(seq3={op:add file:/d/f1 content:1 f2:d1} fs=/d/f1)
+      add(/d/f2 buf:d2) #(seq4={op:add file:/d/f2 content:1 f2:d2} fs=/d/f2)
+      rm(/d/)           #(seq5={op:rm file:/d/f2} seq6={op:rm file:/d/f1}
+                          seq7={op:rm dir:/d/} fs=[!/d/ !/d/f1 !/d/f2])`);
   });
   describe('branch', ()=>{
     // XXX: test branch deletion of file/dir

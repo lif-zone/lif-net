@@ -768,20 +768,12 @@ function get_filter(s){
   return a;
 }
 
-const cmd_state_check = t=>etask(function*cmd_state_check(){
-/* XXX WIP
-  let name = t.ctx||get_def('left');
-  let scroll = get_scroll(name, true);
-  for (let curr=t.r; curr = parse_get_next(curr);)
-    xerr('XXX exp %s', curr.exp);
-*/
-});
-
-const cmd_state_diff = t=>etask(function*cmd_state_diff(){
-  let state = {mem: {}, db: {}};
-  let name = t.ctx||get_def('left');
+const state_next = (name, curr_state, filter, steps)=>etask(
+  function*state_next()
+{
   let scroll = get_scroll(name, true);
   let soul = scroll?.soul;
+  let state = {mem: {}, db: {}};
   state.mem = {};
   state.bseq = {};
   state.seq = {};
@@ -828,63 +820,80 @@ const cmd_state_diff = t=>etask(function*cmd_state_diff(){
     state.db_data = {};
   }
   state = fix_buf(state);
-  if (get_filter(t.r)){
-    t_state[name] = state;
-    t_state[name].filter = get_filter(t.r);
+  if (!curr_state[name]){
+    assert(!steps, 'first # must be empty or list of types');
+    curr_state[name] = state;
     return;
   }
-  if (!t_state[name]){
-    assert(!t.r, 'first # must be empty or list of types');
-    t_state[name] = state;
-    t_state[name].filter = ['db', 'db_data', 'db_c', 'mem', 'mem_c'];
-    return;
+  t_hooks.state_curr?.(filter, state, scroll);
+  for (let curr=steps; curr = parse_get_next(curr);)
+    state_apply(curr_state[name], yield state_split(curr.exp, name));
+  if (filter.includes('mem_c')){
+    assert_b2s_obj(state.mem_c, curr_state[name].mem_c,
+      'mem conflict state mismach '+steps);
   }
-  t_hooks.state_curr?.(t_state[name].filter, state, scroll);
-  for (let curr=t.r; curr = parse_get_next(curr);)
-    state_apply(t_state[name], yield state_split(curr.exp, name));
-  if (t_state[name].filter.includes('mem_c')){
-    assert_b2s_obj(state.mem_c, t_state[name].mem_c,
-      'mem conflict state mismach '+t.meta.s);
+  if (filter.includes('mem')){
+    assert_b2s_obj(state.mem, curr_state[name].mem,
+      'mem state mismach '+steps);
   }
-  if (t_state[name].filter.includes('mem')){
-    assert_b2s_obj(state.mem, t_state[name].mem,
-      'mem state mismach '+t.meta.s);
+  if (filter.includes('seq')){
+    assert_b2s_obj(state.seq, curr_state[name].seq,
+      'seq state mismach '+steps);
   }
-  if (t_state[name].filter.includes('seq')){
-    assert_b2s_obj(state.seq, t_state[name].seq,
-      'seq state mismach '+t.meta.s);
+  if (filter.includes('db_c')){
+    assert_b2s_obj(state.db_c, curr_state[name].db_c,
+      'db conflict state mismach '+steps);
   }
-  if (t_state[name].filter.includes('db_c')){
-    assert_b2s_obj(state.db_c, t_state[name].db_c,
-      'db conflict state mismach '+t.meta.s);
+  if (filter.includes('db'))
+    assert_b2s_obj(state.db, curr_state[name].db, 'db state mismach '+steps);
+  if (filter.includes('db_data')){
+    assert_b2s_obj(state.db_data, curr_state[name].db_data,
+      'db_data state mismach '+steps);
   }
-  if (t_state[name].filter.includes('db'))
-    assert_b2s_obj(state.db, t_state[name].db, 'db state mismach '+t.meta.s);
-  if (t_state[name].filter.includes('db_data')){
-    assert_b2s_obj(state.db_data, t_state[name].db_data,
-      'db_data state mismach '+t.meta.s);
+  if (filter.includes('btable')){
+    assert_b2s_obj(state.btable, curr_state[name].btable,
+      'btable state mismach '+steps);
   }
-  if (t_state[name].filter.includes('btable')){
-    assert_b2s_obj(state.btable, t_state[name].btable,
-      'btable state mismach '+t.meta.s);
+  if (filter.includes('bseq')){
+    assert_b2s_obj(state.bseq, curr_state[name].bseq,
+      'bseq state mismach '+steps);
   }
-  if (t_state[name].filter.includes('bseq')){
-    assert_b2s_obj(state.bseq, t_state[name].bseq,
-      'bseq state mismach '+t.meta.s);
+  if (filter.includes('bname')){
+    assert_b2s_obj(state.bname, curr_state[name].bname,
+      'bname state mismach '+steps);
   }
-  if (t_state[name].filter.includes('bname')){
-    assert_b2s_obj(state.bname, t_state[name].bname,
-      'bname state mismach '+t.meta.s);
+  if (filter.includes('db_btable')){
+    assert_b2s_obj(state.db_btable, curr_state[name].db_btable,
+      'db_btable state mismach '+steps);
   }
-  if (t_state[name].filter.includes('db_btable')){
-    assert_b2s_obj(state.db_btable, t_state[name].db_btable,
-      'db_btable state mismach '+t.meta.s);
-  }
-  let filter = t_state[name].filter;
   if (t_hooks.state_assert)
-    t_hooks.state_assert(filter, state, t_state[name]);
-  t_state[name] = state;
+    t_hooks.state_assert(filter, state, curr_state[name]);
+  curr_state[name] = state;
+});
+
+const cmd_state_diff = t=>etask(function*cmd_state_diff(){
+  let name = t.ctx||get_def('left'), steps = '', filter;
+  if (get_filter(t.r))
+    filter = get_filter(t.r);
+  else if (!t_state[name]){
+    assert(!t.r, 'first # must be empty or list of types');
+    filter = ['db', 'db_data', 'db_c', 'mem', 'mem_c'];
+  } else {
+    steps = t.r;
+    filter = t_state[name].filter;
+    assert(filter, 'missing filter');
+  }
+  yield state_next(name, t_state, filter, steps);
   t_state[name].filter = filter;
+});
+
+const cmd_state_check = t=>etask(function*cmd_state_check(){
+  let name = t.ctx||get_def('left'), steps = '';
+  let o = parse_exp(t.r), filter = [o.l];
+  steps = t_hooks.state_get_steps?.(filter, name, o.r)||o.r;
+  let curr_state = {};
+  curr_state[name] = {};
+  yield state_next(name, curr_state, filter, steps);
 });
 
 function cmd_tput(curr, t){

@@ -7,7 +7,7 @@ import assert from 'assert';
 import buf_util from '../net/buf_util.js';
 import DiffMatchAndPath from 'diff-match-patch';
 import Branch_table from '../storage/branch.js';
-const {bseq_branch} = Branch_table;
+const {bseq_branch, bseq_branch_belongs} = Branch_table;
 const Diff = new DiffMatchAndPath();
 const b2s = buf_util.buf_to_str;
 
@@ -178,12 +178,14 @@ export default class FS extends Scroll {
       ret.f2 = f2;
     return ret;
   }
-  test_ls(seq, dir){
+  test_ls(bseq_top, seq, dir){
     let ret = [], rm = [];
     assert(valid_dir(dir), 'invalid dir '+dir);
     for (let i=0; i<this.all.length; i++){
       let o = this.all[i];
       if (o.seq>seq)
+        continue;
+      if (!bseq_branch_belongs(o.bseq, bseq_top))
         continue;
       if (ret.find(oo=>o.path==oo.path) || rm.find(oo=>o.path==oo.path))
         continue;
@@ -192,12 +194,21 @@ export default class FS extends Scroll {
       else
         ret.push(o.path);
     }
+    ret.sort((a, b)=>a<b ? -1 : a>b ? 1 : 0);
     return ret;
   }
-  test_dump_fs(seq, dir){
+  test_dump_fs(cfid, seq, dir){
     assert(valid_dir(dir), 'invalid dir '+dir);
-    let ret = this.test_ls(seq, dir);
-    ret.sort((a, b)=>a<b ? -1 : a>b ? 1 : 0);
+    let ret = {};
+    let top = this.get_branch_top(cfid, null);
+    ret.main = this.test_ls(top.bseq, Math.min(top.seq, seq), dir);
+    let branches = this.get_branches(cfid, seq);
+    for (let i=0; i<branches.length; i++){
+      let branch = branches[i];
+      top = this.get_branch_top(cfid, branch);
+        top.seq);
+      ret[branch] = this.test_ls(top.bseq, Math.min(top.seq, seq), dir);
+    }
     return ret;
   }
 }
@@ -232,3 +243,5 @@ function parse_buf_ref(ref){
 FS.valid_dir = valid_dir;
 FS.valid_file = valid_file;
 FS.parse_buf_ref = parse_buf_ref;
+
+// XXX: change all branch api to be async

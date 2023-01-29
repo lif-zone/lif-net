@@ -180,31 +180,34 @@ function get_fs(s){
 }
 
 function state_split_var(v, def){
-  let m = v.match(/^(c(\d+))?fs$/);
+  let m = v.match(/^(c(\d+))?fs(_(.*))?$/);
   assert(m, 'invalid var '+v);
-  let cfid = m[2] ? +m[2] : 0;
-  let name = def||get_def('left');
-  return {name, type: 'fs', cfid};
+  let cfid = m[2] ? +m[2] : 0, branch = m[4], name = def||get_def('left');
+  return {name, type: 'fs', cfid, branch};
 }
 
 function state_apply(state, o){
-  let {name, cfid, type, val} = o, {add, rm} = val;
+  let {name, cfid, type, val, branch} = o, {add, rm} = val;
   assert.equal(o.type, 'fs', 'invalid type');
   let fs = get_scroll(name);
-  state.fs = state.fs||[];
+  branch = branch||'main';
+  state.fs = state.fs||{};
   for (let i=0; i<add.length; i++){
-    let path = add[i], path_i = state.fs.indexOf(path);
+    state.fs[branch] = state.fs[branch]||[];
+    let path = add[i], path_i = state.fs[branch].indexOf(path);
     assert.equal(path_i, -1, 'uneeded add '+path);
-    state.fs.push(path);
+    state.fs[branch].push(path);
   }
   for (let i=0; i<rm.length; i++){
-    let path = rm[i], path_i = state.fs.indexOf(path);
+    state.fs[branch] = state.fs[branch]||[];
+    let path = rm[i], path_i = state.fs[branch].indexOf(path);
     assert(path_i>-1, 'uneeded rm '+path);
-    state.fs.splice(path_i, 1);
+    state.fs[branch].splice(path_i, 1);
   }
 }
 
 const state_split = (o, def)=>etask(function*state_split(){
+  xerr.notice('XXX state_split %O', o);
   if (!/^fs/.test(o.l))
     return;
   switch (o.cmd){
@@ -225,8 +228,10 @@ const state_curr = (filter, state, fs)=>etask(function*state_curr(){
     return;
   if (fs.top.seq<1)
     return;
-  // XXX: support cfid
-  state.fs = fs.test_dump_fs(fs.top.seq, '/');
+  let cfid = 0; // XXX: support cfid
+  let seq = fs.top.seq, decl = fs.get_decl(seq), bseq = decl.bseq_get(cfid);
+    fs.bseq_to_branch(cfid, bseq));
+  state.fs = yield fs.test_dump_fs(cfid, seq, '/');
 });
 
 const test_start = ()=>etask(function*test_start(){ t_buf = {}; });
@@ -352,18 +357,23 @@ describe('fs', ()=>{
     // XXX: add test with mutli-branch
     // XXX: test prev
     let d1, d2, d3, d4, d5, d6, d = 'x'.repeat(68);
-    t('file_add', `s..#seq buf(d1:1) buf(d2:2) buf(d3:3)
+    t('file_add', `s..#(seq fs) buf(d1:1) buf(d2:2) buf(d3:3)
       buf(d4:4) buf(d5:5) buf(d6:6) buf(d7:7) s..fs #seq0={}
-      add(/)          #seq1={op:add dir:/}
-      add(/f1 buf:d1) #seq2={op:add file:/f1 content:1 f2:d1}
+      add(/)          #(seq1={op:add dir:/} fs=/)
+      add(/f1 buf:d1) #(seq2={op:add file:/f1 content:1 f2:d1} fs=/f1)
       add(/f2 branch:b buf:d2)
-        #seq3={bseq:2-1.0 branch:b op:add file:/f2 content:1 f2:d2}
-      add(/f3 buf:d3) #seq4={bseq:2-1.1 op:add file:/f3 content:1 f2:d3}
-      add(/f4 buf:d4) #seq5={bseq:2-1.2 op:add file:/f4 content:1 f2:d4}
-      add(/f5 main buf:d5) #seq6={bseq:3 op:add file:/f5 content:1 f2:d5}
-      add(/f6 buf:d6) #seq7={bseq:4 op:add file:/f6 content:1 f2:d6}
+        #(seq3={bseq:2-1.0 branch:b op:add file:/f2 content:1 f2:d2}
+        fs_b=[/ /f1 /f2])
+      add(/f3 buf:d3) #(seq4={bseq:2-1.1 op:add file:/f3 content:1 f2:d3}
+        fs_b=/f3)
+      add(/f4 buf:d4) #(seq5={bseq:2-1.2 op:add file:/f4 content:1 f2:d4}
+        fs_b=/f4)
+      add(/f5 main buf:d5) #(seq6={bseq:3 op:add file:/f5 content:1 f2:d5}
+        fs=/f5)
+      add(/f6 buf:d6) #(seq7={bseq:4 op:add file:/f6 content:1 f2:d6}
+        fs=/f6)
       add(/f7 branch:b buf:d7)
-        #seq8={bseq:2-1.3 op:add file:/f7 content:1 f2:d7}`);
+        #(seq8={bseq:2-1.3 op:add file:/f7 content:1 f2:d7} fs_b=/f7)`);
     t('file_mod_nodiff', `s..#seq buf(d1:1) buf(d2:2) buf(d3:3)
       buf(d4:4) buf(d5:5) buf(d6:6) buf(d7:7) s..fs #seq0={}
       add(/f buf:d1) #seq1={op:add file:/f content:1 f2:d1}

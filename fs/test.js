@@ -230,7 +230,6 @@ const state_curr = (filter, state, fs)=>etask(function*state_curr(){
     return;
   let cfid = 0; // XXX: support cfid
   let seq = fs.top.seq, decl = fs.get_decl(seq), bseq = decl.bseq_get(cfid);
-    fs.bseq_to_branch(cfid, bseq));
   state.fs = yield fs.test_dump_fs(cfid, seq, '/');
 });
 

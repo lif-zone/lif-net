@@ -2,7 +2,6 @@
 'use strict';
 import Scroll from '../storage/scroll.js';
 import etask from '../util/etask.js';
-import xerr from '../util/xerr.js';
 import assert from 'assert';
 import buf_util from '../net/buf_util.js';
 import DiffMatchAndPath from 'diff-match-patch';
@@ -206,7 +205,6 @@ export default class FS extends Scroll {
     for (let i=0; i<branches.length; i++){
       let branch = branches[i];
       top = this.get_branch_top(cfid, branch);
-        top.seq);
       ret[branch] = this.test_ls(top.bseq, Math.min(top.seq, seq), dir);
     }
     return ret;

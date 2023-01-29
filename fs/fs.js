@@ -26,8 +26,28 @@ export default class FS extends Scroll {
     _this._set_seq(dir, decl.seq, decl.bseq_get(cfid));
   }); }
   rm_dir(dir, opt={}){ return etask({_: this}, function*rm_dir(){
-    // XXX: throw error if dir doesn't exist
-    let _this = this._, {branch, prev, cfid} = _this.parse_opt(opt);
+    // XXX: need to lock scroll
+    // XXX: do we need to load something (see bseq_get)?
+    let _this = this._, {prev, cfid} = _this.parse_opt(opt);
+    let top = _this.conflict.get(cfid).top;
+    let seq_prev = prev>0 && prev!=top.seq ? prev : top.seq;
+    let bseq_prev = _this.bseq_get(cfid, seq_prev);
+    let branch_prev = _this.bseq_to_branch(cfid, bseq_prev);
+    let top_prev = _this.get_branch_top(cfid, branch_prev);
+    let first = true;
+    const cb = opath=>etask(function*rm_dir_cb(){
+      if (first)
+        first = false;
+      if (!valid_dir(opath.path))
+        return _this.rm_file(opath.path, first ? opt : {});
+      yield _this.ls_foreach(top_prev.bseq, seq_prev, opath.path, cb);
+      yield _this._rm_dir(opath.path, first ? opt : {});
+    });
+    yield _this.ls_foreach(top_prev.bseq, seq_prev, dir, cb);
+    yield _this._rm_dir(dir, first ? opt : {});
+  }); }
+  _rm_dir(dir, opt={}){ return etask({_: this}, function*_rm_dir(){
+   let _this = this._, {branch, prev, cfid} = _this.parse_opt(opt);
     let decl = yield _this.decl({cfid, branch, prev}, {op: 'rm', dir});
     _this._set_seq(dir, decl.seq, decl.bseq_get(cfid), true);
   }); }

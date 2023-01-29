@@ -331,17 +331,14 @@ describe('fs', ()=>{
       ##fs6=[/ /d2/]
       ##fs7=[/]
       ##fs=[/]`);
-    if (0) // XXX WIP
     t('rm_multi', `s..#(seq fs)
       s..fs          #(seq0={})
       add(/)         #(seq1={op:add dir:/} fs=/)
       add(/d/)       #(seq2={op:add dir:/d/} fs=/d/)
       add(/d/dd1/)   #(seq3={op:add dir:/d/dd1/} fs=/d/dd1/)
       add(/d/dd2/)   #(seq4={op:add dir:/d/dd2/} fs=/d/dd2/)
-      rm(/d/)
-        #(seq5={op:rm dir:/d/} seq6={op:rm dir:/d/} seq7={op:rm dir:/d/}
-        fs=[!/d/ !/d/dd1/ !/d/dd2])
-    `);
+      rm(/d/)        #(seq5={op:rm dir:/d/dd2/} seq6={op:rm dir:/d/dd1/}
+                       seq7={op:rm dir:/d/} fs=[!/d/ !/d/dd1/ !/d/dd2/])`);
     // XXX: test rm directory with multi directories
     // XXX: test rm file + directories with multiple files
   });

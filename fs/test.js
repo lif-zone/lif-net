@@ -544,13 +544,25 @@ describe('fs', ()=>{
       tput(0 1 2 3) #(seq1={} seq2={} seq3={op:add dir:/d1/dd1/} fs=[])
       tput(0 1    ) #(seq1={op:add dir:/} fs=[/])
       tput(0 1 2  ) #(seq2={op:add dir:/d1/} fs=[/d1/ /d1/dd1/])`);
-    t('conflict', `s..fs add(/) add(/d1/) add(/d1/dd1/)
+    t('conflict_no_branch', `s..fs add(/) add(/d1/) add(/d1/dd1/)
       s1..fs(s..M0) tput(0) tput(0 1) add(/D1/) add(/D1/DD1/) S..#(seq fs)
-      fs(M0)     #seq0={}
+      fs(M0)        #seq0={}
       tput(0 1    ) #(seq1={op:add dir:/} fs=[/])
       tput(0 1 2  ) #(seq2={op:add dir:/d1/} fs=[/d1/])
-      tput(0 1 2 3) #(seq3={op:add dir:/d1/dd1/} fs=[/d1/dd1/]) c(M3)
+      tput(0 1 2 3) #(seq3={op:add dir:/d1/dd1/} fs=[/d1/dd1/])
       tput(0 1 c  ) #(seq2c1={op:add dir:/D1/} seq3c1={} c1fs=[/ /D1/])`);
     // XXX: test temporary conflict, conflict+branches and files
   });
 });
+/* XXX indexes:
+- support get a version of file
+- support ls of directory
+- support also by date
+
+old stuff we discussed long time ago:
+files index: {cfid, file, seq}
+files index: {0, '/arik', 3}
+files index: {1, '/derry', 3}
+dirs index: {cfid, dir, seq}
+index branches: {cfid, bseq}
+*/

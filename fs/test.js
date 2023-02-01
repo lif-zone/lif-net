@@ -555,6 +555,41 @@ describe('fs', ()=>{
   });
 });
 /* XXX indexes:
+scroll header:
+{scroll: {index: ['file', {...}]}}
+
+indexs table:
+{scfid, indexid, index details?}
+index_details: {key: 'file', index_name: 'file', type: 'string'}
+index name: default - key name
+
+{1, /file1, 10}
+{1, /file1, 9}
+
+file: '/arik' --> simple key for index
+dir: file2path(file)
+file2path('/arik') = '/'
+file2path('/arik/') = '/arik/'
+file2path('/arik/x') = '/arik/'
+{index: ['file', {name: 'dir', field: 'dir', func: 'file2dir'}]}
+'file' == {field: 'file'} == {name: 'file', field: 'file'}
+//XXX {name: 'dir_files', field: 'file', transform: 'file2dir'}
+//XXX  file2dir(file){ var i = file.lastIndexOff('/'); return i<0 ? file :; }
+{name: 'dir_list', field: '*', transform: 'decl_get_dir'}
+  decl_get_dir(decl){ return file2dir(decl.dir?.slice(-1) : decl.file); }
+{op:add dir:/d/} --> /d --> /
+{op:add file:/d/file}
+
+
+scfid
+{indexid, val, seq, bseq}
+indexid - unique for all files and scrolls
+file_to_seq_
+{indexid, key, seq}
+{indexid, key, seq, val}
+{scroll+conflict_selection+specific_index_of_scroll_conflict, file_name, seq,
+  bseq}
+
 - support get a version of file
 - support ls of directory
 - support also by date

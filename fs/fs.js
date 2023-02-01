@@ -3,12 +3,13 @@
 import Scroll from '../storage/scroll.js';
 import etask from '../util/etask.js';
 import assert from 'assert';
+import util from '../util/util.js';
 import buf_util from '../net/buf_util.js';
 import DiffMatchAndPath from 'diff-match-patch';
 import Branch_table from '../storage/branch.js';
 const {bseq_branch, bseq_branch_belongs} = Branch_table;
 const Diff = new DiffMatchAndPath();
-const b2s = buf_util.buf_to_str;
+const b2s = buf_util.buf_to_str, s2b = buf_util.buf_from_str;
 
 export default class FS extends Scroll {
   constructor(opt){
@@ -16,14 +17,22 @@ export default class FS extends Scroll {
     this.buf_hash_to_seq = new Map();
     this.path_to_seq = new Map();
     this.all = [];
+    this.on('data', this._on_data);
   }
+  _on_data(e){ return etask({_: this}, function*_on_data(){
+    let _this = this._, {data, seq, cfid, bseq} = e;
+    let body = data.get_body(cfid);
+    if (!body?.dir && !body?.file)
+      return;
+    _this._set_seq(body.dir||body.file, seq, bseq, body.op=='rm');
+    // XXX: also handle buf_hash_to_seq
+  }); }
   // XXX: throw error on invalid file/dir
   // XXX: support cfid
   add_dir(dir, opt={}){ return etask({_: this}, function*add_dir(){
     // XXX: throw error if trying to add the dir twice
     let _this = this._, {branch, prev, cfid} = _this.parse_opt(opt);
-    let decl = yield _this.decl({cfid, branch, prev}, {op: 'add', dir});
-    _this._set_seq(dir, decl.seq, decl.bseq_get(cfid));
+    yield _this.decl({cfid, branch, prev}, {op: 'add', dir});
   }); }
   rm_dir(dir, opt={}){ return etask({_: this}, function*rm_dir(){
     // XXX: need to lock scroll
@@ -47,36 +56,27 @@ export default class FS extends Scroll {
     yield _this._rm_dir(dir, first ? opt : {});
   }); }
   _rm_dir(dir, opt={}){ return etask({_: this}, function*_rm_dir(){
-   let _this = this._, {branch, prev, cfid} = _this.parse_opt(opt);
-    let decl = yield _this.decl({cfid, branch, prev}, {op: 'rm', dir});
-    _this._set_seq(dir, decl.seq, decl.bseq_get(cfid), true);
+    // XXX: throw error if dir does not exist
+    let _this = this._, {branch, prev, cfid} = _this.parse_opt(opt);
+    yield _this.decl({cfid, branch, prev}, {op: 'rm', dir});
   }); }
   rm_file(file, opt={}){ return etask({_: this}, function*rm_file(){
     // XXX: throw error if file doesn't exist
     let _this = this._, {branch, prev, cfid} = _this.parse_opt(opt);
-    let decl = yield _this.decl({cfid, branch, prev}, {op: 'rm', file});
-    _this._set_seq(file, decl.seq, decl.bseq_get(cfid), true);
+    yield _this.decl({cfid, branch, prev}, {op: 'rm', file});
   }); }
   // XXX: support cfid
   add_file(file, buf, opt={}){ return etask({_: this}, function*add_file(){
     // XXX: throw error if trying to add the same file twice
     let _this = this._, {branch, prev, cfid} = _this.parse_opt(opt);
-    if (!buf){
-      let decl = yield _this.decl({cfid, branch, prev}, {op: 'add', file});
-      _this._set_seq(file, decl.seq, decl.bseq_get(cfid));
-      return;
-    }
+    if (!buf)
+      return _this.decl({cfid, branch, prev}, {op: 'add', file});
     let h = _this.hash_str(buf);
     let link = _this.buf_hash_to_seq.get(h);
-    if (link){
-      let decl = yield _this.decl({cfid, branch, prev, link},
-        [{op: 'add', file}]);
-      _this._set_seq(file, decl.seq, decl.bseq_get(cfid));
-      return;
-    }
+    if (link)
+      return yield _this.decl({cfid, branch, prev, link}, [{op: 'add', file}]);
     let decl = yield _this.decl({cfid, branch, prev},
       [{op: 'add', file, content: 1}, buf]);
-    _this._set_seq(file, decl.seq, decl.bseq_get(cfid));
     _this.buf_hash_to_seq.set(h, decl.seq);
     return decl;
   }); }
@@ -87,12 +87,8 @@ export default class FS extends Scroll {
     assert(buf, 'XXX TODO empty file'); // XXX
     let h = _this.hash_str(buf);
     let link = _this.buf_hash_to_seq.get(h);
-    if (link){
-      let decl = yield _this.decl({cfid, branch, prev, link},
-        [{op: 'mod', file}]);
-      _this._set_seq(file, decl.seq, decl.bseq_get(cfid));
-      return;
-    }
+    if (link)
+      return yield _this.decl({cfid, branch, prev, link}, [{op: 'mod', file}]);
     // XXX: we can use branch table without loading decl
     let decl_prev = _this.get_decl(prev>=0 ? prev :
       _this.conflict.get(cfid).top.seq);
@@ -100,20 +96,19 @@ export default class FS extends Scroll {
     link = _this._get_seq(file, decl_prev.bseq_get(cfid));
     if (!link)
       throw new Error('file not found '+file);
-    let _buf = yield _this.resolve_buf(0, link), decl;
+    let _buf = yield _this.resolve_buf(0, link);
     // XXX: need create_patch/apply_patch
     let _s = Buffer.from(_buf).toString();
     let s = Buffer.from(buf).toString();
     let diff = Buffer.from(Diff.patch_toText(Diff.patch_make(_s, s)));
     if (diff.length < 0.5*buf.length){
-      decl = yield _this.decl({cfid, branch, prev, link},
+      yield _this.decl({cfid, branch, prev, link},
         [{op: 'mod', file, diff: 1}, diff]);
     }
     else {
-      decl = yield _this.decl({cfid, branch, prev},
+      yield _this.decl({cfid, branch, prev},
         [{op: 'mod', file, content: 1}, buf]);
     }
-    _this._set_seq(file, decl.seq, decl.bseq_get(cfid));
   }); }
   resolve_buf(cfid, seq){ return etask({_: this}, function*resolve_buf(){
     // XXX: verify we test every part of it
@@ -177,6 +172,8 @@ export default class FS extends Scroll {
     let body = decl.get_body(cfid);
     let f2 = decl.data_get().get(cfid).get(3); // XXX: need api
     let ret = {};
+    if (!header)
+      return ret;
     if (header.bseq)
       ret.bseq = header.bseq;
     if (header.branch)
@@ -251,6 +248,23 @@ FS.create = (opt, d)=>etask(function*scroll_create(){
   return fs;
 });
 
+FS.open = opt=>etask(function*scroll_open(){
+  assert(util.is_mocha()||!opt.soul, 'producion must use global soul');
+  let seq, h;
+  if (typeof opt.M=='string')
+    [seq, h] = [0, s2b(opt.M)];
+  else // XXX: support Uint8Array
+    [seq, h] = Buffer.isBuffer(opt.M) ? [0, opt.M] : [opt.M.seq, opt.M.h];
+  assert.equal(seq, 0, 'must provide M0');
+  assert(/^\d+$/.test(seq) && h, 'scroll.open missing M');
+  let soul = opt.soul||Scroll.soul, fs = seq==0 && soul.get(h);
+  if (fs)
+    return fs;
+  fs = new FS(opt);
+  yield fs.init({M: h, seq});
+  return fs;
+});
+
 // XXX: need test + improve
 function valid_dir(dir){ return dir[0]=='/' && dir[dir.length-1]=='/'; }
 // XXX: need test + improve
@@ -285,3 +299,4 @@ FS.parse_buf_ref = parse_buf_ref;
 // XXX: change all branch api to be async
 // XXX: index for ls of directory
 // XXX: checkout by date
+// XXX: test fs+db

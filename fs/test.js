@@ -8,23 +8,37 @@ import FS from './fs.js';
 import tparser from '../storage/test_parser.js';
 import DiffMatchAndPath from 'diff-match-patch';
 const Diff = new DiffMatchAndPath();
-const {parse_get_next, parse_exp, parse_exp_arg, rm_parentesis} = tparser;
+const {parse_get_next, parse_exp, parse_exp_arg, rm_parentesis,
+  parse_exp_arg_pair} = tparser;
 import {test_run, new_scroll, get_scroll, get_def, test_register,
-  test_register_cmd} from '../storage/test_cmd.js';
+  test_register_cmd, get_val} from '../storage/test_cmd.js';
 
 xtest.init();
 
 let t_buf;
 
 const cmd_fs = t=>etask(function*cmd_fs(){
-  let name = t.ctx||get_def('left');
+  let name = t.ctx||get_def('left'), M;
   assert(!t.l, 'invalid arg '+t.meta.s);
   assert(!get_scroll(name, true), 'scroll already exist '+name);
-  assert(!t.r, 'invalid arg '+t.r);
+  for (let curr=t.r, i=0; curr = parse_get_next(curr); i++){
+    let tt = parse_exp_arg(curr.exp), t2, a;
+    switch (tt.cmd){
+    default:
+      t2 = parse_exp_arg_pair(curr.exp);
+      if (a = t2.l.match(/^M(\d+)$/)){
+        let h = yield get_val(t2.r);
+        assert(h, 'missing '+t2.r);
+        M = +a[1] ? {seq: +a[1], h} : h;
+        break;
+      }
+      assert.fail('invalid arg '+tt.cmd+' in '+t.meta.s);
+    }
+  }
   let db_opt;
-  new_scroll(name, null, null, t.prev?.ctx, db_opt, null,
+  new_scroll(name, M, null, t.prev?.ctx, db_opt, null,
     function create_func(opt, d){ return FS.create(opt); },
-    function open_func(){ assert.fail('XXX TODO fs.open_func'); });
+    function open_func(opt, d){ return FS.open(opt); });
 });
 
 const cmd_add = t=>etask(function*cmd_add(){
@@ -206,6 +220,8 @@ function state_apply(state, o){
     assert(path_i>-1, 'uneeded rm '+path);
     state.fs[branch].splice(path_i, 1);
   }
+  if (!state.fs.main)
+    state.fs.main = [];
 }
 
 const state_split = (o, def)=>etask(function*state_split(){
@@ -508,4 +524,12 @@ describe('fs', ()=>{
         fs_b3=[/ /d1/ /d2/])`);
   });
   // XXX: test tag
+  describe('conflict', ()=>{
+    t('no_conflict', `s..fs add(/) add(/d1/) add(/d1/dd1/) S..#(seq fs)
+      fs(s..M0)     #seq0={}
+      tput(0 1    ) #(seq1={op:add dir:/} fs=[/])
+      tput(0 1 2  ) #(seq2={op:add dir:/d1/} fs=[/d1/])
+      tput(0 1 2 3) #(seq3={op:add dir:/d1/dd1/} fs=[/d1/dd1/])
+    `);
+  });
 });

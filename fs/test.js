@@ -204,28 +204,29 @@ function state_split_var(v, def){
 
 function state_apply(state, o){
   // XXX TODO: cfd, type let fs = get_scroll(name);
-  let {val, branch} = o, {add, rm} = val;
+  let {val, branch, cfid} = o, {add, rm} = val;
   assert.equal(o.type, 'fs', 'invalid type');
   branch = branch||'main';
   state.fs = state.fs||{};
+  state.fs[cfid] = state.fs[cfid]||{};
   for (let i=0; i<add.length; i++){
-    state.fs[branch] = state.fs[branch]||[];
-    let path = add[i], path_i = state.fs[branch].indexOf(path);
+    state.fs[cfid][branch] = state.fs[cfid][branch]||[];
+    let path = add[i], path_i = state.fs[cfid][branch].indexOf(path);
     assert.equal(path_i, -1, 'uneeded add '+path);
-    state.fs[branch].push(path);
+    state.fs[cfid][branch].push(path);
   }
   for (let i=0; i<rm.length; i++){
-    state.fs[branch] = state.fs[branch]||[];
-    let path = rm[i], path_i = state.fs[branch].indexOf(path);
+    state.fs[cfid][branch] = state.fs[cfid][branch]||[];
+    let path = rm[i], path_i = state.fs[cfid][branch].indexOf(path);
     assert(path_i>-1, 'uneeded rm '+path);
-    state.fs[branch].splice(path_i, 1);
+    state.fs[cfid][branch].splice(path_i, 1);
   }
-  if (!state.fs.main)
-    state.fs.main = [];
+  if (!state.fs[cfid].main)
+    state.fs[cfid].main = [];
 }
 
 const state_split = (o, def)=>etask(function*state_split(){
-  if (!/^fs/.test(o.l))
+  if (!/^(c\d+)?fs/.test(o.l))
     return;
   switch (o.cmd){
   case '!': return {...state_split_var(o.r, def), val: null};
@@ -240,13 +241,16 @@ const state_curr = (filter, state, fs)=>etask(function*state_curr(){
     return;
   if (fs.top.seq<1)
     return;
-  let cfid = 0; // XXX: support cfid
-  let m = f.match(/^fs(\d+)$/), seq;
-  if (m)
-    seq = +m[1];
-  else
-    seq = fs.top.seq;
-  state.fs = yield fs.test_dump_fs(cfid, seq);
+  for (const [cfid] of fs.conflict){
+    let m = f.match(/^fs(\d+)$/), seq;
+    if (m)
+      seq = +m[1];
+    else
+      seq = fs.top.seq;
+    state.fs = state.fs||{};
+    state.fs[cfid] = state.fs[cfid]||{};
+    state.fs[cfid] = yield fs.test_dump_fs(cfid, seq);
+  }
 });
 
 function state_assert(filter, state_curr, state_exp){
@@ -540,5 +544,13 @@ describe('fs', ()=>{
       tput(0 1 2 3) #(seq1={} seq2={} seq3={op:add dir:/d1/dd1/} fs=[])
       tput(0 1    ) #(seq1={op:add dir:/} fs=[/])
       tput(0 1 2  ) #(seq2={op:add dir:/d1/} fs=[/d1/ /d1/dd1/])`);
+    t('conflict', `s..fs add(/) add(/d1/) add(/d1/dd1/)
+      s1..fs(s..M0) tput(0) tput(0 1) add(/D1/) add(/D1/DD1/) S..#(seq fs)
+      fs(M0)     #seq0={}
+      tput(0 1    ) #(seq1={op:add dir:/} fs=[/])
+      tput(0 1 2  ) #(seq2={op:add dir:/d1/} fs=[/d1/])
+      tput(0 1 2 3) #(seq3={op:add dir:/d1/dd1/} fs=[/d1/dd1/]) c(M3)
+      tput(0 1 c  ) #(seq2c1={op:add dir:/D1/} seq3c1={} c1fs=[/ /D1/])`);
+    // XXX: test temporary conflict, conflict+branches and files
   });
 });

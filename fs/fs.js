@@ -16,7 +16,7 @@ export default class FS extends Scroll {
     super(opt);
     this.buf_hash_to_seq = new Map();
     this.path_to_seq = new Map();
-    this.all = [];
+    this.all = {};
     this.on('data', this._on_data);
   }
   _on_data(e){ return etask({_: this}, function*_on_data(){
@@ -24,7 +24,7 @@ export default class FS extends Scroll {
     let body = data.get_body(cfid);
     if (!body?.dir && !body?.file)
       return;
-    _this._set_seq(body.dir||body.file, seq, bseq, body.op=='rm');
+    _this._set_seq(cfid, body.dir||body.file, seq, bseq, body.op=='rm');
     // XXX: also handle buf_hash_to_seq
   }); }
   // XXX: throw error on invalid file/dir
@@ -49,10 +49,10 @@ export default class FS extends Scroll {
         first = false;
       if (!valid_dir(opath.path))
         return _this.rm_file(opath.path, first ? opt : {});
-      yield _this.ls_foreach(top_prev.bseq, seq_prev, opath.path, cb);
+      yield _this.ls_foreach(cfid, top_prev.bseq, seq_prev, opath.path, cb);
       yield _this._rm_dir(opath.path, first ? opt : {});
     });
-    yield _this.ls_foreach(top_prev.bseq, seq_prev, dir, cb);
+    yield _this.ls_foreach(cfid, top_prev.bseq, seq_prev, dir, cb);
     yield _this._rm_dir(dir, first ? opt : {});
   }); }
   _rm_dir(dir, opt={}){ return etask({_: this}, function*_rm_dir(){
@@ -138,9 +138,10 @@ export default class FS extends Scroll {
     return Buffer.from(Diff.patch_apply(Diff.patch_fromText(buf.toString()),
       _buf.toString())[0]);
   }); }
-  _set_seq(path, seq, bseq, rm){
-    this.all.push({path, seq, bseq, rm});
-    this.all.sort((a, b)=>b.seq-a.seq);
+  _set_seq(cfid, path, seq, bseq, rm){
+    this.all[cfid] = this.all[cfid]||[];
+    this.all[cfid].push({path, seq, bseq, rm});
+    this.all[cfid].sort((a, b)=>b.seq-a.seq);
     let bseqb = bseq_branch(bseq);
     let map = this.path_to_seq.get(bseqb);
     if (!map)
@@ -194,12 +195,24 @@ export default class FS extends Scroll {
       ret.f2 = f2;
     return ret;
   }
-  ls_foreach(bseq_top, seq, dir, cb){ // XXX: optimize
+  ls_foreach(cfid, bseq_top, seq, dir, cb){ // XXX: optimize
     return etask({_: this}, function*ls_foreach()
   {
     let _this = this._, done = {};
-    for (let i=0; i<_this.all.length; i++){
-      let o = _this.all[i];
+    let all = [..._this.all[cfid]];
+    for (let parent = _this.conflict.get(cfid)?.parent; parent;
+      parent = _this.conflict.get(parent.cfid)?.parent)
+    {
+      for (let i=0; i<_this.all[parent.cfid].length; i++){
+        let o = _this.all[parent.cfid][i];
+        if (o.seq > parent.seq)
+          continue;
+        all.push(o);
+      }
+    }
+    all.sort((a, b)=>b.seq-a.seq);
+    for (let i=0; i<all.length; i++){
+      let o = all[i];
       if (o.seq>seq)
         continue;
       if (!bseq_branch_belongs(o.bseq, bseq_top))
@@ -215,26 +228,29 @@ export default class FS extends Scroll {
       yield cb(opath);
     }
   }); }
-  test_ls(bseq_top, seq, dir){ return etask({_: this}, function*test_ls(){
+  test_ls(cfid, bseq_top, seq, dir){ return etask({_: this},
+    function*test_ls()
+  {
     let _this = this._, ret = [];
     assert(dir=='' || valid_dir(dir), 'invalid dir '+dir);
     let cb = opath=>{
       ret.push(opath.path);
       if (valid_dir(opath.path))
-        return _this.ls_foreach(bseq_top, seq, opath.path, cb);
+        return _this.ls_foreach(cfid, bseq_top, seq, opath.path, cb);
     };
-    yield _this.ls_foreach(bseq_top, seq, dir, cb);
+    yield _this.ls_foreach(cfid, bseq_top, seq, dir, cb);
     ret.sort((a, b)=>a<b ? -1 : a>b ? 1 : 0);
     return ret;
   }); }
   test_dump_fs(cfid, seq){ return etask({_: this}, function*test_dump_fs(){
     let _this = this._, ret = {}, top = _this.get_branch_top(cfid, null);
-    ret.main = yield _this.test_ls(top.bseq, Math.min(top.seq, seq), '');
+    ret.main = yield _this.test_ls(cfid, top.bseq, Math.min(top.seq, seq), '');
     let branches = _this.get_branches(cfid, seq);
     for (let i=0; i<branches.length; i++){
       let branch = branches[i];
       top = _this.get_branch_top(cfid, branch);
-      ret[branch] = yield _this.test_ls(top.bseq, Math.min(top.seq, seq), '');
+      ret[branch] = yield _this.test_ls(cfid, top.bseq,
+        Math.min(top.seq, seq), '');
     }
     return ret;
   }); }

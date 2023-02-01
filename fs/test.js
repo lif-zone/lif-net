@@ -525,11 +525,20 @@ describe('fs', ()=>{
   });
   // XXX: test tag
   describe('conflict', ()=>{
-    t('no_conflict', `s..fs add(/) add(/d1/) add(/d1/dd1/) S..#(seq fs)
+    t('no_conflict_asc', `s..fs add(/) add(/d1/) add(/d1/dd1/) S..#(seq fs)
       fs(s..M0)     #seq0={}
       tput(0 1    ) #(seq1={op:add dir:/} fs=[/])
       tput(0 1 2  ) #(seq2={op:add dir:/d1/} fs=[/d1/])
-      tput(0 1 2 3) #(seq3={op:add dir:/d1/dd1/} fs=[/d1/dd1/])
-    `);
+      tput(0 1 2 3) #(seq3={op:add dir:/d1/dd1/} fs=[/d1/dd1/])`);
+    t('no_conflict_dsc', `s..fs add(/) add(/d1/) add(/d1/dd1/) S..#(seq fs)
+      fs(s..M0)     #seq0={}
+      tput(0 1 2 3) #(seq1={} seq2={} seq3={op:add dir:/d1/dd1/} fs=[])
+      tput(0 1 2  ) #(seq2={op:add dir:/d1/} fs=[])
+      tput(0 1    ) #(seq1={op:add dir:/} fs=[/ /d1/ /d1/dd1/])`);
+    t('no_conflict_mid', `s..fs add(/) add(/d1/) add(/d1/dd1/) S..#(seq fs)
+      fs(s..M0)     #seq0={}
+      tput(0 1 2 3) #(seq1={} seq2={} seq3={op:add dir:/d1/dd1/} fs=[])
+      tput(0 1    ) #(seq1={op:add dir:/} fs=[/])
+      tput(0 1 2  ) #(seq2={op:add dir:/d1/} fs=[/d1/ /d1/dd1/])`);
   });
 });

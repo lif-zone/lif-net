@@ -236,7 +236,7 @@ function assert_no_corruption(scroll){
 function c_id2pos(scroll, cfid){
   return Array.from(scroll.conflict.keys()).indexOf(cfid); }
 
-const get_val = (exp, def_type='right', encode=false)=>etask(
+export const get_val = (exp, def_type='right', encode=false)=>etask(
   function*_get_val()
 {
   let m, crypt = Scroll.supported_crypt[0];

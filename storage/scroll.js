@@ -1170,6 +1170,7 @@ export default class Scroll extends EventEmitterAsync {
     let bseq = h.bseq||bint(seq), branch = h.branch;
     let btable = this.get_branch_table(cfid);
     btable.add({branch, seq, bseq});
+    return this.emit_async('data', {data, seq, cfid, bseq});
   };
   get_branch_table(cfid){
     let btable = this.branch.get(cfid);

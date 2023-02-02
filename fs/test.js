@@ -178,6 +178,7 @@ function state_valid_filter(s){
   // XXX: mv seq from storage/test_cmd.js to this file
   switch (s){
   case 'fs': return true;
+  case 'file': return true;
   }
   return false;
 }
@@ -197,82 +198,122 @@ function get_fs(s){
 
 function state_split_var(v, def){
   let m = v.match(/^(c(\d+))?fs(_(.*))?$/);
-  assert(m, 'invalid var '+v);
-  let cfid = m[2] ? +m[2] : 0, branch = m[4], name = def||get_def('left');
-  return {name, type: 'fs', cfid, branch};
+  if (m){
+    let cfid = m[2] ? +m[2] : 0, branch = m[4], name = def||get_def('left');
+    return {name, type: 'fs', cfid, branch};
+  }
+  m = v.match(/^file(.*)$/);
+  assert(m?.[1], 'invalid var '+v);
+  let name = def||get_def('left'), file, cfid = 0; // XXX: support cfid
+  let branch = null;
+  for (let curr=rm_parentesis(m[1]); curr = parse_get_next(curr);){
+    if (!file){
+      file = curr.exp;
+      continue;
+    }
+    let o = parse_exp_arg(curr.exp);
+    switch (o.cmd){
+    case 'branch': branch = o.r; break;
+    default: assert.fail('invalid state_split_var arg '+curr.exp);
+    }
+  }
+  return {name, type: 'file', file, cfid, branch};
 }
 
 function state_apply(state, o){
   // XXX TODO: cfd, type let fs = get_scroll(name);
-  let {val, branch, cfid} = o, {add, rm} = val;
-  assert.equal(o.type, 'fs', 'invalid type');
-  branch = branch||'main';
-  state.fs = state.fs||{};
-  state.fs[cfid] = state.fs[cfid]||{};
-  for (let i=0; i<add.length; i++){
-    state.fs[cfid][branch] = state.fs[cfid][branch]||[];
-    let path = add[i], path_i = state.fs[cfid][branch].indexOf(path);
-    assert.equal(path_i, -1, 'uneeded add '+path);
-    state.fs[cfid][branch].push(path);
-  }
-  for (let i=0; i<rm.length; i++){
-    state.fs[cfid][branch] = state.fs[cfid][branch]||[];
-    let path = rm[i], path_i = state.fs[cfid][branch].indexOf(path);
-    assert(path_i>-1, 'uneeded rm '+path);
-    state.fs[cfid][branch].splice(path_i, 1);
-  }
-  if (!state.fs[cfid].main)
-    state.fs[cfid].main = [];
+  let {val, branch, cfid} = o;
+  if (o.type=='fs'){
+    let {add, rm} = val;
+    branch = branch||'main';
+    state.fs = state.fs||{};
+    state.fs[cfid] = state.fs[cfid]||{};
+    for (let i=0; i<add.length; i++){
+      state.fs[cfid][branch] = state.fs[cfid][branch]||[];
+      let path = add[i], path_i = state.fs[cfid][branch].indexOf(path);
+      assert.equal(path_i, -1, 'uneeded add '+path);
+      state.fs[cfid][branch].push(path);
+    }
+    for (let i=0; i<rm.length; i++){
+      state.fs[cfid][branch] = state.fs[cfid][branch]||[];
+      let path = rm[i], path_i = state.fs[cfid][branch].indexOf(path);
+      assert(path_i>-1, 'uneeded rm '+path);
+      state.fs[cfid][branch].splice(path_i, 1);
+    }
+    if (!state.fs[cfid].main)
+      state.fs[cfid].main = [];
+  } else if (o.type=='file'){
+    state.file = state.file||{};
+    assert(o.file, 'missing file');
+    state.file[o.file] = o.val;
+  } else
+    assert.fail('invalid type '+o.type);
 }
 
 const state_split = (o, def)=>etask(function*state_split(){
-  if (!/^(c\d+)?fs/.test(o.l))
-    return;
-  switch (o.cmd){
-  case '!': return {...state_split_var(o.r, def), val: null};
-  case '=': return {...state_split_var(o.l, def), val: yield get_fs(o.r)};
-  default: assert.fail('invalid state_split '+o.meta.s);
+  if (/^(c\d+)?fs/.test(o.l)){
+    switch (o.cmd){
+    case '!': return {...state_split_var(o.r, def), val: null};
+    case '=': return {...state_split_var(o.l, def), val: yield get_fs(o.r)};
+    default: assert.fail('invalid state_split '+o.meta.s);
+    }
+  }
+  if (/^file\(/.test(o.l)){
+    switch (o.cmd){
+    case '!': return {...state_split_var(o.r, def), val: null};
+    case '=': return {...state_split_var(o.l, def), val: t_buf[o.r]};
+    default: assert.fail('invalid state_split '+o.meta.s);
+    }
   }
 });
 
 const state_curr = (filter, state, fs)=>etask(function*state_curr(){
   let f;
-  if (!(f = filter.find(s=>/^fs/.test(s))))
-    return;
-  if (fs.top.seq<1)
-    return;
-  for (const [cfid] of fs.conflict){
-    let m = f.match(/^fs(\d+)$/), seq;
-    if (m)
-      seq = +m[1];
-    else
-      seq = fs.top.seq;
-    state.fs = state.fs||{};
-    state.fs[cfid] = state.fs[cfid]||{};
-    state.fs[cfid] = yield fs.test_dump_fs(cfid, seq);
+  if (f = filter.find(s=>/^fs/.test(s))){
+    if (fs.top.seq<1)
+      return;
+    for (const [cfid] of fs.conflict){
+      let m = f.match(/^fs(\d+)$/), seq;
+      if (m)
+        seq = +m[1];
+      else
+        seq = fs.top.seq;
+      state.fs = state.fs||{};
+      state.fs[cfid] = state.fs[cfid]||{};
+      state.fs[cfid] = yield fs.test_dump_fs(cfid, seq);
+    }
+  }
+  else if (f = filter.find(s=>/^file/.test(s))){
+    let o = state_split_var(f);
+    state.file = state.file||{};
+    state.file[o.file] = yield fs.get_file(o.cfid, o.file, o.branch);
   }
 });
 
 function state_assert(filter, state_curr, state_exp){
-  if (!filter.find(s=>/^fs/.test(s)))
-    return;
-  assert.deepEqual(state_curr.fs, state_exp.fs, 'state fs mismatch');
+  if (filter.find(s=>/^fs/.test(s)))
+    assert.deepEqual(state_curr.fs, state_exp.fs, 'state fs mismatch');
+  if (filter.find(s=>/^file/.test(s)))
+    assert.deepEqual(state_curr.file, state_exp.file, 'state file mismatch');
 }
 
 function state_get_steps(filter, name, s){
-  if (!filter.find(s=>/^fs/.test(s)))
-    return;
-  let steps = '';
-  s = rm_parentesis(s);
-  for (let curr=s; curr = parse_get_next(curr);){
-    let o = parse_exp_arg(curr.exp);
-    assert(!o.l || o.l==':', 'invalid arg '+curr.exp);
-    if (!o.l && !o.r)
-      steps += (steps&&' ')+'fs='+o.cmd;
-    else
-      steps += (steps&&' ')+'fs_'+o.cmd+'='+o.r;
+  if (filter.find(s=>/^fs/.test(s))){
+    let steps = '';
+    s = rm_parentesis(s);
+    for (let curr=s; curr = parse_get_next(curr);){
+      let o = parse_exp_arg(curr.exp);
+      assert(!o.l || o.l==':', 'invalid arg '+curr.exp);
+      if (!o.l && !o.r)
+        steps += (steps&&' ')+'fs='+o.cmd;
+      else
+        steps += (steps&&' ')+'fs_'+o.cmd+'='+o.r;
+    }
+    return steps;
   }
-  return steps;
+  let f;
+  if (f = filter.find(s=>/^file\(/.test(s)))
+    return f+'='+s;
 }
 
 const test_start = ()=>etask(function*test_start(){ t_buf = {}; });
@@ -473,7 +514,14 @@ describe('fs', ()=>{
       ##fs6=([/ /f1 /f5]     b:[/ /f1 /f2 /f3 /f4])
       ##fs7=([/ /f1 /f5 /f6] b:[/ /f1 /f2 /f3 /f4])
       ##fs8=([/ /f1 /f5 /f6] b:[/ /f1 /f2 /f3 /f4 /f7])
-      ##fs=([/ /f1 /f5 /f6]  b([/ /f1 /f2 /f3 /f4 /f7]))`);
+      ##fs=([/ /f1 /f5 /f6]  b([/ /f1 /f2 /f3 /f4 /f7]))
+      ##file(/f1)=d1 ##file(/f1 branch:b)=d1
+      ##file(/f2)=null ##file(/f2 branch:b)=d2
+      ##file(/f3)=null ##file(/f3 branch:b)=d3
+      ##file(/f4)=null ##file(/f4 branch:b)=d4
+      ##file(/f5)=d5 ##file(/f5 branch:b)=null
+      ##file(/f6)=d6 ##file(/f6 branch:b)=null
+      ##file(/f7)=null ##file(/f7 branch:b)=d7`);
     t('file_mod_nodiff', `s..#seq buf(d1:1) buf(d2:2) buf(d3:3)
       buf(d4:4) buf(d5:5) buf(d6:6) buf(d7:7) s..fs #seq0={}
       add(/f buf:d1) #seq1={op:add file:/f content:1 f2:d1}
@@ -484,7 +532,8 @@ describe('fs', ()=>{
       mod(/f main buf:d5) #seq5={bseq:2 op:mod file:/f content:1 f2:d5}
       mod(/f buf:d6) #seq6={bseq:3 op:mod file:/f content:1 f2:d6}
       mod(/f branch:b buf:d7)
-        #seq7={bseq:1-1.3 op:mod file:/f content:1 f2:d7}`);
+        #seq7={bseq:1-1.3 op:mod file:/f content:1 f2:d7}
+      ##file(/f)=d6 ##file(/f branch:b)=d7`);
     [d1, d2, d3, d4, d5, d6] = [d+'x1', d+'x2', d+'x3', d+'x4', d+'x5',
       d+'x6'];
     t('file_mod_diff', `s..#seq s..fs #seq0={} buf(d1:${d1})
@@ -499,7 +548,8 @@ describe('fs', ()=>{
         #seq4={bseq:2 op:mod file:/f link:1 diff:1 f2:diff(d1 d4)}
       mod(/f buf:d5) #seq5={bseq:3 op:mod file:/f link:4 diff:1 f2:diff(d4 d5)}
       mod(/f branch:b buf:d6)
-        #seq6={bseq:1-1.2 op:mod file:/f link:3 diff:1 f2:diff(d3 d6)}`);
+        #seq6={bseq:1-1.2 op:mod file:/f link:3 diff:1 f2:diff(d3 d6)}
+      ##file(/f)=d5 ##file(/f branch:b)=d6`);
     t('dir', `s..#seq s..fs #seq0={}
       add(/) #seq1={op:add dir:/}
       add(/d1/) #seq2={op:add dir:/d1/}

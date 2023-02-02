@@ -110,6 +110,14 @@ export default class FS extends Scroll {
         [{op: 'mod', file, content: 1}, buf]);
     }
   }); }
+  get_file(cfid, file, branch){ return etask({_: this}, function*get_file(){
+    let _this = this._, top = _this.get_branch_top(cfid, branch||null);
+    if (!top)
+      return;
+    let seq = yield _this.get_file_seq(cfid, top.bseq, top.seq, file);
+    if (seq)
+      return yield _this.resolve_buf(cfid, seq);
+  }); }
   resolve_buf(cfid, seq){ return etask({_: this}, function*resolve_buf(){
     // XXX: verify we test every part of it
     let _this = this._, decl = _this.get_decl(seq);
@@ -195,11 +203,36 @@ export default class FS extends Scroll {
       ret.f2 = f2;
     return ret;
   }
+  get_file_seq(cfid, bseq_top, seq, file){ // XXX: optimize
+    return etask({_: this}, function*get_file_seq()
+  {
+    let _this = this._, all = [..._this.all[cfid]];
+    for (let parent = _this.conflict.get(cfid)?.parent; parent;
+      parent = _this.conflict.get(parent.cfid)?.parent)
+    {
+      for (let i=0; i<_this.all[parent.cfid].length; i++){
+        let o = _this.all[parent.cfid][i];
+        if (o.seq > parent.seq)
+          continue;
+        all.push(o);
+      }
+    }
+    all.sort((a, b)=>b.seq-a.seq);
+    for (let i=0; i<all.length; i++){
+      let o = all[i];
+      if (o.path!=file)
+        continue;
+      if (o.seq>seq)
+        continue;
+      if (!bseq_branch_belongs(o.bseq, bseq_top))
+        continue;
+      return o.seq;
+    }
+  }); }
   ls_foreach(cfid, bseq_top, seq, dir, cb){ // XXX: optimize
     return etask({_: this}, function*ls_foreach()
   {
-    let _this = this._, done = {};
-    let all = [..._this.all[cfid]];
+    let _this = this._, done = {}, all = [..._this.all[cfid]];
     for (let parent = _this.conflict.get(cfid)?.parent; parent;
       parent = _this.conflict.get(parent.cfid)?.parent)
     {
@@ -243,7 +276,7 @@ export default class FS extends Scroll {
     return ret;
   }); }
   test_dump_fs(cfid, seq){ return etask({_: this}, function*test_dump_fs(){
-    let _this = this._, ret = {}, top = _this.get_branch_top(cfid, null);
+    let _this = this._, ret = {}, top = _this.get_branch_top(0, null);
     ret.main = yield _this.test_ls(cfid, top.bseq, Math.min(top.seq, seq), '');
     let branches = _this.get_branches(cfid, seq);
     for (let i=0; i<branches.length; i++){

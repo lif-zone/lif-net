@@ -131,7 +131,7 @@ export default class FS extends Scroll {
     if (o.buf)
       buf = o.buf;
     else if (o.d)
-      buf = yield decl.get_buf(o.d+2);
+      buf = yield decl.get_buf({cfid, d: o.d+2});
     else {
       if (!o.l)
         throw new Error('missing conent link seq'+decl.seq);

@@ -204,7 +204,7 @@ function state_split_var(v, def){
   }
   m = v.match(/^file(.*)$/);
   assert(m?.[1], 'invalid var '+v);
-  let name = def||get_def('left'), file, cfid = 0; // XXX: support cfid
+  let name = def||get_def('left'), file, cfid = 0;
   let branch = null;
   for (let curr=rm_parentesis(m[1]); curr = parse_get_next(curr);){
     if (!file){
@@ -214,6 +214,7 @@ function state_split_var(v, def){
     let o = parse_exp_arg(curr.exp);
     switch (o.cmd){
     case 'branch': branch = o.r; break;
+    case 'c': cfid = +o.r; break;
     default: assert.fail('invalid state_split_var arg '+curr.exp);
     }
   }
@@ -594,13 +595,19 @@ describe('fs', ()=>{
       tput(0 1 2 3) #(seq1={} seq2={} seq3={op:add dir:/d1/dd1/} fs=[])
       tput(0 1    ) #(seq1={op:add dir:/} fs=[/])
       tput(0 1 2  ) #(seq2={op:add dir:/d1/} fs=[/d1/ /d1/dd1/])`);
-    t('conflict_no_branch', `s..fs add(/) add(/d1/) add(/d1/dd1/)
-      s1..fs(s..M0) tput(0) tput(0 1) add(/D1/) add(/D1/DD1/) S..#(seq fs)
+    t('conflict_no_branch', `buf(d1:1) buf(d2:2)
+      s..fs add(/) add(/d1/) add(/d1/f1 buf:d1)
+      s1..fs(s..M0) tput(0) tput(0 1) add(/D1/) add(/D1/f2 buf:d2) S..#(seq fs)
       fs(M0)        #seq0={}
       tput(0 1    ) #(seq1={op:add dir:/} fs=[/])
       tput(0 1 2  ) #(seq2={op:add dir:/d1/} fs=[/d1/])
-      tput(0 1 2 3) #(seq3={op:add dir:/d1/dd1/} fs=[/d1/dd1/])
-      tput(0 1 c  ) #(seq2c1={op:add dir:/D1/} seq3c1={} c1fs=[/ /D1/])`);
+      // XXX: missing buf f2
+      tput(0 1 2 3) #(seq3={op:add file:/d1/f1 content:1 f2:d1} fs=[/d1/f1])
+      tput(0 1 c  ) #(seq2c1={op:add dir:/D1/} seq3c1={} c1fs=[/ /D1/])
+      tput(0 1 c d) #(seq3c1={op:add file:/D1/f2 content:1 f2:d2}
+                      c1fs=[/D1/f2])
+      ##file(/d1/f1)=d1 ##file(/d1/f2)=null ##file(/d1/f1 c:1)=null
+      ##file(/D1/f2 c:1)=d2`);
     // XXX: test temporary conflict, conflict+branches and files
   });
 });

@@ -667,6 +667,9 @@ function state_split_var(v, def){
 
 const state_split = (exp, def)=>etask(function*state_split(){
   let o = parse_exp(exp), ret;
+  ret = yield t_hooks.state_split?.(o, def);
+  if (ret!==undefined)
+    return ret;
   switch (o.cmd){
   case '!': return {...state_split_var(o.r, def), val: null};
   case '=':
@@ -684,9 +687,6 @@ const state_split = (exp, def)=>etask(function*state_split(){
       return {...state_split_var(o.l, def), val: yield get_btable(o.r)};
     if (/^db_btc/.test(o.l))
       return {...state_split_var(o.l, def), val: yield get_btable(o.r)};
-    ret = yield t_hooks.state_split?.(o, def);
-    if (ret!==undefined)
-      return ret;
     return {...state_split_var(o.l, def),
       val: fix_buf(yield get_val(o.r, 'right'))};
   default: assert.fail('invalid state_split '+exp);

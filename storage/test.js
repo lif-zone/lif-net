@@ -6,6 +6,7 @@ import {test_run, parse_var, parse_cfid_seq, parse_conflict, macro_to_m}
 import xtest from '../util/test_lib.js';
 import Scroll from './scroll.js';
 import Branch_table from './branch.js';
+import Index from './index.js';
 import DB from './db.js';
 import {r_str, r_from_str, r_parent, r_includes, r_eq, r_split}
   from './range.js';
@@ -1855,6 +1856,18 @@ describe('scroll', ()=>{
           load_c(1) #mem1={M1 sig1 D1:[D1F0 D1F1 D1f2] m1 m0_1}
           load_c(1 data) #mem1={M1 sig1 D1 m1 m0_1}
           load_c(1 data) #`);
+      });
+    });
+  });
+  describe('index', ()=>{
+    describe('util', ()=>{
+      it('normalize_opt', ()=>{
+        const t = (val, exp)=>assert.deepEqual(Index.normalize_opt(val), exp);
+        t('file', {name: 'file', field: 'file'});
+        t({field: 'file'}, {name: 'file', field: 'file'});
+        t({field: 'file', xxx: 1}, {name: 'file', field: 'file', xxx: 1});
+        t({name: 'dir_list', field: '*', transform: 'decl_get_dir'},
+          {name: 'dir_list', field: '*', transform: 'decl_get_dir'});
       });
     });
   });

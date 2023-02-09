@@ -224,7 +224,7 @@ export default class FS extends Scroll {
         continue;
       if (o.seq>seq)
         continue;
-      if (!bseq_branch_belongs(o.bseq, bseq_top))
+      if (!bseq_branch_belongs(o.bseq, bseq_top)) // XXX: bseq_le?
         continue;
       return o.seq;
     }

@@ -644,8 +644,8 @@ indexid - unique for all files and scrolls
 file_to_seq_
 {indexid, key, seq}
 {indexid, key, seq, val}
-{scroll+conflict_selection+specific_index_of_scroll_conflict, file_name, seq,
-  bseq}
+{scroll+conflict_selection+branch_selection+specific_index_of_scroll_conflict,
+  file_name, seq, bseq}
 
 - support get a version of file
 - support ls of directory

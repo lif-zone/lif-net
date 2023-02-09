@@ -623,6 +623,9 @@ index name: default - key name
 {1, /file1, 10}
 {1, /file1, 9}
 
+{scroll+conflict_selection+branch_selection+specific_index_of_scroll_conflict,
+  file_name, seq, bseq}
+
 file: '/arik' --> simple key for index
 dir: file2path(file)
 file2path('/arik') = '/'

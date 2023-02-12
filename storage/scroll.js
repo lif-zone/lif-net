@@ -581,6 +581,11 @@ export default class Scroll extends EventEmitterAsync {
     yield _this.lock();
     if (diff[0]) // XXX HACK: for case where we have only M0 (missing m0)
       yield _this.put_single(0, diff, errors);
+    if (!_this.allow_missing_seq0 && !(yield _this.get_decl(0).get_header(0))){
+      push_error(errors, 'missing seq0');
+      yield _this.unlock();
+      return {errors};
+    }
     for (let i=a.length-1; i>=0 && +a[i]; i--){
       let seq = +a[i], errors2={};
       if (seq==0)

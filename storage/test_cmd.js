@@ -49,7 +49,8 @@ export function macro_to_m(val, dst){
     if (/^[\da-zA-Z]$/.test(a[i])){
       let ch = a[i];
       let {n, d} = to_nd(ch);
-      s = space(s)+(i==a.length-1 ? d+'.sig'+n+' '+d+'.D'+n : d+'.m'+n);
+      s = space(s)+(i==a.length-1 || n==0 ?
+        d+'.sig'+n+' '+d+'.D'+n : d+'.m'+n);
       continue;
     }
     let m = a[i].split('_');
@@ -525,7 +526,7 @@ const cmd_flush = t=>etask(function*cmd_flush(){
 
 const cmd_scroll = t=>etask(function*cmd_scroll(){
   let prev_scroll = yield t_prev_scroll.M_hash(0, 1), db_opt;
-  let name = t.ctx||get_def('left'), M, a, scroll, d;
+  let name = t.ctx||get_def('left'), M, a, scroll, d, allow_missing_seq0;
   assert(!t.l, 'invalid arg '+t.meta.s);
   assert(!t_scroll[name], 'scroll already exist '+name);
   for (let curr=t.r, i=0; curr = parse_get_next(curr); i++){
@@ -544,6 +545,7 @@ const cmd_scroll = t=>etask(function*cmd_scroll(){
       else if (a=tt.r.match(/^(\d+)$/))
         d = [+a[1], +a[1]];
       break;
+    case 'allow_missing_seq0': allow_missing_seq0 = true; break;
     default:
       t2 = parse_exp_arg_pair(curr.exp);
       if (a = t2.l.match(/^M(\d+)$/)){
@@ -557,6 +559,8 @@ const cmd_scroll = t=>etask(function*cmd_scroll(){
   }
   scroll = yield new_scroll(name, M, prev_scroll, t.prev?.ctx, db_opt, null,
     null, null);
+  if (allow_missing_seq0)
+    scroll.allow_missing_seq0 = allow_missing_seq0;
   if (d!==undefined){
     for (let j=d[0]; j<=d[1]; j++)
       yield test_decl(scroll, ''+j);
@@ -564,13 +568,14 @@ const cmd_scroll = t=>etask(function*cmd_scroll(){
 });
 
 const cmd_clone = (curr, t)=>etask(function*cmd_clone(){
-  let dst = t.ctx||get_def('left'), m, db_opt;
+  let dst = t.ctx||get_def('left'), m, db_opt, allow_missing_seq0;
   assert(!t_scroll[dst], 'scroll already exist '+dst);
   assert(!t.l, 'invalid arg '+t.meta.s);
   for (let curr=t.r, i=0; curr = parse_get_next(curr); i++){
     let tt = parse_exp_arg(curr.exp);
     switch (tt.cmd){
     case 'db': db_opt = parse_db_init(tt); break;
+    case 'allow_missing_seq0': allow_missing_seq0 = true; break;
     default:
       m = tt.meta.s.match(/^([a-z0-9-]+)(()||(\.)|(\.\.))(M(\d+))?$/);
       assert(m, 'invalid clone '+t.meta.s);
@@ -582,6 +587,8 @@ const cmd_clone = (curr, t)=>etask(function*cmd_clone(){
   let s_src = get_scroll(src);
   let s_dst = yield new_scroll(dst, s_src.M_hash(0, 0), null, t.prev?.ctx,
     db_opt, null, null, null);
+  if (allow_missing_seq0)
+    s_dst.allow_missing_seq0 = allow_missing_seq0;
   let seq = m[6] ? +m[7] : s_src.top.seq;
   yield s_dst.lock();
   if (Array.from(s_src.conflict.keys()).length>1){

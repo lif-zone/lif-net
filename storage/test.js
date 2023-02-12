@@ -590,24 +590,25 @@ describe('scroll', ()=>{
     it('to_m', ()=>{
       const t = (val, exp)=>assert.equal(macro_to_m(val, 's'), exp);
       t('0', 's.sig0 s.D0');
-      t('0 1', 's.m0 s.sig1 s.D1');
+      t('0 1', 's.sig0 s.D0 s.sig1 s.D1');
+      t('0 1 2', 's.sig0 s.D0 s.m1 s.sig2 s.D2');
       t('0_1', 's.m0_1');
       t('0_1 2', 's.m0_1 s.sig2 s.D2');
       t('0_1_2_3 4_5 6', 's.m0_3 s.m4_5 s.sig6 s.D6');
       t('0_1 2        ', 's.m0_1 s.sig2 s.D2');
       t('a', 's1.sig0 s1.D0');
-      t('a b', 's1.m0 s1.sig1 s1.D1');
+      t('a b', 's1.sig0 s1.D0 s1.sig1 s1.D1');
       t('a_b', 's1.m0_1');
       t('a_b c', 's1.m0_1 s1.sig2 s1.D2');
       t('a_b_c_d e_f g', 's1.m0_3 s1.m4_5 s1.sig6 s1.D6');
       t('A', 's2.sig0 s2.D0');
-      t('A B', 's2.m0 s2.sig1 s2.D1');
+      t('A B', 's2.sig0 s2.D0 s2.sig1 s2.D1');
       t('A_B', 's2.m0_1');
       t('A_B C', 's2.m0_1 s2.sig2 s2.D2');
       t('A_B_C_D E_F G', 's2.m0_3 s2.m4_5 s2.sig6 s2.D6');
-      t('0 b', 's.m0 s1.sig1 s1.D1');
-      t('0 B', 's.m0 s2.sig1 s2.D1');
-      t('a B', 's1.m0 s2.sig1 s2.D1');
+      t('0 b', 's.sig0 s.D0 s1.sig1 s1.D1');
+      t('0 B', 's.sig0 s.D0 s2.sig1 s2.D1');
+      t('a B', 's1.sig0 s1.D0 s2.sig1 s2.D1');
     });
   });
   describe('api', ()=>{
@@ -680,12 +681,14 @@ describe('scroll', ()=>{
         t('sig1', `${s} s.put(sig1:sig0 err(invalid sig1)) ==M0`);
       });
       describe('errors_missing', ()=>{
-        let s = `s.scroll(!prev_scroll d:1-32) s2..scroll(s..M0) ==M0`;
+        let s = `s.scroll(!prev_scroll d:1-32)
+          s2..scroll(allow_missing_seq0 s..M0) ==M0`;
         t('sig0', `${s} put(sig0 err(missing d0)) ==M0`);
         t('d0', `${s} put(d0 err(missing sig0)) ==M0`);
       });
       describe('top_M0', ()=>{
-        let s = `s.scroll(!prev_scroll d:1-32) s2..scroll(s..M0) ==M0`;
+        let s = `s.scroll(!prev_scroll d:1-32)
+          s2..scroll(allow_missing_seq0 s..M0) ==M0`;
         t('sig0d0', `${s} put(sig0 d0) ==(sig0 d0 M0 m0)`);
         t('sig0d0_m0', `${s} put(sig0 d0 m0) ==(sig0 d0 M0 m0)`);
         t('sig0d0_m0_invalid_m0', `${s} put(sig0 d0 m0:m1 err(invalid M0))
@@ -785,7 +788,8 @@ describe('scroll', ()=>{
           M9=hroot(s2.m0_7+s2.m8_9) =M4 =M5 =M6 s2.M7=M7 !M10`);
       });
       describe('top_M1', ()=>{
-        let s = `s.scroll(!prev_scroll d:1-32) s2..scroll(s..M1) ==M1`;
+        let s = `s.scroll(!prev_scroll d:1-32)
+          s2..scroll(allow_missing_seq0 s..M1) ==M1`;
         t('m0', `${s} put(m0 err(missing m1,missing m0_1)) ==M1`);
         t('m0m0_1', `${s} put(m0 err(missing m1,missing m0_1)) ==M1`);
         t('m1', `${s} put(m1 err(missing m0,missing m0_1)) ==M1`);
@@ -811,13 +815,15 @@ describe('scroll', ()=>{
         t('m0m1_sig1d1_sig0d0', `${s} put(sig0 d0 sig1 d1 m0 m1)
           ==(sig0 d0 sig1 d1 M0 m0 M1 m1 m0_1)`);
         t('m0m1m0_1', `${s} put(m0 m1 m0_1) ==(M0 m0 M1 m1 m0_1)`);
-        t('m0_sig1d1', `${s} put(m0 sig1 d1) ==(sig1 d1 M0 m0 M1 m1 m0_1)`);
+        t('m0_sig1d1', `${s} put(m0 D0 sig0 sig1 d1)
+          ==(sig1 d1 M0 m0 M1 m1 m0_1 D0 sig0)`);
         t('m1_sig0d0', `${s} put(sig0 d0 m1) ==(sig0 d0 M0 m0 M1 m1 m0_1)`);
         // XXX: add test for d0sig0_d1_sig1
         // XXX: add sig/d tests
       });
       describe('top_M2', ()=>{
-        let s = `s.scroll(!prev_scroll d:1-32) s2..scroll(s..M2) ==M2`;
+        let s = `s.scroll(!prev_scroll d:1-32)
+          s2..scroll(allow_missing_seq0 s..M2) ==M2`;
         t('m0', `${s} put(m0 err(missing m1,missing m0_1)) ==M2`);
         t('m0m1', `${s} put(m0 m1 err(missing m2)) ==M2`);
         t('m0m1m2', `${s} put(m0 m1 m2) ==(M2 m0 m1 m2 m0_1)`);
@@ -838,7 +844,8 @@ describe('scroll', ()=>{
         // XXX: add test for sig/d insert + invalid
       });
       describe('top_M3', ()=>{
-        let s = `s.scroll(!prev_scroll d:1-32) s2..scroll(s..M3) ==M3`;
+        let s = `s.scroll(!prev_scroll d:1-32)
+          s2..scroll(allow_missing_seq0 s..M3) ==M3`;
         t('m0', `${s} put(m0 err(missing m1,missing m0_1,missing m0_3)) ==M3`);
         t('m0m1', `${s} put(m0 m1
           err(missing m2,missing m2_3,missing m0_3)) ==M3`);
@@ -862,14 +869,16 @@ describe('scroll', ()=>{
           m3 m0_1 m2_3 m0_3) put(sig0 d0 m1) =M0`);
       });
       describe('top_M4', ()=>{
-        let s = `s.scroll(!prev_scroll) s.decl(1-32) s2..scroll(s..M4) ==M4`;
+        let s = `s.scroll(!prev_scroll) s.decl(1-32)
+          s2..scroll(allow_missing_seq0 s..M4) ==M4`;
         t('m0_3m4', `${s} put(m0_3 m4) ==(M4 m4 m0_3)`);
         t('m0_3m4_invalid_m0_3', `${s} put(m0_3:m0 m4 err(invalid M4)) ==M4`);
         t('m0_3m4_invalid_m4', `${s} put(m0_3 m4:m3 err(invalid M4)) ==M4`);
         // XXX: add test for sig/d insert + invalid
       });
       describe('top_M31', ()=>{
-        let s = `s.scroll(!prev_scroll) s.decl(1-32) s2..scroll(s..M31) ==M31`;
+        let s = `s.scroll(!prev_scroll) s.decl(1-32)
+          s2..scroll(allow_missing_seq0 s..M31) ==M31`;
         t('m0_15m16_23m24_27m28_29m30m31', `${s}
           put(m0_15 m16_23 m24_27 m28_29 m30 m31) ==(M31 m30 m31 m0_15
           m16_23 m24_27 m28_29 m28_31 m30_31 m24_31 m16_31 m0_31)`);
@@ -920,20 +929,11 @@ describe('scroll', ()=>{
       describe('conflict', ()=>{
         // XXX need tests with prev_scroll
         // XXX need tests with decl on conflict
-        let s = `s.scroll(!prev_scroll d:1-32) s2..scroll(s..M3) ==M3`;
-        t('simple_conflict_a', `${s} put(m0_1 m2 m3)
-          ==(M3 m2 m3 m0_1 m2_3 m0_3) decl(4) // conflict
-          put(sig4 d4 m4 m0_1 m2 m3) c(M4=s2.M4 3c0.M4)
-          ==(sig4:sign(s2.d4+M3) m4:hleaf(s2.d4+s2.sig4) s2.d4 M3 m2 m3 m0_1
-          m2_3 m0_3 sig4c1:sig4 d4c1:d4 m3c1:m3 m2_3c1:s.m2_3 m0_3c1:s.m0_3
-          m0_1c1:s.m0_1 m2c1:s.m2 m4c1:s.m4) put(sig3 d3) sig3=sig3 d3=d3
-          ==(sig4:sign(s2.d4+M3) m4:hleaf(s2.d4+s2.sig4) s2.d4 M3 m2 m3 m0_1
-          m2_3 m0_3 sig4c1:sig4 d4c1:d4 m3c1:m3 m2_3c1:s.m2_3 m0_3c1:s.m0_3
-          sig3 d3 sig3c1:s.sig3 d3c1:s.d3 m0_1c1:s.m0_1 m2c1:s.m2 m4c1:s.m4)`);
-        t('simple_conflict_b', `s.scroll(!prev_scroll d:1-10)
-          s2..scroll(s..M3) put(M0 m0 m1 m2 m3) decl(4-7)
+        t('simple_conflict', `s.scroll(!prev_scroll d:1-10)
+          s2..scroll(s..M3) put(M0 D0 sig0 m0 m1 m2 m3)
+          decl(4-7)
           s3..scroll(s2..M0)
-          s3.put(sig7:s2..sig7 d7 m0 m1 m2_3 m4_5 m6 sig6 d6) =sig7
+          s3.put(sig7:s2..sig7 d7 D0 sig0 m0 m1 m2_3 m4_5 m6 sig6 d6) =sig7
           s3.put(sig7:s..sig7 d7 m0 m1 m2 m3 m4_5 m6 sig6 d6)
           c(M7=s2.M7 3c0.M7)
           m0c1=s.m0 m3c1=s.m3 m4_5c1=s.m4_5 sig7c0=s2.sig7 sig7c1=s.sig7`);
@@ -1068,7 +1068,7 @@ describe('scroll', ()=>{
           c(M10=s.M10 3c0.M9=s1.M9)`);
         // c0 a b c d e
         // c1 a b c D E
-        s = `s0..scroll(!prev_scroll d:1-10) s1..clone(s0.M2) decl(3-10)
+        let s = `s0..scroll(!prev_scroll d:1-10) s1..clone(s0.M2) decl(3-10)
           S..clone(s0.M1)`;
         t('2c0_a', `${s} put(s0..m0_1 m2 m3 sig4 d4) c(M4=s0.M4)
           put(s1..m0_1 m2 m3 sig4 d4) c(M4=s0.M4 2c0.M4=s1.M4)`);
@@ -1195,8 +1195,9 @@ describe('scroll', ()=>{
           tput(0_1_2_3 4_5_6_7 8) c(M2 1t0.M4 3t1.M6 3t2.M8)
           tput(0_1 2 3 4 5 6 7) c(M8)`);
        t('t4_a_full', `${s} S..scroll(s..M0) #mem
-          tput(0 1 2 3 4          ) c(M4) #(mem0={m0 M0} mem1={m1 m0_1 M1}
-            mem2={m2 M2} mem3={m3 m2_3 m0_3 M3} mem4={m4 M4 sig4 D4})
+          tput(0 1 2 3 4          ) c(M4) #(mem0={sig0 D0 m0 M0}
+            mem1={m1 m0_1 M1} mem2={m2 M2} mem3={m3 m2_3 m0_3 M3}
+            mem4={m4 M4 sig4 D4})
           tput(0_1_2_3 4_5 6_7 8 9) c(M4 3t0.M9) #(mem5={S.m4_5c1 S.M5c1}
             mem7={S.m6_7c1 S.m4_7c1 S.m0_7c1 S.M7c1} mem8={S.m8c1 S.M8c1}
             mem9={S.m9c1 S.m8_9c1 S.M9c1 S.D9c1 S.sig9c1})
@@ -1563,7 +1564,7 @@ describe('scroll', ()=>{
           #(db_c={1:0:M1} db0={M0 sig0 D0 m0} db1={M1 sig1 D1 m1 m0_1})`);
         t('conflict', `s..scroll(d:1-10) S..scroll(s..M0 db) #(db_c db)
           tput(0 1 2 3 4          ) flush
-          #(db_c={0:0:M4} db0={m0 M0}
+          #(db_c={0:0:M4} db0={sig0 D0 m0 M0}
             db1={m1 m0_1 M1} db2={m2 M2} db3={m3 m2_3 m0_3 M3}
             db4={m4 M4 sig4 D4})
           tput(0_1_2_3 4_5 6_7 8 9) flush
@@ -1616,12 +1617,13 @@ describe('scroll', ()=>{
         t('c1', `s0.scroll(d:1-6) s1..scroll(s0..M0) tput(0 1 2 3 4    )
           tput(0_1_2_3 4_5 6) S..#(db_c db)
           clone(s1.. db) flush #(db_c={0:0:M4 1:1:3t0.M6=s0.M6}
-            db0={M0 m0} db1={M1 m1 m0_1} db2={M2 m2} db3={M3 m3 m2_3 m0_3}
-            db4={M4 sig4 D4 m4} db5={M5c1 m4_5c1} db6={M6c1 sig6c1 D6c1 m6c1})
+            db0={sig0 D0 M0 m0} db1={M1 m1 m0_1} db2={M2 m2}
+            db3={M3 m3 m2_3 m0_3} db4={M4 sig4 D4 m4} db5={M5c1 m4_5c1}
+            db6={M6c1 sig6c1 D6c1 m6c1})
           Soul2.db_copy(S.soul) S2.#(mem mem_c)
-          Soul2.S2..scroll(M0 db) #(mem1={M1 m1 m0_1} mem3={M3 m3 m2_3 m0_3}
-          mem_c={0:M4 1:3t0.M6=s0.M6} mem0={M0 m0} mem4={M4 sig4 D4 m4}
-          mem5={M5c1 m4_5c1})
+          Soul2.S2..scroll(M0 db) #(mem0={M0 sig0 D0 m0} mem1={M1 m1 m0_1}
+            mem3={M3 m3 m2_3 m0_3} mem4={M4 sig4 D4 m4} mem5={M5c1 m4_5c1}
+            mem_c={0:M4 1:3t0.M6=s0.M6})
           load_c(1) #
           load_c(2) #mem2={M2 m2} load_c(2c1) #
           load_c(3) #
@@ -1668,7 +1670,7 @@ describe('scroll', ()=>{
           tput(0 1 2 3 4          ) tput(0_1_2_3 4_5 6_7 8 9)
           flush #(db_c={0:0:M4 1:1:3t0.M9}) Soul2.db_copy(Soul)
           S2.#(mem) Soul2.S2..scroll(M0 db)
-          #(mem0={M0 m0} mem1={M1 m1 m0_1} mem3={M3 m3 m2_3 m0_3}
+          #(mem0={M0 m0 D0 sig0} mem1={M1 m1 m0_1} mem3={M3 m3 m2_3 m0_3}
             mem4={m4 M4 sig4 D4} mem5={S.m4_5c1 S.M5c1}
             mem7={S.m6_7c1 S.m4_7c1 S.m0_7c1 S.M7c1})
           load_c(4) # load_c(5) load_c(5c1) # load_c(8) #
@@ -1691,7 +1693,7 @@ describe('scroll', ()=>{
           tput(0 1 2 3 4          ) tput(0_1_2_3 4_5 6_7 8 9)
           flush #(db_c={0:0:M4 1:1:3t0.M9})
           Soul2.db_copy(Soul) S2.#(mem mem_c) Soul2.S2..scroll(M0 db)
-          #(mem_c={0:M4 1:3t0.M9} mem0={M0 m0} mem1={M1 m1 m0_1}
+          #(mem_c={0:M4 1:3t0.M9} mem0={M0 m0 sig0 D0} mem1={M1 m1 m0_1}
             mem1={M1 m1 m0_1} mem3={M3 m3 m2_3 m0_3} mem4={M4 sig4 D4 m4}
             mem5={M5c1:M5 m4_5c1:m4_5}
             mem7={M7c1:M7 m6_7c1:m6_7 m4_7c1:m4_7 m0_7c1:m0_7})
@@ -1703,7 +1705,7 @@ describe('scroll', ()=>{
           soul.s..scroll(d:1-10) Soul.S..scroll(s..M0 db)
           tput(0 1 2 3 4          )
           flush Soul2.db_copy(Soul) S2..#(mem_c mem) Soul2.S2.scroll(M0 db)
-          #(mem0={M0 m0} mem_c={0:M4})
+          #(mem0={M0 m0 sig0 D0} mem_c={0:M4})
           tput(0_1 2_3 4 5 6) flush
           #(mem_c={0:M6} mem1={M1 m1 m0_1} mem3={M3 m3 m2_3 m0_3}
             mem4={M4 m4 sig4 D4} mem5={M5 m5 m4_5} mem6={M6 m6 sig6 D6})`);
@@ -1711,14 +1713,14 @@ describe('scroll', ()=>{
           soul.s..scroll(d:1-10) Soul.S..scroll(s..M0 db)
           tput(0 1 2 3 4          )
           flush Soul2.db_copy(Soul) S2..#(mem_c mem) Soul2.S2.scroll(M0 db)
-          #(mem0={M0 m0} mem_c={0:M4}) tput(0_1_2_3 4 5 6)
+          #(mem0={M0 m0 sig0 D0} mem_c={0:M4}) tput(0_1_2_3 4 5 6)
           #(mem_c={0:M6} mem3={M3 m3 m2_3 m0_3} mem4={M4 m4 sig4 D4}
             mem5={M5 m5 m4_5} mem6={M6 m6 sig6 D6})`);
         t('on_demand_v4', `conf(soul:manual)
           soul.s..scroll(d:1-10) Soul.S..scroll(s..M0 db)
           tput(0 1 2 3 4          )
           flush Soul2.db_copy(Soul) S2..#(mem_c mem) Soul2.S2.scroll(M0 db)
-          #(mem0={M0 m0} mem_c={0:M4})
+          #(mem0={M0 m0 sig0 D0} mem_c={0:M4})
           tput(0_1_2_3 4_5 6_7 8 9) flush
           #(mem_c={0:M4 1:3t0.M9} mem3={M3:S2..M3 m3 m2_3 m0_3}
             mem4={M4 m4 sig4 D4} mem5={M5c1 m4_5c1}
@@ -1730,11 +1732,11 @@ describe('scroll', ()=>{
           def(s..) tput(0_1_2_3 4_5 6 7    ) #(mem_c={0:M9} mem5={M5 m5 m4_5}
             mem6={M6 sig6 D6 m6} mem7={M7 sig7 D7 m7 m6_7 m4_7 m0_7}
             mem8={M8 m8} mem9={M9 sig9 D9 m9 m8_9})`);
-        t('on_demand_v6', `conf(soul:manual)
+        t('on_demand_v5', `conf(soul:manual)
           soul.s..scroll(d:1-10) Soul.S..scroll(s..M0 db)
           tput(0 1 2 3 4          )
           flush Soul2.db_copy(Soul) S2..#(mem_c mem) Soul2.S2.scroll(M0 db)
-          #(mem0={M0 m0} mem_c={0:M4})
+          #(mem0={M0 m0 sig0 D0} mem_c={0:M4})
           tput(0_1_2_3 4_5 6_7 8 9)
           tput(0_1_2_3 4 5 6      ) flush
           #(mem_c={0:M9 2:5t0.M6} mem3={M3:S2..M3 m3 m2_3 m0_3}
@@ -1743,12 +1745,12 @@ describe('scroll', ()=>{
           def(s..) tput(0_1_2_3 4_5 6 7    ) #(mem_c={0:M9} mem5={M5 m5 m4_5}
             mem6={M6 sig6 D6 m6} mem7={M7 sig7 D7 m7 m6_7 m4_7 m0_7}
             mem8={M8 m8} mem9={M9 sig9 D9 m9 m8_9})`);
-        t('on_demand_v7', `conf(soul:manual)
+        t('on_demand_v6', `conf(soul:manual)
           soul.s..scroll(d:1-10) Soul.S..scroll(s..M0 db)
           tput(0 1 2 3 4          )
           tput(0_1_2_3 4_5 6_7 8 9)
           flush Soul2.db_copy(Soul) S2..#(mem_c mem) Soul2.S2.scroll(M0 db)
-          #(mem0={M0 m0} mem_c={0:M4 1:3t0.M9} mem1={M1 m1 m0_1}
+          #(mem0={M0 m0 sig0 D0} mem_c={0:M4 1:3t0.M9} mem1={M1 m1 m0_1}
             mem3={M3 m3 m2_3 m0_3} mem4={M4 sig4 D4 m4}
             mem5={M5c1:S2..M5c1 m4_5c1}
             mem7={M7c1 m6_7c1 m4_7c1 m0_7c1})
@@ -1759,13 +1761,13 @@ describe('scroll', ()=>{
           def(s..) tput(0_1_2_3 4_5 6 7    ) #(mem_c={0:M9} mem5={M5 m5 m4_5}
             mem6={M6 sig6 D6 m6} mem7={M7 sig7 D7 m7 m6_7 m4_7 m0_7}
             mem9={M9 sig9 D9 m9 m8_9})`);
-        t('on_demand_v8', `conf(soul:manual)
+        t('on_demand_v7', `conf(soul:manual)
           soul.s..scroll(d:1-10) Soul.S..scroll(s..M0 db)
           tput(0 1 2 3 4          )
           tput(0_1_2_3 4_5 6_7 8 9)
           tput(0_1_2_3 4 5 6      )
           flush Soul2.db_copy(Soul) S2..#(mem_c mem) Soul2.S2.scroll(M0 db)
-          #(mem_c={0:M9 2:5t0.M6} mem0={M0 m0} mem1={M1 m1 m0_1}
+          #(mem_c={0:M9 2:5t0.M6} mem0={M0 m0 sig0 D0} mem1={M1 m1 m0_1}
             mem6={M6c2:S.M6c2 sig6c2:S.sig6c2 D6c2:S.D6c2 m6c2:S.m6c2}
             mem3={M3 m3 m2_3 m0_3} mem7={M7 m6_7 m4_7 m0_7})
           def(s..) tput(0_1_2_3 4_5 6 7    ) #(mem_c={0:M9} mem5={M5 m5 m4_5}

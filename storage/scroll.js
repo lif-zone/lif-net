@@ -5,6 +5,7 @@ import EventEmitterAsync from '../util/events_async.js';
 import crypto from '../util/crypto.js';
 import util from '../util/util.js';
 import Branch_table from './branch.js';
+import Index from './index.js';
 import etask from '../util/etask.js';
 import xerr from '../util/xerr.js';
 import enc from 'compact-encoding';
@@ -109,32 +110,43 @@ class Frame_buffer extends EventEmitterAsync {
     let _this = this._;
     assert(_this.frames.length==1 || _this.frames.length==frames.length,
       'frames length mismatch');
-    let {sig, h_rest} = _this.frames[0];
+    let {sig, h_rest} = _this.frames[0], changed = false;
     for (let i=0; i<frames.length; i++){
       let f = frames[i], ff = _this.frames[i];
       if (!ff){
         _this.frames.push(f);
+        changed = true;
         continue;
       }
       if (ff?.sig && f?.sig)
         assert(ff.sig.equals(f.sig), 'sig changed');
-      else if (f?.sig)
+      else if (f?.sig){
         ff.sig = f.sig;
+        changed = true;
+      }
       if (ff?.h_rest && f?.h_rest)
         assert(ff.h_rest.equals(f.h_rest), 'h changed');
-      else if (f?.h_rest)
+      else if (f?.h_rest){
         ff.h_rest = f.h_rest;
+        changed = true;
+      }
       if (ff?.buf && f?.buf)
         assert(ff.buf.equals(f.buf), 'buf changed');
-      else if (f?.buf)
+      else if (f?.buf){
         ff.buf = f.buf;
+        changed = true;
+      }
       if (ff?.h && f?.h)
         assert(ff.h.equals(f.h), 'h changed');
-      else if (f?.h)
+      else if (f?.h){
         ff.h = f.h;
+        changed = true;
+      }
       if (f?.sz)
         ff.sz = f.sz;
     }
+    if (!changed)
+      return;
     if (!h_rest && _this.frames[0].h_rest)
       yield _this.emit_async('hash');
     yield _this.emit_async('data');
@@ -1172,6 +1184,13 @@ export default class Scroll extends EventEmitterAsync {
     let {data, seq, cfid} = e, h = data.get_header(cfid);
     if (!h)
       return;
+    if (!this.indexes && seq==0 && h){
+      this.index_table = Index.creates_indexes_from_header(this, h);
+      /* XXX: WIP
+      if (!this.allow_missing_seq0)
+        assert(!this.top || this.top.seq==0, 'XXX top is '+this.top?.seq);
+      */
+    }
     let bseq = h.bseq||bint(seq), branch = h.branch;
     let btable = this.get_branch_table(cfid);
     btable.add({branch, seq, bseq});

@@ -43,16 +43,22 @@ file2path('/arik/x') = '/arik/'
   file_name, seq, bseq}
 */
 
-// XXX: optimize for string/integer/buffer
-function indexdb_cmp(a, b){
-  return indexedDB.cmp(a.key, b.key) || a.seq-b.seq; }
+// XXX: need test
+function cmp_func(a, b){
+  return indexedDB.cmp(a.key, b.key) || b.seq-a.seq; }
+/* XXX: optimize for string/integer/buffer
+function cmp_func_str_num(a, b){
+  return a.key<b.key ? 1 : a.key>b.key ? -1 : b.seq-a.seq; }
+function cmp_func_mem(a, b){
+  return a.cmp(b) || b.seq-a.seq; }
+*/
 
 export default class Index {
   constructor(opt){
     let {scroll, id, desc} = opt;
     assert(scroll && id!=undefined && desc, 'missing scroll/id/desc');
     [this.scroll, this.id, this.desc] = [scroll, id, desc];
-    this.avl = new Tree(indexdb_cmp, true);
+    this.avl = new Tree(cmp_func, true);
   }
   on_data(opt){
     let {cfid, seq, data} = opt, {field, transform} = this.desc;
@@ -134,3 +140,4 @@ function normalize_desc(desc){
 
 Index.Index_table = Index_table;
 Index.normalize_desc = normalize_desc;
+Index.cmp_func = cmp_func;

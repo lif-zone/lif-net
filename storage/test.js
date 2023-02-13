@@ -1882,8 +1882,14 @@ describe('scroll', ()=>{
     });
     describe('mem', ()=>{
       const t = (name, test)=>it(name, ()=>test_run(test));
-      t('table', `s..scroll(index:[file])
-        decl({file:/f1})
+      // XXX: test on index_table
+      t('table', `s..#index scroll(index:[file]) #
+        decl({file:/f1}) #index0=[{key:/f1 seq:1}]
+        decl({file:/f2}) #index0={key:/f2 seq:2}
+        decl({file:/f1}) #index0={key:/f1 seq:[3 1]}
+        decl({file:/f2}) #index0={key:/f2 seq:[4 2]}
+  //      ##index_find(/f1)=[3 1]
+  //      ##index_find(/f2)=[4 2]
       `);
     });
   });

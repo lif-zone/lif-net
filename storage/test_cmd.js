@@ -148,6 +148,8 @@ function struct_from_decl(decl){
 export function parse_var(v){
   let m;
   v = string.split_ws(v).join(' ');
+  if (m = v.match(/^index(\d)$/))
+    return {type: 'index', id: +m[1]};
   if (m = v.match(/^\{(.*)\}$/))
     return {type: 'struct', val: m[1]};
   if (m = v.match(/^\[(.*)\]$/))
@@ -207,8 +209,9 @@ function fix_buf(o){
       ret.push(fix_buf(o[i]));
     return ret;
   }
-  ret = {};
+  ret;
   for (let name in o){
+    ret = ret||{};
     let v = o[name];
     if (Buffer.isBuffer(v))
       ret[name] = b2s(v);
@@ -217,7 +220,7 @@ function fix_buf(o){
     else
       ret[name] = v;
   }
-  return ret;
+  return ret||o;
 }
 
 function assert_kb(s){
@@ -682,7 +685,7 @@ const cmd_decl = t=>etask(function*cmd_decl(){
 });
 
 function state_split_var(v, def){
-  let o = parse_var(v), {type, seq, cfid, index} = o;
+  let o = parse_var(v), {type, seq, cfid, index, id} = o;
   if (o.def)
     set_def('left', o.ctx);
   let name = o.ctx||def||get_def('left');
@@ -696,6 +699,8 @@ function state_split_var(v, def){
     return {name, type, seq, cfid};
   if (type=='bseq')
     return {name, type, seq, cfid};
+  if (type=='index')
+    return {name, type, id};
   assert(['mem', 'db'].includes(type), 'invalid type '+type);
   assert.equal(cfid, '0', 'invalid conflict usage');
   return {name, type, seq};
@@ -723,6 +728,8 @@ const state_split = (exp, def)=>etask(function*state_split(){
       return {...state_split_var(o.l, def), val: yield get_btable(o.r)};
     if (/^db_btc/.test(o.l))
       return {...state_split_var(o.l, def), val: yield get_btable(o.r)};
+    if (/^index/.test(o.l))
+      return {...state_split_var(o.l, def), val: get_index(o.r)};
     return {...state_split_var(o.l, def),
       val: fix_buf(yield get_val(o.r, 'right'))};
   default: assert.fail('invalid state_split '+exp);
@@ -730,7 +737,7 @@ const state_split = (exp, def)=>etask(function*state_split(){
 });
 
 function state_apply(state, o){
-  let {type, seq, cfid, index, val} = o;
+  let {type, seq, cfid, index, id, val} = o;
   if (t_hooks.state_valid_filter?.(type))
     return t_hooks.state_apply(state, o);
   if (['db_c', 'db_data', 'mem_c', 'bname'].includes(type)){
@@ -738,6 +745,19 @@ function state_apply(state, o){
       state[type] = val;
     else
       delete state[type];
+    return;
+  }
+  if (type=='index'){
+    let so = state.index = state.index||{};
+    so[id] = so[id]||[];
+    val.forEach(v=>{
+      let i = so[id].findIndex(item=>item.key==v.key);
+      if (i>-1)
+        so[id][i] = v;
+      else
+        so[id].push(v);
+      so[id].sort((a, b)=>indexedDB.cmp(a.key, b.key));
+    });
     return;
   }
   if (['btc', 'db_btc'].includes(type)){
@@ -795,6 +815,7 @@ function get_filter(s){
     case 'btable': break;
     case 'bseq': break;
     case 'db_btable': break;
+    case 'index': break;
     default:
       if (t_hooks.state_valid_filter?.(a[i]))
         break;
@@ -824,6 +845,7 @@ const state_next = (name, curr_state, filter, steps)=>etask(
     state.mem_c = yield mem_get_c(scroll);
     state.btable = yield mem_get_btable(scroll);
     state.bname = yield mem_get_bname(scroll);
+    state.index = yield mem_get_index(scroll);
     // XXX: create api with next (like decl) and clean all over
     for (const [cfid] of scroll.conflict){
       for (let decl = scroll.get_decl(0, {create: false}); decl;
@@ -871,6 +893,10 @@ const state_next = (name, curr_state, filter, steps)=>etask(
   if (filter.includes('mem')){
     assert_b2s_obj(state.mem, curr_state[name].mem,
       'mem state mismach '+steps);
+  }
+  if (filter.includes('index')){
+    assert.deepEqual(state.index, curr_state[name].index,
+      'index state mismach '+steps);
   }
   if (filter.includes('seq')){
     assert_b2s_obj(state.seq, curr_state[name].seq,
@@ -1143,6 +1169,18 @@ const get_btable = s=>etask(function*get_btable(){
   return bo;
 });
 
+function get_index(s){
+  let ret = [];
+  s = rm_parentesis(s, '[');
+  for (let curr=s; curr = parse_get_next(curr);){
+    let o = js_struct_from_str(curr.exp);
+    o.seq = rm_parentesis(o.seq, '[').split(' ');
+    o.seq.forEach((val, i)=>o.seq[i] = +val);
+    ret.push(o);
+  }
+  return ret;
+}
+
 const db_get_scroll_decl = (db, scroll)=>etask(function*db_get_scroll_decl(){
   let db_c = yield db_get_c(db, scroll.name), ret={};
   let tx = db.transaction('decl', 'readonly');
@@ -1221,6 +1259,27 @@ const mem_get_bname = scroll=>etask(function mem_get_bname(){
       ret = ret||{};
       ret[cfid] = ret[cfid]||{};
       ret[cfid][name] = bo.seq;
+    }
+  }
+  return ret;
+});
+
+const mem_get_index = scroll=>etask(function mem_get_index(){
+  let ret;
+  if (!scroll.index_table)
+    return;
+  for (const [id, index] of scroll.index_table.index){
+    ret = ret||{};
+    ret[id] = [];
+    let avl = index.avl, prev;
+    for (let i=0; i<avl.size; i++){
+      let curr = avl.at(i).key;
+      if (!prev || prev.key!=curr.key){
+        ret[id].push(prev = {...curr});
+        prev.seq = [prev.seq];
+        continue;
+      }
+      prev.seq.push(curr.seq);
     }
   }
   return ret;

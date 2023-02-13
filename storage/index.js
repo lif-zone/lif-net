@@ -1,7 +1,12 @@
 // author: derry. coder: arik.
 'use strict';
 import assert from 'assert';
-// XXX import Tree from 'avl';
+import etask from '../util/etask.js';
+import Branch_table from './branch.js';
+const {bseq_branch} = Branch_table;
+import Tree from 'avl';
+
+let xxx_id = 0; // XXX: fixme
 
 /* XXX: design
 scroll header:
@@ -38,41 +43,94 @@ file2path('/arik/x') = '/arik/'
   file_name, seq, bseq}
 */
 
+// XXX: optimize for string/integer/buffer
+function indexdb_cmp(a, b){
+  return indexedDB.cmp(a.key, b.key) || a.seq-b.seq; }
+
 export default class Index {
   constructor(opt){
-    let scroll = this.scroll = opt.scroll;
-    let cfid = this.cfid = opt.cfid;
-    let branch = this.branch = opt.branch;
-// XXX    let index_opt = this.index_opt = Index.normalize_opt(opt.index_opt);
-    assert(scroll && cfid!=undefined && branch!=undefined,
-      'missing scroll/cfid/branch');
+    let {scroll, id, desc} = opt;
+    assert(scroll && id!=undefined && desc, 'missing scroll/id/desc');
+    [this.scroll, this.id, this.desc] = [scroll, id, desc];
+    this.avl = new Tree(indexdb_cmp, true);
+  }
+  on_data(opt){
+    let {cfid, seq, data} = opt, {field, transform} = this.desc;
+    assert(!transform, 'XXX TODO: transform');
+    assert(field!='*', 'XXX TODO: *');
+    let body = data.get_body(cfid), key = body?.[field];
+    if (key===undefined)
+      return;
+    this.avl.insert({key, seq});
   }
 }
 
-function normalize_opt(opt){
-  if (!opt)
+class Index_table {
+  constructor(opt){
+    let scroll = this.scroll = opt.scroll, index = opt.index;
+    this.desc = new Map();
+    assert(scroll, 'missing scroll');
+    assert(index?.length, 'missing index');
+    for (let i=0; i<index.length; i++){
+      let desc = normalize_desc(index[i]), {name} = desc;
+      if (this.desc.get(name))
+        throw new Error('duplicated index '+name);
+      this.desc.set(name, desc);
+    }
+    this.index2id = new Map();
+    this.index = new Map();
+  }
+  get_index_id(cfid, bseqb, name, opt){
+    let map_cfid = this.index2id.get(cfid);
+    if (!map_cfid)
+      this.index2id.set(cfid, map_cfid = new Map());
+    let map_bseqb = map_cfid.get(bseqb);
+    if (!map_bseqb)
+      map_cfid.set(bseqb, map_bseqb = new Map());
+    let id = map_bseqb.get(name);
+    if (id===undefined && opt?.create)
+      map_bseqb.set(name, id = xxx_id++); // XXX: need to get soul free id
+    return id;
+  }
+  get_index(cfid, bseqb, name, opt){
+    let id = this.get_index_id(cfid, bseqb, name, opt);
+    if (id===undefined)
+      return;
+    let index = this.index.get(id);
+    if (index!==undefined || !opt?.create)
+      return index;
+    // XXX: handle deletion/merge of conflict/branch/...
+    // XXX: make sure we ignore temporary conflicts (also check we ignore
+    // them in branch and other places and verify we handle correclty once
+    // we detect it is real conflict)
+    let scroll = this.scroll, desc = this.desc.get(name);
+    index = new Index({scroll, id, desc});
+    this.index.set(id, index);
+    return index;
+  }
+  on_data(opt){
+    let {cfid, seq, bseq, data} = opt, _this = this;
+    if (!seq || !this.desc.size || !data.get(cfid))
+      return;
+    return etask(function*on_data(){
+      let bseqb = bseq_branch(bseq);
+      for (const [name] of _this.desc){
+        let index = _this.get_index(cfid, bseqb, name, {create: true});
+        yield index.on_data(opt);
+      }
+    });
+  }
+}
+
+function normalize_desc(desc){
+  if (!desc)
     return;
-  if (typeof opt=='string')
-    return {name: opt, field: opt};
-  if (opt.name===undefined)
-    return {name: opt.field, ...opt};
-  return opt;
+  if (typeof desc=='string')
+    return {name: desc, field: desc, type: 'string'};
+  if (desc.name===undefined)
+    return {name: desc.field, type: 'string', ...desc};
+  return {type: 'string', ...desc};
 }
 
-function creates_indexes_from_header(scroll, h){
-  let ret = {};
-  if (!h.scroll?.index)
-    return ret;
-  if (!Array.isArray(h.scroll?.index))
-    throw new Error('invalid index header');
-  for (let i=0; i<h.scroll.index.length; i++){
-    let desc = normalize_opt(h.scroll.index[i]), {name} = desc;
-    if (ret.get(name))
-      throw new Error('duplicated index '+name);
-    ret.set(name, new Index(normalize_opt(desc)));
-  }
-  return ret;
-}
-
-Index.normalize_opt = normalize_opt;
-Index.creates_indexes_from_header = creates_indexes_from_header;
+Index.Index_table = Index_table;
+Index.normalize_desc = normalize_desc;

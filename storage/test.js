@@ -541,6 +541,8 @@ describe('scroll', ()=>{
       t('1-1.0', '1-1');
       t('1-1.1', '1-1');
       t('1-2.3', '1-2');
+      t('1-2.3-4.5', '1-2.3-4');
+      t('_11-_12._13-_14._15', '_11-_12._13-_14');
       t('1-_10.1', '1-_10');
       t('_10-__100.___1000', '_10-__100');
     });
@@ -1863,14 +1865,26 @@ describe('scroll', ()=>{
   });
   describe('index', ()=>{
     describe('util', ()=>{
-      it('normalize_opt', ()=>{
-        const t = (val, exp)=>assert.deepEqual(Index.normalize_opt(val), exp);
-        t('file', {name: 'file', field: 'file'});
-        t({field: 'file'}, {name: 'file', field: 'file'});
-        t({field: 'file', xxx: 1}, {name: 'file', field: 'file', xxx: 1});
+      it('normalize_desc', ()=>{
+        const t = (val, exp)=>assert.deepEqual(Index.normalize_desc(val), exp);
+        t('file', {name: 'file', field: 'file', type: 'string'});
+        t({field: 'file'}, {name: 'file', field: 'file', type: 'string'});
+        t({field: 'file', xxx: 1}, {name: 'file', field: 'file',
+          type: 'string', xxx: 1});
         t({name: 'dir_list', field: '*', transform: 'decl_get_dir'},
-          {name: 'dir_list', field: '*', transform: 'decl_get_dir'});
+          {name: 'dir_list', field: '*', transform: 'decl_get_dir',
+          type: 'string'});
+        t({name: 'dir_list', field: '*', transform: 'decl_get_dir',
+          type: 'string'}, {name: 'dir_list', field: '*',
+          transform: 'decl_get_dir', type: 'string'});
+        // XXX: support number/buffer types
       });
+    });
+    describe('mem', ()=>{
+      const t = (name, test)=>it(name, ()=>test_run(test));
+      t('table', `s..scroll(index:[file])
+        decl({file:/f1})
+      `);
     });
   });
 });

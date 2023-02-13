@@ -203,6 +203,12 @@ class Frame_buffer extends EventEmitterAsync {
   }); }
   get(i){ return this.frames[i]?.buf; }
   get_json(i){
+    let ret;
+    try { ret = this.get_json_unsafe(i); }
+    catch(err){}
+    return ret;
+  }
+  get_json_unsafe(i){
     let f = this.frames[i];
     if (!f)
       return;
@@ -1184,17 +1190,28 @@ export default class Scroll extends EventEmitterAsync {
     let {data, seq, cfid} = e, h = data.get_header(cfid);
     if (!h)
       return;
-    if (!this.indexes && seq==0 && h){
-      this.index_table = Index.creates_indexes_from_header(this, h);
-      /* XXX: WIP
-      if (!this.allow_missing_seq0)
-        assert(!this.top || this.top.seq==0, 'XXX top is '+this.top?.seq);
-      */
+    if (!this.indexe_table && seq==0){
+      let body = data.get_body(cfid);
+      if (body){
+        assert.equal(cfid, 0, 'seq0 must be on cfid 0');
+        if (body.scroll?.index?.length){
+          this.index_table = new Index.Index_table({scroll: this,
+            index: body.scroll.index});
+        }
+        /* XXX: WIP
+        if (!this.allow_missing_seq0)
+          assert(!this.top || this.top.seq==0, 'XXX top is '+this.top?.seq);
+        */
+      }
     }
-    let bseq = h.bseq||bint(seq), branch = h.branch;
+    let _this = this, bseq = h.bseq||bint(seq), branch = h.branch;
     let btable = this.get_branch_table(cfid);
     btable.add({branch, seq, bseq});
-    return this.emit_async('data', {data, seq, cfid, bseq});
+    return etask(function*on_data(){
+      if (_this.index_table)
+        yield _this.index_table.on_data({cfid, seq, bseq, data});
+      return _this.emit_async('data', {data, seq, cfid, bseq});
+    });
   };
   get_branch_table(cfid){
     let btable = this.branch.get(cfid);

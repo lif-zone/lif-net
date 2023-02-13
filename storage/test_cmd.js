@@ -113,6 +113,24 @@ const struct_from_db = (scroll, seq)=>etask(function*struct_from_db(){
   return ret;
 });
 
+function test_parse_index(str){
+  let ret = [];
+  str = rm_parentesis(str, '[');
+  for (let curr=str; curr = parse_get_next(curr);)
+    ret.push(curr.exp);
+  return ret;
+}
+
+function js_struct_from_str(str){
+  let ret = {};
+  str = rm_parentesis(str, '{');
+  for (let curr=str; curr = parse_get_next(curr);){
+    let tt = parse_exp_arg(curr.exp);
+    ret[tt.cmd] = tt.r;
+  }
+  return ret;
+}
+
 function struct_from_decl(decl){
   if (!decl)
     return null;
@@ -525,8 +543,9 @@ const cmd_flush = t=>etask(function*cmd_flush(){
 });
 
 const cmd_scroll = t=>etask(function*cmd_scroll(){
-  let prev_scroll = yield t_prev_scroll.M_hash(0, 1), db_opt;
+  let prev_scroll = yield t_prev_scroll.M_hash(0, 1), scroll_decl, db_opt;
   let name = t.ctx||get_def('left'), M, a, scroll, d, allow_missing_seq0;
+  let index;
   assert(!t.l, 'invalid arg '+t.meta.s);
   assert(!t_scroll[name], 'scroll already exist '+name);
   for (let curr=t.r, i=0; curr = parse_get_next(curr); i++){
@@ -546,6 +565,7 @@ const cmd_scroll = t=>etask(function*cmd_scroll(){
         d = [+a[1], +a[1]];
       break;
     case 'allow_missing_seq0': allow_missing_seq0 = true; break;
+    case 'index': index = test_parse_index(tt.r); break;
     default:
       t2 = parse_exp_arg_pair(curr.exp);
       if (a = t2.l.match(/^M(\d+)$/)){
@@ -557,8 +577,10 @@ const cmd_scroll = t=>etask(function*cmd_scroll(){
       assert.fail('invalid arg '+tt.cmd+' in '+t.meta.s);
     }
   }
-  scroll = yield new_scroll(name, M, prev_scroll, t.prev?.ctx, db_opt, null,
-    null, null);
+  if (index)
+    scroll_decl = {...scroll_decl, index};
+  scroll = yield new_scroll(name, M, prev_scroll, t.prev?.ctx, db_opt,
+    scroll_decl, null, null);
   if (allow_missing_seq0)
     scroll.allow_missing_seq0 = allow_missing_seq0;
   if (d!==undefined){
@@ -616,9 +638,15 @@ const cmd_decl = t=>etask(function*cmd_decl(){
   assert(!t.l, 'invalid left arg '+t.meta.s);
   assert(t.r, 'missing arg '+t.meta.s);
   for (let curr=t.r, i=0; curr = parse_get_next(curr); i++){
+    if (/^{.*}$/.test(curr.exp)){
+      assert(!data, 'data already provided');
+      data = js_struct_from_str(curr.exp);
+      continue;
+    }
     let tt = parse_exp_arg(curr.exp), a;
     switch (tt.cmd){
     case 'data':
+      assert(!data, 'data already provided');
       a = tt.r.split(' ');
       data = [];
       for (let j=0; j<a.length; j++){
@@ -637,6 +665,7 @@ const cmd_decl = t=>etask(function*cmd_decl(){
       [s, e] = [+tt.l, +tt.r];
       break;
     default:
+      assert(!data, 'data already provided');
       if (/^\d+$/.test(tt.cmd))
         data = tt.cmd;
       else

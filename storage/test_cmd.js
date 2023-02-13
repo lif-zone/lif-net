@@ -781,7 +781,7 @@ function state_apply(state, o){
         so[i] = v;
       else
         so.push(v);
-      so.sort((a, b)=>(a.id-b.id));
+      so.sort((a, b)=>a.id-b.id);
     });
     return;
   }
@@ -876,7 +876,7 @@ const state_next = (name, curr_state, filter, steps)=>etask(
     state.index = yield mem_get_index(scroll);
     if (filter.find(s=>/^index_find/.test(s)))
       state.index_find = yield mem_get_index_find(scroll, filter);
-    state.index_table = yield mem_get_index_table(scroll)
+    state.index_table = yield mem_get_index_table(scroll);
     for (const [cfid] of scroll.conflict){
       for (let decl = scroll.get_decl(0, {create: false}); decl;
         decl = decl.next())

@@ -1883,8 +1883,9 @@ describe('scroll', ()=>{
     describe('mem', ()=>{
       const t = (name, test)=>it(name, ()=>test_run(test));
       // XXX: test on index_table
-      t('table', `s..#index scroll(index:[file]) #
-        decl({file:/f1}) #index0=[{key:/f1 seq:1}]
+      t('table', `s..#(index index_table) scroll(index:[file]) #
+        decl({file:/f1}) #(index0={key:/f1 seq:1}
+          index_table={id:0 cfid:0 bseqb:null name:file})
         decl({file:/f2}) #index0={key:/f2 seq:2}
         decl({file:/f1}) #index0={key:/f1 seq:[3 1]}
         decl({file:/f2}) #index0={key:/f2 seq:[4 2]}

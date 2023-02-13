@@ -126,7 +126,7 @@ function js_struct_from_str(str){
   str = rm_parentesis(str, '{');
   for (let curr=str; curr = parse_get_next(curr);){
     let tt = parse_exp_arg(curr.exp);
-    ret[tt.cmd] = tt.r;
+    ret[tt.cmd] = tt.r=='null' ? null : tt.r;
   }
   return ret;
 }
@@ -159,7 +159,7 @@ export function parse_var(v){
   m = v.match(/^([a-zA-Z]\d*)(\.|\.\.)([^.]*)$/);
   let ctx = m ? m[1] : '', def = m ? m[2]=='..' : false;
   v = m ? m[3] : v;
-  if (['db_c', 'db_data', 'mem_c', 'bname'].includes(v))
+  if (['db_c', 'db_data', 'mem_c', 'bname', 'index_table'].includes(v))
     return {type: v, ctx, def};
   if (m = v.match(/^btc(\d+)\[(\d+)\]$/))
     return {type: 'btc', cfid: +m[1], index: +m[2], ctx, def};
@@ -691,7 +691,7 @@ function state_split_var(v, def){
   if (o.def)
     set_def('left', o.ctx);
   let name = o.ctx||def||get_def('left');
-  if (['db_c', 'db_data', 'mem_c', 'bname'].includes(type))
+  if (['db_c', 'db_data', 'mem_c', 'bname', 'index_table'].includes(type))
     return {name, type};
   if (['btc'].includes(type))
     return {name, type, cfid, index};
@@ -736,6 +736,8 @@ const state_split = (exp, def)=>etask(function*state_split(){
       return {...state_split_var(o.l, def), val: get_index(o.r)};
     if (/^index_find/.test(o.l))
       return {...state_split_var(o.l, def), val: get_array_int(o.r)};
+    if (/^index_table/.test(o.l))
+      return {...state_split_var(o.l, def), val: get_array(o.r)};
     return {...state_split_var(o.l, def),
       val: fix_buf(yield get_val(o.r, 'right'))};
   default: assert.fail('invalid state_split '+exp);
@@ -769,6 +771,18 @@ function state_apply(state, o){
   if (type=='index_find'){
     let so = state.index_find = state.index_find||{};
     so[id+':'+key] = val;
+    return;
+  }
+  if (type=='index_table'){
+    let so = state.index_table = state.index_table||[];
+    val.forEach(v=>{
+      let i = so.findIndex(item=>item.key==v.key);
+      if (i>-1)
+        so[i] = v;
+      else
+        so.push(v);
+      so.sort((a, b)=>(a.id-b.id));
+    });
     return;
   }
   if (['btc', 'db_btc'].includes(type)){
@@ -828,6 +842,7 @@ function get_filter(s){
     case 'bseq': break;
     case 'db_btable': break;
     case 'index': break;
+    case 'index_table': break;
     case 'index_find': break;
     default:
       if (t_hooks.state_valid_filter?.(a[i]))
@@ -861,6 +876,7 @@ const state_next = (name, curr_state, filter, steps)=>etask(
     state.index = yield mem_get_index(scroll);
     if (filter.find(s=>/^index_find/.test(s)))
       state.index_find = yield mem_get_index_find(scroll, filter);
+    state.index_table = yield mem_get_index_table(scroll)
     for (const [cfid] of scroll.conflict){
       for (let decl = scroll.get_decl(0, {create: false}); decl;
         decl = decl.next())
@@ -911,6 +927,10 @@ const state_next = (name, curr_state, filter, steps)=>etask(
   if (filter.includes('index')){
     assert.deepEqual(state.index, curr_state[name].index,
       'index state mismach '+steps);
+  }
+  if (filter.includes('index_table')){
+    assert.deepEqual(state.index_table, curr_state[name].index_table,
+      'index_table state mismach '+steps);
   }
   if (filter.find(s=>/^index_find/.test(s))){
     assert.deepEqual(state.index_find, curr_state[name].index_find,
@@ -1209,6 +1229,14 @@ function get_array_int(s){
   return ret;
 }
 
+function get_array(s){
+  let ret = [];
+  s = rm_parentesis(s, '[');
+  for (let curr=s; curr = parse_get_next(curr);)
+    ret.push(js_struct_from_str(curr.exp));
+  return ret;
+}
+
 const db_get_scroll_decl = (db, scroll)=>etask(function*db_get_scroll_decl(){
   let db_c = yield db_get_c(db, scroll.name), ret={};
   let tx = db.transaction('decl', 'readonly');
@@ -1331,6 +1359,19 @@ function mem_get_index_find(scroll, filter){
       ret[id+':'+key] = ret[id+':'+key]||[];
       ret[id+':'+key].push(node.key.seq);
     });
+  }
+  return ret;
+}
+
+function mem_get_index_table(scroll){
+  let ret;
+  if (!scroll.index_table)
+    return;
+  // XXX: need proper index_table api
+  for (const [id, index] of scroll.index_table.index){
+    ret = ret||[];
+    ret.push({id, cfid: index.cfid, bseqb: index.bseqb,
+      name: index.desc.name});
   }
   return ret;
 }

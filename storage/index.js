@@ -55,9 +55,11 @@ function cmp_func_mem(a, b){
 
 export default class Index {
   constructor(opt){
-    let {scroll, id, desc} = opt;
-    assert(scroll && id!=undefined && desc, 'missing scroll/id/desc');
+    let {scroll, id, cfid, bseqb, desc} = opt;
+    assert(scroll && id!==undefined && desc, 'missing scroll/id/desc');
+    assert(cfid>=0 && bseqb!==undefined, 'missing cfid/bseqb');
     [this.scroll, this.id, this.desc] = [scroll, id, desc];
+    [this.cfid, this.bseqb] = [cfid, bseqb];
     this.avl = new Tree(cmp_func, true);
   }
   on_data(opt){
@@ -110,7 +112,7 @@ class Index_table {
     // them in branch and other places and verify we handle correclty once
     // we detect it is real conflict)
     let scroll = this.scroll, desc = this.desc.get(name);
-    index = new Index({scroll, id, desc});
+    index = new Index({scroll, id, cfid, bseqb, desc});
     this.index.set(id, index);
     return index;
   }

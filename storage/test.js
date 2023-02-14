@@ -1062,12 +1062,17 @@ describe('scroll', ()=>{
           c(M10=s.M10 3c0.M4=s1.M4 3c0.M9=s2.M9)
           put(s1..sig9 d9 m0 m1 m2_3 m4 m5 m6_7 m8)
           c(M10=s.M10 3c0.M9=s2.M9 8c1.M9=s1.M9)`);
-        t('3c0_8c1_15c1_zzz3', `s.scroll(!prev_scroll d:1-10)
+        t('3c0_8c1_15c1', `s.scroll(!prev_scroll d:1-10)
           s1.clone(s.M3) s1.decl(4-10) S..clone(s)
           put(s1..m0_3 sig4 d4) c(M10=s.M10 3c0.M4=s1.M4)
           put(s1..m0_3 m4_7 m8 sig9 d9) c(M10=s.M10 3c0.M4=s1.M4 3c0.M9=s1.M9)
           put(s1..sig9 d9 m0 m1 m2_3 m4 m5 m6_7 m8)
           c(M10=s.M10 3c0.M9=s1.M9)`);
+        t('simple', `s.scroll s.decl({i:v1}) s.decl({i:v2})
+          s1.clone(s.M1) s1.decl({i:V2}) S..scroll(s..M0)
+          tput(0 1  ) c(M1)
+          tput(0 1 2) c(M2)
+          tput(0 1 c) c(M2 1c0.M2=s1.M2)`);
         // c0 a b c d e
         // c1 a b c D E
         let s = `s0..scroll(!prev_scroll d:1-10) s1..clone(s0.M2) decl(3-10)
@@ -1932,7 +1937,7 @@ describe('scroll', ()=>{
         decl({i:v1} prev:1) #index0={key:v1 seq:4}
         decl({i:v2}) #index0={key:v2 seq:5}
         ##index_find(0 v0)=1 ##index_find(0 v1)=4 ##index_find(0 v2)=5`);
-       t('conflict', `s.scroll(index:i) s.decl({i:v1}) s.decl({i:v2})
+      t('conflict', `s.scroll(index:i) s.decl({i:v1}) s.decl({i:v2})
         s1.clone(s.M1) s1.decl({i:V2}) S..#(index index_table) scroll(s..M0) #
         tput(0 1  ) #(index0={key:v1 seq:1}
                       index_table={id:0 cfid:0 bseqb:null name:i})
@@ -1940,7 +1945,14 @@ describe('scroll', ()=>{
         tput(0 1 c) #(index1={key:V2 seq:2}
                       index_table=[{id:0 cfid:0 bseqb:null name:i}
                       {id:1 cfid:1 bseqb:null name:i}])`);
-
-    });
+      t('tmp_conflict', `s..scroll(index:i) decl({i:v1}) decl({i:v2})
+        decl({i:v3}) decl({i:v4}) decl({i:v5}) decl({i:v6}) decl({i:v7})
+        decl({i:v8}) decl({i:v9}) S..#(index index_table) scroll(s..M0)
+        tput(0 1 2 3 4          ) #(index0={key:v4 seq:4}
+          index_table={id:0 cfid:0 bseqb:null name:i})
+        tput(0_1_2_3 4_5 6_7 8 9) #
+        tput(0_1_2_3 4 5 6      ) #index0={key:v9 seq:9}
+        tput(0_1_2_3 4_5 6 7    ) #(index0=[{key:v6 seq:6} {key:v7 seq:7}])`);
+   });
   });
 });

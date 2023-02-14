@@ -932,6 +932,7 @@ export default class Scroll extends EventEmitterAsync {
       type: real_conflict ? 'c' : 't'});
     if (c2.top.seq!=cseq && c1.top.seq!=cseq)
       return;
+    assert.equal(c2.parent.type, 't', 'only can merge tmp conflict');
     // XXX: need more efficient way (just iterate on decl with data)
     for (let i=c2.parent.seq+1; i<=c2.top.seq; i++){
       let src = _this.get_decl(i, {create: false});
@@ -949,6 +950,7 @@ export default class Scroll extends EventEmitterAsync {
     assert(i1>=0, 'must provide new conflict');
     assert(i1<i2, 'new conflict must be smaller');
     let c2 = _this.conflict.get(i2);
+    assert.equal(c2.parent.type, 't', 'trying to remove real conflict');
     _this.conflict.get(c2.parent.cfid).conflicts.delete(i2);
     for (const [i] of c2.conflicts)
       yield _this.conflict_update(i, {cfid: i1});
@@ -965,21 +967,22 @@ export default class Scroll extends EventEmitterAsync {
     assert.equal(src.cfid, cfid, 'conflict corruption '+cfid);
     assert(src.parent?.type, 'missing conflict type');
     if (o.init){
-      assert(o.cfid===undefined && o.seq===undefined, 'invalid init');
+      assert(o.cfid===undefined && o.seq===undefined && o.type==undefined,
+        'invalid init');
       assert(!src.info, 'invalid init');
       yield _this.update_mergeable(src.cfid);
       return;
     }
-    if (src.cfid==o.cfid && src.seq==o.sec)
-      return;
-    if (o.cfid!==undefined){
+    let changed = false;
+    if (o.cfid!==undefined && src.parent.cfid!=o.cfid){
       assert(src.parent!==o.cfid || o.type===undefined ||
         src.parent?.type!='c' || o.type=='c',
         'real conflict type change c'+src.cfid);
       _this.conflict.get(src.parent?.cfid).conflicts.delete(src.cfid);
       src.parent.cfid = o.cfid;
+      changed = true;
     }
-    if (o.seq!==undefined){
+    if (o.seq!==undefined && src.parent.seq!=o.seq){
       // XXX: need more efficient way (just iterate on decl with data)
       for (let i=src.parent.seq+1; i<=o.seq; i++){
         let decl = _this.get_decl(i, {create: false});
@@ -987,13 +990,19 @@ export default class Scroll extends EventEmitterAsync {
           yield decl.copy(src.parent.cfid, src.cfid);
       }
       src.parent.seq = o.seq;
+      changed = true;
     }
-    if (o.type!==undefined){
+    if (o.type!==undefined && src.parent.type!=o.type){
       assert(['t', 'c'].includes(o.type), 'invalid conflict type '+o.type);
       assert(o.cfid || src.parent?.type!='c' || o.type=='c',
         'real conflict type change c'+src.cfid);
       src.parent.type = o.type;
+      if (o.type=='c')
+        yield _this.emit_async('conflict-real', {cfid});
+      changed = true;
     }
+    if (!changed)
+      return;
     yield _this.update_mergeable(src.cfid);
   }); }
   update_mergeable(cfid){ return etask({_: this}, function*(){

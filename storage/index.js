@@ -60,8 +60,8 @@ export default class Index {
     [this.cfid, this.bseqb] = [cfid, bseqb];
     this.avl = new Tree(cmp_func, true);
   }
-  on_data(opt){
-    let {cfid, seq, data} = opt, {field, transform} = this.desc;
+  on_data(e){
+    let {cfid, seq, data} = e, {field, transform} = this.desc;
     assert(!transform, 'XXX TODO: transform');
     assert(field!='*', 'XXX TODO: *');
     let body = data.get_body(cfid), key = body?.[field];
@@ -85,6 +85,7 @@ class Index_table {
     }
     this.index2id = new Map();
     this.index = new Map();
+    scroll.on('conflict-real', this.on_conflict);
   }
   get_index_id(cfid, bseqb, name, opt){
     let map_cfid = this.index2id.get(cfid);
@@ -116,18 +117,38 @@ class Index_table {
     this.index.set(id, index);
     return index;
   }
-  on_data(opt){
-    let {cfid, seq, bseq, data} = opt, _this = this;
+  on_data(e){
+    let {cfid, seq, bseq, data} = e, _this = this, scroll = this.scroll;
     if (!seq || !this.desc.size || !data.get(cfid))
+      return;
+    // XXX: scroll.is_conflict
+    if (scroll.conflict.get(cfid).parent?.type=='t')
       return;
     return etask(function*on_data(){
       let bseqb = bseq_branch(bseq);
       for (const [name] of _this.desc){
         let index = _this.get_index(cfid, bseqb, name, {create: true});
-        yield index.on_data(opt);
+        yield index.on_data(e);
       }
     });
   }
+  on_conflict = e=>etask({_: this}, function*on_conflict(){
+    let _this = this._, {cfid} = e, scroll = _this.scroll;
+    let co = scroll.conflict.get(cfid);
+    // XXX: need to handle parent change
+    let s = co.parent.seq+1, end = co.top.seq;
+    for (let seq=s; seq<=end; seq++){
+      let decl = scroll.get_decl(seq, {create: false});
+      if (!decl)
+        continue;
+      decl.load(cfid);
+      let h = decl.get_header(cfid);
+      if (!h)
+        continue;
+      let bseq = decl.bseq_get(cfid), data = decl.data_get();
+      yield _this.on_data({cfid, seq, bseq, data});
+    }
+  });
 }
 
 function normalize_desc(desc){

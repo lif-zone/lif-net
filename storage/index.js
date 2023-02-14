@@ -6,8 +6,6 @@ import Branch_table from './branch.js';
 const {bseq_branch} = Branch_table;
 import Tree from 'avl';
 
-let xxx_id = 0; // XXX: fixme
-
 /* XXX: design
 scroll header:
 {scroll: {index: ['file', {...}]}}
@@ -67,7 +65,7 @@ export default class Index {
     assert(!transform, 'XXX TODO: transform');
     assert(field!='*', 'XXX TODO: *');
     let body = data.get_body(cfid), key = body?.[field];
-    if (key===undefined)
+    if (key===undefined || key===null)
       return;
     this.avl.insert({key, seq});
   }
@@ -96,8 +94,10 @@ class Index_table {
     if (!map_bseqb)
       map_cfid.set(bseqb, map_bseqb = new Map());
     let id = map_bseqb.get(name);
+    // XXX: need to get soul free id
+    this.scroll.soul.xxx_id = this.scroll.soul.xxx_id||0;
     if (id===undefined && opt?.create)
-      map_bseqb.set(name, id = xxx_id++); // XXX: need to get soul free id
+      map_bseqb.set(name, id = this.scroll.soul.xxx_id++);
     return id;
   }
   get_index(cfid, bseqb, name, opt){

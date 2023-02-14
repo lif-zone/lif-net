@@ -770,13 +770,16 @@ function state_apply(state, o){
   }
   if (type=='index_find'){
     let so = state.index_find = state.index_find||{};
-    so[id+':'+key] = val;
+    if (!val)
+      delete so[id+':'+key];
+    else
+      so[id+':'+key] = val;
     return;
   }
   if (type=='index_table'){
     let so = state.index_table = state.index_table||[];
     val.forEach(v=>{
-      let i = so.findIndex(item=>item.key==v.key);
+      let i = so.findIndex(item=>item.id==v.id);
       if (i>-1)
         so[i] = v;
       else
@@ -827,7 +830,6 @@ function state_apply(state, o){
 }
 
 function get_filter(s){
-  xerr.notice('XXX get_filter %s', s);
   let a = s.split(' ');
   for (let i=0; i<a.length; i++){
     switch (a[i]){
@@ -989,8 +991,9 @@ const cmd_state_diff = t=>etask(function*cmd_state_diff(){
 
 const cmd_state_check = t=>etask(function*cmd_state_check(){
   let name = t.ctx||get_def('left'), steps = '';
-  let o = parse_exp(t.r), filter = [o.l];
-  steps = t_hooks.state_get_steps?.(filter, name, o.r)||o.r;
+  let o = parse_exp(t.r), filter = o.cmd=='!' ? [o.r] : [o.l];
+  steps = t_hooks.state_get_steps?.(filter, name, o.r)||
+    (o.cmd=='!' ? '!'+o.r : o.r);
   if (/^index_find\(.*\)$/.test(o.l))
     steps = o.l+'='+o.r;
   let curr_state = {};
@@ -1426,6 +1429,7 @@ const cmd_eq = o=>etask(function*cmd_eq(){
 });
 
 export const test_run = test=>etask(function*test_run(){
+  this.on('uncaught', e=>xerr.xexit(e));
   yield test_start();
   for (let curr=test, i=0; curr = parse_get_next(curr); i++){
     let o = parse_exp(curr.exp);

@@ -1883,15 +1883,35 @@ describe('scroll', ()=>{
     describe('mem', ()=>{
       const t = (name, test)=>it(name, ()=>test_run(test));
       // XXX: test on index_table
-      t('table', `s..#(index index_table) scroll(index:[file]) #
+      t('one_index', `s..#(index index_table) scroll(index:file) #
         decl({file:/f1}) #(index0={key:/f1 seq:1}
           index_table={id:0 cfid:0 bseqb:null name:file})
         decl({file:/f2}) #index0={key:/f2 seq:2}
         decl({file:/f1}) #index0={key:/f1 seq:[3 1]}
         decl({file:/f2}) #index0={key:/f2 seq:[4 2]}
-        ##index_find(0 /f1)=[3 1]
-        ##index_find(0 /f2)=[4 2]
-      `);
+        decl({}) #
+        decl({file:null}) #
+        decl({file:/f3}) #index0={key:/f3 seq:[7]}
+        ##index_find(0 /f1)=[3 1] ##index_find(0 /f2)=[4 2]
+        ##index_find(0 /f3)=7 ##!index_find(0 /f4)
+        `);
+      t('two_index', `s..#(index index_table) scroll(index:[i1 i2]) #
+        decl({i1:i1v1 i2:i2v1}) #(index0={key:i1v1 seq:1}
+          index1={key:i2v1 seq:1}
+          index_table=[{id:0 cfid:0 bseqb:null name:i1}
+          {id:1 cfid:0 bseqb:null name:i2}])
+        decl({i1:i1v2 i2:i2v2}) #(index0={key:i1v2 seq:2}
+          index1={key:i2v2 seq:2})
+        decl({i1:i1v3}) #(index0={key:i1v3 seq:3})
+        decl({i2:i2v3}) #(index1={key:i2v3 seq:4})
+        decl({}) #
+        decl({i1:null i2:null}) #(index0={key:i1v3 seq:3})
+        decl({i1:i1v3 i2:i2v3}) #(index0={key:i1v3 seq:[7 3]}
+          index1={key:i2v3 seq:[7 4]})
+        ##index_find(0 i1v1)=[1] ##index_find(0 i1v2)=[2]
+        ##index_find(0 i1v3)=[7 3] ##!index_find(0 i2v1)
+        ##index_find(1 i2v1)=[1] ##index_find(1 i2v2)=[2]
+        ##index_find(1 i2v3)=[7 4] ##!index_find(1 i1v1)`);
     });
   });
 });

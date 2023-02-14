@@ -618,19 +618,19 @@ describe('scroll', ()=>{
     describe('soul', ()=>{
       t('manual', `conf(soul:manual) soul1.s0..scroll(!prev_scroll d:1)
         soul1.s1.scroll(M0:s0..M0) soul2.s2.scroll(M0)
-        M1=0x4ee4702ffc734ae80f1487d1c21b819c06adb58cbfd5c0e42b407cb42edfa492
+        M1=0x132a46132d57b26dafefc5a0da2f207682af9fd67f77f30d6eb7aeeeebf1613a
         s1.M1=M1 !s2.M1`);
       t('same', `conf(soul:same) s0..scroll(!prev_scroll d:1)
         s1.scroll(M0:s0..M0) s2.scroll(M0)
-        M1=0x4ee4702ffc734ae80f1487d1c21b819c06adb58cbfd5c0e42b407cb42edfa492
+        M1=0x132a46132d57b26dafefc5a0da2f207682af9fd67f77f30d6eb7aeeeebf1613a
         s1.M1=M1 s2.M1=M1`);
       t('differnt', `conf(soul:differnt) s0..scroll(!prev_scroll d:1)
         s1.scroll(M0:s0..M0) s2.scroll(M0)
-        M1=0x4ee4702ffc734ae80f1487d1c21b819c06adb58cbfd5c0e42b407cb42edfa492
+        M1=0x132a46132d57b26dafefc5a0da2f207682af9fd67f77f30d6eb7aeeeebf1613a
         !s1.M1 !s2.M1`);
       t('default', `s0..scroll(!prev_scroll d:1)
         s1.scroll(M0:s0..M0) s2.scroll(M0)
-        M1=0x4ee4702ffc734ae80f1487d1c21b819c06adb58cbfd5c0e42b407cb42edfa492
+        M1=0x132a46132d57b26dafefc5a0da2f207682af9fd67f77f30d6eb7aeeeebf1613a
         !s1.M1 !s2.M1`);
     });
     describe('basic', ()=>{
@@ -1882,7 +1882,7 @@ describe('scroll', ()=>{
     });
     describe('mem', ()=>{
       const t = (name, test)=>it(name, ()=>test_run(test));
-      // XXX: test on index_table
+      // XXX: test global index_table
       t('one_index', `s..#(index index_table) scroll(index:file) #
         decl({file:/f1}) #(index0={key:/f1 seq:1}
           index_table={id:0 cfid:0 bseqb:null name:file})
@@ -1893,8 +1893,7 @@ describe('scroll', ()=>{
         decl({file:null}) #
         decl({file:/f3}) #index0={key:/f3 seq:[7]}
         ##index_find(0 /f1)=[3 1] ##index_find(0 /f2)=[4 2]
-        ##index_find(0 /f3)=7 ##!index_find(0 /f4)
-        `);
+        ##index_find(0 /f3)=7 ##!index_find(0 /f4)`);
       t('two_index', `s..#(index index_table) scroll(index:[i1 i2]) #
         decl({i1:i1v1 i2:i2v1}) #(index0={key:i1v1 seq:1}
           index1={key:i2v1 seq:1}
@@ -1908,10 +1907,21 @@ describe('scroll', ()=>{
         decl({i1:null i2:null}) #(index0={key:i1v3 seq:3})
         decl({i1:i1v3 i2:i2v3}) #(index0={key:i1v3 seq:[7 3]}
           index1={key:i2v3 seq:[7 4]})
-        ##index_find(0 i1v1)=[1] ##index_find(0 i1v2)=[2]
+        ##index_find(0 i1v1)=1 ##index_find(0 i1v2)=2
         ##index_find(0 i1v3)=[7 3] ##!index_find(0 i2v1)
-        ##index_find(1 i2v1)=[1] ##index_find(1 i2v2)=[2]
+        ##index_find(1 i2v1)=1 ##index_find(1 i2v2)=2
         ##index_find(1 i2v3)=[7 4] ##!index_find(1 i1v1)`);
+      t('two_scroll', `conf(soul:same)
+        s.#(index index_table) s.scroll(index:i) s.#
+        S.#(index index_table) S.scroll(index:i) S.#
+        s.decl({i:v0}) s.#(index0={key:v0 seq:1}
+          index_table={id:0 cfid:0 bseqb:null name:i}) S.#
+        S.decl({i:V0}) s.# S.#(index1={key:V0 seq:1}
+          index_table={id:1 cfid:0 bseqb:null name:i})
+        s.decl({i:v1}) s.#index0={key:v1 seq:2} S.#
+        S.decl({i:V1}) s.# S.#index1={key:V1 seq:2}
+        s.##index_find(0 v1)=2 S.##!index_find(1 v1)
+        s.##!index_find(0 V1) S.##index_find(1 V1)=2`);
     });
   });
 });

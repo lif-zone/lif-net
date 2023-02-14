@@ -536,6 +536,7 @@ export const new_scroll = (name, M, prev_scroll, sname, db_opt,
   }
   t_scroll[name] = scroll;
   scroll.t = {name};
+  yield xsinon.tick(1, {force: true});
   return scroll;
 });
 
@@ -774,6 +775,8 @@ function state_apply(state, o){
       delete so[id+':'+key];
     else
       so[id+':'+key] = val;
+    if (Object.keys(so).length==0)
+      state.index_find = undefined;
     return;
   }
   if (type=='index_table'){
@@ -1345,7 +1348,7 @@ const mem_get_index = scroll=>etask(function mem_get_index(){
 });
 
 function mem_get_index_find(scroll, filter){
-  let ret = {};
+  let ret;
   for (let i=0; i<filter.length; i++){
     let m = filter[i].match(/^index_find\(([^ ]*) ([^ ]*)\)$/);
     if (!m)
@@ -1359,6 +1362,7 @@ function mem_get_index_find(scroll, filter){
     avl.forEach(node=>{
       if (node.key.key!=key)
         return;
+      ret = ret||{};
       ret[id+':'+key] = ret[id+':'+key]||[];
       ret[id+':'+key].push(node.key.seq);
     });

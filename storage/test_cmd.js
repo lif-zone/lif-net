@@ -869,44 +869,57 @@ const state_next = (name, curr_state, filter, steps)=>etask(
   state.seq = {};
   // XXX: optimize, get state only if is in filter
   if (scroll){
-    // XXX: use decl.next (and clean all over code)
-    for (const [seq, decl] of scroll.dmap){
-      let o = struct_from_decl(decl);
-      if (o)
-        state.mem[seq] = o;
+    if (filter.includes('mem')){
+      // XXX: use decl.next (and clean all over code)
+      for (const [seq, decl] of scroll.dmap){
+        let o = struct_from_decl(decl);
+        if (o)
+          state.mem[seq] = o;
+      }
     }
-    state.mem_c = yield mem_get_c(scroll);
-    state.btable = yield mem_get_btable(scroll);
-    state.bname = yield mem_get_bname(scroll);
-    state.index = yield mem_get_index(scroll);
+    if (filter.includes('mem_c'))
+      state.mem_c = yield mem_get_c(scroll);
+    if (filter.includes('btable'))
+      state.btable = yield mem_get_btable(scroll);
+    if (filter.includes('bname'))
+      state.bname = yield mem_get_bname(scroll);
+    if (filter.includes('index'))
+      state.index = yield mem_get_index(scroll);
     if (filter.find(s=>/^index_find/.test(s)))
       state.index_find = yield mem_get_index_find(scroll, filter);
-    state.index_table = yield mem_get_index_table(scroll);
-    for (const [cfid] of scroll.conflict){
-      for (let decl = scroll.get_decl(0, {create: false}); decl;
-        decl = decl.next())
-      {
-        if (decl.to_c(cfid)!=cfid)
-          continue;
-        let seq = decl.seq, bseq = decl.bseq_get(cfid, seq);
-        if (scroll.test_get_seq){
-          state.seq[cfid] = state.seq[cfid]||{};
-          state.seq[cfid][seq] = scroll.test_get_seq(cfid, seq);
+    if (filter.includes('index_table'))
+      state.index_table = yield mem_get_index_table(scroll);
+    if (true || filter.includes('bseq')){
+      for (const [cfid] of scroll.conflict){
+        for (let decl = scroll.get_decl(0, {create: false}); decl;
+          decl = decl.next())
+        {
+          if (decl.to_c(cfid)!=cfid)
+            continue;
+          let seq = decl.seq, bseq = decl.bseq_get(cfid, seq);
+          if (scroll.test_get_seq){
+            state.seq[cfid] = state.seq[cfid]||{};
+            state.seq[cfid][seq] = scroll.test_get_seq(cfid, seq);
+          }
+          if (bseq){
+            state.bseq[cfid] = state.bseq[cfid]||{};
+            state.bseq[cfid][seq] = bseq;
+          } else if (state.bseq[cfid])
+            delete state.bseq[cfid][seq];
         }
-        if (bseq){
-          state.bseq[cfid] = state.bseq[cfid]||{};
-          state.bseq[cfid][seq] = bseq;
-        } else if (state.bseq[cfid])
-          delete state.bseq[cfid][seq];
       }
     }
   }
   let db = soul?.db;
   if (db?.inited){
-    state.db = yield db_get_scroll_decl(scroll.soul.db, scroll);
-    state.db_c = yield db_get_c(scroll.soul.db, scroll.name);
-    state.db_data = yield db_get_db_data(scroll.soul.db);
-    state.db_btable = yield db_get_btable(scroll);
+    if (filter.includes('db'))
+      state.db = yield db_get_scroll_decl(scroll.soul.db, scroll);
+    if (filter.includes('db_c'))
+      state.db_c = yield db_get_c(scroll.soul.db, scroll.name);
+    if (filter.includes('db_data'))
+      state.db_data = yield db_get_db_data(scroll.soul.db);
+    if (filter.includes('db_btable'))
+      state.db_btable = yield db_get_btable(scroll);
   } else {
     state.db = {};
     state.db_c = {};

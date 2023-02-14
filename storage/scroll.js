@@ -1363,7 +1363,7 @@ class Decl extends EventEmitterAsync {
     let {max_decl, max_frame, blob} = opt, o = {};
     this.scroll.storage?.init_static_cfid(o, this.scroll.conflict.get(cfid));
     o.seq = this.seq;
-    assert.equal(cfid, this.to_c(cfid), 'cfid is not real');
+    assert.equal(cfid, this.to_c(cfid), 'cfid is not real seq'+this.seq);
     let sig = this.sig_get(cfid), M = this.M_hash(cfid);
     if (sig)
       o.sig = sig;

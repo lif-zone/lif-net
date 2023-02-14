@@ -1502,48 +1502,50 @@ describe('scroll', ()=>{
             btc0[1]={branch:b seq:2 bseq:1-1.0 size:2} bseq0=0
             bname={0:null:0 0:b:2})`);
         t('conflict_two_branch_put', `s..#(bseq db_btable)
-          scroll(db)               #(bseq0=0 db_btc0[0]={seq:0 bseq:0 size:1})
-          decl(1)                  #(bseq1=1 db_btc0[0]={seq:0 bseq:0 size:2})
-          decl(2 branch:b)         #(bseq2=1-1.0
+          scroll(db) flush         #(bseq0=0 db_btc0[0]={seq:0 bseq:0 size:1})
+          decl(1) flush            #(bseq1=1 db_btc0[0]={seq:0 bseq:0 size:2})
+          decl(2 branch:b) flush   #(bseq2=1-1.0
             db_btc0[1]={branch:b seq:2 bseq:1-1.0 size:1})
-          decl(3)                  #(bseq3=1-1.1
+          decl(3) flush            #(bseq3=1-1.1
             db_btc0[1]={branch:b seq:2 bseq:1-1.0 size:2})
-          decl(4 prev:1 branch:b2) #(bseq4=1-2.0
+          decl(4 prev:1 branch:b2) flush #(bseq4=1-2.0
             db_btc0[2]={branch:b2 seq:4 bseq:1-2.0 size:1})
-          decl(5)                  #(bseq5=1-2.1
+          decl(5) flush            #(bseq5=1-2.1
             db_btc0[2]={branch:b2 seq:4 bseq:1-2.0 size:2})
           s1..#(bseq db_btable)
-          clone(s.M2 db)           #(bseq0=0 bseq1=1 bseq2=1-1.0
+          clone(s.M2 db) flush     #(bseq0=0 bseq1=1 bseq2=1-1.0
             db_btc0[0]={seq:0 bseq:0 size:2}
             db_btc0[1]={branch:b seq:2 bseq:1-1.0 size:1})
-          decl(3)                  #(bseq3=1-1.1
+          decl(3) flush            #(bseq3=1-1.1
             db_btc0[1]={branch:b seq:2 bseq:1-1.0 size:2})
-          decl(4)                  #(bseq4=1-1.2
+          decl(4) flush            #(bseq4=1-1.2
             db_btc0[1]={branch:b seq:2 bseq:1-1.0 size:3})
-          decl(5 prev:1 branch:b2) #(bseq5=1-2.0
+          decl(5 prev:1 branch:b2) flush #(bseq5=1-2.0
             db_btc0[2]={branch:b2 seq:5 bseq:1-2.0 size:1})
           S..#(bseq btable db_btable) S..# scroll(s..M0 db)
           tput(0)           #(bseq0=0 btc0[0]={seq:0 bseq:0 size:1}
                               db_btc0[0]={seq:0 bseq:0 size:1})
-          tput(0 1)         #(bseq1=1 btc0[0]={seq:0 bseq:0 size:2}
+          tput(0 1) flush   #(bseq1=1 btc0[0]={seq:0 bseq:0 size:2}
                               db_btc0[0]={seq:0 bseq:0 size:2})
-          tput(0 1 2      ) #(bseq2=1-1.0
+          tput(0 1 2      ) flush #(bseq2=1-1.0
                               btc0[1]={branch:b seq:2 bseq:1-1.0 size:1}
                               db_btc0[1]={branch:b seq:2 bseq:1-1.0 size:1})
-          tput(0 1 2 3    ) #(bseq3=1-1.1
+          tput(0 1 2 3    ) flush #(bseq3=1-1.1
                               btc0[1]={branch:b seq:2 bseq:1-1.0 size:2}
                               db_btc0[1]={branch:b seq:2 bseq:1-1.0 size:2})
-          tput(0 1 2 3 4  ) #(bseq4=1-2.0
+          tput(0 1 2 3 4  ) flush #(bseq4=1-2.0
                               btc0[2]={branch:b2 seq:4 bseq:1-2.0 size:1}
                               db_btc0[2]={branch:b2 seq:4 bseq:1-2.0 size:1})
-          tput(0 1 2 3 4 5) #(bseq5=1-2.1
+          tput(0 1 2 3 4 5) flush #(bseq5=1-2.1
                               btc0[2]={branch:b2 seq:4 bseq:1-2.0 size:2}
                               db_btc0[2]={branch:b2 seq:4 bseq:1-2.0 size:2})
-          tput(0_1 2 d    ) #(bseq3c1=1-1.1 btc1[0]={seq:3 bseq:1-1.1 size:1}
+          tput(0_1 2 d    ) flush #(bseq3c1=1-1.1
+                              btc1[0]={seq:3 bseq:1-1.1 size:1}
                               db_btc1[0]={seq:3 bseq:1-1.1 size:1})
-          tput(0_1 2 d e  ) #(bseq4c1=1-1.2 btc1[0]={seq:3 bseq:1-1.1 size:2}
+          tput(0_1 2 d e  ) flush #(bseq4c1=1-1.2
+                              btc1[0]={seq:3 bseq:1-1.1 size:2}
                               db_btc1[0]={seq:3 bseq:1-1.1 size:2})
-          tput(0_1 2 d e f) #(bseq5c1=1-2.0
+          tput(0_1 2 d e f) flush #(bseq5c1=1-2.0
                               btc1[1]={branch:b2 seq:5 bseq:1-2.0 size:1}
                               db_btc1[1]={branch:b2 seq:5 bseq:1-2.0 size:1})
         `);
@@ -1642,8 +1644,8 @@ describe('scroll', ()=>{
       describe('read', ()=>{
         t('manual_load', `conf(soul:manual)
           soul.s..scroll(db) #(db_c) s.decl(1-2) flush #db_c={0:0:M2=s..M2}
-          Soul.db_copy(soul) S.#(db_c mem) Soul.S..scroll(M0 db)
-          #(mem0={m0 M0 sig0 D0} db_c={0:0:M2}) S.#(db_c mem db)
+          Soul.db_copy(soul) S.#(db_c mem db) Soul.S..scroll(M0 db)
+          #(mem0={m0 M0 sig0 D0} db_c={0:0:M2} db0=mem0 db1=mem1 db2=mem2)
           S.load_c(0) #
           load_c(1) #mem1={m1 m0_1 sig1 M1 D1}
           load_c(2) #mem2={m2 sig2 M2 D2}

@@ -100,6 +100,8 @@ export default class Storage_handler {
               continue;
             assert(scroll.conflict.get(cfid).db, 'missing db cfid '+cfid);
             let decl = yield scroll.get_decl(seq);
+            if (cfid!=decl.to_c(cfid)) // conflict parent changed
+              continue;
             let o = decl.to_static_cfid(cfid, {max_decl: db.max_decl,
               max_frame: db.max_frame, blob});
             yield db.store_put(store2, o);
@@ -129,8 +131,8 @@ export default class Storage_handler {
     this.on('uncaught', e=>xerr.xexit(e));
     let _this = this._, scroll = _this.scroll;
     assert(_this.inited, 'storage_handler not inited');
-    scroll.on('conflict-removed', _this.on_conflict_removed);
-    scroll.on('decl', _this.on_decl);
+    scroll.off('conflict-removed', _this.on_conflict_removed);
+    scroll.off('decl', _this.on_decl);
     for (let seq in _this.listeners_decl)
       _this.rm_on_decl(_this.listeners_decl[seq]);
     yield scroll.flush();

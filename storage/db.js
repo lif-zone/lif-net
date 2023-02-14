@@ -39,6 +39,9 @@ export default class DB {
         let branch = db.createObjectStore('branch',
           {keyPath: ['scfid', 'seq']});
         branch.createIndex('scfid', 'scfid');
+        let index_table = db.createObjectStore('index_table', {keyPath: 'id'});
+        index_table.createIndex('scfid', 'scfid');
+        db.createObjectStore('index', {keyPath: ['id', 'key', 'seq']});
     }});
     yield _this.load_scfid_next();
   });

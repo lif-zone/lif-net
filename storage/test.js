@@ -1885,8 +1885,8 @@ describe('scroll', ()=>{
         // XXX: support number/buffer types
       });
     });
+    const t = (name, test)=>it(name, ()=>test_run(test));
     describe('mem', ()=>{
-      const t = (name, test)=>it(name, ()=>test_run(test));
       // XXX: test global index_table
       t('one_index', `s..#(index index_table) scroll(index:file) #
         decl({file:/f1}) #(index0={key:/f1 seq:1}
@@ -1962,6 +1962,20 @@ describe('scroll', ()=>{
         tput(0_1_2_3 4_5 6_7 8 9) #
         tput(0_1_2_3 4 5 6      ) #index0={key:v9 seq:9}
         tput(0_1_2_3 4_5 6 7    ) #(index0=[{key:v6 seq:6} {key:v7 seq:7}])`);
-   });
+    });
+    describe('db', ()=>{
+      t('one_index', `
+        s..#(index index_table) scroll(db index:file) #
+        decl({file:/f1}) flush #(index0={key:/f1 seq:1}
+          index_table={id:0 cfid:0 bseqb:null name:file})
+//        decl({file:/f2}) #index0={key:/f2 seq:2}
+//        decl({file:/f1}) #index0={key:/f1 seq:[3 1]}
+//        decl({file:/f2}) #index0={key:/f2 seq:[4 2]}
+//        decl({}) #
+//        decl({file:null}) #
+//        decl({file:/f3}) #index0={key:/f3 seq:[7]}
+//        ##index_find(0 /f1)=[3 1] ##index_find(0 /f2)=[4 2]
+//        ##index_find(0 /f3)=7 ##!index_find(0 /f4)`);
+    });
   });
 });

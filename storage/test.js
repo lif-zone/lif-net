@@ -1945,7 +1945,16 @@ describe('scroll', ()=>{
         tput(0 1 c) #(index1={key:V2 seq:2}
                       index_table=[{id:0 cfid:0 bseqb:null name:i}
                       {id:1 cfid:1 bseqb:null name:i}])`);
-      t('tmp_conflict', `s..scroll(index:i) decl({i:v1}) decl({i:v2})
+      t('conflict_parent_change', `s..scroll(index:i) decl({i:v1}) decl({i:v2})
+        decl({i:v3}) decl({i:v4}) s1..clone(s..M2) decl({i:V3}) decl({i:V4})
+        S..#(index index_table) scroll(s.M0)
+        tput(0 1      ) c(M1) #(index0={key:v1 seq:1}
+          index_table={id:0 cfid:0 bseqb:null name:i})
+        tput(0_1 2_3 4) c(M4) #index0={key:v4 seq:4}
+        tput(0_1 2 d e) c(M4 1c0.M4=s1.M4) #(index1={key:V4 seq:4}
+          index_table={id:1 cfid:1 bseqb:null name:i})
+        tput(0_1 2 3  ) c(M4 2c0.M4=s1.M4) #index0={key:v3 seq:3}`);
+      t('conflict_tmp', `s..scroll(index:i) decl({i:v1}) decl({i:v2})
         decl({i:v3}) decl({i:v4}) decl({i:v5}) decl({i:v6}) decl({i:v7})
         decl({i:v8}) decl({i:v9}) S..#(index index_table) scroll(s..M0)
         tput(0 1 2 3 4          ) #(index0={key:v4 seq:4}

@@ -1922,6 +1922,18 @@ describe('scroll', ()=>{
         S.decl({i:V1}) s.# S.#index1={key:V1 seq:2}
         s.##index_find(0 v1)=2 S.##!index_find(1 v1)
         s.##!index_find(0 V1) S.##index_find(1 V1)=2`);
+      t('two_branch', `
+        s..#(index index_table) scroll(index:i) #
+        decl({i:v0}) #(index0={key:v0 seq:1}
+          index_table={id:0 cfid:0 bseqb:null name:i})
+        decl({i:v1} branch:b) #(index1={key:v1 seq:2}
+          index_table=[{id:0 cfid:0 bseqb:null name:i}
+          {id:1 cfid:0 bseqb:1-1 name:i}])
+        decl({i:v2}) #index1={key:v2 seq:3}
+        decl({i:v1} prev:1) #index0={key:v1 seq:4}
+        decl({i:v2}) #index0={key:v2 seq:5}
+        ##index_find(0 v0)=1 ##index_find(0 v1)=4 ##index_find(0 v2)=5
+        ##!index_find(1 v0) ##index_find(1 v1)=2 ##index_find(1 v2)=3`);
     });
   });
 });

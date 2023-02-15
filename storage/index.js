@@ -88,30 +88,31 @@ class Index_table {
     scroll.on('conflict-real', this.on_conflict);
   }
   get_index_id(cfid, bseqb, name, opt){
-    let map_cfid = this.index2id.get(cfid);
-    if (!map_cfid)
-      this.index2id.set(cfid, map_cfid = new Map());
-    let map_bseqb = map_cfid.get(bseqb);
+    let map_bseqb = this.index2id.get(cfid);
     if (!map_bseqb)
-      map_cfid.set(bseqb, map_bseqb = new Map());
-    let id = map_bseqb.get(name);
-    // XXX: need to get soul free id
-    this.scroll.soul.xxx_id = this.scroll.soul.xxx_id||0;
-    if (id===undefined && opt?.create)
-      map_bseqb.set(name, id = this.scroll.soul.xxx_id++);
-    return id;
+      return;
+    let map_name = map_bseqb.get(bseqb);
+    if (!map_name)
+      return;
+    return map_name.get(name);
   }
   get_index(cfid, bseqb, name, opt){
-    let id = this.get_index_id(cfid, bseqb, name, opt);
-    if (id===undefined)
-      return;
+    let id = this.get_index_id(cfid, bseqb, name);
+    if (id===undefined){
+      if (!opt.create)
+        return;
+      id = this.scroll.soul.get_index_new_id();
+      let map_bseqb = this.index2id.get(cfid);
+      if (!map_bseqb)
+        this.index2id.set(cfid, map_bseqb = new Map());
+      let map_name = map_bseqb.get(bseqb);
+      if (!map_name)
+        map_bseqb.set(bseqb, map_name = new Map());
+      map_name.set(name, id);
+    }
     let index = this.index.get(id);
-    if (index!==undefined || !opt?.create)
+    if (index!==undefined)
       return index;
-    // XXX: handle deletion/merge of conflict/branch/...
-    // XXX: make sure we ignore temporary conflicts (also check we ignore
-    // them in branch and other places and verify we handle correclty once
-    // we detect it is real conflict)
     let scroll = this.scroll, desc = this.desc.get(name);
     index = new Index({scroll, id, cfid, bseqb, desc});
     this.index.set(id, index);

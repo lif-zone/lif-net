@@ -1967,17 +1967,18 @@ describe('scroll', ()=>{
     });
     describe('db', ()=>{
       t('one_index', `
-        s..#(index index_table) scroll(db index:file) #
+        s..#(index index_table db_index_table) scroll(db index:file) #
         decl({file:/f1}) flush #(index0={key:/f1 seq:1}
-          index_table={id:0 cfid:0 bseqb:null name:file})
-//        decl({file:/f2}) #index0={key:/f2 seq:2}
-//        decl({file:/f1}) #index0={key:/f1 seq:[3 1]}
-//        decl({file:/f2}) #index0={key:/f2 seq:[4 2]}
-//        decl({}) #
-//        decl({file:null}) #
-//        decl({file:/f3}) #index0={key:/f3 seq:[7]}
-//        ##index_find(0 /f1)=[3 1] ##index_find(0 /f2)=[4 2]
-//        ##index_find(0 /f3)=7 ##!index_find(0 /f4)`);
+          index_table={id:0 cfid:0 bseqb:null name:file}
+          db_index_table={id:0 cfid:0 bseqb:null name:file})
+        decl({file:/f2}) flush #index0={key:/f2 seq:2}
+        decl({file:/f1}) flush #index0={key:/f1 seq:[3 1]}
+        decl({file:/f2}) flush #index0={key:/f2 seq:[4 2]}
+        decl({}) flush #
+        decl({file:null}) flush #
+        decl({file:/f3}) flush #index0={key:/f3 seq:[7]}
+        // XXX copy_db and load it
+      `);
     });
   });
 });

@@ -66,10 +66,13 @@ export default class Storage_handler {
           yield _this.db_wakeup = etask.wait();
         _this.db_wakeup = null;
         let blob = {};
-        let {queue_cf, queue_cf_rm, queue_decl, queue_br} = _this.db_queue[0];
-        let tx = db.transaction(['scroll', 'decl', 'branch'], 'readwrite');
+        let {queue_cf, queue_cf_rm, queue_decl, queue_br, queue_index_table} =
+          _this.db_queue[0];
+        let tx = db.transaction(['scroll', 'decl', 'branch', 'index_table'],
+          'readwrite');
         let store = tx.store('scroll'), store2 = tx.store('decl');
         let store_br = tx.store('branch');
+        let store_index_table = tx.store('index_table');
         for (let i=0; i<queue_cf_rm?.length; i++){
           let scfid = queue_cf_rm[i].scfid;
           yield db.store_delete(store, scfid);
@@ -92,6 +95,8 @@ export default class Storage_handler {
         }
         for (let i=0; i<queue_br.mod.length; i++)
           yield db.store_put(store_br, queue_br.mod[i].data);
+        for (let i=0; i<queue_index_table.length; i++)
+          yield db.store_put(store_index_table, queue_index_table[i]);
         for (let seq in queue_decl){
           seq = +seq;
           for (let cfid in queue_decl[seq]){
@@ -205,7 +210,7 @@ export default class Storage_handler {
       return;
     assert(_this.inited, 'storage_handler not inited');
     assert(_this.busy, 'end_update while not in update');
-    let queue_cf = [], queue_br = {rm: [], mod: []};
+    let queue_cf = [], queue_br = {rm: [], mod: []}, queue_index_table = [];
     for (const [, o] of scroll.conflict){
       if (!o.db){
         o.db = {data: conflict_to_data(db, scroll, o)};
@@ -228,10 +233,15 @@ export default class Storage_handler {
         bo.db = {data: btable.row_to_static(bo)};
         queue_br.mod.push({data: xutil.clone_deep(bo.db.data)});
       }
+      let index_table = scroll.index_table;
+      if (index_table){
+        for (let i=0; i<index_table.storage_queue.length; i++)
+          queue_index_table.push(index_table.storage_queue.shift());
+      }
       btable.reset_schedule();
     }
     _this.schedule_db_update({queue_cf, queue_cf_rm: _this.queue_cf_rm,
-      queue_decl: _this.queue_decl, queue_br});
+      queue_decl: _this.queue_decl, queue_br, queue_index_table});
     _this.queue_cf_rm = _this.queue_decl = null;
   }); }
   schedule_db_update(o){

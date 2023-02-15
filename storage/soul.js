@@ -28,7 +28,7 @@ export default class Soul {
     return this.soul.delete(M0);
   }
   clear(){ this.soul.clear(); }
-  get_index_new_id(){ return this.index_id_next++; }
+  new_index_id(){ return this.index_id_next++; }
 }
 
 Scroll.soul = new Soul();

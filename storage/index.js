@@ -85,9 +85,12 @@ class Index_table {
     }
     this.index2id = new Map();
     this.index = new Map();
+    this.storage_queue = [];
     scroll.on('conflict-real', this.on_conflict);
   }
+  get_desc(name){ return this.desc.get(name); }
   get_index_id(cfid, bseqb, name, opt){
+    // XXX: use avl?
     let map_bseqb = this.index2id.get(cfid);
     if (!map_bseqb)
       return;
@@ -97,11 +100,12 @@ class Index_table {
     return map_name.get(name);
   }
   get_index(cfid, bseqb, name, opt){
-    let id = this.get_index_id(cfid, bseqb, name);
+    let id = this.get_index_id(cfid, bseqb, name), desc = this.desc.get(name);
+    let scroll = this.scroll;
     if (id===undefined){
       if (!opt.create)
         return;
-      id = this.scroll.soul.get_index_new_id();
+      id = scroll.soul.new_index_id();
       let map_bseqb = this.index2id.get(cfid);
       if (!map_bseqb)
         this.index2id.set(cfid, map_bseqb = new Map());
@@ -109,14 +113,19 @@ class Index_table {
       if (!map_name)
         map_bseqb.set(bseqb, map_name = new Map());
       map_name.set(name, id);
+      // XXX: use scfid
+      this.schedule_index(id, cfid, bseqb, desc);
     }
     let index = this.index.get(id);
     if (index!==undefined)
       return index;
-    let scroll = this.scroll, desc = this.desc.get(name);
     index = new Index({scroll, id, cfid, bseqb, desc});
     this.index.set(id, index);
     return index;
+  }
+  schedule_index(id, cfid, bseqb, desc){
+    this.storage_queue.push({id, scroll: this.scroll.name, cfid, bseqb,
+      ...desc});
   }
   on_data(e){
     let {cfid, seq, bseq, data} = e, _this = this, scroll = this.scroll;

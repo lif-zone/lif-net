@@ -159,8 +159,11 @@ export function parse_var(v){
   m = v.match(/^([a-zA-Z]\d*)(\.|\.\.)([^.]*)$/);
   let ctx = m ? m[1] : '', def = m ? m[2]=='..' : false;
   v = m ? m[3] : v;
-  if (['db_c', 'db_data', 'mem_c', 'bname', 'index_table'].includes(v))
+  if (['db_c', 'db_data', 'mem_c', 'bname', 'index_table',
+    'db_index_table'].includes(v))
+  {
     return {type: v, ctx, def};
+  }
   if (m = v.match(/^btc(\d+)\[(\d+)\]$/))
     return {type: 'btc', cfid: +m[1], index: +m[2], ctx, def};
   if (m = v.match(/^db_btc(\d+)\[(\d+)\]$/))
@@ -692,8 +695,11 @@ function state_split_var(v, def){
   if (o.def)
     set_def('left', o.ctx);
   let name = o.ctx||def||get_def('left');
-  if (['db_c', 'db_data', 'mem_c', 'bname', 'index_table'].includes(type))
+  if (['db_c', 'db_data', 'mem_c', 'bname', 'index_table',
+    'db_index_table'].includes(type))
+  {
     return {name, type};
+  }
   if (['btc'].includes(type))
     return {name, type, cfid, index};
   if (['db_btc'].includes(type))
@@ -739,6 +745,10 @@ const state_split = (exp, def)=>etask(function*state_split(){
       return {...state_split_var(o.l, def), val: get_array_int(o.r)};
     if (/^index_table/.test(o.l))
       return {...state_split_var(o.l, def), val: get_array(o.r)};
+    if (/^db_index_table/.test(o.l)){
+      ret = {...state_split_var(o.l, def)};
+      return {...ret, val: get_array_db_index_table(ret.name, o.r)};
+    }
     return {...state_split_var(o.l, def),
       val: fix_buf(yield get_val(o.r, 'right'))};
   default: assert.fail('invalid state_split '+exp);
@@ -779,8 +789,8 @@ function state_apply(state, o){
       state.index_find = undefined;
     return;
   }
-  if (type=='index_table'){
-    let so = state.index_table = state.index_table||[];
+  if (['index_table', 'db_index_table'].includes(type)){
+    let so = state[type] = state[type]||[];
     val.forEach(v=>{
       let i = so.findIndex(item=>item.id==v.id);
       if (i>-1)
@@ -848,6 +858,7 @@ function get_filter(s){
     case 'db_btable': break;
     case 'index': break;
     case 'index_table': break;
+    case 'db_index_table': break;
     case 'index_find': break;
     default:
       if (t_hooks.state_valid_filter?.(a[i]))
@@ -889,6 +900,8 @@ const state_next = (name, curr_state, filter, steps)=>etask(
       state.index_find = yield mem_get_index_find(scroll, filter);
     if (filter.includes('index_table'))
       state.index_table = yield mem_get_index_table(scroll);
+    if (filter.includes('db_index_table'))
+      state.db_index_table = yield db_get_index_table(scroll);
     if (true || filter.includes('bseq')){
       for (const [cfid] of scroll.conflict){
         for (let decl = scroll.get_decl(0, {create: false}); decl;
@@ -949,6 +962,10 @@ const state_next = (name, curr_state, filter, steps)=>etask(
   if (filter.includes('index_table')){
     assert.deepEqual(state.index_table, curr_state[name].index_table,
       'index_table state mismach '+steps);
+  }
+  if (filter.includes('db_index_table')){
+    assert.deepEqual(state.db_index_table, curr_state[name].db_index_table,
+      'db_index_table state mismach '+steps);
   }
   if (filter.find(s=>/^index_find/.test(s))){
     assert.deepEqual(state.index_find, curr_state[name].index_find,
@@ -1256,6 +1273,20 @@ function get_array(s){
   return ret;
 }
 
+function get_array_db_index_table(name, s){
+  let ret = get_array(s), scroll = get_scroll(name);
+  ret.forEach(o=>{
+    o.scroll = scroll.name;
+    if (!scroll.index_table)
+      return;
+    let desc = scroll.index_table.get_desc(o.name);
+    assert(desc, 'index '+o.name+' not found for scroll '+name);
+    o.field = desc.field;
+    o.type = desc.type;
+  });
+  return ret;
+}
+
 const db_get_scroll_decl = (db, scroll)=>etask(function*db_get_scroll_decl(){
   let db_c = yield db_get_c(db, scroll.name), ret={};
   let tx = db.transaction('decl', 'readonly');
@@ -1395,6 +1426,21 @@ function mem_get_index_table(scroll){
   }
   return ret;
 }
+
+const db_get_index_table = scroll=>etask(function*db_get_index_table(){
+  let ret;
+  if (!scroll.index_table)
+    return;
+  let db = scroll.soul.db, tx = db.transaction('index_table', 'readonly');
+  let index = tx.index('index_table', 'scroll');
+  for (let cursor=yield db.cursor(index, db.only(scroll.name)); cursor;
+    cursor = yield cursor.next())
+  {
+    ret = ret||[];
+    ret.push({...cursor.value});
+  }
+  return ret;
+});
 
 const db_get_btable = scroll=>etask(function*db_get_btable(){
   if (!scroll.storage)

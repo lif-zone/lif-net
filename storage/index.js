@@ -59,6 +59,7 @@ export default class Index {
     [this.scroll, this.id, this.desc] = [scroll, id, desc];
     [this.cfid, this.bseqb] = [cfid, bseqb];
     this.avl = new Tree(cmp_func, true);
+    this.storage_queue = [];
   }
   on_data(e){
     let {cfid, seq, data} = e, {field, transform} = this.desc;
@@ -68,7 +69,9 @@ export default class Index {
     if (key===undefined || key===null)
       return;
     this.avl.insert({key, seq});
+    this.schedule_db(key, seq);
   }
+  schedule_db(key, seq){ this.storage_queue.push({id: this.id, key, seq}); }
 }
 
 class Index_table {
@@ -114,7 +117,7 @@ class Index_table {
         map_bseqb.set(bseqb, map_name = new Map());
       map_name.set(name, id);
       // XXX: use scfid
-      this.schedule_index(id, cfid, bseqb, desc);
+      this.schedule_db(id, cfid, bseqb, desc);
     }
     let index = this.index.get(id);
     if (index!==undefined)
@@ -123,7 +126,7 @@ class Index_table {
     this.index.set(id, index);
     return index;
   }
-  schedule_index(id, cfid, bseqb, desc){
+  schedule_db(id, cfid, bseqb, desc){
     this.storage_queue.push({id, scroll: this.scroll.name, cfid, bseqb,
       ...desc});
   }

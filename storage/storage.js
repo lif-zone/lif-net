@@ -66,12 +66,13 @@ export default class Storage_handler {
           yield _this.db_wakeup = etask.wait();
         _this.db_wakeup = null;
         let blob = {};
-        let {queue_cf, queue_cf_rm, queue_decl, queue_br, queue_index_table} =
-          _this.db_queue[0];
-        let tx = db.transaction(['scroll', 'decl', 'branch', 'index_table'],
-          'readwrite');
+        let {queue_cf, queue_cf_rm, queue_decl, queue_br, queue_index,
+          queue_index_table} = _this.db_queue[0];
+        let tx = db.transaction(['scroll', 'decl', 'branch', 'index',
+          'index_table'], 'readwrite');
         let store = tx.store('scroll'), store2 = tx.store('decl');
         let store_br = tx.store('branch');
+        let store_index = tx.store('index');
         let store_index_table = tx.store('index_table');
         for (let i=0; i<queue_cf_rm?.length; i++){
           let scfid = queue_cf_rm[i].scfid;
@@ -95,6 +96,8 @@ export default class Storage_handler {
         }
         for (let i=0; i<queue_br.mod.length; i++)
           yield db.store_put(store_br, queue_br.mod[i].data);
+        for (let i=0; i<queue_index.length; i++)
+          yield db.store_put(store_index, queue_index[i]);
         for (let i=0; i<queue_index_table.length; i++)
           yield db.store_put(store_index_table, queue_index_table[i]);
         for (let seq in queue_decl){
@@ -210,7 +213,8 @@ export default class Storage_handler {
       return;
     assert(_this.inited, 'storage_handler not inited');
     assert(_this.busy, 'end_update while not in update');
-    let queue_cf = [], queue_br = {rm: [], mod: []}, queue_index_table = [];
+    let queue_cf = [], queue_br = {rm: [], mod: []}, queue_index = [];
+    let queue_index_table = [];
     for (const [, o] of scroll.conflict){
       if (!o.db){
         o.db = {data: conflict_to_data(db, scroll, o)};
@@ -237,11 +241,15 @@ export default class Storage_handler {
       if (index_table){
         for (let i=0; i<index_table.storage_queue.length; i++)
           queue_index_table.push(index_table.storage_queue.shift());
+        for (const [, index] of index_table.index){
+          for (let i=0; i<index.storage_queue.length; i++)
+            queue_index.push(index.storage_queue.shift());
+        }
       }
       btable.reset_schedule();
     }
     _this.schedule_db_update({queue_cf, queue_cf_rm: _this.queue_cf_rm,
-      queue_decl: _this.queue_decl, queue_br, queue_index_table});
+      queue_decl: _this.queue_decl, queue_br, queue_index, queue_index_table});
     _this.queue_cf_rm = _this.queue_decl = null;
   }); }
   schedule_db_update(o){

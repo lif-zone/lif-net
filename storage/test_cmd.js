@@ -148,8 +148,8 @@ function struct_from_decl(decl){
 export function parse_var(v){
   let m;
   v = string.split_ws(v).join(' ');
-  if (m = v.match(/^index(\d+)$/))
-    return {type: 'index', id: +m[1]};
+  if (['index', 'db_index'].includes(v))
+    return {type: v};
   if (m = v.match(/^index_find\(([^ ]*) ([^ ]*)\)$/))
     return {type: 'index_find', id: +m[1], key: m[2]};
   if (m = v.match(/^\{(.*)\}$/))
@@ -708,7 +708,7 @@ function state_split_var(v, def){
     return {name, type, seq, cfid};
   if (type=='bseq')
     return {name, type, seq, cfid};
-  if (type=='index')
+  if (['index', 'db_index'].includes(type))
     return {name, type, id};
   if (type=='index_find')
     return {name, type, id, key};
@@ -739,8 +739,8 @@ const state_split = (exp, def)=>etask(function*state_split(){
       return {...state_split_var(o.l, def), val: yield get_btable(o.r)};
     if (/^db_btc/.test(o.l))
       return {...state_split_var(o.l, def), val: yield get_btable(o.r)};
-    if (/^index\d/.test(o.l))
-      return {...state_split_var(o.l, def), val: get_index(o.r)};
+    if (['index', 'db_index'].includes(o.l))
+      return {...state_split_var(o.l, def), val: get_array(o.r)};
     if (/^index_find/.test(o.l))
       return {...state_split_var(o.l, def), val: get_array_int(o.r)};
     if (/^index_table/.test(o.l))
@@ -766,17 +766,10 @@ function state_apply(state, o){
       delete state[type];
     return;
   }
-  if (type=='index'){
-    let so = state.index = state.index||{};
-    so[id] = so[id]||[];
-    val.forEach(v=>{
-      let i = so[id].findIndex(item=>item.key==v.key);
-      if (i>-1)
-        so[id][i] = v;
-      else
-        so[id].push(v);
-      so[id].sort((a, b)=>indexedDB.cmp(a.key, b.key));
-    });
+  if (['index', 'db_index'].includes(type)){
+    let so = state[type] = state[type]||[];
+    val.forEach(v=>so.push(v));
+    so.sort((a, b)=>a.id-b.id || string.cmp(a.key, b.key) || b.seq-a.seq);
     return;
   }
   if (type=='index_find'){
@@ -857,6 +850,7 @@ function get_filter(s){
     case 'bseq': break;
     case 'db_btable': break;
     case 'index': break;
+    case 'db_index': break;
     case 'index_table': break;
     case 'db_index_table': break;
     case 'index_find': break;
@@ -896,13 +890,15 @@ const state_next = (name, curr_state, filter, steps)=>etask(
       state.bname = yield mem_get_bname(scroll);
     if (filter.includes('index'))
       state.index = yield mem_get_index(scroll);
+    if (filter.includes('db_index'))
+      state.db_index = yield db_get_index(scroll);
     if (filter.find(s=>/^index_find/.test(s)))
       state.index_find = yield mem_get_index_find(scroll, filter);
     if (filter.includes('index_table'))
       state.index_table = yield mem_get_index_table(scroll);
     if (filter.includes('db_index_table'))
       state.db_index_table = yield db_get_index_table(scroll);
-    if (true || filter.includes('bseq')){
+    if (filter.includes('bseq')){
       for (const [cfid] of scroll.conflict){
         for (let decl = scroll.get_decl(0, {create: false}); decl;
           decl = decl.next())
@@ -958,6 +954,10 @@ const state_next = (name, curr_state, filter, steps)=>etask(
   if (filter.includes('index')){
     assert.deepEqual(state.index, curr_state[name].index,
       'index state mismach '+steps);
+  }
+  if (filter.includes('db_index')){
+    assert.deepEqual(state.db_index, curr_state[name].db_index,
+      'db index state mismach '+steps);
   }
   if (filter.includes('index_table')){
     assert.deepEqual(state.index_table, curr_state[name].index_table,
@@ -1245,18 +1245,6 @@ const get_btable = s=>etask(function*get_btable(){
   return bo;
 });
 
-function get_index(s){
-  let ret = [];
-  s = rm_parentesis(s, '[');
-  for (let curr=s; curr = parse_get_next(curr);){
-    let o = js_struct_from_str(curr.exp);
-    o.seq = rm_parentesis(o.seq, '[').split(' ');
-    o.seq.forEach((val, i)=>o.seq[i] = +val);
-    ret.push(o);
-  }
-  return ret;
-}
-
 function get_array_int(s){
   let ret = [];
   s = rm_parentesis(s, '[');
@@ -1375,19 +1363,29 @@ const mem_get_index = scroll=>etask(function mem_get_index(){
   if (!scroll.index_table)
     return;
   for (const [id, index] of scroll.index_table.index){
-    ret = ret||{};
-    ret[id] = [];
-    let avl = index.avl, prev;
-    for (let i=0; i<avl.size; i++){
-      let curr = avl.at(i).key;
-      if (!prev || prev.key!=curr.key){
-        ret[id].push(prev = {...curr});
-        prev.seq = [prev.seq];
-        continue;
-      }
-      prev.seq.push(curr.seq);
-    }
+    ret = ret||[];
+    let avl = index.avl;
+    for (let i=0; i<avl.size; i++)
+      ret.push({id, ...avl.at(i).key});
   }
+  return ret;
+});
+
+const db_get_index = scroll=>etask(function*db_get_index(){
+  let ret;
+  if (!scroll.index_table)
+    return;
+  let db = scroll.soul.db, tx = db.transaction('index', 'readonly');
+  let store = tx.store('index');
+  for (let cursor=yield db.cursor(store); cursor; cursor = yield cursor.next())
+  {
+    if (!scroll.index_table.index.get(cursor.value.id))
+      continue;
+    ret = ret||[];
+    ret.push({...cursor.value});
+  }
+  if (ret) // XXX: find way to avoid sort
+    ret.sort((a, b)=>a.id-b.id || string.cmp(a.key, b.key) || b.seq-a.seq);
   return ret;
 });
 

@@ -1891,29 +1891,29 @@ describe('scroll', ()=>{
     describe('mem', ()=>{
       // XXX: test global index_table
       t('one_index', `s..#(index index_table) scroll(index:file) #
-        decl({file:/f1}) #(index0={key:/f1 seq:1}
+        decl({file:/f1}) #(index={id:0 key:/f1 seq:1}
           index_table={id:0 cfid:0 bseqb:null name:file})
-        decl({file:/f2}) #index0={key:/f2 seq:2}
-        decl({file:/f1}) #index0={key:/f1 seq:[3 1]}
-        decl({file:/f2}) #index0={key:/f2 seq:[4 2]}
+        decl({file:/f2}) #index={id:0 key:/f2 seq:2}
+        decl({file:/f1}) #index={id:0 key:/f1 seq:3}
+        decl({file:/f2}) #index={id:0 key:/f2 seq:4}
         decl({}) #
         decl({file:null}) #
-        decl({file:/f3}) #index0={key:/f3 seq:[7]}
+        decl({file:/f3}) #index={id:0 key:/f3 seq:7}
         ##index_find(0 /f1)=[3 1] ##index_find(0 /f2)=[4 2]
         ##index_find(0 /f3)=7 ##!index_find(0 /f4)`);
       t('two_index', `s..#(index index_table) scroll(index:[i1 i2]) #
-        decl({i1:i1v1 i2:i2v1}) #(index0={key:i1v1 seq:1}
-          index1={key:i2v1 seq:1}
+        decl({i1:i1v1 i2:i2v1}) #(index={id:0 key:i1v1 seq:1}
+          index={id:1 key:i2v1 seq:1}
           index_table=[{id:0 cfid:0 bseqb:null name:i1}
           {id:1 cfid:0 bseqb:null name:i2}])
-        decl({i1:i1v2 i2:i2v2}) #(index0={key:i1v2 seq:2}
-          index1={key:i2v2 seq:2})
-        decl({i1:i1v3}) #(index0={key:i1v3 seq:3})
-        decl({i2:i2v3}) #(index1={key:i2v3 seq:4})
+        decl({i1:i1v2 i2:i2v2}) #(index={id:0 key:i1v2 seq:2}
+          index={id:1 key:i2v2 seq:2})
+        decl({i1:i1v3}) #(index={id:0 key:i1v3 seq:3})
+        decl({i2:i2v3}) #(index={id:1 key:i2v3 seq:4})
         decl({}) #
-        decl({i1:null i2:null}) #(index0={key:i1v3 seq:3})
-        decl({i1:i1v3 i2:i2v3}) #(index0={key:i1v3 seq:[7 3]}
-          index1={key:i2v3 seq:[7 4]})
+        decl({i1:null i2:null}) #
+        decl({i1:i1v3 i2:i2v3}) #(index={id:0 key:i1v3 seq:7}
+          index={id:1 key:i2v3 seq:7})
         ##index_find(0 i1v1)=1 ##index_find(0 i1v2)=2
         ##index_find(0 i1v3)=[7 3] ##!index_find(0 i2v1)
         ##index_find(1 i2v1)=1 ##index_find(1 i2v2)=2
@@ -1921,62 +1921,68 @@ describe('scroll', ()=>{
       t('two_scroll', `conf(soul:same)
         s.#(index index_table) s.scroll(index:i) s.#
         S.#(index index_table) S.scroll(index:i) S.#
-        s.decl({i:v0}) s.#(index0={key:v0 seq:1}
+        s.decl({i:v0}) s.#(index={id:0 key:v0 seq:1}
           index_table={id:0 cfid:0 bseqb:null name:i}) S.#
-        S.decl({i:V0}) s.# S.#(index1={key:V0 seq:1}
+        S.decl({i:V0}) s.# S.#(index={id:1 key:V0 seq:1}
           index_table={id:1 cfid:0 bseqb:null name:i})
-        s.decl({i:v1}) s.#index0={key:v1 seq:2} S.#
-        S.decl({i:V1}) s.# S.#index1={key:V1 seq:2}
+        s.decl({i:v1}) s.#index={id:0 key:v1 seq:2} S.#
+        S.decl({i:V1}) s.# S.#index={id:1 key:V1 seq:2}
         s.##index_find(0 v1)=2 S.##!index_find(1 v1)
         s.##!index_find(0 V1) S.##index_find(1 V1)=2`);
       t('branch', `s..#(index index_table) scroll(index:i) #
-        decl({i:v0}) #(index0={key:v0 seq:1}
+        decl({i:v0}) #(index={id:0 key:v0 seq:1}
           index_table={id:0 cfid:0 bseqb:null name:i})
-        decl({i:v1} branch:b) #(index1={key:v1 seq:2}
+        decl({i:v1} branch:b) #(index={id:1 key:v1 seq:2}
           index_table=[{id:0 cfid:0 bseqb:null name:i}
           {id:1 cfid:0 bseqb:1-1 name:i}])
-        decl({i:v2}) #index1={key:v2 seq:3}
-        decl({i:v1} prev:1) #index0={key:v1 seq:4}
-        decl({i:v2}) #index0={key:v2 seq:5}
+        decl({i:v2}) #index={id:1 key:v2 seq:3}
+        decl({i:v1} prev:1) #index={id:0 key:v1 seq:4}
+        decl({i:v2}) #index={id:0 key:v2 seq:5}
         ##index_find(0 v0)=1 ##index_find(0 v1)=4 ##index_find(0 v2)=5`);
       t('conflict', `s.scroll(index:i) s.decl({i:v1}) s.decl({i:v2})
         s1.clone(s.M1) s1.decl({i:V2}) S..#(index index_table) scroll(s..M0) #
-        tput(0 1  ) #(index0={key:v1 seq:1}
+        tput(0 1  ) #(index={id:0 key:v1 seq:1}
                       index_table={id:0 cfid:0 bseqb:null name:i})
-        tput(0 1 2) #index0={key:v2 seq:2}
-        tput(0 1 c) #(index1={key:V2 seq:2}
+        tput(0 1 2) #index={id:0 key:v2 seq:2}
+        tput(0 1 c) #(index={id:1 key:V2 seq:2}
                       index_table=[{id:0 cfid:0 bseqb:null name:i}
                       {id:1 cfid:1 bseqb:null name:i}])`);
       t('conflict_parent_change', `s..scroll(index:i) decl({i:v1}) decl({i:v2})
         decl({i:v3}) decl({i:v4}) s1..clone(s..M2) decl({i:V3}) decl({i:V4})
         S..#(index index_table) scroll(s.M0)
-        tput(0 1      ) c(M1) #(index0={key:v1 seq:1}
+        tput(0 1      ) c(M1) #(index={id:0 key:v1 seq:1}
           index_table={id:0 cfid:0 bseqb:null name:i})
-        tput(0_1 2_3 4) c(M4) #index0={key:v4 seq:4}
-        tput(0_1 2 d e) c(M4 1c0.M4=s1.M4) #(index1={key:V4 seq:4}
+        tput(0_1 2_3 4) c(M4) #index={id:0 key:v4 seq:4}
+        tput(0_1 2 d e) c(M4 1c0.M4=s1.M4) #(index={id:1 key:V4 seq:4}
           index_table={id:1 cfid:1 bseqb:null name:i})
-        tput(0_1 2 3  ) c(M4 2c0.M4=s1.M4) #index0={key:v3 seq:3}`);
+        tput(0_1 2 3  ) c(M4 2c0.M4=s1.M4) #index={id:0 key:v3 seq:3}`);
       t('conflict_tmp', `s..scroll(index:i) decl({i:v1}) decl({i:v2})
         decl({i:v3}) decl({i:v4}) decl({i:v5}) decl({i:v6}) decl({i:v7})
         decl({i:v8}) decl({i:v9}) S..#(index index_table) scroll(s..M0)
-        tput(0 1 2 3 4          ) #(index0={key:v4 seq:4}
+        tput(0 1 2 3 4          ) #(index={id:0 key:v4 seq:4}
           index_table={id:0 cfid:0 bseqb:null name:i})
         tput(0_1_2_3 4_5 6_7 8 9) #
-        tput(0_1_2_3 4 5 6      ) #index0={key:v9 seq:9}
-        tput(0_1_2_3 4_5 6 7    ) #(index0=[{key:v6 seq:6} {key:v7 seq:7}])`);
+        tput(0_1_2_3 4 5 6      ) #index={id:0 key:v9 seq:9}
+        tput(0_1_2_3 4_5 6 7    ) #(index=[{id:0 key:v6 seq:6}
+          {id:0 key:v7 seq:7}])`);
     });
     describe('db', ()=>{
       t('one_index', `
-        s..#(index index_table db_index_table) scroll(db index:file) #
-        decl({file:/f1}) flush #(index0={key:/f1 seq:1}
+        s..#(index index_table db_index db_index_table) scroll(db index:file) #
+        decl({file:/f1}) flush #(index={id:0 key:/f1 seq:1}
+          db_index={id:0 key:/f1 seq:1}
           index_table={id:0 cfid:0 bseqb:null name:file}
           db_index_table={id:0 cfid:0 bseqb:null name:file})
-        decl({file:/f2}) flush #index0={key:/f2 seq:2}
-        decl({file:/f1}) flush #index0={key:/f1 seq:[3 1]}
-        decl({file:/f2}) flush #index0={key:/f2 seq:[4 2]}
+        decl({file:/f2}) flush #(index={id:0 key:/f2 seq:2}
+          db_index={id:0 key:/f2 seq:2})
+        decl({file:/f1}) flush #(index={id:0 key:/f1 seq:3}
+          db_index={id:0 key:/f1 seq:3})
+        decl({file:/f2}) flush #(index={id:0 key:/f2 seq:4}
+          db_index={id:0 key:/f2 seq:4})
         decl({}) flush #
         decl({file:null}) flush #
-        decl({file:/f3}) flush #index0={key:/f3 seq:[7]}
+        decl({file:/f3}) flush #(index={id:0 key:/f3 seq:7}
+          db_index={id:0 key:/f3 seq:7})
         // XXX copy_db and load it
       `);
     });

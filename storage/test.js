@@ -2038,14 +2038,38 @@ describe('scroll', ()=>{
           db_index_table={id:2 cfid:0 bseqb:3-1 name:i}
           index={id:2 key:/v4 seq:6}
           db_index={id:2 key:/v4 seq:6})`);
-      t('conflict', `s.scroll(index:i) s.decl({i:v1}) s.decl({i:v2})
-        s1.clone(s.M1) s1.decl({i:V2}) S..#(index index_table) scroll(s..M0) #
-        tput(0 1  ) #(index={id:0 key:v1 seq:1}
-                      index_table={id:0 cfid:0 bseqb:null name:i})
-        tput(0 1 2) #index={id:0 key:v2 seq:2}
-        tput(0 1 c) #(index={id:1 key:V2 seq:2}
-                      index_table=[{id:0 cfid:0 bseqb:null name:i}
-                      {id:1 cfid:1 bseqb:null name:i}])`);
+      t('conflict', `// test write
+        s.scroll(index:i) s.decl({i:v1}) s.decl({i:v2})
+        s1.clone(s.M1) s1.decl({i:V2})
+        S..#(index index_table db_index db_index_table) scroll(s..M0 db) #
+        tput(0 1  ) flush #(index_table={id:0 cfid:0 bseqb:null name:i}
+          db_index_table={id:0 cfid:0 bseqb:null name:i}
+          index={id:0 key:v1 seq:1} db_index={id:0 key:v1 seq:1})
+        tput(0 1 2) flush #(index={id:0 key:v2 seq:2}
+          db_index={id:0 key:v2 seq:2})
+        tput(0 1 c) flush #(index_table={id:1 cfid:1 bseqb:null name:i}
+          db_index_table={id:1 cfid:1 bseqb:null name:i}
+          index={id:1 key:V2 seq:2} db_index={id:1 key:V2 seq:2})
+        // test read
+        Soul2.db_copy(S.soul) S2..#(index index_table db_index db_index_table)
+        Soul2.S2.scroll(s..M0 db) #(
+          index_table=[{id:0 cfid:0 bseqb:null name:i}
+            {id:1 cfid:1 bseqb:null name:i}]
+          db_index_table=[{id:0 cfid:0 bseqb:null name:i}
+            {id:1 cfid:1 bseqb:null name:i}] index=[]
+          db_index=[{id:0 key:v1 seq:1} {id:0 key:v2 seq:2}
+            {id:1 key:V2 seq:2}])
+        S2.load_c(1) #
+        S2.load_c(2) #`);
+        // XXX: TODO, fix scroll.decl when there is a conflict
+        // test valid new index id
+        /*
+        S2.decl(branch:b {i:v3}) flush #(
+          index_table={id:2 cfid:0 bseqb:3-1 name:i}
+          db_index_table={id:2 cfid:0 bseqb:3-1 name:i}
+          index={id:2 key:/v4 seq:6}
+          db_index={id:2 key:/v4 seq:6})
+        */
     });
   });
 });

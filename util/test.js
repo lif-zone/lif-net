@@ -9,6 +9,7 @@ import xerr from './xerr.js';
 import xurl from './url.js';
 import url from 'url';
 import sprintf from './sprintf.js';
+import string from './string.js';
 import xescape from './escape.js';
 import rate_limit from './rate_limit.js';
 import match from './match.js';
@@ -24,6 +25,19 @@ const seq = xtest.seq, ms = date.ms, assign = Object.assign;
 
 if (xutil.is_inspect())
   debugger; // eslint-disable-line no-debugger
+
+describe('string', function(){
+  it('cmp', ()=>{
+    const t = (a, b, exp)=>assert.equal(string.cmp(a, b), exp);
+    t('a1', 'a0', 1);
+    t('a1', 'a1', 0);
+    t('a1', 'a2', -1);
+    t('aa', 'aA', 1);
+    t('aa', 'aa', 0);
+    t('aA', 'aa', -1);
+    t('abcd', 'abCd', 1);
+  });
+});
 
 describe('sinon', function(){
     let seq_with_called = ()=>{

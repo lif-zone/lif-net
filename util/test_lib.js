@@ -789,4 +789,4 @@ E.init = function(){
     xerr.clear();
     xerr.set_buffered(false);
   });
-}
+};

@@ -2060,16 +2060,11 @@ describe('scroll', ()=>{
           db_index=[{id:0 key:v1 seq:1} {id:0 key:v2 seq:2}
             {id:1 key:V2 seq:2}])
         S2.load_c(1) #
-        S2.load_c(2) #`);
-        // XXX: TODO, fix scroll.decl when there is a conflict
-        // test valid new index id
-        /*
+        S2.load_c(2) #
         S2.decl(branch:b {i:v3}) flush #(
-          index_table={id:2 cfid:0 bseqb:3-1 name:i}
-          db_index_table={id:2 cfid:0 bseqb:3-1 name:i}
-          index={id:2 key:/v4 seq:6}
-          db_index={id:2 key:/v4 seq:6})
-        */
+          index_table={id:2 cfid:0 bseqb:2-1 name:i}
+          db_index_table={id:2 cfid:0 bseqb:2-1 name:i}
+          index={id:2 key:v3 seq:3} db_index={id:2 key:v3 seq:3})`);
     });
   });
 });

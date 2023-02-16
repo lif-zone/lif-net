@@ -98,6 +98,12 @@ class Frame_buffer extends EventEmitterAsync {
     let {frames, crypt} = opt;
     assert(support_crypt(crypt), 'unsupported crypt');
     this.crypt = crypt;
+    this.set_frames_raw(frames);
+  }
+  set_frames_raw(frames){
+    if (this.frames)
+      assert.deepEqual(this.frames, [{}], 'frames already populated');
+    let crypt = this.crypt;
     this.frames = [{}]; // first frame reserved for {sig, h_rest}
     for (let i=0; i<frames?.length; i++)
       this.frames.push(to_frame(frames[i]));
@@ -156,7 +162,7 @@ class Frame_buffer extends EventEmitterAsync {
     if (!sig && _this.frames[0].sig)
       yield _this.emit_async('sig');
     else
-      assert(_this.frames[0].sig.equals(sig), 'sig changed');
+      assert(_this.frames[0].sig?.equals(sig), 'sig changed');
     }
   }); }
   set_frame_buf(i, buf){ return etask({_: this}, function*set_frame_buf(){
@@ -533,11 +539,8 @@ export default class Scroll extends EventEmitterAsync {
       assert(bseq_valid(bseq), 'invalid bseq '+bseq);
       header.bseq = bseq;
     }
-    let data = new Data({scroll: _this, seq, frames: [header].concat(frames)});
-    let decl = new Decl({scroll: _this, seq, data});
-    _this.dmap.set(seq, decl);
-    _this.emit('decl', decl);
-    decl.init();
+    let decl = _this.get_decl(seq);
+    decl.fbuf_get(cfid).set_frames_raw([header].concat(frames));
     yield decl.sign(cfid);
     yield _this.unlock();
     assert(decl.M.get_hash(cfid), 'failed to calc M'+decl.seq+' cfid '+cfid);

@@ -69,6 +69,7 @@ export default class Index {
     if (key===undefined || key===null)
       return;
     this.avl.insert({key, seq});
+    // XXX: don't schedule if it is already in db
     this.schedule_db(key, seq);
   }
   schedule_db(key, seq){ this.storage_queue.push({id: this.id, key, seq}); }
@@ -104,25 +105,31 @@ class Index_table {
   }
   get_index(cfid, bseqb, name, opt){
     let id = this.get_index_id(cfid, bseqb, name), desc = this.desc.get(name);
-    let scroll = this.scroll;
+    let scroll = this.scroll, index;
     if (id===undefined){
       if (!opt.create)
         return;
       id = scroll.soul.new_index_id();
-      let map_bseqb = this.index2id.get(cfid);
-      if (!map_bseqb)
-        this.index2id.set(cfid, map_bseqb = new Map());
-      let map_name = map_bseqb.get(bseqb);
-      if (!map_name)
-        map_bseqb.set(bseqb, map_name = new Map());
-      map_name.set(name, id);
-      // XXX: use scfid
-      this.schedule_db(id, cfid, bseqb, desc);
-    }
-    let index = this.index.get(id);
+      assert(!this.index.get(id), 'index id '+id+' already exist');
+    } else
+      index = this.index.get(id);
     if (index!==undefined)
       return index;
-    index = new Index({scroll, id, cfid, bseqb, desc});
+    return this.new_index({id, cfid, bseqb, desc});
+  }
+  new_index(opt){
+    let {id, cfid, bseqb, desc} = opt, scroll = this.scroll;
+    assert(!this.index.get(id), 'index '+id+' already exist');
+    let map_bseqb = this.index2id.get(cfid);
+    if (!map_bseqb)
+      this.index2id.set(cfid, map_bseqb = new Map());
+    let map_name = map_bseqb.get(bseqb);
+    if (!map_name)
+      map_bseqb.set(bseqb, map_name = new Map());
+    map_name.set(desc.name, id);
+    if (!opt.from_db)
+      this.schedule_db(id, cfid, bseqb, desc);
+    let index = new Index({scroll, id, cfid, bseqb, desc});
     this.index.set(id, index);
     return index;
   }

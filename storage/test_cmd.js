@@ -951,21 +951,21 @@ const state_next = (name, curr_state, filter, steps)=>etask(
     assert_b2s_obj(state.mem, curr_state[name].mem,
       'mem state mismach '+steps);
   }
-  if (filter.includes('index')){
-    assert.deepEqual(state.index, curr_state[name].index,
-      'index state mismach '+steps);
-  }
-  if (filter.includes('db_index')){
-    assert.deepEqual(state.db_index, curr_state[name].db_index,
-      'db index state mismach '+steps);
-  }
   if (filter.includes('index_table')){
     assert.deepEqual(state.index_table, curr_state[name].index_table,
       'index_table state mismach '+steps);
   }
+  if (filter.includes('index')){
+    assert.deepEqual(state.index, curr_state[name].index,
+      'index state mismach '+steps);
+  }
   if (filter.includes('db_index_table')){
     assert.deepEqual(state.db_index_table, curr_state[name].db_index_table,
       'db_index_table state mismach '+steps);
+  }
+  if (filter.includes('db_index')){
+    assert.deepEqual(state.db_index, curr_state[name].db_index,
+      'db index state mismach '+steps);
   }
   if (filter.find(s=>/^index_find/.test(s))){
     assert.deepEqual(state.index_find, curr_state[name].index_find,

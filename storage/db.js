@@ -18,6 +18,7 @@ function wrap_cb(cb){
 }
 
 export default class DB {
+  constructor(opt){ this.soul = opt.soul; }
   init = (opt={})=>etask({_: this}, function*db_init(){
     let _this = this._;
     if (_this.inited)
@@ -44,8 +45,9 @@ export default class DB {
         db.createObjectStore('index', {keyPath: ['id', 'key', 'seq']});
     }});
     yield _this.load_scfid_next();
+    yield _this.load_index_id_next();
   });
-  get_new_scfid(){ return this.scfid_next++; }
+  get_new_scfid(){ return this.scfid_next++; } // XXX: mv to soul
   uninit = (opt={})=>etask({_: this}, function*db_uninit(){
     let _this = this._;
     if (!_this.inited)
@@ -63,55 +65,44 @@ export default class DB {
     let cursor = yield _this.cursor(store, null, 'prev');
     _this.scfid_next = cursor ? cursor.value.scfid+1 : 0;
   }); }
+  load_index_id_next(){ return etask({_: this}, function*load_index_id_next(){
+    let _this = this._;
+    let tx = _this.transaction(['index_table'], 'readonly');
+    let store = tx.store('index_table');
+    let cursor = yield _this.cursor(store, null, 'prev');
+    _this.soul.index_id_next = cursor ? cursor.value.id+1 : 0;
+  }); }
+  copy_store = (db, name)=>etask({_: this}, function*copy_store(){
+    this.on('uncaught', e=>xerr.xexit(e));
+    let _this = this._;
+    assert(db.inited, 'src db not inited');
+    assert(_this.inited, 'db not inited');
+    let tx = _this.transaction([name], 'readwrite'), store = tx.store(name);
+    for (let cur = yield _this.cursor(store); cur; cur = yield cur.next())
+      cur.delete();
+    yield tx;
+    let data = [];
+    tx = db.transaction([name], 'readonly');
+    store = tx.store(name);
+    for (let cur = yield db.cursor(store); cur; cur = yield cur.next())
+      data.push(cur.value);
+    tx = _this.transaction([name], 'readwrite');
+    store = tx.store(name);
+    for (let i=0; i<data.length; i++)
+      yield _this.store_put(store, data[i]);
+    yield tx;
+  });
   copy = src=>etask({_: this}, function*copy(){
     this.on('uncaught', e=>xerr.xexit(e));
     let _this = this._;
-    assert(src.inited, 'src db not inited');
-    assert(_this.inited, 'db not inited');
-    let tx = _this.transaction(['scroll', 'decl', 'branch'], 'readwrite');
-    let store = tx.store('scroll');
-    for (let cur = yield _this.cursor(store); cur; cur = yield cur.next())
-      cur.delete();
-    store = tx.store('decl');
-    for (let cur = yield _this.cursor(store); cur; cur = yield cur.next())
-      cur.delete();
-    store = tx.store('branch');
-    for (let cur = yield _this.cursor(store); cur; cur = yield cur.next())
-      cur.delete();
-    yield tx;
-    let data_scroll = [], data_decl = [], data_blob = [], data_branch = [];
-    tx = src.transaction(['scroll', 'decl', 'branch'], 'readonly');
-    store = tx.store('scroll');
-    for (let cur = yield src.cursor(store); cur; cur = yield cur.next())
-      data_scroll.push(cur.value);
-    tx = src.transaction(['decl'], 'readonly');
-    store = tx.store('decl');
-    for (let cur = yield src.cursor(store); cur; cur = yield cur.next())
-      data_decl.push(cur.value);
-    tx = src.transaction(['branch'], 'readonly');
-    store = tx.store('branch');
-    for (let cur = yield src.cursor(store); cur; cur = yield cur.next())
-      data_branch.push(cur.value);
-    tx = src.transaction(['data'], 'readonly');
-    store = tx.store('data');
-    for (let cur = yield src.cursor(store); cur; cur = yield cur.next())
-      data_blob.push(cur.value);
-    tx = _this.transaction(['scroll', 'decl', 'data'], 'readwrite');
-    store = tx.store('scroll');
-    for (let i=0; i<data_scroll.length; i++)
-      yield _this.store_put(store, data_scroll[i]);
-    tx = _this.transaction(['scroll', 'decl', 'data', 'branch'], 'readwrite');
-    store = tx.store('decl');
-    for (let i=0; i<data_decl.length; i++)
-      yield _this.store_put(store, data_decl[i]);
-    store = tx.store('branch');
-    for (let i=0; i<data_branch.length; i++)
-      yield _this.store_put(store, data_branch[i]);
-    store = tx.store('data');
-    for (let i=0; i<data_blob.length; i++)
-      yield _this.store_put(store, data_blob[i]);
-    yield tx;
+    yield _this.copy_store(src, 'scroll');
+    yield _this.copy_store(src, 'decl');
+    yield _this.copy_store(src, 'data');
+    yield _this.copy_store(src, 'branch');
+    yield _this.copy_store(src, 'index');
+    yield _this.copy_store(src, 'index_table');
     yield _this.load_scfid_next();
+    yield _this.load_index_id_next();
   });
   db_get(name, key){
     let tx = this.db.transaction(name, 'readonly');

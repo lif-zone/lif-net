@@ -57,6 +57,7 @@ export default class Storage_handler {
       yield _this.load_conflict(M);
       yield _this.load_cfid(scroll.get_decl(0), 0);
       yield _this.load_branch();
+      yield _this.load_index_table(M);
       yield scroll.unlock();
     }
     _this.sp.spawn(etask(function*db_updater(){
@@ -239,11 +240,11 @@ export default class Storage_handler {
       }
       let index_table = scroll.index_table;
       if (index_table){
-        for (let i=0; i<index_table.storage_queue.length; i++)
-          queue_index_table.push(index_table.storage_queue.shift());
+        queue_index_table = index_table.storage_queue;
+        index_table.storage_queue = [];
         for (const [, index] of index_table.index){
-          for (let i=0; i<index.storage_queue.length; i++)
-            queue_index.push(index.storage_queue.shift());
+          queue_index = index.storage_queue;
+          index.storage_queue = [];
         }
       }
       btable.reset_schedule();
@@ -315,6 +316,24 @@ export default class Storage_handler {
         ret[cfid].parent = split[0];
     }
     return ret;
+  }); }
+  load_index_table(M){ return etask({_: this}, function*load_index_table(){
+    let _this = this._, scroll = _this.scroll, db = _this.db;
+    let index_table = scroll.index_table;
+    if (!index_table)
+      return;
+    let tx = db.transaction(['index_table'], 'readonly');
+    for (let cur = yield db.cursor(tx.store('index_table').index('scroll'),
+      db.only(M)); cur; cur = yield cur.next())
+    {
+      let {id, cfid, bseqb, name, field, type, transform} = cur.value;
+      let desc = index_table.get_desc(name);
+      assert.equal(field, desc.field, 'index field mismatch');
+      assert.equal(type, desc.type, 'index type mismatch');
+      assert.equal(transform, desc.transform, 'index transform mismatch');
+      assert(scroll.conflict.get(cfid), 'cfid not found c'+cfid);
+      index_table.new_index({id, cfid, bseqb, desc, from_db: true});
+    }
   }); }
   is_loaded(decl, cfid, opt={data: true}){
     if (!decl.db?.cfid[cfid])

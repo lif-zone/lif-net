@@ -1968,6 +1968,7 @@ describe('scroll', ()=>{
     });
     describe('db', ()=>{
       t('one_index', `
+        // test write
         s..#(index index_table db_index db_index_table) scroll(db index:file) #
         decl({file:/f1}) flush #(index={id:0 key:/f1 seq:1}
           db_index={id:0 key:/f1 seq:1}
@@ -1983,8 +1984,27 @@ describe('scroll', ()=>{
         decl({file:null}) flush #
         decl({file:/f3}) flush #(index={id:0 key:/f3 seq:7}
           db_index={id:0 key:/f3 seq:7})
-        // XXX copy_db and load it
-      `);
+        // test read
+        Soul.db_copy(s.soul) S..#(index index_table db_index db_index_table)
+        Soul.S.scroll(s..M0 db) #(
+          index_table={id:0 cfid:0 bseqb:null name:file}
+          db_index_table={id:0 cfid:0 bseqb:null name:file}
+          index=[]
+          db_index=[{id:0 key:/f1 seq:3} {id:0 key:/f1 seq:1}
+            {id:0 key:/f2 seq:4} {id:0 key:/f2 seq:2} {id:0 key:/f3 seq:7}])
+        S.load_c(1) #index={id:0 key:/f1 seq:1}
+        S.load_c(2) #index={id:0 key:/f2 seq:2}
+        S.load_c(3) #index={id:0 key:/f1 seq:3}
+        S.load_c(4) #index={id:0 key:/f2 seq:4}
+        S.load_c(5) #
+        S.load_c(6) #
+        S.load_c(7) #index={id:0 key:/f3 seq:7}
+        // test valid new index id
+        S.decl(branch:b {file:/f3}) flush #(
+          index_table={id:1 cfid:0 bseqb:7-1 name:file}
+          db_index_table={id:1 cfid:0 bseqb:7-1 name:file}
+          index={id:1 key:/f3 seq:8}
+          db_index={id:1 key:/f3 seq:8})`);
     });
   });
 });

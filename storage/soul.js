@@ -9,7 +9,7 @@ const b2s = buf_util.buf_to_str;
 export default class Soul {
   constructor(opt={}){
     this.soul = new Map();
-    this.db = new DB();
+    this.db = new DB({soul: this});
     this.name = opt.name;
     this.index_id_next = 0;
   }

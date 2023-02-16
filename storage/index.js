@@ -63,14 +63,15 @@ export default class Index {
   }
   on_data(e){
     let {cfid, seq, data} = e, {field, transform} = this.desc;
+    let scroll = this.scroll, decl = scroll.get_decl(seq, {create: false});
     assert(!transform, 'XXX TODO: transform');
     assert(field!='*', 'XXX TODO: *');
     let body = data.get_body(cfid), key = body?.[field];
     if (key===undefined || key===null)
       return;
     this.avl.insert({key, seq});
-    // XXX: don't schedule if it is already in db
-    this.schedule_db(key, seq);
+    if (!decl?.db?.cfid?.[e.cfid]?.busy) // XXX: need is_loading
+      this.schedule_db(key, seq);
   }
   schedule_db(key, seq){ this.storage_queue.push({id: this.id, key, seq}); }
 }

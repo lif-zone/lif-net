@@ -1967,8 +1967,7 @@ describe('scroll', ()=>{
           {id:0 key:v7 seq:7}])`);
     });
     describe('db', ()=>{
-      t('one_index', `
-        // test write
+      t('one_index', `// test write
         s..#(index index_table db_index db_index_table) scroll(db index:file) #
         decl({file:/f1}) flush #(index={id:0 key:/f1 seq:1}
           db_index={id:0 key:/f1 seq:1}
@@ -2005,6 +2004,48 @@ describe('scroll', ()=>{
           db_index_table={id:1 cfid:0 bseqb:7-1 name:file}
           index={id:1 key:/f3 seq:8}
           db_index={id:1 key:/f3 seq:8})`);
+      t('branch', `// test write
+        s..#(index index_table db_index db_index_table) scroll(index:i db) #
+        decl({i:v0}) flush #(index_table={id:0 cfid:0 bseqb:null name:i}
+          db_index_table={id:0 cfid:0 bseqb:null name:i}
+          index={id:0 key:v0 seq:1} db_index={id:0 key:v0 seq:1})
+        decl({i:v1} branch:b) flush #(
+          index_table={id:1 cfid:0 bseqb:1-1 name:i}
+          db_index_table={id:1 cfid:0 bseqb:1-1 name:i}
+          index={id:1 key:v1 seq:2} db_index={id:1 key:v1 seq:2})
+        decl({i:v2}) flush #(index={id:1 key:v2 seq:3}
+          db_index={id:1 key:v2 seq:3})
+        decl({i:v1} prev:1) flush #(index={id:0 key:v1 seq:4}
+          db_index={id:0 key:v1 seq:4})
+        decl({i:v2}) flush #(index={id:0 key:v2 seq:5}
+          db_index={id:0 key:v2 seq:5})
+        // test read
+        Soul.db_copy(s.soul) S..#(index index_table db_index db_index_table)
+        Soul.S.scroll(s..M0 db) #(index_table=[{id:0 cfid:0 bseqb:null name:i}
+          {id:1 cfid:0 bseqb:1-1 name:i}]
+          db_index_table=[{id:0 cfid:0 bseqb:null name:i}
+          {id:1 cfid:0 bseqb:1-1 name:i}] index=[]
+          db_index=[{id:0 key:v0 seq:1} {id:0 key:v1 seq:4} {id:0 key:v2 seq:5}
+            {id:1 key:v1 seq:2} {id:1 key:v2 seq:3}])
+        S.load_c(1) #index={id:0 key:v0 seq:1}
+        S.load_c(2) #index={id:1 key:v1 seq:2}
+        S.load_c(3) #index={id:1 key:v2 seq:3}
+        S.load_c(4) #index={id:0 key:v1 seq:4}
+        S.load_c(5) #index={id:0 key:v2 seq:5}
+        // test valid new index id
+        S.decl(branch:b2 {i:/v4}) flush #(
+          index_table={id:2 cfid:0 bseqb:3-1 name:i}
+          db_index_table={id:2 cfid:0 bseqb:3-1 name:i}
+          index={id:2 key:/v4 seq:6}
+          db_index={id:2 key:/v4 seq:6})`);
+      t('conflict', `s.scroll(index:i) s.decl({i:v1}) s.decl({i:v2})
+        s1.clone(s.M1) s1.decl({i:V2}) S..#(index index_table) scroll(s..M0) #
+        tput(0 1  ) #(index={id:0 key:v1 seq:1}
+                      index_table={id:0 cfid:0 bseqb:null name:i})
+        tput(0 1 2) #index={id:0 key:v2 seq:2}
+        tput(0 1 c) #(index={id:1 key:V2 seq:2}
+                      index_table=[{id:0 cfid:0 bseqb:null name:i}
+                      {id:1 cfid:1 bseqb:null name:i}])`);
     });
   });
 });

@@ -242,8 +242,9 @@ export default class Storage_handler {
       if (index_table){
         queue_index_table = index_table.storage_queue;
         index_table.storage_queue = [];
+        queue_index = [];
         for (const [, index] of index_table.index){
-          queue_index = index.storage_queue;
+          queue_index = queue_index.concat(index.storage_queue);
           index.storage_queue = [];
         }
       }

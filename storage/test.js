@@ -13,8 +13,8 @@ import {r_str, r_from_str, r_parent, r_includes, r_eq, r_split}
 const {parse_get_next, parse_exp_arg_pair, parse_exp,
   parse_exp_arg} = tparser;
 const {bint2int, bint, bseq_cmp, bseq_branch_new, bseq_branch_inc, bseq_inc,
-  bseq_branch, bseq_branch_belongs, bseq_branch_eq, bseq_valid, bint_valid}
-  = Branch_table;
+  bseq_diff, bseq_parent, bseq_branch, bseq_branch_belongs, bseq_branch_eq,
+  bseq_valid, bint_valid} = Branch_table;
 
 xtest.init();
 
@@ -498,6 +498,18 @@ describe('scroll', ()=>{
       t('1-1.9', '1-1._10');
       t('1-1._10', '1-1._11');
     });
+    it('bseq_diff', ()=>{
+      const t = (a, b, exp)=>assert.equal(bseq_diff(a, b), exp);
+      t('0', '0', 0);
+      t('1', '0', 1);
+      t('_10', '0', 10);
+      t('_15', '_10', 5);
+      t('_10', '_15', -5);
+      t('1.1', '1.1', 0);
+      t('_10.__102', '_10._11', 91);
+      t('1.1.3', '1.1.1', 2);
+      t('1.1.1', '1.1.3', -2);
+    });
     it('bseq_cmp', ()=>{
       const t = (a, b, exp)=>assert.equal(bseq_cmp(bint(a), bint(b)), exp);
       t(0, 0, 0);
@@ -571,6 +583,15 @@ describe('scroll', ()=>{
       t('2', '2-1.3-4.5', true);
       t('3', '2-1.3-4.5', false);
       t('1', '2-1.3-4.5', true);
+    });
+    it('bseq_parent', ()=>{
+      const t = (a, exp)=>assert.equal(bseq_parent(a), exp);
+      t('0', undefined);
+      t('_10', undefined);
+      t('1-1.1', '1');
+      t('1-1.2', '1');
+      t('2-3.4', '2');
+      t('2-3.4-5.6', '2-3.4');
     });
     it('bseq_branch_eq', ()=>{
       const t = (a, b, exp)=>assert.equal(bseq_branch_eq(a, b), exp);
@@ -2081,7 +2102,7 @@ describe('scroll', ()=>{
     });
     describe('find', ()=>{
       t('xxx', `s..#(index index_table) scroll(index:i) #
-        decl({i:v0}) #(index={id:0 key:v0 seq:1}
+        decl({i:v1}) #(index={id:0 key:v1 seq:1}
           index_table={id:0 cfid:0 bseqb:null name:i})
         decl({i:v1} branch:b) #(index={id:1 key:v1 seq:2}
           index_table=[{id:0 cfid:0 bseqb:null name:i}
@@ -2093,11 +2114,9 @@ describe('scroll', ()=>{
         decl({i:v2}) #index={id:0 key:v2 seq:7}
         decl({i:v2}) #index={id:0 key:v2 seq:8}
         // top of branch
-        ##index_find(index:0 key:v0)=1
-        ##index_find(index:0 key:v1)=6
+        ##index_find(index:0 key:v1)=[6 1]
         ##index_find(index:0 key:v2)=[8 7]
         ##!index_find(index:0 key:v3)
-        ##!index_find(index:1 key:v0)
         ##index_find(index:1 key:v1)=2
         ##index_find(index:1 key:v2)=[4 3]
         ##index_find(index:1 key:v3)=5
@@ -2109,6 +2128,16 @@ describe('scroll', ()=>{
         ##index_find(index:1 key:v2 seq:4)=[4 3]
         ##index_find(index:1 key:v2 seq:3)=3
         ##!index_find(index:1 key:v2 seq:2)
+        // by bseq
+        ##index_find(name:i key:v1 bseq:1-1.3)=[2 1]
+        ##index_find(name:i key:v1 bseq:1-1.0)=[2 1]
+        ##index_find(name:i key:v1 bseq:1)=1
+        ##!index_find(name:i key:v1 bseq:0)
+        ##index_find(name:i key:v2 bseq:1-1.3)=[4 3]
+        ##index_find(name:i key:v2 bseq:1-1.2)=[4 3]
+        ##index_find(name:i key:v2 bseq:1-1.1)=3
+        ##!index_find(name:i key:v2 bseq:1-1.0)
+        ##!index_find(name:i key:v2 bseq:1)
       `);
     });
   });

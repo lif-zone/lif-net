@@ -1242,22 +1242,7 @@ export default class Scroll extends EventEmitterAsync {
     return this.branch.get(cfid)?.bseq_to_branch(bseq); }
   hash(buf){ return crypto.hash(this.crypt, buf); }
   hash_str(buf){ return b2s(crypto.hash(this.crypt, buf)); }
-  index_find(id, key, opt={}){
-    let index = this.index_table.index.get(id);
-    if (!index)
-      return;
-    let avl = index.avl, ret;
-    avl.forEach(node=>{
-      if (node.key.key!=key)
-        return;
-      let seq = node.key.seq;
-      if (opt.seq!==undefined && seq>opt.seq)
-        return;
-      ret = ret||[];
-      ret.push(seq);
-    });
-    return ret;
-  }
+  index_find(key, opt){ return this.index_table?.index_find(key, opt); }
 }
 
 class Decl extends EventEmitterAsync {

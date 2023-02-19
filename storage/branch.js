@@ -1,9 +1,11 @@
 // author: derry. coder: arik.
 'use strict';
 import assert from 'assert';
+import string from '../util/string.js';
 import Tree from 'avl';
 
 function bo_cmp(a, b){ return a.seq - b.seq; }
+function bo_cmp_bseq(a, b){ return bseq_cmp(a.bseq, b.bseq); }
 
 export default class Branch_table {
   constructor(opt){
@@ -16,6 +18,7 @@ export default class Branch_table {
   }
   reset(){
     this.avl = new Tree(bo_cmp, true);
+    this.avl_bseq = new Tree(bo_cmp_bseq, true);
     this.branch_name = new Map();
     this.branch_bseq = new Map();
     this.bseqb_top = new Map();
@@ -73,11 +76,26 @@ export default class Branch_table {
         return bo;
     }
   }
+  get_bo_bseq(bseq){ // XXX: need test
+    for (let n = this.avl_bseq._root; n;
+      n = bseq < n.key.bseq ? n.left : n.right)
+    {
+      let bo = n.key;
+      if (bo.bseq<=bseq && bseq<bseq_inc(bo.bseq, bo.size))
+        return bo;
+    }
+  }
   get_bseq(seq){
     let bo = this.get_bo(seq);
     if (!bo)
       return null;
     return bseq_inc(bo.bseq, seq-bo.seq);
+  }
+  bseq_to_seq(bseq){ // XXX: need test
+    let bo = this.get_bo_bseq(bseq);
+    if (!bo)
+      return;
+    return bo.seq+bseq_diff(bseq, bo.bseq);
   }
   find_avail_branch(bseq){
     let {scroll, cfid} = this, {parent} = scroll.conflict.get(cfid);
@@ -137,11 +155,13 @@ export default class Branch_table {
   }
   _insert(bo){
     this.avl.insert(bo);
+    this.avl_bseq.insert(bo);
     if (/.*\.0/.test(bo.bseq))
       this.branch_bseq.set(bo.bseq, bo);
   }
   _remove(bo){
     this.avl.remove(bo);
+    this.avl_bseq.remove(bo);
     this.branch_bseq.delete(bo.bseq);
   }
   _merge(bo, bo_next){
@@ -228,7 +248,17 @@ function bseq_inc(a, n=1){
   return (m[1]||'')+bint(num+n);
 }
 
-function bseq_cmp(a, b){ return a==b ? 0 : a<b ? -1 : 1; }
+function bseq_diff(a, b){
+  let ma = a.match(/^([\d.\-_]*\.)?([_]*[\d]+)$/);
+  let mb = b.match(/^([\d.\-_]*\.)?([_]*[\d]+)$/);
+  assert(ma[2], 'invalid br '+a);
+  assert(mb[2], 'invalid br '+b);
+  assert.equal(ma[1], mb[1], 'bseq mismatch');
+  let numa = bint2int(ma[2]), numb = bint2int(mb[2]);
+  return numa-numb;
+}
+
+function bseq_cmp(a, b){ return string.cmp(a, b); }
 
 function bseq_branch_new(a){ return a+'-1.0'; }
 
@@ -243,14 +273,21 @@ function bseq_branch(bseq){
   return bseq.match(/^([\d.\-_]+)\.[_]*\d+$/)?.[1]||null;
 }
 
+function bseq_parent(bseq){
+  let bseqb = bseq_branch(bseq);
+  if (bseqb==null)
+    return null;
+  let i = bseqb.lastIndexOf('-');
+  return bseqb.substr(0, i);
+}
+
 function bseq_branch_belongs(bseq, bseq2){
   let bseqb = bseq_branch(bseq), bseqb2 = bseq_branch(bseq2);
   if (bseqb==bseqb2 && bseq<=bseq2)
     return true;
   if (!bseqb2)
     return false;
-  let i = bseqb2.lastIndexOf('-');
-  return bseq_branch_belongs(bseq, bseqb2.substr(0, i));
+  return bseq_branch_belongs(bseq, bseq_parent(bseq2));
 }
 
 function bseq_branch_eq(a, b){
@@ -273,14 +310,12 @@ Branch_table.bint = bint;
 Branch_table.bint2int = bint2int;
 Branch_table.bint_valid = bint_valid;
 Branch_table.bseq_inc = bseq_inc;
+Branch_table.bseq_diff = bseq_diff;
 Branch_table.bseq_cmp = bseq_cmp;
 Branch_table.bseq_branch = bseq_branch;
+Branch_table.bseq_parent = bseq_parent;
 Branch_table.bseq_branch_belongs = bseq_branch_belongs;
 Branch_table.bseq_branch_new = bseq_branch_new;
 Branch_table.bseq_branch_inc = bseq_branch_inc;
 Branch_table.bseq_branch_eq = bseq_branch_eq;
 Branch_table.bseq_valid = bseq_valid;
-
-// XXX derry:
-// XXX: change default hash to sha256 instead of blake
-// XXX: check with derry etask.ps() of decl->sign

@@ -2087,14 +2087,28 @@ describe('scroll', ()=>{
           index_table=[{id:0 cfid:0 bseqb:null name:i}
           {id:1 cfid:0 bseqb:1-1 name:i}])
         decl({i:v2}) #index={id:1 key:v2 seq:3}
-        decl({i:v1} prev:1) #index={id:0 key:v1 seq:4}
-        decl({i:v2}) #index={id:0 key:v2 seq:5}
+        decl({i:v2}) #index={id:1 key:v2 seq:4}
+        decl({i:v3}) #index={id:1 key:v3 seq:5}
+        decl({i:v1} prev:1) #index={id:0 key:v1 seq:6}
+        decl({i:v2}) #index={id:0 key:v2 seq:7}
+        decl({i:v2}) #index={id:0 key:v2 seq:8}
+        // top of branch
         ##index_find(index:0 key:v0)=1
-        ##index_find(index:0 key:v1)=4
-        ##index_find(index:0 key:v2)=5
+        ##index_find(index:0 key:v1)=6
+        ##index_find(index:0 key:v2)=[8 7]
+        ##!index_find(index:0 key:v3)
         ##!index_find(index:1 key:v0)
         ##index_find(index:1 key:v1)=2
-        ##index_find(index:1 key:v2)=3
+        ##index_find(index:1 key:v2)=[4 3]
+        ##index_find(index:1 key:v3)=5
+        // by seq
+        ##index_find(index:0 key:v2 seq:9)=[8 7]
+        ##index_find(index:0 key:v2 seq:8)=[8 7]
+        ##index_find(index:0 key:v2 seq:7)=7
+        ##!index_find(index:0 key:v2 seq:6)
+        ##index_find(index:1 key:v2 seq:4)=[4 3]
+        ##index_find(index:1 key:v2 seq:3)=3
+        ##!index_find(index:1 key:v2 seq:2)
       `);
     });
   });

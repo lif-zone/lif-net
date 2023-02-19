@@ -1392,7 +1392,7 @@ const db_get_index = scroll=>etask(function*db_get_index(){
 const index_find = (scroll, filter)=>etask(function*index_find(){
   let ret;
   for (let i=0; i<filter.length; i++){
-    let t = parse_exp_arg(filter[i]), id, key;
+    let t = parse_exp_arg(filter[i]), id, key, seq;
     assert.equal(t.cmd, 'index_find', 'invalid index_find '+filter[i]);
     assert(!t.l, 'invalid index_find '+filter[i]);
     for (let curr=t.r; curr = parse_get_next(curr);){
@@ -1400,14 +1400,15 @@ const index_find = (scroll, filter)=>etask(function*index_find(){
       switch (tt.l){
       case 'index': id = +tt.r; break;
       case 'key': key = tt.r; break;
+      case 'seq': seq = +tt.r; break;
       default: assert.fail('invalid index_find '+tt.l+' for '+filter[i]);
       }
     }
-    let seq = yield scroll.index_find(id, key);
-    if (!seq)
+    let found = yield scroll.index_find(id, key, {seq});
+    if (!found)
       continue;
     ret = ret||{};
-    ret[t.r] = seq;
+    ret[t.r] = found;
   }
   return ret;
 });

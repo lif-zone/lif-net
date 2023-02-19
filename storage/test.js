@@ -2101,7 +2101,7 @@ describe('scroll', ()=>{
           index={id:2 key:v3 seq:3} db_index={id:2 key:v3 seq:3})`);
     });
     describe('find', ()=>{
-      t('xxx', `s..#(index index_table) scroll(index:i) #
+      t('xxx_mem', `s..#(index index_table) scroll(index:i) #
         decl({i:v1}) #(index={id:0 key:v1 seq:1}
           index_table={id:0 cfid:0 bseqb:null name:i})
         decl({i:v1} branch:b) #(index={id:1 key:v1 seq:2}
@@ -2137,7 +2137,25 @@ describe('scroll', ()=>{
         ##index_find(name:i key:v2 bseq:1-1.2)=[4 3]
         ##index_find(name:i key:v2 bseq:1-1.1)=3
         ##!index_find(name:i key:v2 bseq:1-1.0)
-        ##!index_find(name:i key:v2 bseq:1)
+        ##!index_find(name:i key:v2 bseq:1)`);
+      if (0) // XXX WIP
+      t('xxx_db', `s..#(index index_table) scroll(index:i db) #
+        decl({i:v1}) #(index={id:0 key:v1 seq:1}
+          index_table={id:0 cfid:0 bseqb:null name:i})
+        decl({i:v1} branch:b) #(index={id:1 key:v1 seq:2}
+          index_table=[{id:0 cfid:0 bseqb:null name:i}
+          {id:1 cfid:0 bseqb:1-1 name:i}])
+        decl({i:v2}) #index={id:1 key:v2 seq:3}
+        decl({i:v2}) #index={id:1 key:v2 seq:4}
+        decl({i:v3}) #index={id:1 key:v3 seq:5}
+        decl({i:v1} prev:1) #index={id:0 key:v1 seq:6}
+        decl({i:v2}) #index={id:0 key:v2 seq:7}
+        decl({i:v2}) #index={id:0 key:v2 seq:8}
+        Soul.db_copy(s.soul) S..#(index index_table) Soul.S.scroll(s..M0 db)
+        #(index_table=[{id:0 cfid:0 bseqb:null name:i}
+          {id:1 cfid:0 bseqb:1-1 name:i}] index=[])
+        // top of branch
+        ##index_find(index:0 key:v1)=[6 1]
       `);
     });
   });

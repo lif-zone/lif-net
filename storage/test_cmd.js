@@ -150,8 +150,8 @@ export function parse_var(v){
   v = string.split_ws(v).join(' ');
   if (['index', 'db_index'].includes(v))
     return {type: v};
-  if (m = v.match(/^index_find\(([^ ]*) ([^ ]*)\)$/))
-    return {type: 'index_find', id: +m[1], key: m[2]};
+  if (m = v.match(/^index_find\((.*)\)$/))
+    return {type: 'index_find', key: m[1]};
   if (m = v.match(/^\{(.*)\}$/))
     return {type: 'struct', val: m[1]};
   if (m = v.match(/^\[(.*)\]$/))
@@ -711,7 +711,7 @@ function state_split_var(v, def){
   if (['index', 'db_index'].includes(type))
     return {name, type, id};
   if (type=='index_find')
-    return {name, type, id, key};
+    return {name, type, key};
   assert(['mem', 'db'].includes(type), 'invalid type '+type);
   assert.equal(cfid, '0', 'invalid conflict usage');
   return {name, type, seq};
@@ -756,7 +756,7 @@ const state_split = (exp, def)=>etask(function*state_split(){
 });
 
 function state_apply(state, o){
-  let {type, seq, cfid, index, id, val, key} = o;
+  let {type, seq, cfid, index, val, key} = o;
   if (t_hooks.state_valid_filter?.(type))
     return t_hooks.state_apply(state, o);
   if (['db_c', 'db_data', 'mem_c', 'bname'].includes(type)){
@@ -775,9 +775,9 @@ function state_apply(state, o){
   if (type=='index_find'){
     let so = state.index_find = state.index_find||{};
     if (!val)
-      delete so[id+':'+key];
+      delete so[key];
     else
-      so[id+':'+key] = val;
+      so[key] = val;
     if (Object.keys(so).length==0)
       state.index_find = undefined;
     return;
@@ -893,7 +893,7 @@ const state_next = (name, curr_state, filter, steps)=>etask(
     if (filter.includes('db_index'))
       state.db_index = yield db_get_index(scroll);
     if (filter.find(s=>/^index_find/.test(s)))
-      state.index_find = yield mem_get_index_find(scroll, filter);
+      state.index_find = yield index_find(scroll, filter);
     if (filter.includes('index_table'))
       state.index_table = yield mem_get_index_table(scroll);
     if (filter.includes('db_index_table'))
@@ -1389,28 +1389,28 @@ const db_get_index = scroll=>etask(function*db_get_index(){
   return ret;
 });
 
-function mem_get_index_find(scroll, filter){
+const index_find = (scroll, filter)=>etask(function*index_find(){
   let ret;
   for (let i=0; i<filter.length; i++){
-    let m = filter[i].match(/^index_find\(([^ ]*) ([^ ]*)\)$/);
-    if (!m)
+    let t = parse_exp_arg(filter[i]), id, key;
+    assert.equal(t.cmd, 'index_find', 'invalid index_find '+filter[i]);
+    assert(!t.l, 'invalid index_find '+filter[i]);
+    for (let curr=t.r; curr = parse_get_next(curr);){
+      let tt = parse_exp_arg_pair(curr.exp);
+      switch (tt.l){
+      case 'index': id = +tt.r; break;
+      case 'key': key = tt.r; break;
+      default: assert.fail('invalid index_find '+tt.l+' for '+filter[i]);
+      }
+    }
+    let seq = yield scroll.index_find(id, key);
+    if (!seq)
       continue;
-    let id = +m[1], key = m[2];
-    // XXX: need proper index find api
-    let index = scroll.index_table.index.get(id);
-    if (!index)
-      return;
-    let avl = index.avl;
-    avl.forEach(node=>{
-      if (node.key.key!=key)
-        return;
-      ret = ret||{};
-      ret[id+':'+key] = ret[id+':'+key]||[];
-      ret[id+':'+key].push(node.key.seq);
-    });
+    ret = ret||{};
+    ret[t.r] = seq;
   }
   return ret;
-}
+});
 
 function mem_get_index_table(scroll){
   let ret;

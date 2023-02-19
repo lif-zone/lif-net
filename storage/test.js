@@ -1899,8 +1899,10 @@ describe('scroll', ()=>{
         decl({}) #
         decl({file:null}) #
         decl({file:/f3}) #index={id:0 key:/f3 seq:7}
-        ##index_find(0 /f1)=[3 1] ##index_find(0 /f2)=[4 2]
-        ##index_find(0 /f3)=7 ##!index_find(0 /f4)`);
+        ##index_find(index:0 key:/f1)=[3 1]
+        ##index_find(index:0 key:/f2)=[4 2]
+        ##index_find(index:0 key:/f3)=7
+        ##!index_find(index:0 key:/f4)`);
       t('two_index', `s..#(index index_table) scroll(index:[i1 i2]) #
         decl({i1:i1v1 i2:i2v1}) #(index={id:0 key:i1v1 seq:1}
           index={id:1 key:i2v1 seq:1}
@@ -1914,10 +1916,14 @@ describe('scroll', ()=>{
         decl({i1:null i2:null}) #
         decl({i1:i1v3 i2:i2v3}) #(index={id:0 key:i1v3 seq:7}
           index={id:1 key:i2v3 seq:7})
-        ##index_find(0 i1v1)=1 ##index_find(0 i1v2)=2
-        ##index_find(0 i1v3)=[7 3] ##!index_find(0 i2v1)
-        ##index_find(1 i2v1)=1 ##index_find(1 i2v2)=2
-        ##index_find(1 i2v3)=[7 4] ##!index_find(1 i1v1)`);
+        ##index_find(index:0 key:i1v1)=1
+        ##index_find(index:0 key:i1v2)=2
+        ##index_find(index:0 key:i1v3)=[7 3]
+        ##!index_find(index:0 key:i2v1)
+        ##index_find(index:1 key:i2v1)=1
+        ##index_find(index:1 key:i2v2)=2
+        ##index_find(index:1 key:i2v3)=[7 4]
+        ##!index_find(index:1 key:i1v1)`);
       t('two_scroll', `conf(soul:same)
         s.#(index index_table) s.scroll(index:i) s.#
         S.#(index index_table) S.scroll(index:i) S.#
@@ -1927,8 +1933,10 @@ describe('scroll', ()=>{
           index_table={id:1 cfid:0 bseqb:null name:i})
         s.decl({i:v1}) s.#index={id:0 key:v1 seq:2} S.#
         S.decl({i:V1}) s.# S.#index={id:1 key:V1 seq:2}
-        s.##index_find(0 v1)=2 S.##!index_find(1 v1)
-        s.##!index_find(0 V1) S.##index_find(1 V1)=2`);
+        s.##index_find(index:0 key:v1)=2
+        S.##!index_find(index:1 key:v1)
+        s.##!index_find(index:0 key:V1)
+        S.##index_find(index:1 key:V1)=2`);
       t('branch', `s..#(index index_table) scroll(index:i) #
         decl({i:v0}) #(index={id:0 key:v0 seq:1}
           index_table={id:0 cfid:0 bseqb:null name:i})
@@ -1938,7 +1946,12 @@ describe('scroll', ()=>{
         decl({i:v2}) #index={id:1 key:v2 seq:3}
         decl({i:v1} prev:1) #index={id:0 key:v1 seq:4}
         decl({i:v2}) #index={id:0 key:v2 seq:5}
-        ##index_find(0 v0)=1 ##index_find(0 v1)=4 ##index_find(0 v2)=5`);
+        ##index_find(index:0 key:v0)=1
+        ##index_find(index:0 key:v1)=4
+        ##index_find(index:0 key:v2)=5
+        ##!index_find(index:1 key:v0)
+        ##index_find(index:1 key:v1)=2
+        ##index_find(index:1 key:v2)=3`);
       t('conflict', `s.scroll(index:i) s.decl({i:v1}) s.decl({i:v2})
         s1.clone(s.M1) s1.decl({i:V2}) S..#(index index_table) scroll(s..M0) #
         tput(0 1  ) #(index={id:0 key:v1 seq:1}
@@ -2065,6 +2078,24 @@ describe('scroll', ()=>{
           index_table={id:2 cfid:0 bseqb:2-1 name:i}
           db_index_table={id:2 cfid:0 bseqb:2-1 name:i}
           index={id:2 key:v3 seq:3} db_index={id:2 key:v3 seq:3})`);
+    });
+    describe('find', ()=>{
+      t('xxx', `s..#(index index_table) scroll(index:i) #
+        decl({i:v0}) #(index={id:0 key:v0 seq:1}
+          index_table={id:0 cfid:0 bseqb:null name:i})
+        decl({i:v1} branch:b) #(index={id:1 key:v1 seq:2}
+          index_table=[{id:0 cfid:0 bseqb:null name:i}
+          {id:1 cfid:0 bseqb:1-1 name:i}])
+        decl({i:v2}) #index={id:1 key:v2 seq:3}
+        decl({i:v1} prev:1) #index={id:0 key:v1 seq:4}
+        decl({i:v2}) #index={id:0 key:v2 seq:5}
+        ##index_find(index:0 key:v0)=1
+        ##index_find(index:0 key:v1)=4
+        ##index_find(index:0 key:v2)=5
+        ##!index_find(index:1 key:v0)
+        ##index_find(index:1 key:v1)=2
+        ##index_find(index:1 key:v2)=3
+      `);
     });
   });
 });

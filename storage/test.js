@@ -2195,10 +2195,12 @@ describe('scroll', ()=>{
           {id:0 key:/derry seq:4}
           !{id:0 key:/derry seq:5 query:true up:false}
           {id:0 key:/derry seq:7}]`);
-      // XXX: add # filter db_query to follow up on db queries
+      // XXX: listen on event db_query to follow up on db queries
+      // #db_query=...
       // XXX: test first and last seq
       // XXX: test dir ''/prev
       // XXX: test adding new entries after load from db
+      // XXX: change # to be per one item (# diff, ## dump)
       if (0) // XXX WIP
       t('xxx_db', `s..#(index index_table) scroll(index:i db) #
         decl({i:v1}) #(index={id:0 key:v1 seq:1}

@@ -769,7 +769,7 @@ function state_apply(state, o){
   if (['index', 'db_index'].includes(type)){
     let so = state[type] = state[type]||[];
     val.forEach(v=>so.push(v));
-    so.sort((a, b)=>a.id-b.id || string.cmp(a.key, b.key) || b.seq-a.seq);
+    so.sort((a, b)=>a.id-b.id || string.cmp(a.key, b.key) || a.seq-b.seq);
     return;
   }
   if (type=='index_find'){
@@ -1385,7 +1385,7 @@ const db_get_index = scroll=>etask(function*db_get_index(){
     ret.push({...cursor.value});
   }
   if (ret) // XXX: find way to avoid sort
-    ret.sort((a, b)=>a.id-b.id || string.cmp(a.key, b.key) || b.seq-a.seq);
+    ret.sort((a, b)=>a.id-b.id || string.cmp(a.key, b.key) || a.seq-b.seq);
   return ret;
 });
 

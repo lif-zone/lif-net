@@ -43,7 +43,7 @@ file2path('/arik/x') = '/arik/'
 
 // XXX: need test
 function indexdb_cmp(a, b){ return indexedDB.cmp(a, b); }
-function node_cmp(a, b){ return indexdb_cmp(a.key, b.key) || b.seq-a.seq; }
+function node_cmp(a, b){ return indexdb_cmp(a.key, b.key) || a.seq-b.seq; }
 /* XXX: optimize for string/integer/buffer
 function cmp_func_str_num(a, b){
   return a.key<b.key ? 1 : a.key>b.key ? -1 : b.seq-a.seq; }
@@ -204,25 +204,25 @@ class Index_table {
     let index = scroll.index_table.index.get(id);
     if (!index)
       return;
-    let avl = index.avl, ret, min = {key, seq: Infinity}, max = {key, seq: -1};
+    let avl = index.avl, ret, min = {key, seq: -1}, max = {key, seq: Infinity};
     let Q = [], compare = avl._comparator, node = avl._root;
     while (Q.length || node){
       if (node){
         Q.push(node);
-        node = node.left;
+        node = node.right;
       } else {
         node = Q.pop();
-        let cmp = compare(node.key, max);
-        if (cmp>0)
+        let cmp = compare(node.key, min);
+        if (cmp<0)
           break;
-        else if (compare(node.key, min)>=0){
+        else if (compare(node.key, max)<=0){
           let _seq = node.key.seq;
           if (seq===undefined || _seq<=seq){
             ret = ret||[];
             ret.push(_seq);
           }
         }
-        node = node.right;
+        node = node.left;
       }
     }
     return ret;

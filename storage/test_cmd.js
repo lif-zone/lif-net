@@ -1409,7 +1409,8 @@ const index_find = (scroll, filter)=>etask(function*index_find(){
     }
     if (bseq)
       cfid = cfid||0;
-    let found = yield scroll.index_find(key, {id, cfid, bseq, seq, name});
+    let found = yield scroll.index_find(key, {id, cfid, bseq, max: seq,
+      name});
     if (!found)
       continue;
     ret = ret||{};

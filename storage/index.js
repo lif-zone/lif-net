@@ -171,11 +171,11 @@ class Index_table {
     }
   });
   index_find(key, opt){ return etask({_: this}, function*index_find(){
-    let _this = this._, {id, name, cfid, seq, bseq} = opt;
+    let _this = this._, {id, name, cfid, min, max, bseq} = opt;
     if (id!==undefined){
       assert(cfid===undefined && bseq===undefined && name===undefined,
         'invalid id/bseq/cfid/name');
-      return _this.index_find_id(id, key, seq);
+      return _this.index_find_id(id, key, {min, max});
     }
     assert(cfid!==undefined && bseq!==undefined && name!==undefined,
       'invalid id/bseq/cfid/name');
@@ -189,9 +189,10 @@ class Index_table {
     for (let curr=bseq; curr; curr=Branch_table.bseq_parent(curr)){
       let id = _this.get_index_id(cfid, bseq_branch(curr), name);
       let seq_max = bt.bseq_to_seq(curr);
-      if (id===undefined)
+      if (id===undefined || seq_max===undefined)
         continue;
-      let found = yield _this.index_find_id(id, key, seq_max);
+      let found = yield _this.index_find_id(id, key, {min,
+        max: max===undefined ? seq_max : Math.min(seq_max, max)});
       if (!found)
         continue;
       ret = ret||[];
@@ -199,24 +200,26 @@ class Index_table {
     }
     return ret;
   }); }
-  index_find_id(id, key, seq){ return etask({_: this}, function*index_find_id()
+  index_find_id(id, key, opt={}){
+    return etask({_: this}, function*index_find_id()
   {
     let _this = this._, scroll = _this.scroll, ret;
+    let {min, max} = opt;
     let index = scroll.index_table.index.get(id);
     if (!index)
       return ret;
     let avl = index.avl, Q = [], compare = avl._comparator, node = avl._root;
-    let min = {key, seq: -1};
-    let max = {key, seq: seq===undefined ? Infinity : seq};
+    let nmin = {key, seq: min===undefined ? -1 : min};
+    let nmax = {key, seq: max===undefined ? Infinity : max};
     while (Q.length || node){
       if (node){
         Q.push(node);
         node = node.right;
       } else {
         node = Q.pop();
-        if (compare(node.key, min)<0)
+        if (compare(node.key, nmin)<0)
           break;
-        if (compare(node.key, max)<=0){
+        if (compare(node.key, nmax)<=0){
           ret = ret||[];
           ret.push(node.key.seq);
         }

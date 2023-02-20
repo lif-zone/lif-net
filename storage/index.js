@@ -201,27 +201,24 @@ class Index_table {
   }); }
   index_find_id(id, key, seq){ return etask({_: this}, function*index_find_id()
   {
-    let _this = this._, scroll = _this.scroll;
+    let _this = this._, scroll = _this.scroll, ret;
     let index = scroll.index_table.index.get(id);
     if (!index)
-      return;
-    let avl = index.avl, ret, min = {key, seq: -1}, max = {key, seq: Infinity};
-    let Q = [], compare = avl._comparator, node = avl._root;
+      return ret;
+    let avl = index.avl, Q = [], compare = avl._comparator, node = avl._root;
+    let min = {key, seq: -1};
+    let max = {key, seq: seq===undefined ? Infinity : seq};
     while (Q.length || node){
       if (node){
         Q.push(node);
         node = node.right;
       } else {
         node = Q.pop();
-        let cmp = compare(node.key, min);
-        if (cmp<0)
+        if (compare(node.key, min)<0)
           break;
-        else if (compare(node.key, max)<=0){
-          let _seq = node.key.seq;
-          if (seq===undefined || _seq<=seq){
-            ret = ret||[];
-            ret.push(_seq);
-          }
+        if (compare(node.key, max)<=0){
+          ret = ret||[];
+          ret.push(node.key.seq);
         }
         node = node.left;
       }

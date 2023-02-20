@@ -42,8 +42,8 @@ file2path('/arik/x') = '/arik/'
 */
 
 // XXX: need test
-function cmp_func(a, b){
-  return indexedDB.cmp(a.key, b.key) || b.seq-a.seq; }
+function indexdb_cmp(a, b){ return indexedDB.cmp(a, b); }
+function node_cmp(a, b){ return indexdb_cmp(a.key, b.key) || b.seq-a.seq; }
 /* XXX: optimize for string/integer/buffer
 function cmp_func_str_num(a, b){
   return a.key<b.key ? 1 : a.key>b.key ? -1 : b.seq-a.seq; }
@@ -58,7 +58,7 @@ export default class Index {
     assert(cfid>=0 && bseqb!==undefined, 'missing cfid/bseqb');
     [this.scroll, this.id, this.desc] = [scroll, id, desc];
     [this.cfid, this.bseqb] = [cfid, bseqb];
-    this.avl = new Tree(cmp_func, true);
+    this.avl = new Tree(node_cmp, true);
     this.storage_queue = [];
   }
   on_data(e){
@@ -204,16 +204,27 @@ class Index_table {
     let index = scroll.index_table.index.get(id);
     if (!index)
       return;
-    let avl = index.avl, ret;
-    avl.forEach(node=>{
-      if (node.key.key!=key)
-        return;
-      let _seq = node.key.seq;
-      if (seq!==undefined && _seq>seq)
-        return;
-      ret = ret||[];
-      ret.push(_seq);
-    });
+    let avl = index.avl, ret, min = {key, seq: Infinity}, max = {key, seq: -1};
+    let Q = [], compare = avl._comparator, node = avl._root;
+    while (Q.length || node){
+      if (node){
+        Q.push(node);
+        node = node.left;
+      } else {
+        node = Q.pop();
+        let cmp = compare(node.key, max);
+        if (cmp>0)
+          break;
+        else if (compare(node.key, min)>=0){
+          let _seq = node.key.seq;
+          if (seq===undefined || _seq<=seq){
+            ret = ret||[];
+            ret.push(_seq);
+          }
+        }
+        node = node.right;
+      }
+    }
     return ret;
   }
 }
@@ -230,4 +241,5 @@ function normalize_desc(desc){
 
 Index.Index_table = Index_table;
 Index.normalize_desc = normalize_desc;
-Index.cmp_func = cmp_func;
+Index.node_cmp = node_cmp;
+Index.indexdb_cmp = indexdb_cmp;

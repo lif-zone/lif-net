@@ -171,11 +171,11 @@ class Index_table {
     }
   });
   index_find(key, opt){ return etask({_: this}, function*index_find(){
-    let _this = this._, {id, name, cfid, min, max, bseq} = opt;
+    let _this = this._, {id, name, cfid, min, max, count, bseq} = opt;
     if (id!==undefined){
       assert(cfid===undefined && bseq===undefined && name===undefined,
         'invalid id/bseq/cfid/name');
-      return _this.index_find_id(id, key, {min, max});
+      return _this.index_find_id(id, key, {min, max, count});
     }
     assert(cfid!==undefined && bseq!==undefined && name!==undefined,
       'invalid id/bseq/cfid/name');
@@ -192,7 +192,7 @@ class Index_table {
       if (id===undefined || seq_max===undefined)
         continue;
       let found = yield _this.index_find_id(id, key, {min,
-        max: max===undefined ? seq_max : Math.min(seq_max, max)});
+        max: max===undefined ? seq_max : Math.min(seq_max, max), count});
       if (!found)
         continue;
       ret = ret||[];
@@ -203,8 +203,12 @@ class Index_table {
   index_find_id(id, key, opt={}){
     return etask({_: this}, function*index_find_id()
   {
-    let _this = this._, scroll = _this.scroll, ret;
-    let {min, max} = opt;
+    let _this = this._;
+    return _this.index_find_id_mem(id, key, opt);
+  }); }
+  index_find_id_mem(id, key, opt={}){
+    let scroll = this.scroll, ret;
+    let {min, max, count} = opt;
     let index = scroll.index_table.index.get(id);
     if (!index)
       return ret;
@@ -222,12 +226,14 @@ class Index_table {
         if (compare(node.key, nmax)<=0){
           ret = ret||[];
           ret.push(node.key.seq);
+          if (count && ret.length==count)
+            break;
         }
         node = node.left;
       }
     }
     return ret;
-  }); }
+  }
 }
 
 function normalize_desc(desc){

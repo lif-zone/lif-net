@@ -2152,6 +2152,7 @@ describe('scroll', ()=>{
         decl({path:/arik}) #index={id:0 key:/arik seq:10}
         decl({path:/arik}) #index={id:0 key:/arik seq:11}
         decl({path:/arik}) #index={id:0 key:/arik seq:12}
+        // min/max
         ##index_find(index:0 key:/derry)=[9 8 7 4 3 1]
         ##index_find(index:0 key:/derry max:9)=[9 8 7 4 3 1]
         ##index_find(index:0 key:/derry max:8)=[8 7 4 3 1]
@@ -2162,8 +2163,16 @@ describe('scroll', ()=>{
         ##index_find(index:0 key:/arik max:11)=[11 10 6 5 2]
         ##index_find(index:0 key:/arik max:2)=[2]
         ##!index_find(index:0 key:/arik max:1)
+        // count
+        ##index_find(index:0 key:/derry max:9 count:6)=[9 8 7 4 3 1]
+        ##index_find(index:0 key:/derry max:9 count:5)=[9 8 7 4 3]
+        ##index_find(index:0 key:/derry max:9 count:1)=[9]
+        ##index_find(index:0 key:/derry max:8 count:4)=[8 7 4 3]
+        // db
         Soul.db_copy(s.soul) S..#(index index_table) Soul.S.scroll(s..M0 db)
         #(index_table={id:0 cfid:0 bseqb:null name:path} index=[])
+        // ##index_find(index:0 key:/derry)=[9 8 7 4 3 1]
+        #
       `);
       if (0) // XXX WIP
       t('xxx_db', `s..#(index index_table) scroll(index:i db) #

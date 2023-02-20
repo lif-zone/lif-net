@@ -204,27 +204,65 @@ class Index_table {
   index_find_id(id, key, opt={}){
     return etask({_: this}, function*index_find_id()
   {
-    let _this = this._, {count} = opt, ret;
-    let iter = _this.index_find_id_mem(id, key, opt);
-    while (iter?.curr){
+    let _this = this._, {min, max, count} = opt, ret, scroll = _this.scroll;
+    let index = scroll.index_table.index.get(id);
+    if (!index)
+      return;
+    let mem_iter = _this.index_find_id_mem(id, key, opt);
+    let last;
+    while (mem_iter.curr){
       ret = ret||[];
-      ret.push(iter.curr.key.seq);
+      ret.push(mem_iter.curr.key.seq);
+      last = mem_iter.curr.key;
       if (count && ret.length==count)
-        break;
-      iter.next();
+        return ret;
+      mem_iter.next();
+    }
+    if (!scroll.storage || last?.seq==0 || last && last.dn!==false)
+      return ret;
+    // XXX: check if we reached min
+    let db_iter = yield _this.index_find_id_db(id, key,
+      {min, max: last!==undefined ? last.seq-1 : max, count:
+      count!==undefined ? count-(ret?.length||0) : undefined});
+    while (db_iter.curr){
+      let seq = db_iter.curr.seq;
+      let data = {key, seq, dn: false};
+      if (db_iter.i==0){
+        if (last){
+          last.dn = true;
+          data.up = true;
+        }
+        else
+          data.up = false;
+      } else {
+        if (last)
+          last.dn = true;
+        data.up = true;
+      }
+      if (last)
+        normalize_data(last);
+      normalize_data(data);
+      ret = ret||[];
+      ret.push(seq);
+      last = data;
+      if (count && ret.length==count){
+        index.avl.insert(data);
+        return ret;
+      }
+      index.avl.insert(data);
+      yield db_iter.next();
     }
     return ret;
   }); }
   index_find_id_mem(id, key, opt={}){
-    let scroll = this.scroll, ret;
-    let {min, max} = opt;
+    let scroll = this.scroll, {min, max} = opt;
     let index = scroll.index_table.index.get(id);
     if (!index)
-      return ret;
+      return;
     let avl = index.avl, Q = [], compare = avl._comparator, node = avl._root;
     let nmin = {key, seq: min===undefined ? -1 : min};
     let nmax = {key, seq: max===undefined ? Infinity : max};
-    let iter = {Q, node};
+    let iter = {};
     iter.next = ()=>{
       assert(!iter.done, 'calling iterator after done');
       while (Q.length || node){
@@ -236,24 +274,51 @@ class Index_table {
           if (compare(node.key, nmin)<0){
             iter.curr = null;
             iter.done = true;
-            return;
+            return iter;
           }
           if (compare(node.key, nmax)<=0){
-            ret = ret||[];
-            ret.push(node.key.seq);
             iter.curr = node;
             node = node.left;
-            return;
+            return iter;
           }
           node = node.left;
         }
       }
       iter.curr = null;
       iter.done = true;
+      return iter;
     };
-    iter.next();
-    return iter;
+    return iter.next();
   }
+  index_find_id_db(id, key, opt={}){ return etask({_: this},
+    function*index_find_id_db()
+  {
+    let _this = this._, scroll = _this.scroll, {min, max} = opt;
+    let index = scroll.index_table.index.get(id);
+    if (!index)
+      return;
+    let db = scroll.soul.db, tx = db.transaction('index', 'readonly');
+    let store = tx.store('index'), query;
+    query = IDBKeyRange.bound([id, key, min===undefined ? -1 : min],
+      [id, key, max===undefined ? Infinity : max]);
+    let cursor=yield db.cursor(store, query, 'prev');
+    let iter = {i: 0, curr: cursor?.value};
+    iter.next = ()=>etask(function*iter_next(){
+      assert(cursor, 'iter already done');
+      cursor = yield cursor.next();
+      iter.i++;
+      iter.curr = cursor?.value;
+    });
+    return iter;
+  }); }
+}
+
+function normalize_data(data){
+  if (data.up!==false)
+    delete data.up;
+  if (data.dn!==false)
+    delete data.dn;
+  return data;
 }
 
 function normalize_desc(desc){

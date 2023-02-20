@@ -126,7 +126,8 @@ function js_struct_from_str(str){
   str = rm_parentesis(str, '{');
   for (let curr=str; curr = parse_get_next(curr);){
     let tt = parse_exp_arg(curr.exp);
-    ret[tt.cmd] = tt.r=='null' ? null : tt.r;
+    ret[tt.cmd] = tt.r=='null' ? null : tt.r=='false' ? false : tt.r=='true' ?
+      true : tt.r;
   }
   return ret;
 }
@@ -768,7 +769,15 @@ function state_apply(state, o){
   }
   if (['index', 'db_index'].includes(type)){
     let so = state[type] = state[type]||[];
-    val.forEach(v=>so.push(v));
+    val.forEach(v=>{
+      let curr = so.find(vv=>v.id==vv.id && v.key==vv.key && v.seq==vv.seq);
+      if (curr){
+        Object.keys(curr).forEach(prop=>delete curr[prop]);
+        Object.assign(curr, v);
+      }
+      else
+        so.push(v);
+    });
     so.sort((a, b)=>a.id-b.id || string.cmp(a.key, b.key) || a.seq-b.seq);
     return;
   }

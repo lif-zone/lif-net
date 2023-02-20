@@ -2121,13 +2121,13 @@ describe('scroll', ()=>{
         ##index_find(index:1 key:v2)=[4 3]
         ##index_find(index:1 key:v3)=5
         // by seq
-        ##index_find(index:0 key:v2 seq:9)=[8 7]
-        ##index_find(index:0 key:v2 seq:8)=[8 7]
-        ##index_find(index:0 key:v2 seq:7)=7
-        ##!index_find(index:0 key:v2 seq:6)
-        ##index_find(index:1 key:v2 seq:4)=[4 3]
-        ##index_find(index:1 key:v2 seq:3)=3
-        ##!index_find(index:1 key:v2 seq:2)
+        ##index_find(index:0 key:v2 max:9)=[8 7]
+        ##index_find(index:0 key:v2 max:8)=[8 7]
+        ##index_find(index:0 key:v2 max:7)=7
+        ##!index_find(index:0 key:v2 max:6)
+        ##index_find(index:1 key:v2 max:4)=[4 3]
+        ##index_find(index:1 key:v2 max:3)=3
+        ##!index_find(index:1 key:v2 max:2)
         // by bseq
         ##index_find(name:i key:v1 bseq:1-1.3)=[2 1]
         ##index_find(name:i key:v1 bseq:1-1.0)=[2 1]

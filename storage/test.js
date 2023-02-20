@@ -2138,6 +2138,33 @@ describe('scroll', ()=>{
         ##index_find(name:i key:v2 bseq:1-1.1)=3
         ##!index_find(name:i key:v2 bseq:1-1.0)
         ##!index_find(name:i key:v2 bseq:1)`);
+      t('xxx_db', `s..#(index index_table) scroll(index:path db) #
+        decl({path:/derry}) #(index={id:0 key:/derry seq:1}
+          index_table={id:0 cfid:0 bseqb:null name:path})
+        decl({path:/arik}) #index={id:0 key:/arik seq:2}
+        decl({path:/derry}) #index={id:0 key:/derry seq:3}
+        decl({path:/derry}) #index={id:0 key:/derry seq:4}
+        decl({path:/arik}) #index={id:0 key:/arik seq:5}
+        decl({path:/arik}) #index={id:0 key:/arik seq:6}
+        decl({path:/derry}) #index={id:0 key:/derry seq:7}
+        decl({path:/derry}) #index={id:0 key:/derry seq:8}
+        decl({path:/derry}) #index={id:0 key:/derry seq:9}
+        decl({path:/arik}) #index={id:0 key:/arik seq:10}
+        decl({path:/arik}) #index={id:0 key:/arik seq:11}
+        decl({path:/arik}) #index={id:0 key:/arik seq:12}
+        ##index_find(index:0 key:/derry)=[9 8 7 4 3 1]
+        ##index_find(index:0 key:/derry max:9)=[9 8 7 4 3 1]
+        ##index_find(index:0 key:/derry max:8)=[8 7 4 3 1]
+        ##index_find(index:0 key:/derry max:1)=[1]
+        ##!index_find(index:0 key:/derry max:0)
+        ##index_find(index:0 key:/arik)=[12 11 10 6 5 2]
+        ##index_find(index:0 key:/arik max:12)=[12 11 10 6 5 2]
+        ##index_find(index:0 key:/arik max:11)=[11 10 6 5 2]
+        ##index_find(index:0 key:/arik max:2)=[2]
+        ##!index_find(index:0 key:/arik max:1)
+        Soul.db_copy(s.soul) S..#(index index_table) Soul.S.scroll(s..M0 db)
+        #(index_table={id:0 cfid:0 bseqb:null name:path} index=[])
+      `);
       if (0) // XXX WIP
       t('xxx_db', `s..#(index index_table) scroll(index:i db) #
         decl({i:v1}) #(index={id:0 key:v1 seq:1}

@@ -2160,3 +2160,32 @@ describe('scroll', ()=>{
     });
   });
 });
+
+/* XXX: with derry
+idb.insert(val:/arik seq:10, val:/arik seq:10)
+
+db_index:
+val:/derry seq:10
+val:/arik seq:20
+val:/arik seq:30
+val:/arik seq:40
+val:/arik seq:50
+val:/karo seq:60
+
+mem after index_find(val:/arik seq>=10) stop after 1 result
+val:/arik seq:10 {: null, to: null} db_read
+
+             0   10  20    50  60  70      90
+.............q---n...q-----n...q---q-------n....
+s0: val:null dn:false, up: true
+s10: val:/arik dn:true, up: false
+s20: val:null dn:false, up: true
+s50: val:/arik dn:false, up: true
+
+query seq<=70
+x - que
+
+q-40: node 50
+
+0-10
+*/

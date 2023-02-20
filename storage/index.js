@@ -170,6 +170,7 @@ class Index_table {
       yield _this.on_data({cfid, seq, bseq, data});
     }
   });
+  // XXX: change to support iterator on results in addition to count
   index_find(key, opt){ return etask({_: this}, function*index_find(){
     let _this = this._, {id, name, cfid, min, max, count, bseq} = opt;
     if (id!==undefined){
@@ -203,36 +204,55 @@ class Index_table {
   index_find_id(id, key, opt={}){
     return etask({_: this}, function*index_find_id()
   {
-    let _this = this._;
-    return _this.index_find_id_mem(id, key, opt);
+    let _this = this._, {count} = opt, ret;
+    let iter = _this.index_find_id_mem(id, key, opt);
+    while (iter?.curr){
+      ret = ret||[];
+      ret.push(iter.curr.key.seq);
+      if (count && ret.length==count)
+        break;
+      iter.next();
+    }
+    return ret;
   }); }
   index_find_id_mem(id, key, opt={}){
     let scroll = this.scroll, ret;
-    let {min, max, count} = opt;
+    let {min, max} = opt;
     let index = scroll.index_table.index.get(id);
     if (!index)
       return ret;
     let avl = index.avl, Q = [], compare = avl._comparator, node = avl._root;
     let nmin = {key, seq: min===undefined ? -1 : min};
     let nmax = {key, seq: max===undefined ? Infinity : max};
-    while (Q.length || node){
-      if (node){
-        Q.push(node);
-        node = node.right;
-      } else {
-        node = Q.pop();
-        if (compare(node.key, nmin)<0)
-          break;
-        if (compare(node.key, nmax)<=0){
-          ret = ret||[];
-          ret.push(node.key.seq);
-          if (count && ret.length==count)
-            break;
+    let iter = {Q, node};
+    iter.next = ()=>{
+      assert(!iter.done, 'calling iterator after done');
+      while (Q.length || node){
+        if (node){
+          Q.push(node);
+          node = node.right;
+        } else {
+          node = Q.pop();
+          if (compare(node.key, nmin)<0){
+            iter.curr = null;
+            iter.done = true;
+            return;
+          }
+          if (compare(node.key, nmax)<=0){
+            ret = ret||[];
+            ret.push(node.key.seq);
+            iter.curr = node;
+            node = node.left;
+            return;
+          }
+          node = node.left;
         }
-        node = node.left;
       }
-    }
-    return ret;
+      iter.curr = null;
+      iter.done = true;
+    };
+    iter.next();
+    return iter;
   }
 }
 

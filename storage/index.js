@@ -209,25 +209,45 @@ class Index_table {
     if (!index)
       return;
     let mem_iter = _this.index_find_id_mem(id, key, opt);
-    let last;
+    let last, next;
     while (mem_iter.curr){
-      ret = ret||[];
-      ret.push(mem_iter.curr.key.seq);
       last = mem_iter.curr.key;
-      if (count && ret.length==count)
-        return ret;
+      if (!mem_iter.curr.key.query){
+        ret = ret||[];
+        ret.push(mem_iter.curr.key.seq);
+        if (count && ret.length==count)
+          return ret;
+      }
+      if (mem_iter.curr.key.dn===false){
+        mem_iter.next();
+        next = mem_iter.curr?.key;
+        break;
+      }
       mem_iter.next();
     }
     if (!scroll.storage || last?.seq==0 || last && last.dn!==false)
       return ret;
-    // XXX: check if we reached min
-    let db_iter = yield _this.index_find_id_db(id, key,
-      {min, max: last!==undefined ? last.seq-1 : max, count:
-      count!==undefined ? count-(ret?.length||0) : undefined});
+    // XXX: check if we reached min and return
+    if (last)
+      max = last.seq-1;
+    if (next)
+      min = next.seq+1;
+    let db_iter = yield _this.index_find_id_db(id, key, {min, max,
+      count: count!==undefined ? count-(ret?.length||0) : undefined});
     while (db_iter.curr){
       let seq = db_iter.curr.seq;
       let data = {key, seq, dn: false};
       if (db_iter.i==0){
+        if (max!==undefined && max!=seq){
+          let query = {key, seq: max, query: true, up: false};
+          if (last){
+            last.dn = true;
+            query.up = true;
+          }
+          normalize_node_key(query);
+          index.avl.insert(query);
+          last = query;
+        }
         if (last){
           last.dn = true;
           data.up = true;
@@ -240,8 +260,8 @@ class Index_table {
         data.up = true;
       }
       if (last)
-        normalize_data(last);
-      normalize_data(data);
+        normalize_node_key(last);
+      normalize_node_key(data);
       ret = ret||[];
       ret.push(seq);
       last = data;
@@ -252,7 +272,17 @@ class Index_table {
       index.avl.insert(data);
       yield db_iter.next();
     }
-    return ret;
+    if (!next)
+      return ret;
+    if (next.query){
+      last.dn = true;
+      normalize_node_key(last);
+      index.avl.remove(next);
+    }
+    let ret2 = yield _this.index_find_id(id, key,
+      {min: opt.min, max: next.seq-1,
+      count: count!==undefined ? count-(ret?.length||0) : undefined});
+    return ret2 ? (ret||[]).concat(ret2) : ret;
   }); }
   index_find_id_mem(id, key, opt={}){
     let scroll = this.scroll, {min, max} = opt;
@@ -313,7 +343,7 @@ class Index_table {
   }); }
 }
 
-function normalize_data(data){
+function normalize_node_key(data){
   if (data.up!==false)
     delete data.up;
   if (data.dn!==false)

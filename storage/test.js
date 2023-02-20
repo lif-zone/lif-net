@@ -2147,15 +2147,18 @@ describe('scroll', ()=>{
       t('db_max7', `${t_db} ##index_find(index:0 key:/derry max:7 count:1)=7
         #index={id:0 key:/derry seq:7 dn:false up:false}`);
       t('db_max6', `${t_db} ##index_find(index:0 key:/derry max:6 count:1)=4
-        #index={id:0 key:/derry seq:4 dn:false up:false}`);
+        #index=[{id:0 key:/derry seq:4 dn:false}
+          {id:0 key:/derry seq:6 query:true up:false}]`);
       t('db_max5', `${t_db} ##index_find(index:0 key:/derry max:5 count:1)=4
-        #index={id:0 key:/derry seq:4 dn:false up:false}`);
+        #index=[{id:0 key:/derry seq:4 dn:false}
+          {id:0 key:/derry seq:5 query:true up:false}]`);
       t('db_max4', `${t_db} ##index_find(index:0 key:/derry max:4 count:1)=4
         #index={id:0 key:/derry seq:4 dn:false up:false}`);
       t('db_max3', `${t_db} ##index_find(index:0 key:/derry max:3 count:1)=3
         #index={id:0 key:/derry seq:3 dn:false up:false}`);
       t('db_max2', `${t_db} ##index_find(index:0 key:/derry max:2 count:1)=1
-        #index={id:0 key:/derry seq:1 dn:false up:false}`);
+        #index=[{id:0 key:/derry seq:1 dn:false}
+          {id:0 key:/derry seq:2 query:true up:false}]`);
       t('db_max1', `${t_db} ##index_find(index:0 key:/derry max:1 count:1)=1
         #index={id:0 key:/derry seq:1 dn:false up:false}`);
       t('db_max0', `${t_db} ##!index_find(index:0 key:/derry max:0 count:1)`);
@@ -2172,8 +2175,30 @@ describe('scroll', ()=>{
           {id:0 key:/derry seq:7 dn:false}
           {id:0 key:/derry seq:8}
           {id:0 key:/derry seq:9 up:false}]
+        ##index_find(index:0 key:/derry max:9 count:3)=[9 8 7]`);
+      t('db_xxx2', `${t_db} ##index_find(index:0 key:/derry max:9 count:1)=9
+        #index={id:0 key:/derry seq:9 dn:false up:false}
         ##index_find(index:0 key:/derry max:9 count:3)=[9 8 7]
-      `);
+        #index=[
+          {id:0 key:/derry seq:7 dn:false}
+          {id:0 key:/derry seq:8}
+          {id:0 key:/derry seq:9 up:false}]
+        ##index_find(index:0 key:/derry max:9 count:3)=[9 8 7]
+        ##index_find(index:0 key:/derry max:5 count:1)=4
+        #index=[
+          {id:0 key:/derry seq:4 dn:false}
+          {id:0 key:/derry seq:5 query:true up:false}]
+        ##index_find(index:0 key:/derry max:5 count:1)=4
+        ##index_find(index:0 key:/derry max:9 count:5)=[9 8 7 4 3]
+        #index=[
+          {id:0 key:/derry seq:3 dn:false}
+          {id:0 key:/derry seq:4}
+          !{id:0 key:/derry seq:5 query:true up:false}
+          {id:0 key:/derry seq:7}]`);
+      // XXX: add # filter db_query to follow up on db queries
+      // XXX: test first and last seq
+      // XXX: test dir ''/prev
+      // XXX: test adding new entries after load from db
       if (0) // XXX WIP
       t('xxx_db', `s..#(index index_table) scroll(index:i db) #
         decl({i:v1}) #(index={id:0 key:v1 seq:1}

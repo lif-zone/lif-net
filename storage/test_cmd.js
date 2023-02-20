@@ -121,13 +121,16 @@ function test_parse_index(str){
   return ret;
 }
 
-function js_struct_from_str(str){
+function js_struct_from_str(str, opt={}){
   let ret = {};
   str = rm_parentesis(str, '{');
   for (let curr=str; curr = parse_get_next(curr);){
     let tt = parse_exp_arg(curr.exp);
+    // XXX: mv this logic to opt
     ret[tt.cmd] = tt.r=='null' ? null : tt.r=='false' ? false : tt.r=='true' ?
       true : tt.r;
+    if ((opt.num||[]).includes(tt.cmd) && /^\d$/.test(ret[tt.cmd]))
+      ret[tt.cmd] = +ret[tt.cmd];
   }
   return ret;
 }
@@ -740,8 +743,10 @@ const state_split = (exp, def)=>etask(function*state_split(){
       return {...state_split_var(o.l, def), val: yield get_btable(o.r)};
     if (/^db_btc/.test(o.l))
       return {...state_split_var(o.l, def), val: yield get_btable(o.r)};
-    if (['index', 'db_index'].includes(o.l))
-      return {...state_split_var(o.l, def), val: get_array(o.r)};
+    if (['index', 'db_index'].includes(o.l)){
+      return {...state_split_var(o.l, def),
+        val: get_array(o.r, {num: ['id', 'seq']})};
+    }
     if (/^index_find/.test(o.l))
       return {...state_split_var(o.l, def), val: get_array_int(o.r)};
     if (/^index_table/.test(o.l))
@@ -770,6 +775,14 @@ function state_apply(state, o){
   if (['index', 'db_index'].includes(type)){
     let so = state[type] = state[type]||[];
     val.forEach(v=>{
+      if (v['!']){
+        let nv = v['!'];
+        let i = so.findIndex(vv=>nv.id==vv.id && nv.key==vv.key &&
+          nv.seq==vv.seq);
+        assert(i!=-1, 'uneeded ! '+JSON.stringify(v));
+        so.splice(i, 1);
+        return;
+      }
       let curr = so.find(vv=>v.id==vv.id && v.key==vv.key && v.seq==vv.seq);
       if (curr){
         Object.keys(curr).forEach(prop=>delete curr[prop]);
@@ -1262,11 +1275,15 @@ function get_array_int(s){
   return ret;
 }
 
-function get_array(s){
+function get_array(s, opt){
   let ret = [];
   s = rm_parentesis(s, '[');
-  for (let curr=s; curr = parse_get_next(curr);)
-    ret.push(js_struct_from_str(curr.exp));
+  for (let curr=s; curr = parse_get_next(curr);){
+    if (curr.exp[0]=='!')
+      ret.push({'!': js_struct_from_str(curr.exp.substr(1), opt)});
+    else
+      ret.push(js_struct_from_str(curr.exp, opt));
+  }
   return ret;
 }
 

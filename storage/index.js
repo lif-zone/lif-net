@@ -303,7 +303,8 @@ class Index_table {
     if (!dn)
       return ret;
     if (dn.query){
-      delete up.dn;
+      up.dn = true;
+      normalize_node_key(up);
       index.avl.remove(dn);
     }
     return ret.concat(yield _this.index_find_id(id, key,

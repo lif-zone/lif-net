@@ -2202,7 +2202,7 @@ describe('scroll', ()=>{
       // XXX: test dir ''/prev
       // XXX: test adding new entries after load from db
       // XXX: change # to be per one item (# diff, ## dump)
-      t('xxx_tag', `s..#(index index_table) scroll(index:i) #
+      t('tag', `s..#(index index_table) scroll(index:i) #
         decl({i:v1}) #(index={id:0 key:v1 seq:1}
           index_table={id:0 cfid:0 bseqb:null name:i})
         decl({i:v1} branch:b) #(index={id:1 key:v1 seq:2}

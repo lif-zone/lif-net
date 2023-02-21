@@ -284,24 +284,18 @@ class Index_table {
       count: count!==undefined ? count-(ret?.length||0) : undefined});
     for (; db_iter.curr; yield db_iter.next()){
       let seq = db_iter.curr.seq, node = {key, seq, dn: false};
+      if (up)
+        up.dn = true;
       if (db_iter.i==0){
         if (max!==undefined && max!=seq){
-          let query = {key, seq: max, query: true, up: false};
-          if (up)
-            [up.dn, query.up] = [true, true];
+          let query = {key, seq: max, query: true, up: !!up, dn: true};
           normalize_node_key(query);
           index.avl.insert(query);
           up = query;
         }
-        if (up)
-          [up.dn, node.up] = [true, true];
-        else
-          node.up = false;
-      } else {
-        if (up)
-          up.dn = true;
+        node.up = !!up;
+      } else
         node.up = true;
-      }
       normalize_node_key(up);
       normalize_node_key(node);
       up = node;

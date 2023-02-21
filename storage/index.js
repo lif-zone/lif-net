@@ -292,8 +292,8 @@ class Index_table {
         up = query;
       }
       node.up = db_iter.i>0 || !!up;
-      normalize_node_key(up);
-      normalize_node_key(node);
+      normalize_node(up);
+      normalize_node(node);
       index.avl.insert(node);
       up = node;
       ret.push(seq);
@@ -304,7 +304,7 @@ class Index_table {
       return ret;
     if (dn.query){
       up.dn = true;
-      normalize_node_key(up);
+      normalize_node(up);
       index.avl.remove(dn);
     }
     return ret.concat(yield _this.index_find_id(id, key,
@@ -313,7 +313,7 @@ class Index_table {
   }); }
 }
 
-function normalize_node_key(node){
+function normalize_node(node){
   if (!node)
     return;
   if (node.up!==false)

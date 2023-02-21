@@ -2115,8 +2115,8 @@ describe('scroll', ()=>{
         decl({path:/arik}) #index={id:0 key:/arik seq:10}
         decl({path:/arik}) #index={id:0 key:/arik seq:11}
         decl({path:/arik}) #index={id:0 key:/arik seq:12}`;
-      let t_db = `${t_mem} Soul.db_copy(s.soul) S..#(index index_table)
-        Soul.S.scroll(s..M0 db)
+      let t_db = `${t_mem} Soul.db_copy(s.soul)
+        S..#(index index_table) Soul.S.scroll(s..M0 db)
         #(index_table={id:0 cfid:0 bseqb:null name:path} index=[])`;
       t('mem', `${t_mem}
         // min/max

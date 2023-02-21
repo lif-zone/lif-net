@@ -2,7 +2,6 @@
 'use strict';
 import assert from 'assert';
 import etask from '../util/etask.js';
-import xerr from '../util/xerr.js';
 import Branch_table from './branch.js';
 const {bseq_branch} = Branch_table;
 import Tree from 'avl';

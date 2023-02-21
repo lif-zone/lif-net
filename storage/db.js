@@ -215,6 +215,23 @@ function transaction(db, store_names, mode, options){
   return wait;
 }
 
+/* XXX TODO
+function query_event(store, query, dir){
+  let e = store.name;
+  if (query){
+    let lower = JSON.stringify(query.__lower);
+    let upper = JSON.stringify(query.__upper);
+    if (lower==upper)
+      e += ' keyPath=='+lower;
+    else
+      e += ' '+lower+'<=keyPath<='+upper;
+  }
+  if (dir=='prev')
+    e += ' rev';
+  return e;
+}
+*/
+
 DB.MAX_DECL = 64*1024;
 DB.MAX_FRAME = 64*1024;
 DB.init = function(opt){ global.shimIndexedDB.__setConfig(opt.shim_conf); };

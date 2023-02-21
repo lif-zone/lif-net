@@ -208,7 +208,7 @@ class Index_table {
     let index = scroll.index_table.index.get(id);
     if (!index)
       return;
-    let mem_iter = _this.index_find_id_mem(id, key, opt);
+    let mem_iter = _this.index_find_id_mem_iter(id, key, opt);
     let last, next;
     while (mem_iter.curr){
       last = mem_iter.curr.key;
@@ -232,7 +232,7 @@ class Index_table {
       max = last.seq-1;
     if (next)
       min = next.seq+1;
-    let db_iter = yield _this.index_find_id_db(id, key, {min, max,
+    let db_iter = yield _this.index_find_id_db_iter(id, key, {min, max,
       count: count!==undefined ? count-(ret?.length||0) : undefined});
     while (db_iter.curr){
       let seq = db_iter.curr.seq;
@@ -284,7 +284,7 @@ class Index_table {
       count: count!==undefined ? count-(ret?.length||0) : undefined});
     return ret2 ? (ret||[]).concat(ret2) : ret;
   }); }
-  index_find_id_mem(id, key, opt={}){
+  index_find_id_mem_iter(id, key, opt={}){
     let scroll = this.scroll, {min, max} = opt;
     let index = scroll.index_table.index.get(id);
     if (!index)
@@ -320,8 +320,8 @@ class Index_table {
     };
     return iter.next();
   }
-  index_find_id_db(id, key, opt={}){ return etask({_: this},
-    function*index_find_id_db()
+  index_find_id_db_iter(id, key, opt={}){ return etask({_: this},
+    function*index_find_id_db_iter()
   {
     let _this = this._, scroll = _this.scroll, {min, max} = opt;
     let index = scroll.index_table.index.get(id);

@@ -238,7 +238,7 @@ class Index_table {
     let bseq_seq = bt.bseq_to_seq(bseq);
     if (bseq_seq===undefined)
       return;
-    let ret;
+    let ret = [];
     for (let curr=bseq; curr; curr=Branch_table.bseq_parent(curr)){
       let id = _this.get_index_id(cfid, bseq_branch(curr), name);
       let seq_max = bt.bseq_to_seq(curr);
@@ -246,9 +246,8 @@ class Index_table {
         continue;
       let found = yield _this.index_find_id(id, key, {min,
         max: max===undefined ? seq_max : Math.min(seq_max, max), count});
-      if (!found)
+      if (!found.length)
         continue;
-      ret = ret||[];
       ret = ret.concat(found);
     }
     return ret;
@@ -256,15 +255,14 @@ class Index_table {
   index_find_id(id, key, opt={}){
     return etask({_: this}, function*index_find_id()
   {
-    let _this = this._, {min, max, count} = opt, ret, scroll = _this.scroll;
-    let index = scroll.index_table.index.get(id);
+    let _this = this._, {min, max, count} = opt, scroll = _this.scroll;
+    let index = scroll.index_table.index.get(id), ret = [];
     if (!index)
-      return;
+      return ret;
     let up, dn, mem_iter = index.index_find_id_mem_iter(key, opt);
     for (; mem_iter.curr; mem_iter.next()){
       up = mem_iter.curr.key;
       if (!mem_iter.curr.key.query){
-        ret = ret||[];
         ret.push(mem_iter.curr.key.seq);
         if (count && ret.length==count)
           return ret;
@@ -306,7 +304,6 @@ class Index_table {
       }
       normalize_node_key(up);
       normalize_node_key(node);
-      ret = ret||[];
       ret.push(seq);
       up = node;
       if (count && ret.length==count){
@@ -322,10 +319,9 @@ class Index_table {
       normalize_node_key(up);
       index.avl.remove(dn);
     }
-    let ret2 = yield _this.index_find_id(id, key,
+    return ret.concat(yield _this.index_find_id(id, key,
       {min: opt.min, max: dn.seq-1,
-      count: count!==undefined ? count-(ret?.length||0) : undefined});
-    return ret2 ? (ret||[]).concat(ret2) : ret;
+      count: count!==undefined ? count-(ret?.length||0) : undefined}));
   }); }
 }
 

@@ -796,12 +796,7 @@ function state_apply(state, o){
   }
   if (type=='index_find'){
     let so = state.index_find = state.index_find||{};
-    if (!val)
-      delete so[key];
-    else
-      so[key] = val;
-    if (Object.keys(so).length==0)
-      state.index_find = undefined;
+      so[key] = !val ? [] : val;
     return;
   }
   if (['index_table', 'db_index_table'].includes(type)){

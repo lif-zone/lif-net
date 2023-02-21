@@ -317,11 +317,39 @@ class Index_table {
     }
     return ret;
   }); }
+  index_find_iter(key, opt){ return etask({_: this}, function*index_find(){
+    let _this = this._, {id, name, cfid, min, max, bseq} = opt;
+    if (id!==undefined){
+      assert(cfid===undefined && bseq===undefined && name===undefined,
+        'invalid id/bseq/cfid/name');
+      return _this.index_find_id(id, key, {min, max});
+    }
+    assert(cfid!==undefined && bseq!==undefined && name!==undefined,
+      'invalid id/bseq/cfid/name');
+    let scroll = _this.scroll;
+    // XXX: need to go to paernt of conflict and search as well
+    let bt = scroll.get_branch_table(cfid);
+    let bseq_seq = bt.bseq_to_seq(bseq);
+    if (bseq_seq===undefined)
+      return;
+    let ret = [];
+    for (let curr=bseq; curr; curr=Branch_table.bseq_parent(curr)){
+      let id = _this.get_index_id(cfid, bseq_branch(curr), name);
+      let seq_max = bt.bseq_to_seq(curr);
+      if (id===undefined || seq_max===undefined)
+        continue;
+      let found = yield _this.index_find_id(id, key, {min,
+        max: max===undefined ? seq_max : Math.min(seq_max, max)});
+      if (!found.length)
+        continue;
+      ret = ret.concat(found);
+    }
+    return ret;
+  }); }
   index_find_id(id, key, opt={}){
     return etask({_: this}, function*index_find_id()
   {
-    let _this = this._, scroll = _this.scroll;
-    let index = scroll.index_table.index.get(id), ret = [], {count} = opt;
+    let _this = this._, index = _this.index.get(id), ret = [], {count} = opt;
     if (!index)
       return ret;
     let iter = yield index.find_iter(key, opt);

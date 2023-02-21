@@ -288,17 +288,14 @@ class Index_table {
         first = false;
         for (; mem_iter?.curr; mem_iter.next()){
           up = mem_iter.curr.key;
-          if (!mem_iter.curr.key.query){
-            iter.curr = mem_iter.curr.key;
-            return iter;
-          }
+          if (mem_iter.curr.key.query)
+            continue;
+          return iter.curr = mem_iter.curr.key;
         }
         mem_iter = null;
       }
-      if (!scroll.storage || !db_iter && (up?.seq==0 || up&&up.dn!==false)){
-        iter.curr = null;
-        return iter;
-      }
+      if (!scroll.storage || !db_iter && (up?.seq==0 || up&&up.dn!==false))
+        return iter.curr = null;
       // XXX: check if we reached min and return
       if (up)
         max = up.seq-1;
@@ -322,26 +319,22 @@ class Index_table {
         normalize_node(node);
         index.avl.insert(node);
         up = node;
-        iter.curr = node;
-        return iter;
+        return iter.curr = node;
       }
-      if (!dn){
-        iter.curr = null;
-        return iter;
-      }
+      if (!dn)
+        return iter.curr = null;
       if (dn.query){
         up.dn = true;
         normalize_node(up);
         index.avl.remove(dn);
       }
       if (!iter2){
-        iter2 = yield _this.index_find_iter(index, key,
-          {min: opt.min, max: dn.seq-1});
+        iter2 = yield _this.index_find_iter(index, key, {min: opt.min,
+          max: dn.seq-1});
       }
       else
         yield iter2.next();
-      iter.curr = iter2.curr;
-      return iter;
+      return iter.curr = iter2.curr;
     });
     yield iter.next();
     return iter;

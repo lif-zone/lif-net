@@ -2115,145 +2115,151 @@ describe('scroll', ()=>{
         decl({path:/arik}) #index={id:0 key:/arik seq:10}
         decl({path:/arik}) #index={id:0 key:/arik seq:11}
         decl({path:/arik}) #index={id:0 key:/arik seq:12}`;
-      let t_db = `${t_mem} Soul.db_copy(s.soul)
-        S..#(index index_table) Soul.S.scroll(s..M0 db)
-        #(index_table={id:0 cfid:0 bseqb:null name:path} index=[])`;
-      t('mem', `${t_mem}
-        // min/max
-        ##index_find(index:0 key:/derry)=[9 8 7 4 3 1]
-        ##index_find(index:0 key:/derry max:9)=[9 8 7 4 3 1]
-        ##index_find(index:0 key:/derry max:8)=[8 7 4 3 1]
-        ##index_find(index:0 key:/derry max:1)=[1]
-        ##!index_find(index:0 key:/derry max:0)
-        ##index_find(index:0 key:/arik)=[12 11 10 6 5 2]
-        ##index_find(index:0 key:/arik max:12)=[12 11 10 6 5 2]
-        ##index_find(index:0 key:/arik max:11)=[11 10 6 5 2]
-        ##index_find(index:0 key:/arik max:2)=[2]
-        ##!index_find(index:0 key:/arik max:1)
-        // count
-        ##index_find(index:0 key:/derry max:9 count:6)=[9 8 7 4 3 1]
-        ##index_find(index:0 key:/derry max:9 count:5)=[9 8 7 4 3]
-        ##index_find(index:0 key:/derry max:9 count:1)=[9]
-        ##index_find(index:0 key:/derry max:8 count:4)=[8 7 4 3]`);
-      t('db', `${t_db}
-        ##index_find(index:0 key:/derry)=[9 8 7 4 3 1]
-        #index=[{id:0 key:/derry seq:9 up:false} {id:0 key:/derry seq:8}
-          {id:0 key:/derry seq:7} {id:0 key:/derry seq:4}
-          {id:0 key:/derry seq:3} {id:0 key:/derry seq:1 dn:false}]`);
-      t('db_max9', `${t_db} ##index_find(index:0 key:/derry max:9 count:1)=9
-        #index={id:0 key:/derry seq:9 dn:false up:false}`);
-      t('db_max8', `${t_db} ##index_find(index:0 key:/derry max:8 count:1)=8
-        #index={id:0 key:/derry seq:8 dn:false up:false}`);
-      t('db_max7', `${t_db} ##index_find(index:0 key:/derry max:7 count:1)=7
-        #index={id:0 key:/derry seq:7 dn:false up:false}`);
-      t('db_max6', `${t_db} ##index_find(index:0 key:/derry max:6 count:1)=4
-        #index=[{id:0 key:/derry seq:4 dn:false}
-          {id:0 key:/derry seq:6 query:true up:false}]`);
-      t('db_max5', `${t_db} ##index_find(index:0 key:/derry max:5 count:1)=4
-        #index=[{id:0 key:/derry seq:4 dn:false}
-          {id:0 key:/derry seq:5 query:true up:false}]`);
-      t('db_max4', `${t_db} ##index_find(index:0 key:/derry max:4 count:1)=4
-        #index={id:0 key:/derry seq:4 dn:false up:false}`);
-      t('db_max3', `${t_db} ##index_find(index:0 key:/derry max:3 count:1)=3
-        #index={id:0 key:/derry seq:3 dn:false up:false}`);
-      t('db_max2', `${t_db} ##index_find(index:0 key:/derry max:2 count:1)=1
-        #index=[{id:0 key:/derry seq:1 dn:false}
-          {id:0 key:/derry seq:2 query:true up:false}]`);
-      t('db_max1', `${t_db} ##index_find(index:0 key:/derry max:1 count:1)=1
-        #index={id:0 key:/derry seq:1 dn:false up:false}`);
-      t('db_max0', `${t_db} ##!index_find(index:0 key:/derry max:0 count:1)`);
-      t('db_xxx0', `${t_db} ##index_find(index:0 key:/derry max:9 count:1)=9
-        #index={id:0 key:/derry seq:9 dn:false up:false}
-        ##index_find(index:0 key:/derry max:9 count:2)=[9 8]
-        #index=[
-          {id:0 key:/derry seq:8 dn:false}
-          {id:0 key:/derry seq:9 up:false}]`);
-      t('db_xxx1', `${t_db} ##index_find(index:0 key:/derry max:9 count:1)=9
-        #index={id:0 key:/derry seq:9 dn:false up:false}
-        ##index_find(index:0 key:/derry max:9 count:3)=[9 8 7]
-        #index=[
-          {id:0 key:/derry seq:7 dn:false}
-          {id:0 key:/derry seq:8}
-          {id:0 key:/derry seq:9 up:false}]
-        ##index_find(index:0 key:/derry max:9 count:3)=[9 8 7]`);
-      t('db_xxx2', `${t_db} ##index_find(index:0 key:/derry max:9 count:1)=9
-        #index={id:0 key:/derry seq:9 dn:false up:false}
-        ##index_find(index:0 key:/derry max:9 count:3)=[9 8 7]
-        #index=[
-          {id:0 key:/derry seq:7 dn:false}
-          {id:0 key:/derry seq:8}
-          {id:0 key:/derry seq:9 up:false}]
-        ##index_find(index:0 key:/derry max:9 count:3)=[9 8 7]
-        ##index_find(index:0 key:/derry max:5 count:1)=4
-        #index=[
-          {id:0 key:/derry seq:4 dn:false}
-          {id:0 key:/derry seq:5 query:true up:false}]
-        ##index_find(index:0 key:/derry max:5 count:1)=4
-        dbg
-        ##index_find(index:0 key:/derry max:9 count:5)=[9 8 7 4 3]
-        #index=[
-          {id:0 key:/derry seq:3 dn:false}
-          {id:0 key:/derry seq:4}
-          !{id:0 key:/derry seq:5 query:true up:false}
-          {id:0 key:/derry seq:7}]`);
+      describe('mem', ()=>{
+        t('basic', `${t_mem}
+          // min/max
+          ##index_find(index:0 key:/derry)=[9 8 7 4 3 1]
+          ##index_find(index:0 key:/derry max:9)=[9 8 7 4 3 1]
+          ##index_find(index:0 key:/derry max:8)=[8 7 4 3 1]
+          ##index_find(index:0 key:/derry max:1)=[1]
+          ##!index_find(index:0 key:/derry max:0)
+          ##index_find(index:0 key:/arik)=[12 11 10 6 5 2]
+          ##index_find(index:0 key:/arik max:12)=[12 11 10 6 5 2]
+          ##index_find(index:0 key:/arik max:11)=[11 10 6 5 2]
+          ##index_find(index:0 key:/arik max:2)=[2]
+          ##!index_find(index:0 key:/arik max:1)
+          // count
+          ##index_find(index:0 key:/derry max:9 count:6)=[9 8 7 4 3 1]
+          ##index_find(index:0 key:/derry max:9 count:5)=[9 8 7 4 3]
+          ##index_find(index:0 key:/derry max:9 count:1)=[9]
+          ##index_find(index:0 key:/derry max:8 count:4)=[8 7 4 3]`);
+        t('tag_basic', `s..#(index index_table) scroll(index:i) #
+          decl({i:v1}) #(index={id:0 key:v1 seq:1}
+            index_table={id:0 cfid:0 bseqb:null name:i})
+          decl({i:v1} branch:b) #(index={id:1 key:v1 seq:2}
+            index_table=[{id:0 cfid:0 bseqb:null name:i}
+            {id:1 cfid:0 bseqb:1-1 name:i}])
+          decl({i:v2}) #index={id:1 key:v2 seq:3}
+          decl({i:v2}) #index={id:1 key:v2 seq:4}
+          decl({i:v3}) #index={id:1 key:v3 seq:5}
+          decl({i:v1} prev:1) #index={id:0 key:v1 seq:6}
+          decl({i:v2}) #index={id:0 key:v2 seq:7}
+          decl({i:v2}) #index={id:0 key:v2 seq:8}
+          // top of branch
+          ##index_find(index:0 key:v1)=[6 1]
+          ##index_find(index:0 key:v2)=[8 7]
+          ##!index_find(index:0 key:v3)
+          ##index_find(index:1 key:v1)=2
+          ##index_find(index:1 key:v2)=[4 3]
+          ##index_find(index:1 key:v3)=5
+          // by seq
+          ##index_find(index:0 key:v2 max:9)=[8 7]
+          ##index_find(index:0 key:v2 max:8)=[8 7]
+          ##index_find(index:0 key:v2 max:7)=7
+          ##!index_find(index:0 key:v2 max:6)
+          ##index_find(index:1 key:v2 max:4)=[4 3]
+          ##index_find(index:1 key:v2 max:3)=3
+          ##!index_find(index:1 key:v2 max:2)
+          // by bseq
+          ##index_find(name:i key:v1 bseq:1-1.4)=[2 1]
+          ##index_find(name:i key:v1 bseq:1-1.3)=[2 1]
+          ##index_find(name:i key:v1 bseq:1-1.0)=[2 1]
+          ##index_find(name:i key:v1 bseq:1)=1
+          ##!index_find(name:i key:v1 bseq:0)
+          ##index_find(name:i key:v2 bseq:1-1.3)=[4 3]
+          ##index_find(name:i key:v2 bseq:1-1.2)=[4 3]
+          ##index_find(name:i key:v2 bseq:1-1.1)=3
+          ##!index_find(name:i key:v2 bseq:1-1.0)
+          ##!index_find(name:i key:v2 bseq:1)`);
+      });
+      describe('db', ()=>{
+        let t_db = `${t_mem} Soul.db_copy(s.soul)
+          S..#(index index_table) Soul.S.scroll(s..M0 db)
+          #(index_table={id:0 cfid:0 bseqb:null name:path} index=[])`;
+        t('basic', `${t_db}
+          ##index_find(index:0 key:/derry)=[9 8 7 4 3 1]
+          #index=[{id:0 key:/derry seq:9 up:false} {id:0 key:/derry seq:8}
+            {id:0 key:/derry seq:7} {id:0 key:/derry seq:4}
+            {id:0 key:/derry seq:3} {id:0 key:/derry seq:1 dn:false}]`);
+        t('db_max9', `${t_db} ##index_find(index:0 key:/derry max:9 count:1)=9
+          #index={id:0 key:/derry seq:9 dn:false up:false}`);
+        t('db_max8', `${t_db} ##index_find(index:0 key:/derry max:8 count:1)=8
+          #index={id:0 key:/derry seq:8 dn:false up:false}`);
+        t('db_max7', `${t_db} ##index_find(index:0 key:/derry max:7 count:1)=7
+          #index={id:0 key:/derry seq:7 dn:false up:false}`);
+        t('db_max6', `${t_db} ##index_find(index:0 key:/derry max:6 count:1)=4
+          #index=[{id:0 key:/derry seq:4 dn:false}
+            {id:0 key:/derry seq:6 query:true up:false}]`);
+        t('db_max5', `${t_db} ##index_find(index:0 key:/derry max:5 count:1)=4
+          #index=[{id:0 key:/derry seq:4 dn:false}
+            {id:0 key:/derry seq:5 query:true up:false}]`);
+        t('db_max4', `${t_db} ##index_find(index:0 key:/derry max:4 count:1)=4
+          #index={id:0 key:/derry seq:4 dn:false up:false}`);
+        t('db_max3', `${t_db} ##index_find(index:0 key:/derry max:3 count:1)=3
+          #index={id:0 key:/derry seq:3 dn:false up:false}`);
+        t('db_max2', `${t_db} ##index_find(index:0 key:/derry max:2 count:1)=1
+          #index=[{id:0 key:/derry seq:1 dn:false}
+            {id:0 key:/derry seq:2 query:true up:false}]`);
+        t('db_max1', `${t_db} ##index_find(index:0 key:/derry max:1 count:1)=1
+          #index={id:0 key:/derry seq:1 dn:false up:false}`);
+        t('db_max0', `${t_db}
+          ##!index_find(index:0 key:/derry max:0 count:1)`);
+        t('db_xxx0', `${t_db} ##index_find(index:0 key:/derry max:9 count:1)=9
+          #index={id:0 key:/derry seq:9 dn:false up:false}
+          ##index_find(index:0 key:/derry max:9 count:2)=[9 8]
+          #index=[
+            {id:0 key:/derry seq:8 dn:false}
+            {id:0 key:/derry seq:9 up:false}]`);
+        t('db_xxx1', `${t_db} ##index_find(index:0 key:/derry max:9 count:1)=9
+          #index={id:0 key:/derry seq:9 dn:false up:false}
+          ##index_find(index:0 key:/derry max:9 count:3)=[9 8 7]
+          #index=[
+            {id:0 key:/derry seq:7 dn:false}
+            {id:0 key:/derry seq:8}
+            {id:0 key:/derry seq:9 up:false}]
+          ##index_find(index:0 key:/derry max:9 count:3)=[9 8 7]`);
+        t('db_xxx2', `${t_db} ##index_find(index:0 key:/derry max:9 count:1)=9
+          #index={id:0 key:/derry seq:9 dn:false up:false}
+          ##index_find(index:0 key:/derry max:9 count:3)=[9 8 7]
+          #index=[
+            {id:0 key:/derry seq:7 dn:false}
+            {id:0 key:/derry seq:8}
+            {id:0 key:/derry seq:9 up:false}]
+          ##index_find(index:0 key:/derry max:9 count:3)=[9 8 7]
+          ##index_find(index:0 key:/derry max:5 count:1)=4
+          #index=[
+            {id:0 key:/derry seq:4 dn:false}
+            {id:0 key:/derry seq:5 query:true up:false}]
+          ##index_find(index:0 key:/derry max:5 count:1)=4
+          dbg
+          ##index_find(index:0 key:/derry max:9 count:5)=[9 8 7 4 3]
+          #index=[
+            {id:0 key:/derry seq:3 dn:false}
+            {id:0 key:/derry seq:4}
+            !{id:0 key:/derry seq:5 query:true up:false}
+            {id:0 key:/derry seq:7}]`);
+        // XXX: need db_tag
+        t('db_conflict', `s.scroll(index:path) s.decl({path:/f})
+          s.decl({path:/f}) s1.clone(s.M1) s1.decl({path:/f})
+          S..scroll(s..M0 db) tput(0 1  ) tput(0 1 2) tput(0 1 c)
+          Soul2.db_copy(S.soul) S2..#(index index_table)
+          Soul2.S2.scroll(s..M0 db) #(index=[]
+            index_table=[{id:0 cfid:0 bseqb:null name:path}
+            {id:1 cfid:1 bseqb:null name:path}])
+          ##index_find(name:path key:/f cfid:0 bseq:3)=[2 1]
+          ##index_find(name:path key:/f cfid:0 bseq:2)=[2 1]
+          #index=[{id:0 key:/f seq:1 dn:false} {id:0 key:/f seq:2 up:false}]
+          ##index_find(name:path key:/f cfid:1 bseq:2)=[2 1]
+          #index={id:1 key:/f seq:2 dn:false up:false}`);
+      });
       // XXX: listen on event db_query to follow up on db queries
       // #db_query=...
       // XXX: test first and last seq
       // XXX: test dir ''/prev
       // XXX: test adding new entries after load from db
       // XXX: change # to be per one item (# diff, ## dump)
-      t('tag', `s..#(index index_table) scroll(index:i) #
-        decl({i:v1}) #(index={id:0 key:v1 seq:1}
-          index_table={id:0 cfid:0 bseqb:null name:i})
-        decl({i:v1} branch:b) #(index={id:1 key:v1 seq:2}
-          index_table=[{id:0 cfid:0 bseqb:null name:i}
-          {id:1 cfid:0 bseqb:1-1 name:i}])
-        decl({i:v2}) #index={id:1 key:v2 seq:3}
-        decl({i:v2}) #index={id:1 key:v2 seq:4}
-        decl({i:v3}) #index={id:1 key:v3 seq:5}
-        decl({i:v1} prev:1) #index={id:0 key:v1 seq:6}
-        decl({i:v2}) #index={id:0 key:v2 seq:7}
-        decl({i:v2}) #index={id:0 key:v2 seq:8}
-        // top of branch
-        ##index_find(index:0 key:v1)=[6 1]
-        ##index_find(index:0 key:v2)=[8 7]
-        ##!index_find(index:0 key:v3)
-        ##index_find(index:1 key:v1)=2
-        ##index_find(index:1 key:v2)=[4 3]
-        ##index_find(index:1 key:v3)=5
-        // by seq
-        ##index_find(index:0 key:v2 max:9)=[8 7]
-        ##index_find(index:0 key:v2 max:8)=[8 7]
-        ##index_find(index:0 key:v2 max:7)=7
-        ##!index_find(index:0 key:v2 max:6)
-        ##index_find(index:1 key:v2 max:4)=[4 3]
-        ##index_find(index:1 key:v2 max:3)=3
-        ##!index_find(index:1 key:v2 max:2)
-        // by bseq
-        ##index_find(name:i key:v1 bseq:1-1.4)=[2 1]
-        ##index_find(name:i key:v1 bseq:1-1.3)=[2 1]
-        ##index_find(name:i key:v1 bseq:1-1.0)=[2 1]
-        ##index_find(name:i key:v1 bseq:1)=1
-        ##!index_find(name:i key:v1 bseq:0)
-        ##index_find(name:i key:v2 bseq:1-1.3)=[4 3]
-        ##index_find(name:i key:v2 bseq:1-1.2)=[4 3]
-        ##index_find(name:i key:v2 bseq:1-1.1)=3
-        ##!index_find(name:i key:v2 bseq:1-1.0)
-        ##!index_find(name:i key:v2 bseq:1)`);
       // XXX: need complex conflict + tag test
-      t('db_conflict', `s.scroll(index:path) s.decl({path:/f})
-        s.decl({path:/f}) s1.clone(s.M1) s1.decl({path:/f}) S..scroll(s..M0 db)
-        tput(0 1  ) tput(0 1 2) tput(0 1 c)
-        Soul2.db_copy(S.soul) S2..#(index index_table)
-        Soul2.S2.scroll(s..M0 db) #(index=[]
-          index_table=[{id:0 cfid:0 bseqb:null name:path}
-          {id:1 cfid:1 bseqb:null name:path}])
-        ##index_find(name:path key:/f cfid:0 bseq:3)=[2 1]
-        ##index_find(name:path key:/f cfid:0 bseq:2)=[2 1]
-        #index=[{id:0 key:/f seq:1 dn:false} {id:0 key:/f seq:2 up:false}]
-        ##index_find(name:path key:/f cfid:1 bseq:2)=[2 1]
-        #index={id:1 key:/f seq:2 dn:false up:false}`);
-        // XXX: test sorting by number, string, buf
+      // XXX: test sorting by number, string, buf
     });
   });
 });

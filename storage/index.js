@@ -286,19 +286,16 @@ class Index_table {
       let seq = db_iter.curr.seq, node = {key, seq, dn: false};
       if (up)
         up.dn = true;
-      if (db_iter.i==0){
-        if (max!==undefined && max!=seq){
-          let query = {key, seq: max, query: true, up: !!up, dn: true};
-          index.avl.insert(query);
-          up = query;
-        }
-        node.up = !!up;
-      } else
-        node.up = true;
+      if (db_iter.i==0 && max!==undefined && max!=seq){
+        let query = {key, seq: max, query: true, up: !!up, dn: true};
+        index.avl.insert(query);
+        up = query;
+      }
+      node.up = db_iter.i>0 || !!up;
       normalize_node_key(up);
       normalize_node_key(node);
-      up = node;
       index.avl.insert(node);
+      up = node;
       ret.push(seq);
       if (count && ret.length==count)
         return ret;

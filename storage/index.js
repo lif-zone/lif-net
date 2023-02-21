@@ -2,6 +2,7 @@
 'use strict';
 import assert from 'assert';
 import etask from '../util/etask.js';
+import xerr from '../util/xerr.js';
 import Branch_table from './branch.js';
 const {bseq_branch} = Branch_table;
 import Tree from 'avl';
@@ -74,6 +75,57 @@ export default class Index {
       this.schedule_db(key, seq);
   }
   schedule_db(key, seq){ this.storage_queue.push({id: this.id, key, seq}); }
+  index_find_id_mem_iter(key, opt={}){
+    let {min, max} = opt;
+    let avl = this.avl, Q = [], compare = avl._comparator, node = avl._root;
+    let nmin = {key, seq: min===undefined ? -1 : min};
+    let nmax = {key, seq: max===undefined ? Infinity : max};
+    let iter = {};
+    iter.next = ()=>{
+      assert(!iter.done, 'calling iterator after done');
+      while (Q.length || node){
+        if (node){
+          Q.push(node);
+          node = node.right;
+        } else {
+          node = Q.pop();
+          if (compare(node.key, nmin)<0){
+            iter.curr = null;
+            iter.done = true;
+            return iter;
+          }
+          if (compare(node.key, nmax)<=0){
+            iter.curr = node;
+            node = node.left;
+            return iter;
+          }
+          node = node.left;
+        }
+      }
+      iter.curr = null;
+      iter.done = true;
+      return iter;
+    };
+    return iter.next();
+  }
+  index_find_id_db_iter(key, opt={}){ return etask({_: this},
+    function*index_find_id_db_iter()
+  {
+    let _this = this._, scroll = _this.scroll, {min, max} = opt, {id} = _this;
+    let db = scroll.soul.db, tx = db.transaction('index', 'readonly');
+    let store = tx.store('index'), query;
+    query = IDBKeyRange.bound([id, key, min===undefined ? -1 : min],
+      [id, key, max===undefined ? Infinity : max]);
+    let cursor=yield db.cursor(store, query, 'prev');
+    let iter = {i: 0, curr: cursor?.value};
+    iter.next = ()=>etask(function*iter_next(){
+      assert(cursor, 'iter already done');
+      cursor = yield cursor.next();
+      iter.i++;
+      iter.curr = cursor?.value;
+    });
+    return iter;
+  }); }
 }
 
 class Index_table {
@@ -208,7 +260,7 @@ class Index_table {
     let index = scroll.index_table.index.get(id);
     if (!index)
       return;
-    let mem_iter = _this.index_find_id_mem_iter(id, key, opt);
+    let mem_iter = index.index_find_id_mem_iter(key, opt);
     let last, next;
     while (mem_iter.curr){
       last = mem_iter.curr.key;
@@ -232,7 +284,7 @@ class Index_table {
       max = last.seq-1;
     if (next)
       min = next.seq+1;
-    let db_iter = yield _this.index_find_id_db_iter(id, key, {min, max,
+    let db_iter = yield index.index_find_id_db_iter(key, {min, max,
       count: count!==undefined ? count-(ret?.length||0) : undefined});
     while (db_iter.curr){
       let seq = db_iter.curr.seq;
@@ -283,63 +335,6 @@ class Index_table {
       {min: opt.min, max: next.seq-1,
       count: count!==undefined ? count-(ret?.length||0) : undefined});
     return ret2 ? (ret||[]).concat(ret2) : ret;
-  }); }
-  index_find_id_mem_iter(id, key, opt={}){
-    let scroll = this.scroll, {min, max} = opt;
-    let index = scroll.index_table.index.get(id);
-    if (!index)
-      return;
-    let avl = index.avl, Q = [], compare = avl._comparator, node = avl._root;
-    let nmin = {key, seq: min===undefined ? -1 : min};
-    let nmax = {key, seq: max===undefined ? Infinity : max};
-    let iter = {};
-    iter.next = ()=>{
-      assert(!iter.done, 'calling iterator after done');
-      while (Q.length || node){
-        if (node){
-          Q.push(node);
-          node = node.right;
-        } else {
-          node = Q.pop();
-          if (compare(node.key, nmin)<0){
-            iter.curr = null;
-            iter.done = true;
-            return iter;
-          }
-          if (compare(node.key, nmax)<=0){
-            iter.curr = node;
-            node = node.left;
-            return iter;
-          }
-          node = node.left;
-        }
-      }
-      iter.curr = null;
-      iter.done = true;
-      return iter;
-    };
-    return iter.next();
-  }
-  index_find_id_db_iter(id, key, opt={}){ return etask({_: this},
-    function*index_find_id_db_iter()
-  {
-    let _this = this._, scroll = _this.scroll, {min, max} = opt;
-    let index = scroll.index_table.index.get(id);
-    if (!index)
-      return;
-    let db = scroll.soul.db, tx = db.transaction('index', 'readonly');
-    let store = tx.store('index'), query;
-    query = IDBKeyRange.bound([id, key, min===undefined ? -1 : min],
-      [id, key, max===undefined ? Infinity : max]);
-    let cursor=yield db.cursor(store, query, 'prev');
-    let iter = {i: 0, curr: cursor?.value};
-    iter.next = ()=>etask(function*iter_next(){
-      assert(cursor, 'iter already done');
-      cursor = yield cursor.next();
-      iter.i++;
-      iter.curr = cursor?.value;
-    });
-    return iter;
   }); }
 }
 

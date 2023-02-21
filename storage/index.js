@@ -331,9 +331,9 @@ class Index_table {
       if (!iter2){
         iter2 = yield _this.index_find_iter(index, key, {min: opt.min,
           max: dn.seq-1});
+        return iter.curr = iter2.curr;
       }
-      else
-        yield iter2.next();
+      yield iter2.next();
       return iter.curr = iter2.curr;
     });
     yield iter.next();

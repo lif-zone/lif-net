@@ -304,13 +304,11 @@ class Index_table {
       }
       normalize_node_key(up);
       normalize_node_key(node);
-      ret.push(seq);
       up = node;
-      if (count && ret.length==count){
-        index.avl.insert(node);
-        return ret;
-      }
       index.avl.insert(node);
+      ret.push(seq);
+      if (count && ret.length==count)
+        return ret;
     }
     if (!dn)
       return ret;

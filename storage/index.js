@@ -284,43 +284,36 @@ class Index_table {
       min = dn.seq+1;
     let db_iter = yield index.index_find_id_db_iter(key, {min, max,
       count: count!==undefined ? count-(ret?.length||0) : undefined});
-    while (db_iter.curr){
-      let seq = db_iter.curr.seq;
-      let data = {key, seq, dn: false};
+    for (; db_iter.curr; yield db_iter.next()){
+      let seq = db_iter.curr.seq, node = {key, seq, dn: false};
       if (db_iter.i==0){
         if (max!==undefined && max!=seq){
           let query = {key, seq: max, query: true, up: false};
-          if (up){
-            up.dn = true;
-            query.up = true;
-          }
+          if (up)
+            [up.dn, query.up] = [true, true];
           normalize_node_key(query);
           index.avl.insert(query);
           up = query;
         }
-        if (up){
-          up.dn = true;
-          data.up = true;
-        }
+        if (up)
+          [up.dn, node.up] = [true, true];
         else
-          data.up = false;
+          node.up = false;
       } else {
         if (up)
           up.dn = true;
-        data.up = true;
+        node.up = true;
       }
-      if (up)
-        normalize_node_key(up);
-      normalize_node_key(data);
+      normalize_node_key(up);
+      normalize_node_key(node);
       ret = ret||[];
       ret.push(seq);
-      up = data;
+      up = node;
       if (count && ret.length==count){
-        index.avl.insert(data);
+        index.avl.insert(node);
         return ret;
       }
-      index.avl.insert(data);
-      yield db_iter.next();
+      index.avl.insert(node);
     }
     if (!dn)
       return ret;
@@ -336,12 +329,14 @@ class Index_table {
   }); }
 }
 
-function normalize_node_key(data){
-  if (data.up!==false)
-    delete data.up;
-  if (data.dn!==false)
-    delete data.dn;
-  return data;
+function normalize_node_key(node){
+  if (!node)
+    return;
+  if (node.up!==false)
+    delete node.up;
+  if (node.dn!==false)
+    delete node.dn;
+  return node;
 }
 
 function normalize_desc(desc){

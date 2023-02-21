@@ -2230,6 +2230,7 @@ describe('scroll', ()=>{
         ##index_find(index:1 key:v2 max:3)=3
         ##!index_find(index:1 key:v2 max:2)
         // by bseq
+        ##index_find(name:i key:v1 bseq:1-1.4)=[2 1]
         ##index_find(name:i key:v1 bseq:1-1.3)=[2 1]
         ##index_find(name:i key:v1 bseq:1-1.0)=[2 1]
         ##index_find(name:i key:v1 bseq:1)=1
@@ -2239,6 +2240,20 @@ describe('scroll', ()=>{
         ##index_find(name:i key:v2 bseq:1-1.1)=3
         ##!index_find(name:i key:v2 bseq:1-1.0)
         ##!index_find(name:i key:v2 bseq:1)`);
+      // XXX: need complex conflict + tag test
+      t('db_conflict', `s.scroll(index:path) s.decl({path:/f})
+        s.decl({path:/f}) s1.clone(s.M1) s1.decl({path:/f}) S..scroll(s..M0 db)
+        tput(0 1  ) tput(0 1 2) tput(0 1 c)
+        Soul2.db_copy(S.soul) S2..#(index index_table)
+        Soul2.S2.scroll(s..M0 db) #(index=[]
+          index_table=[{id:0 cfid:0 bseqb:null name:path}
+          {id:1 cfid:1 bseqb:null name:path}])
+        ##index_find(name:path key:/f cfid:0 bseq:3)=[2 1]
+        ##index_find(name:path key:/f cfid:0 bseq:2)=[2 1]
+        #index=[{id:0 key:/f seq:1 dn:false} {id:0 key:/f seq:2 up:false}]
+        ##index_find(name:path key:/f cfid:1 bseq:2)=[2 1]
+        #index={id:1 key:/f seq:2 dn:false up:false}`);
+        // XXX: test sorting by number, string, buf
     });
   });
 });

@@ -97,6 +97,19 @@ export default class Branch_table {
       return;
     return bo.seq+bseq_diff(bseq, bo.bseq);
   }
+  bseq_get_max_seq(bseq){ // XXX: need test
+    let bseqb = bseq_branch(bseq), max;
+    let bseq_high = {bseq: bseq}, bseq_low = {bseq: !bseqb ? '0' : bseqb+'.0'};
+    // XXX: need range_rev version and stop on highest
+    this.avl_bseq.range(bseq_low, bseq_high, node=>{
+      let bo = node.key;
+      if (bseq <= bseq_inc(bo.bseq, bo.size-1))
+        max = bo.seq+bseq_diff(bseq, bo.bseq);
+      else
+        max = bo.seq+bo.size-1;
+    });
+    return max;
+  }
   find_avail_branch(bseq){
     let {scroll, cfid} = this, {parent} = scroll.conflict.get(cfid);
     if (parent){ // XXX: test this case

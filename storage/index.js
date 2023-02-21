@@ -312,11 +312,7 @@ class Index_table {
     assert(cfid!==undefined && bseq!==undefined && name!==undefined,
       'invalid id/bseq/cfid/name');
     let scroll = _this.scroll;
-    // XXX: need to go to paernt of conflict and search as well
     let bt = scroll.get_branch_table(cfid);
-    let bseq_seq = bt.bseq_to_seq(bseq);
-    if (bseq_seq===undefined)
-      return;
     let curr = bseq;
     iter.next = ()=>etask(function*index_find_iter_next(){
       if (iter.iter){
@@ -330,7 +326,7 @@ class Index_table {
       }
       for (; curr; curr=Branch_table.bseq_parent(curr)){
         let id = _this.get_index_id(cfid, bseq_branch(curr), name);
-        let seq_max = bt.bseq_to_seq(curr);
+        let seq_max = bt.bseq_get_max_seq(curr);
         if (id===undefined || seq_max===undefined)
           continue;
         let index = _this.index.get(id);
@@ -340,7 +336,14 @@ class Index_table {
           continue;
         return iter.curr = iter.iter.curr;
       }
-      return iter.curr = null;
+      if (!cfid)
+        return iter.curr = null;
+      let co = scroll.conflict.get(cfid);
+      cfid = co.parent.cfid;
+      max = max===undefined ? co.parent.seq : Math.min(max, co.parent.seq);
+      curr = bseq;
+      bt = scroll.get_branch_table(cfid);
+      return yield iter.next();
     });
     yield iter.next();
     return iter;

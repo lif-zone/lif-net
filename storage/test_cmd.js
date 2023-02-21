@@ -429,7 +429,10 @@ const test_run_single = (curr, o, step)=>etask(function*_test_run_single(){
   case '==': yield cmd_test(o); break;
   case 'c': yield cmd_c(o); break;
   case '//': break;
-  case 'dbg': debugger; break; // eslint-disable-line no-debugger
+  case 'dbg':
+    global.test_dbg_brk = true;
+    debugger; // eslint-disable-line no-debugger
+    break;
   case '.':
   case '..':
   case '...': // XXX: rm from here and move to parser

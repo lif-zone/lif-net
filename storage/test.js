@@ -2189,6 +2189,7 @@ describe('scroll', ()=>{
           {id:0 key:/derry seq:4 dn:false}
           {id:0 key:/derry seq:5 query:true up:false}]
         ##index_find(index:0 key:/derry max:5 count:1)=4
+        dbg
         ##index_find(index:0 key:/derry max:9 count:5)=[9 8 7 4 3]
         #index=[
           {id:0 key:/derry seq:3 dn:false}
@@ -2201,25 +2202,6 @@ describe('scroll', ()=>{
       // XXX: test dir ''/prev
       // XXX: test adding new entries after load from db
       // XXX: change # to be per one item (# diff, ## dump)
-      if (0) // XXX WIP
-      t('xxx_db', `s..#(index index_table) scroll(index:i db) #
-        decl({i:v1}) #(index={id:0 key:v1 seq:1}
-          index_table={id:0 cfid:0 bseqb:null name:i})
-        decl({i:v1} branch:b) #(index={id:1 key:v1 seq:2}
-          index_table=[{id:0 cfid:0 bseqb:null name:i}
-          {id:1 cfid:0 bseqb:1-1 name:i}])
-        decl({i:v2}) #index={id:1 key:v2 seq:3}
-        decl({i:v2}) #index={id:1 key:v2 seq:4}
-        decl({i:v3}) #index={id:1 key:v3 seq:5}
-        decl({i:v1} prev:1) #index={id:0 key:v1 seq:6}
-        decl({i:v2}) #index={id:0 key:v2 seq:7}
-        decl({i:v2}) #index={id:0 key:v2 seq:8}
-        Soul.db_copy(s.soul) S..#(index index_table) Soul.S.scroll(s..M0 db)
-        #(index_table=[{id:0 cfid:0 bseqb:null name:i}
-          {id:1 cfid:0 bseqb:1-1 name:i}] index=[])
-        // top of branch
-        ##index_find(index:0 key:v1)=[6 1]
-      `);
       t('xxx_tag', `s..#(index index_table) scroll(index:i) #
         decl({i:v1}) #(index={id:0 key:v1 seq:1}
           index_table={id:0 cfid:0 bseqb:null name:i})

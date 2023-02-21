@@ -260,9 +260,10 @@ class Index_table {
     let index = scroll.index_table.index.get(id);
     if (!index)
       return;
-    let mem_iter = index.index_find_id_mem_iter(key, opt);
     let last, next;
-    while (mem_iter.curr){
+    for (let mem_iter = index.index_find_id_mem_iter(key, opt);
+      mem_iter.curr; mem_iter.next())
+    {
       last = mem_iter.curr.key;
       if (!mem_iter.curr.key.query){
         ret = ret||[];
@@ -275,7 +276,6 @@ class Index_table {
         next = mem_iter.curr?.key;
         break;
       }
-      mem_iter.next();
     }
     if (!scroll.storage || last?.seq==0 || last && last.dn!==false)
       return ret;

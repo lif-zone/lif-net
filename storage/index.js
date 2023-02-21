@@ -289,7 +289,6 @@ class Index_table {
       if (db_iter.i==0){
         if (max!==undefined && max!=seq){
           let query = {key, seq: max, query: true, up: !!up, dn: true};
-          normalize_node_key(query);
           index.avl.insert(query);
           up = query;
         }

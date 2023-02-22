@@ -2490,11 +2490,11 @@ describe('scroll', ()=>{
             db_query=[index,rev,0_/derry_0<=key<=0_/derry_7])`);
         t('db_max6', `${t_db} ##index_find(index:0 key:/derry max:6 count:1)=4
           #(index=[{id:0 key:/derry seq:4 dn:false}
-            {id:0 key:/derry seq:6 query:true up:false}]
+            {id:0 key:/derry seq:6 query up:false}]
             db_query=[index,rev,0_/derry_0<=key<=0_/derry_6])`);
         t('db_max5', `${t_db} ##index_find(index:0 key:/derry max:5 count:1)=4
           #(index=[{id:0 key:/derry seq:4 dn:false}
-            {id:0 key:/derry seq:5 query:true up:false}]
+            {id:0 key:/derry seq:5 query up:false}]
             db_query=[index,rev,0_/derry_0<=key<=0_/derry_5])`);
         t('db_max4', `${t_db} ##index_find(index:0 key:/derry max:4 count:1)=4
           #(index={id:0 key:/derry seq:4 dn:false up:false}
@@ -2504,7 +2504,7 @@ describe('scroll', ()=>{
             db_query=[index,rev,0_/derry_0<=key<=0_/derry_3])`);
         t('db_max2', `${t_db} ##index_find(index:0 key:/derry max:2 count:1)=1
           #(index=[{id:0 key:/derry seq:1 dn:false}
-            {id:0 key:/derry seq:2 query:true up:false}]
+            {id:0 key:/derry seq:2 query up:false}]
             db_query=[index,rev,0_/derry_0<=key<=0_/derry_2])`);
         t('db_max1', `${t_db} ##index_find(index:0 key:/derry max:1 count:1)=1
           #(index={id:0 key:/derry seq:1 dn:false up:false}
@@ -2543,18 +2543,55 @@ describe('scroll', ()=>{
           ##index_find(index:0 key:/derry max:5 count:1)=4
           #(index=[
             {id:0 key:/derry seq:4 dn:false}
-            {id:0 key:/derry seq:5 query:true up:false}]
+            {id:0 key:/derry seq:5 query up:false}]
             db_query=[index,rev,0_/derry_0<=key<=0_/derry_5])
           ##index_find(index:0 key:/derry max:5 count:1)=4
           ##index_find(index:0 key:/derry max:9 count:5)=[9 8 7 4 3]
           #(index=[
             {id:0 key:/derry seq:3 dn:false}
             {id:0 key:/derry seq:4}
-            !{id:0 key:/derry seq:5 query:true up:false}
+            !{id:0 key:/derry seq:5 query up:false}
             {id:0 key:/derry seq:7}]
             db_query=[index,rev,key==0_/derry_6
             index,rev,0_/derry_0<=key<=0_/derry_3])`);
-        // XXX: need db_tag
+        // XXX: rename
+        let t_zzz = `s..scroll(index:user db) decl({user:niko})
+          decl({user:arik}) decl({user:niko}) decl({user:arik})
+          decl({user:niko}) decl({user:arik}) decl({user:niko})
+          decl({user:arik}) decl({user:niko}) Soul.db_copy(s.soul)
+          S..#(db_query_index index) Soul.S.scroll(s..M0 db) #index=[]`;
+        let s = 'id:0 key:arik seq';
+        //  0 1 2 3 4 5 6 7 8 9
+        //  ------------------q
+        t('zzz0', `${t_zzz}
+          ##index_find(name:user key:arik bseq:9)=[8 6 4 2]
+            #(index=[{${s}:2 dn:false} {${s}:4} {${s}:6} {${s}:8}
+            {${s}:9 query up:false}]
+            db_query=[index,rev,0_arik_0<=key<=0_arik_9 next next next next])
+        `);
+        //  0 1 2 3 4 5 6 7 8 9
+        //                  --q (<=9 n=1)
+        //          ------q --q (<=7 n=2)
+        t('zzz1', `${t_zzz}
+          ##index_find(name:user key:arik bseq:9 count:1)=8
+            #(index=[{${s}:8 dn:false} {${s}:9 query up:false}]
+            db_query=[index,rev,0_arik_0<=key<=0_arik_9])
+          ##index_find(name:user key:arik bseq:7 count:2)=[6 4]
+            #(index=[{${s}:4 dn:false} {${s}:6} {${s}:7 query up:false}
+              {${s}:8 dn:false}]
+            db_query=[index,rev,0_arik_0<=key<=0_arik_7 next])
+        `);
+        //  0 1 2 3 4 5 6 7 8 9
+        //                  --q (<=9 n=1)
+        //              ------q (<=8 n=2)
+        t('zzz2', `${t_zzz}
+          ##index_find(name:user key:arik bseq:9 count:1)=8
+            #(index=[{${s}:8 dn:false} {${s}:9 query up:false}]
+            db_query=[index,rev,0_arik_0<=key<=0_arik_9])
+          ##index_find(name:user key:arik bseq:8 count:2)=[8 6]
+            #(index=[{${s}:6 dn:false} {${s}:7 query} {${s}:8}]
+            db_query=[index,rev,0_arik_0<=key<=0_arik_7])
+        `);
         t('db_conflict', `s.scroll(index:path) s.decl({path:/f})
           s.decl({path:/f}) s1.clone(s.M1) s1.decl({path:/f})
           S..scroll(s..M0 db) tput(0 1  ) tput(0 1 2) tput(0 1 c)

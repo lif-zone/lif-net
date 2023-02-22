@@ -158,6 +158,7 @@ export default class Index {
         let seq = db_iter.curr.seq, node = {key, seq, dn: false};
         if (up)
           up.dn = true;
+        normalize_node(up);
         if (db_iter.i==0 && max!==undefined && max!=seq){
           let query = {key, seq: max, query: true, up: !!up, dn: true};
           _this.avl.insert(query);

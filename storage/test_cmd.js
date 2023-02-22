@@ -130,8 +130,11 @@ function js_struct_from_str(str, opt={}){
     // XXX: mv this logic to opt
     ret[tt.cmd] = tt.r=='null' ? null : tt.r=='false' ? false : tt.r=='true' ?
       true : tt.r;
-    if ((opt.num||[]).includes(tt.cmd) && /^\d$/.test(ret[tt.cmd]))
-      ret[tt.cmd] = +ret[tt.cmd];
+    let v = ret[tt.cmd];
+    if ((opt.num||[]).includes(tt.cmd) && /^\d$/.test(v))
+      ret[tt.cmd] = +v;
+    if ((opt.bool||[]).includes(tt.cmd))
+      ret[tt.cmd] = v=='false' ? false : true;
   }
   return ret;
 }
@@ -775,7 +778,7 @@ const state_split = (exp, def)=>etask(function*state_split(){
       return {...state_split_var(o.l, def), val: get_array_str(o.r)};
     if (['index', 'db_index'].includes(o.l)){
       return {...state_split_var(o.l, def),
-        val: get_array(o.r, {num: ['id', 'seq']})};
+        val: get_array(o.r, {num: ['id', 'seq'], bool: ['query']})};
     }
     if (/^index_find/.test(o.l))
       return {...state_split_var(o.l, def), val: get_array_int(o.r)};

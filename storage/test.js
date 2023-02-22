@@ -2562,7 +2562,7 @@ describe('scroll', ()=>{
           S..#(db_query_index index) Soul.S.scroll(s..M0 db) #index=[]`;
         let s = 'id:0 key:arik seq';
         //  0 1 2 3 4 5 6 7 8 9
-        //  ------------------q
+        //  ----n---n---n---n-q (<=9 all)
         t('zzz0', `${t_zzz}
           ##index_find(name:user key:arik bseq:9)=[8 6 4 2]
             #(index=[{${s}:2 dn:false} {${s}:4} {${s}:6} {${s}:8}
@@ -2570,8 +2570,8 @@ describe('scroll', ()=>{
             db_query=[index,rev,0_arik_0<=key<=0_arik_9 next next next next])
         `);
         //  0 1 2 3 4 5 6 7 8 9
-        //                  --q (<=9 n=1)
-        //          ------q --q (<=7 n=2)
+        //                  n-q (<=9 n=1)
+        //          n---n-q n-q (<=7 n=2)
         t('zzz1', `${t_zzz}
           ##index_find(name:user key:arik bseq:9 count:1)=8
             #(index=[{${s}:8 dn:false} {${s}:9 query up:false}]
@@ -2582,8 +2582,8 @@ describe('scroll', ()=>{
             db_query=[index,rev,0_arik_0<=key<=0_arik_7 next])
         `);
         //  0 1 2 3 4 5 6 7 8 9
-        //                  --q (<=9 n=1)
-        //              ------q (<=8 n=2)
+        //                  n-q (<=9 n=1)
+        //              n---n-q (<=8 n=2)
         t('zzz2', `${t_zzz}
           ##index_find(name:user key:arik bseq:9 count:1)=8
             #(index=[{${s}:8 dn:false} {${s}:9 query up:false}]

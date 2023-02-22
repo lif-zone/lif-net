@@ -124,6 +124,7 @@ export default class Index {
     let iter = {}, first = true;
     let db_iter, iter2;
     iter.next = ()=>etask(function*index_find_iter_next(){
+      // XXX: create the etask only after memory
       if (mem_iter){
         if (!first){
           if (mem_iter.curr.dn===false){

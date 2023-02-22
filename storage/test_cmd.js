@@ -2,6 +2,7 @@
 import assert from 'assert';
 import etask from '../util/etask.js';
 import Storage_handler from './storage.js';
+import DB from './db.js';
 import xsinon from '../util/sinon.js';
 import enc from 'compact-encoding';
 import string from '../util/string.js';
@@ -21,7 +22,7 @@ const {b2s, s2b, b2s_obj} = buf_util;
 const test_cmd_hooks = [];
 
 function enc_u64(v){ return enc.encode(enc.uint64, v); }
-let t_soul, t_soul_id, t_soul_mode, t_state;
+let t_soul, t_soul_id, t_soul_mode, t_state, db_query_index_log;
 let t_scroll, t_genesis_scroll, t_prev_scroll, t_def, t_keypair;
 function space(s){ return s ? s+' ' : ''; }
 
@@ -152,7 +153,7 @@ function struct_from_decl(decl){
 export function parse_var(v){
   let m;
   v = string.split_ws(v).join(' ');
-  if (['index', 'db_index'].includes(v))
+  if (['index', 'db_index', 'db_query'].includes(v))
     return {type: v};
   if (m = v.match(/^index_find\((.*)\)$/))
     return {type: 'index_find', key: m[1]};
@@ -338,6 +339,23 @@ export const get_val = (exp, def_type='right', encode=false)=>etask(
   assert.fail('invalid val exp '+exp);
 });
 
+function cursor_hook(store, query, dir){
+  if (!db_query_index_log)
+    return;
+  if (store.name!='index')
+    return;
+  db_query_index_log.push(DB.query_to_str(store, query, dir));
+}
+
+function cursor_continue_hook(cursor){
+  if (!db_query_index_log)
+    return;
+  let {store} = cursor.t;
+  if (store.name!='index')
+    return;
+  db_query_index_log.push('next');
+}
+
 const test_decl = (scroll, data, opt={})=>etask(function*test_decl(){
   yield scroll.decl(opt, data);
   yield xsinon.tick(1, {force: true});
@@ -374,6 +392,9 @@ const test_start = ()=>etask(function*test_start(){
   assert(t_prev_scroll.M_hash(0, 1), 'missing M1');
   if (t_hooks['start'])
     yield t_hooks['start']();
+  db_query_index_log = null;
+  DB.t.cursor_hook = cursor_hook;
+  DB.t.cursor_continue_hook = cursor_continue_hook;
 });
 
 const test_end = ()=>etask(function*test_end(){
@@ -391,6 +412,8 @@ const test_end = ()=>etask(function*test_end(){
       yield scroll.soul.db.uninit({delete: true});
   }
   Scroll.soul.clear();
+  DB.t.cursor_hook = null;
+  DB.t.cursor_continue_hook = null;
 });
 
 const test_run_cmd_hooks = (curr, o, step)=>etask(
@@ -715,6 +738,8 @@ function state_split_var(v, def){
     return {name, type, seq, cfid};
   if (type=='bseq')
     return {name, type, seq, cfid};
+  if (['db_query'].includes(type))
+    return {name, type};
   if (['index', 'db_index'].includes(type))
     return {name, type, id};
   if (type=='index_find')
@@ -746,6 +771,8 @@ const state_split = (exp, def)=>etask(function*state_split(){
       return {...state_split_var(o.l, def), val: yield get_btable(o.r)};
     if (/^db_btc/.test(o.l))
       return {...state_split_var(o.l, def), val: yield get_btable(o.r)};
+    if ('db_query'==o.l)
+      return {...state_split_var(o.l, def), val: get_array_str(o.r)};
     if (['index', 'db_index'].includes(o.l)){
       return {...state_split_var(o.l, def),
         val: get_array(o.r, {num: ['id', 'seq']})};
@@ -768,7 +795,7 @@ function state_apply(state, o){
   let {type, seq, cfid, index, val, key} = o;
   if (t_hooks.state_valid_filter?.(type))
     return t_hooks.state_apply(state, o);
-  if (['db_c', 'db_data', 'mem_c', 'bname'].includes(type)){
+  if (['db_c', 'db_data', 'mem_c', 'bname', 'db_query'].includes(type)){
     if (val)
       state[type] = val;
     else
@@ -874,6 +901,7 @@ function get_filter(s){
     case 'index_table': break;
     case 'db_index_table': break;
     case 'index_find': break;
+    case 'db_query_index': break;
     default:
       if (t_hooks.state_valid_filter?.(a[i]))
         break;
@@ -1023,16 +1051,22 @@ const state_next = (name, curr_state, filter, steps)=>etask(
   }
   if (t_hooks.state_assert)
     t_hooks.state_assert(filter, state, curr_state[name]);
+  if (filter.includes('db_query_index')){
+    assert.deepEqual(db_query_index_log, curr_state[name].db_query||[],
+      'db_query state mismach '+steps);
+  }
   curr_state[name] = state;
 });
 
 const cmd_state_diff = t=>etask(function*cmd_state_diff(){
   let name = t.ctx||get_def('left'), steps = '', filter;
-  if (get_filter(t.r))
+  if (get_filter(t.r)){
     filter = get_filter(t.r);
-  else if (!t_state[name]){
+    db_query_index_log = [];
+  } else if (!t_state[name]){
     assert(!t.r, 'first # must be empty or list of types');
     filter = ['db', 'db_data', 'db_c', 'mem', 'mem_c'];
+    db_query_index_log = [];
   } else {
     steps = t.r;
     filter = t_state[name].filter;
@@ -1040,6 +1074,7 @@ const cmd_state_diff = t=>etask(function*cmd_state_diff(){
   }
   yield state_next(name, t_state, filter, steps);
   t_state[name].filter = filter;
+  db_query_index_log = [];
 });
 
 const cmd_state_check = t=>etask(function*cmd_state_check(){
@@ -1264,6 +1299,14 @@ const get_btable = s=>etask(function*get_btable(){
   }
   return bo;
 });
+
+function get_array_str(s){
+  let ret = [];
+  s = rm_parentesis(s, '[');
+  for (let curr=s; curr = parse_get_next(curr);)
+    ret.push(curr.exp);
+  return ret;
+}
 
 function get_array_int(s){
   let ret = [];

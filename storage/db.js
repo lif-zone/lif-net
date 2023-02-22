@@ -129,17 +129,26 @@ export default class DB {
   cursor(store, query, dir){
     let wait = etask.wait();
     store = idb.unwrap(store);
+    if (DB.t.cursor_hook)
+      DB.t.cursor_hook(store, query, dir);
     let req = store.openCursor(query, dir);
     req.onerror = wrap_cb(e=>wait.throw(new Error('cursor '+e)));
     req.onsuccess = wrap_cb(e=>{
       let cursor = e.target.result;
-      if (cursor)
-        cursor.next = ()=>this.cursor_continue(cursor);
+      if (cursor){
+        cursor.next = ()=>{
+          if (DB.t.cursor_hook)
+            cursor.t = {store, query, dir};
+          return this.cursor_continue(cursor);
+        };
+      }
       wait.continue(cursor);
     });
     return wait;
   }
   cursor_continue(cursor){
+    if (DB.t.cursor_continue_hook)
+      DB.t.cursor_continue_hook(cursor);
     let wait = etask.wait();
     cursor.request.onsuccess = wrap_cb(e=>wait.continue(e.target.result));
     cursor.request.onerror = wrap_cb(
@@ -215,23 +224,31 @@ function transaction(db, store_names, mode, options){
   return wait;
 }
 
-/* XXX TODO
-function query_event(store, query, dir){
+function limit_to_str(v){
+  if (!Array.isArray(v))
+    return ''+v;
+  let s = '';
+  v.forEach(vv=>s += (s=='' ? '' : '_')+vv);
+  return s;
+}
+
+function query_to_str(store, query, dir){
   let e = store.name;
-  if (query){
-    let lower = JSON.stringify(query.__lower);
-    let upper = JSON.stringify(query.__upper);
-    if (lower==upper)
-      e += ' keyPath=='+lower;
-    else
-      e += ' '+lower+'<=keyPath<='+upper;
-  }
   if (dir=='prev')
-    e += ' rev';
+    e += ',rev';
+  if (query){
+    let lower = limit_to_str(query.__lower);
+    let upper = limit_to_str(query.__upper);
+    if (lower==upper)
+      e += ',key=='+lower;
+    else
+      e += ','+lower+'<=key<='+upper;
+  }
   return e;
 }
-*/
 
 DB.MAX_DECL = 64*1024;
 DB.MAX_FRAME = 64*1024;
 DB.init = function(opt){ global.shimIndexedDB.__setConfig(opt.shim_conf); };
+DB.query_to_str = query_to_str;
+DB.t = {};

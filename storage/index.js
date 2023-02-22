@@ -106,7 +106,7 @@ export default class Index {
     let _this = this._, scroll = _this.scroll, {min, max} = opt, {id} = _this;
     let db = scroll.soul.db, tx = db.transaction('index', 'readonly');
     let store = tx.store('index'), query;
-    query = IDBKeyRange.bound([id, key, min===undefined ? -1 : min],
+    query = IDBKeyRange.bound([id, key, min===undefined ? 0 : min],
       [id, key, max===undefined ? Infinity : max]);
     let cursor=yield db.cursor(store, query, 'prev');
     let iter = {i: 0, curr: cursor?.value};

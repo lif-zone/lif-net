@@ -77,35 +77,30 @@ export default class Index {
   find_mem_iter(key, opt={}){
     let {min, max} = opt;
     let avl = this.avl, Q = [], compare = avl._comparator, node = avl._root;
-    let nmin = {key, seq: min===undefined ? -1 : min};
+    let nmin = {key, seq: min===undefined ? 0 : min};
     let nmax = {key, seq: max===undefined ? Infinity : max};
     let iter = {};
     iter.next = ()=>{
-      assert(!iter.done, 'calling iterator after done');
       while (Q.length || node){
         if (node){
           Q.push(node);
           node = node.right;
-        } else {
-          node = Q.pop();
-          if (compare(node.key, nmin)<0){
-            iter.curr = null;
-            iter.done = true;
-            return iter;
-          }
-          if (compare(node.key, nmax)<=0){
-            iter.curr = node;
-            node = node.left;
-            return iter;
-          }
-          node = node.left;
+          continue;
         }
+        node = Q.pop();
+        if (compare(node.key, nmin)<0)
+          return iter.curr = null;
+        if (compare(node.key, nmax)<=0){
+          iter.curr = node.key;
+          node = node.left;
+          return iter.curr;
+        }
+        node = node.left;
       }
-      iter.curr = null;
-      iter.done = true;
-      return iter;
+      return iter.curr = null;
     };
-    return iter.next();
+    iter.next();
+    return iter;
   }
   find_db_iter(key, opt={}){ return etask({_: this}, function*find_db_iter(){
     let _this = this._, scroll = _this.scroll, {min, max} = opt, {id} = _this;
@@ -131,19 +126,19 @@ export default class Index {
     iter.next = ()=>etask(function*index_find_iter_next(){
       if (mem_iter){
         if (!first){
-          if (mem_iter.curr.key.dn===false){
+          if (mem_iter.curr.dn===false){
             mem_iter.next();
-            dn = mem_iter.curr?.key;
+            dn = mem_iter.curr;
             mem_iter = null;
           } else
             mem_iter.next();
         }
         first = false;
         for (; mem_iter?.curr; mem_iter.next()){
-          up = mem_iter.curr.key;
-          if (mem_iter.curr.key.query)
+          up = mem_iter.curr;
+          if (mem_iter.curr.query)
             continue;
-          return iter.curr = mem_iter.curr.key;
+          return iter.curr = mem_iter.curr;
         }
         mem_iter = null;
       }

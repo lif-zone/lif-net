@@ -322,7 +322,6 @@ class Index_table {
             return iter.curr = iter.iter.curr;
         }
         iter.iter = null;
-        curr=Branch_table.bseq_parent(curr);
       }
       for (; curr; curr=Branch_table.bseq_parent(curr)){
         let id = _this.get_index_id(cfid, bseq_branch(curr), name);
@@ -334,6 +333,7 @@ class Index_table {
           max: max===undefined ? seq_max : Math.min(seq_max, max)});
         if (!iter.iter.curr)
           continue;
+        curr=Branch_table.bseq_parent(curr);
         return iter.curr = iter.iter.curr;
       }
       if (!cfid)

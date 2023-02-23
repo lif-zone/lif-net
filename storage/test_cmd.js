@@ -994,6 +994,10 @@ const state_next = (name, curr_state, filter, steps)=>etask(
   t_hooks.state_curr?.(filter, state, scroll);
   for (let curr=steps; curr = parse_get_next(curr);)
     state_apply(curr_state[name], yield state_split(curr.exp, name));
+  if (filter.includes('db_query_index')){
+    assert.deepEqual(db_query_index_log, curr_state[name].db_query||[],
+      'db_query state mismach '+steps);
+  }
   if (filter.includes('mem_c')){
     assert_b2s_obj(state.mem_c, curr_state[name].mem_c,
       'mem conflict state mismach '+steps);
@@ -1007,7 +1011,7 @@ const state_next = (name, curr_state, filter, steps)=>etask(
       'index_table state mismach '+steps);
   }
   if (filter.includes('index')){
-    assert.deepEqual(state.index, curr_state[name].index,
+    assert.deepEqual(state.index||[], curr_state[name].index||[],
       'index state mismach '+steps);
   }
   if (filter.includes('db_index_table')){
@@ -1054,10 +1058,6 @@ const state_next = (name, curr_state, filter, steps)=>etask(
   }
   if (t_hooks.state_assert)
     t_hooks.state_assert(filter, state, curr_state[name]);
-  if (filter.includes('db_query_index')){
-    assert.deepEqual(db_query_index_log, curr_state[name].db_query||[],
-      'db_query state mismach '+steps);
-  }
   curr_state[name] = state;
 });
 

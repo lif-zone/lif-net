@@ -69,8 +69,9 @@ export default class Index {
     let body = data.get_body(cfid), key = body?.[field];
     if (key===undefined || key===null)
       return;
-    this.avl.insert({key, seq});
-    if (!decl?.db?.cfid?.[e.cfid]?.busy) // XXX: need is_loading
+    if (!scroll.storage)
+      this.avl.insert({key, seq});
+    else if (!decl?.db?.cfid?.[e.cfid]?.busy) // XXX: need is_loading
       this.schedule_db(key, seq);
   }
   schedule_db(key, seq){ this.storage_queue.push({id: this.id, key, seq}); }
@@ -88,6 +89,8 @@ export default class Index {
           continue;
         }
         node = Q.pop();
+        if (node.key.key==key)
+          iter.last = node.key;
         if (compare(node.key, nmin)<0)
           return iter.curr = null;
         if (compare(node.key, nmax)<=0){
@@ -106,6 +109,8 @@ export default class Index {
     let _this = this._, scroll = _this.scroll, {min, max} = opt, {id} = _this;
     let db = scroll.soul.db, tx = db.transaction('index', 'readonly');
     let store = tx.store('index'), query;
+    if (min!==undefined && max!==undefined)
+      assert(min<=max, 'invalid query min<=max min '+min+' max '+max);
     query = IDBKeyRange.bound([id, key, min===undefined ? 0 : min],
       [id, key, max===undefined ? Infinity : max]);
     let cursor=yield db.cursor(store, query, 'prev');
@@ -150,16 +155,23 @@ export default class Index {
         max = up.seq-1;
       if (dn)
         min = dn.seq+1;
-      if (!db_iter)
+      if (min!==undefined && max!==undefined && min>max);
+      else if (!db_iter){
         db_iter = yield _this.find_db_iter(key, {min, max});
+        if (!db_iter.curr){
+          let query = {key, seq: max, query: true, up: !!up, dn: false};
+          _this.avl.insert(query);
+          up = query;
+        }
+      }
       else if (db_iter.curr)
         yield db_iter.next();
-      if (db_iter.curr){
+      if (db_iter?.curr){
         let seq = db_iter.curr.seq, node = {key, seq, dn: false};
         if (up)
           up.dn = true;
         normalize_node(up);
-        if (db_iter.i==0 && max!==undefined && max!=seq){
+        if (db_iter.i==0 && max!==undefined && max!=seq && up?.seq!=max+1){
           let query = {key, seq: max, query: true, up: !!up, dn: true};
           _this.avl.insert(query);
           up = query;
@@ -179,7 +191,7 @@ export default class Index {
         _this.avl.remove(dn);
       }
       if (!iter2){
-        iter2 = yield _this.find_iter(key, {min: opt.min, max: dn.seq-1});
+        iter2 = yield _this.find_iter(key, {min: opt.min, max: dn.seq});
         return iter.curr = iter2.curr;
       }
       yield iter2.next();

@@ -128,14 +128,15 @@ export default class Index {
   }); }
   find_iter(key, opt={}){
     let _this = this, {min, max} = opt, scroll = this.scroll;
-    let up, dn, mem_iter = this.find_mem_iter(key, opt);
+    let up, dn, mem_iter;
     let iter = {}, first = true;
     let db_iter, iter2;
     iter.next = ()=>{
-      if (mem_iter){
-        if (!first)
-          mem_iter.next();
-        first = false;
+      if (!mem_iter)
+        mem_iter = this.find_mem_iter(key, opt);
+      else
+        mem_iter.next();
+      if (mem_iter?.curr && !dn){
         for (; mem_iter?.curr?.query; up = mem_iter.curr, mem_iter.next());
         // XXX: if no mem_iter.curr after query, we don't set dn correctly
         if (mem_iter?.curr){
@@ -144,11 +145,9 @@ export default class Index {
           if (mem_iter.curr.dn===false){
             mem_iter.next();
             dn = mem_iter.curr;
-            mem_iter = null;
           }
           return iter;
         }
-        mem_iter = null;
       }
       if (!scroll.storage || !db_iter && (up?.seq==0 || up&&up.dn!==false)){
         iter.curr = null;

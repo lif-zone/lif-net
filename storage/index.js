@@ -129,24 +129,17 @@ export default class Index {
   }); }
   find_iter(key, opt={}){
     let _this = this, {min, max} = opt, {cfid, scroll} = this;
-    let iter = {}, up, dn, mem_iter, db_iter, iter2;
+    let iter = {}, up, dn, db_iter, iter2;
     min = min===undefined ? 0 : min;
     max = max===undefined ? scroll.conflict.get(cfid).top.seq : max;
+    iter.step = 'mem';
     iter.next = ()=>{
-      mem_iter = mem_iter ? mem_iter.next() : this.find_mem_iter(key, opt);
-      if (!dn && mem_iter.curr?.up===false && mem_iter.curr.seq!=max)
-        dn = mem_iter.curr;
-      else if (!dn && mem_iter.curr){
-        for (; mem_iter.curr?.query && mem_iter.curr.dn!==false;
-          up = mem_iter.curr, mem_iter.next());
-        if (mem_iter.curr?.query && mem_iter.curr.dn===false)
-          dn = mem_iter.next()?.curr; // XXX: verify to test it
-        else if (mem_iter.curr){
-          up = iter.curr = mem_iter.curr;
-          if (mem_iter.curr.dn===false)
-            dn = mem_iter.next()?.curr;
+      if (iter.step=='mem'){
+        if (this.find_iter_step_mem(iter, key, min, max))
           return iter;
-        }
+        up = iter.up;
+        dn = iter.dn;
+        iter.step = 'db';
       }
       iter.curr = null;
       if (!scroll.storage || !db_iter && up && up.dn!==false)
@@ -240,6 +233,30 @@ export default class Index {
     this.avl.insert(query);
     normalize_node(query);
     return query;
+  }
+  find_iter_step_mem(iter, key, min, max){
+    let {mem_iter, up, dn} = iter, ret;
+    if (!mem_iter)
+      mem_iter = iter.mem_iter = this.find_mem_iter(key, {min, max});
+    else
+      mem_iter.next();
+    if (!dn && mem_iter.curr?.up===false && mem_iter.curr.seq!=max)
+      dn = mem_iter.curr;
+    else if (!dn && mem_iter.curr){
+      for (; mem_iter.curr?.query && mem_iter.curr.dn!==false;
+        up = mem_iter.curr, mem_iter.next());
+      if (mem_iter.curr?.query && mem_iter.curr.dn===false)
+        dn = mem_iter.next()?.curr; // XXX: verify to test it
+      else if (mem_iter.curr){
+        up = iter.curr = mem_iter.curr;
+        if (mem_iter.curr.dn===false)
+          dn = mem_iter.next()?.curr;
+        ret = true;
+      }
+    }
+    iter.up = up;
+    iter.dn = dn;
+    return ret;
   }
 }
 

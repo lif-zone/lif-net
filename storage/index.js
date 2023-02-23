@@ -133,20 +133,19 @@ export default class Index {
     let db_iter, iter2;
     iter.next = ()=>{
       if (mem_iter){
-        if (!first){
+        if (!first)
+          mem_iter.next();
+        first = false;
+        for (; mem_iter?.curr?.query; up = mem_iter.curr, mem_iter.next());
+        // XXX: if no mem_iter.curr after query, we don't set dn correctly
+        if (mem_iter?.curr){
+          up = mem_iter.curr;
+          iter.curr = mem_iter.curr;
           if (mem_iter.curr.dn===false){
             mem_iter.next();
             dn = mem_iter.curr;
             mem_iter = null;
-          } else
-            mem_iter.next();
-        }
-        first = false;
-        for (; mem_iter?.curr?.query; mem_iter.next())
-          up = mem_iter.curr;
-        if (mem_iter?.curr){
-          up = mem_iter.curr;
-          iter.curr = mem_iter.curr;
+          }
           return iter;
         }
         mem_iter = null;

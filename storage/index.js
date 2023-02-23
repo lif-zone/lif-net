@@ -152,7 +152,7 @@ export default class Index {
       if (dn)
         min = dn.seq+1;
       return etask(function*index_find_iter_next(){
-        if (min!==undefined && max!==undefined && min>max);
+        if (min>max);
         else if (!db_iter){
           db_iter = yield _this.find_db_iter(key, {min, max});
           if (!db_iter.curr){

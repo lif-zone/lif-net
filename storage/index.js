@@ -129,21 +129,22 @@ export default class Index {
   }); }
   find_iter(key, opt={}){
     let _this = this, {min, max} = opt, {cfid, scroll} = this;
-    let iter = {}, up, dn, db_iter, iter2;
-    min = min===undefined ? 0 : min;
-    max = max===undefined ? scroll.conflict.get(cfid).top.seq : max;
-    iter.step = 'mem';
+    let iter = {}, up, dn, db_iter;
+    iter.step = 'start';
     // XXX: can we avoid etask creation if only need to use mem?
     iter.next = ()=>etask(function*index_find_iter_next(){
       while (iter.step!='done'){
-        if (iter.step=='mem'){
+        if (iter.step=='start'){
+          min = min===undefined ? 0 : min;
+          max = max===undefined ? scroll.conflict.get(cfid).top.seq : max;
+          iter.step = 'mem';
+        } else if (iter.step=='mem'){
           if (_this.find_iter_step_mem(iter, key, min, max))
             return iter;
           up = iter.up;
           dn = iter.dn;
           iter.step = !scroll.storage || up && up.dn!==false ? 'done' : 'db';
-        }
-        if (iter.step=='db'){
+        } else if (iter.step=='db'){
           iter.curr = null;
           // XXX: check if we reached min and return
           if (!db_iter){
@@ -197,17 +198,15 @@ export default class Index {
             _this.avl.remove(dn);
           }
           iter.step = 'continue';
-        }
-        if (iter.step=='continue'){
-          if (!iter2){
-            iter2 = yield _this.find_iter(key, {min: opt.min, max: dn.seq});
-            iter.curr = iter2.curr;
-            return iter;
-          }
-          yield iter2.next();
-          iter.curr = iter2.curr;
-          return iter;
-        }
+        } else if (iter.step=='continue'){
+          iter.step = 'start';
+          min = opt.min;
+          max = dn.seq;
+          // XXX: rm all this mess
+          db_iter = null;
+          iter.mem_iter = iter.up = iter.dn = up = dn = null;
+        } else
+          assert.fail('invalid step '+iter.step);
       }
       assert.equal(iter.step, 'done', 'invalid step');
       iter.curr = null;

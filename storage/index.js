@@ -143,10 +143,9 @@ export default class Index {
           return iter;
         }
       }
-      if (!scroll.storage || !db_iter && (up?.seq==0 || up&&up.dn!==false)){
-        iter.curr = null;
+      iter.curr = null;
+      if (!scroll.storage || !db_iter && up && up.dn!==false)
         return iter;
-      }
       // XXX: check if we reached min and return
       if (up)
         max = up.seq-1;
@@ -193,10 +192,8 @@ export default class Index {
           iter.curr = node;
           return iter;
         }
-        if (!dn){
-          iter.curr = null;
+        if (!dn)
           return iter;
-        }
         if (dn.query){
           up.dn = true;
           normalize_node(up);

@@ -76,11 +76,10 @@ export default class Index {
   }
   schedule_db(key, seq){ this.storage_queue.push({id: this.id, key, seq}); }
   find_mem_iter(key, opt={}){
-    let {min, max} = opt;
     let avl = this.avl, Q = [], compare = avl._comparator, node = avl._root;
+    let {min, max} = opt, iter = {};
     let nmin = {key, seq: min===undefined ? 0 : min};
     let nmax = {key, seq: max===undefined ? Infinity : max};
-    let iter = {};
     iter.next = ()=>{
       while (Q.length || node){
         if (node){
@@ -91,19 +90,21 @@ export default class Index {
         node = Q.pop();
         if (node.key.key==key)
           iter.last = node.key;
-        if (compare(node.key, nmin)<0)
-          return iter.curr = null;
+        if (compare(node.key, nmin)<0){
+          iter.curr = null;
+          return iter;
+        }
         if (compare(node.key, nmax)<=0){
           iter.curr = node.key;
           node = node.left;
-          return iter.curr;
+          return iter;
         }
         node = node.left;
       }
-      return iter.curr = null;
+      iter.curr = null;
+      return iter;
     };
-    iter.next();
-    return iter;
+    return iter.next();
   }
   find_db_iter(key, opt={}){ return etask({_: this}, function*find_db_iter(){
     let _this = this._, scroll = _this.scroll, {min, max} = opt, {id} = _this;
@@ -113,19 +114,20 @@ export default class Index {
       assert(min<=max, 'invalid query min<=max min '+min+' max '+max);
     query = IDBKeyRange.bound([id, key, min===undefined ? 0 : min],
       [id, key, max===undefined ? Infinity : max]);
-    let cursor=yield db.cursor(store, query, 'prev');
+    let cursor = yield db.cursor(store, query, 'prev');
     let iter = {i: 0, curr: cursor?.value};
     iter.next = ()=>etask(function*iter_next(){
-      assert(cursor, 'db iter already done');
+      assert(cursor, 'db iter already finished');
       cursor = yield cursor.next();
       iter.i++;
       iter.curr = cursor?.value;
+      return iter;
     });
     return iter;
   }); }
-  find_iter(key, opt={}){ return etask({_: this}, function*find_iter(){
-    let _this = this._, {min, max} = opt, scroll = _this.scroll;
-    let up, dn, mem_iter = _this.find_mem_iter(key, opt);
+  find_iter(key, opt={}){
+    let _this = this, {min, max} = opt, scroll = this.scroll;
+    let up, dn, mem_iter = this.find_mem_iter(key, opt);
     let iter = {}, first = true;
     let db_iter, iter2;
     iter.next = ()=>{
@@ -144,12 +146,15 @@ export default class Index {
           up = mem_iter.curr;
           if (mem_iter.curr.query)
             continue;
-          return iter.curr = mem_iter.curr;
+          iter.curr = mem_iter.curr;
+          return iter;
         }
         mem_iter = null;
       }
-      if (!scroll.storage || !db_iter && (up?.seq==0 || up&&up.dn!==false))
-        return iter.curr = null;
+      if (!scroll.storage || !db_iter && (up?.seq==0 || up&&up.dn!==false)){
+        iter.curr = null;
+        return iter;
+      }
       // XXX: check if we reached min and return
       if (up)
         max = up.seq-1;
@@ -193,10 +198,13 @@ export default class Index {
           normalize_node(node);
           _this.avl.insert(node);
           up = node;
-          return iter.curr = node;
+          iter.curr = node;
+          return iter;
         }
-        if (!dn)
-          return iter.curr = null;
+        if (!dn){
+          iter.curr = null;
+          return iter;
+        }
         if (dn.query){
           up.dn = true;
           normalize_node(up);
@@ -204,17 +212,16 @@ export default class Index {
         }
         if (!iter2){
           iter2 = yield _this.find_iter(key, {min: opt.min, max: dn.seq});
-          return iter.curr = iter2.curr;
+          iter.curr = iter2.curr;
+          return iter;
         }
         yield iter2.next();
-        return iter.curr = iter2.curr;
+        iter.curr = iter2.curr;
+        return iter;
       });
     };
-    // XXX: optimize, change iter.next to return iter so we can avoid
-    // parent etask
-    yield iter.next();
-    return iter;
-  }); }
+    return iter.next();
+  }
 }
 
 class Index_table {
@@ -342,8 +349,10 @@ class Index_table {
       if (iter.iter){
         if (iter.iter.curr){
           yield iter.iter.next();
-          if (iter.iter.curr)
-            return iter.curr = iter.iter.curr;
+          if (iter.iter.curr){
+            iter.curr = iter.iter.curr;
+            return iter;
+          }
         }
         iter.iter = null;
       }
@@ -358,19 +367,21 @@ class Index_table {
         if (!iter.iter.curr)
           continue;
         curr=Branch_table.bseq_parent(curr);
-        return iter.curr = iter.iter.curr;
+        iter.curr = iter.iter.curr;
+        return iter;
       }
-      if (!cfid)
-        return iter.curr = null;
+      if (!cfid){
+        iter.curr = null;
+        return iter;
+      }
       let co = scroll.conflict.get(cfid);
       cfid = co.parent.cfid;
       max = max===undefined ? co.parent.seq : Math.min(max, co.parent.seq);
       curr = bseq;
       bt = scroll.get_branch_table(cfid);
-      return yield iter.next();
+      return iter.next();
     });
-    yield iter.next();
-    return iter;
+    return iter.next();
   }); }
 }
 

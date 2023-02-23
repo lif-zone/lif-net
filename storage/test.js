@@ -2577,13 +2577,14 @@ describe('scroll', ()=>{
             db_query=[index,rev,0_arik_0<=key<=0_arik_7])`);
         //  0 1 2 3 4 5 6 7 8 9
         //                  n-q (<=9 n=1)
-        //          n---n-q n-q (<=7 n=2) // XXX merge 7-8
+        //          n---n-q-n-q (<=7 n=2)
         t('zzz2', `${t_zzz}
           ##index_find(name:user key:arik bseq:9 count:1)=8
             #(index=[{${s}:8 dn:false} {${s}:9 query up:false}]
             db_query=[index,rev,0_arik_0<=key<=0_arik_9])
+          // XXX BUG: need to rm query node
           ##index_find(name:user key:arik bseq:7 count:2)=[6 4]
-            #(index=[{${s}:4 dn:false} {${s}:6} {${s}:7 query up:false}]
+            #(index=[{${s}:4 dn:false} {${s}:6} {${s}:7 query} {${s}:8}]
             db_query=[index,rev,0_arik_0<=key<=0_arik_7 next])`);
         //  0 1 2 3 4 5 6 7 8 9
         //                  n-q (<=9 n=1)
@@ -2601,7 +2602,7 @@ describe('scroll', ()=>{
         //  0 1 2 3 4 5 6 7 8 9
         //                  n-q (<=9 n=1)
         //          n---n   n-q (<=6 n=2)
-        //      n---n---n-q n-q (<=7 n=3) // XXX: merge 6-7-8
+        //      n---n---n---n-q (<=7 n=3)
         //      n---n---n---n-q (<=8 n=3)
         t('zzz4', `${t_zzz}
           ##index_find(name:user key:arik bseq:9 count:1)=8
@@ -2611,13 +2612,10 @@ describe('scroll', ()=>{
             #(index=[{${s}:4 dn:false} {${s}:6 up:false}]
             db_query=[index,rev,0_arik_0<=key<=0_arik_6 next])
           ##index_find(name:user key:arik bseq:7 count:3)=[6 4 2]
-            #(index=[{${s}:2 dn:false} {${s}:4} {${s}:6 up:false}
-            {${s}:7 query up:false dn:false} {${s}:8 dn:false}]
+            #(index=[{${s}:2 dn:false} {${s}:4} {${s}:6} {${s}:8}]
             db_query=[index,rev,key==0_arik_7
             index,rev,0_arik_0<=key<=0_arik_3])
-          ##index_find(name:user key:arik bseq:8 count:3)=[8 6 4]
-            // XXX: bug, uneeded db_query and no merge
-            #db_query=[index,rev,key==0_arik_7]`);
+          ##index_find(name:user key:arik bseq:8 count:3)=[8 6 4] #`);
         //  0 1 2 3 4 5 6 7 8 9
         //                  n-q (<=9 n=1)
         //          n---n   n-q (<=6 n=2)

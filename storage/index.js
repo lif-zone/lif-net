@@ -2,6 +2,7 @@
 'use strict';
 import assert from 'assert';
 import etask from '../util/etask.js';
+import xerr from '../util/xerr.js';
 import Branch_table from './branch.js';
 const {bseq_branch} = Branch_table;
 import Tree from 'avl';
@@ -151,10 +152,12 @@ export default class Index {
       if (!scroll.storage || !db_iter && up && up.dn!==false)
         return iter;
       // XXX: check if we reached min and return
-      if (up)
-        max = up.seq-1;
-      if (dn)
-        min = dn.seq+1;
+      if (!db_iter){
+        if (up)
+          max = up.seq-1;
+        if (dn)
+          min = dn.seq+1;
+      }
       return etask(function*index_find_iter_next(){
         if (min>max);
         else if (!db_iter){
@@ -167,10 +170,8 @@ export default class Index {
               dn.up = true;
               normalize_node(dn);
             } else {
-              let query = {key, seq: max, query: true, up: !!up, dn: false};
-              _this.avl.insert(query);
-              normalize_node(query);
-              up = query;
+              up = _this.avl_insert_query(
+                {key, seq: max, query: true, up: !!up, dn: false});
             }
           }
         }
@@ -182,13 +183,14 @@ export default class Index {
             up.dn = true;
           normalize_node(up);
           if (db_iter.i==0 && max!=seq && up?.seq!=max+1){
-            let query = {key, seq: max, query: true, up: !!up, dn: true};
-            _this.avl.insert(query);
-            up = query;
+            up = _this.avl_insert_query(
+              {key, seq: max, query: true, up: !!up, dn: true});
           }
           node.up = db_iter.i>0 || !!up;
           normalize_node(up);
           normalize_node(node);
+          // XXX: need insert similar to avl_insert_query and unite both
+          // functions. need to merge after insert
           _this.avl.insert(node);
           up = node;
           iter.curr = node;
@@ -202,6 +204,7 @@ export default class Index {
           _this.avl.remove(dn);
         }
         if (!iter2){
+          xerr.notice('XXX new iter2');
           iter2 = yield _this.find_iter(key, {min: opt.min, max: dn.seq});
           iter.curr = iter2.curr;
           return iter;
@@ -212,6 +215,31 @@ export default class Index {
       });
     };
     return iter.next();
+  }
+  avl_insert_query(query){
+    let dn, up;
+    let mem_iter = this.find_mem_iter(query.key, {min: query.seq-1,
+      max: query.seq+1});
+    if (up = mem_iter.curr)
+      dn = mem_iter.next()?.curr;
+    if (up && dn){
+      up.dn = true;
+      dn.up = true;
+      normalize_node(up);
+      normalize_node(dn);
+      return dn;
+    } else if (up){
+      up.dn = true;
+      query.up = true;
+      normalize_node(up);
+    } else if (dn){
+      // XXX: need test for this scenario
+      xerr('XXX avl_insert_query dn %O up %O query %O', dn, up, query);
+    }
+    //  xerr('XXX avl_insert_query dn %O up %O query %O', dn, up, query);
+    this.avl.insert(query);
+    normalize_node(query);
+    return query;
   }
 }
 

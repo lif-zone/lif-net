@@ -2544,13 +2544,8 @@ describe('scroll', ()=>{
             db_query=[index,rev,0_/derry_0<=key<=0_/derry_5])
           ##index_find(index:0 key:/derry max:5 count:1)=4
           ##index_find(index:0 key:/derry max:9 count:5)=[9 8 7 4 3]
-          // XXX BUG: query not removed/bad merge
-          #(index=[
-            {id:0 key:/derry seq:3 dn:false}
-            {id:0 key:/derry seq:4}
-            !{id:0 key:/derry seq:5 query up:false}
-            {id:0 key:/derry seq:6 query}
-            {id:0 key:/derry seq:7}]
+          #(index=[{id:0 key:/derry seq:3 dn:false} {id:0 key:/derry seq:4}
+            !{id:0 key:/derry seq:5 query up:false} {id:0 key:/derry seq:7}]
             db_query=[index,rev,key==0_/derry_6
             index,rev,0_/derry_0<=key<=0_/derry_3])`);
         // XXX: rename
@@ -2600,11 +2595,8 @@ describe('scroll', ()=>{
           ##index_find(name:user key:arik bseq:6 count:2)=[6 4]
             #(index=[{${s}:4 dn:false} {${s}:6 up:false}]
             db_query=[index,rev,0_arik_0<=key<=0_arik_6 next])
-          // XXX: missing query at seq:7, then need to merge
-          // #(index={${s}:7 query up:true dn:false}
           ##index_find(name:user key:arik bseq:8 count:2)=[8 6]
-            #(index=[{${s}:7 query dn:false} {${s}:8}]
-            db_query=[index,rev,key==0_arik_7])`);
+            #(index=[{${s}:6} {${s}:8}] db_query=[index,rev,key==0_arik_7])`);
         t('db_conflict', `s.scroll(index:path) s.decl({path:/f})
           s.decl({path:/f}) s1.clone(s.M1) s1.decl({path:/f})
           S..scroll(s..M0 db) tput(0 1  ) tput(0 1 2) tput(0 1 c)

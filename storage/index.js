@@ -159,13 +159,20 @@ export default class Index {
       else if (!db_iter){
         db_iter = yield _this.find_db_iter(key, {min, max});
         if (!db_iter.curr){
-          if (max==up?.seq-1)
+          if (max!==undefined && max==up?.seq-1)
             up.dn = true;
           normalize_node(up);
-          let query = {key, seq: max, query: true, up: !!up, dn: false};
-          _this.avl.insert(query);
-          normalize_node(query);
-          up = query;
+          if (up && dn){
+            up.dn = true;
+            dn.up = true;
+            normalize_node(up);
+            normalize_node(dn);
+          } else {
+            let query = {key, seq: max, query: true, up: !!up, dn: false};
+            _this.avl.insert(query);
+            normalize_node(query);
+            up = query;
+          }
         }
       }
       else if (db_iter.curr)

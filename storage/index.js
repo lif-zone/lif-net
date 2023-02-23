@@ -128,7 +128,7 @@ export default class Index {
     let up, dn, mem_iter = _this.find_mem_iter(key, opt);
     let iter = {}, first = true;
     let db_iter, iter2;
-    iter.next = ()=>etask(function*index_find_iter_next(){
+    iter.next = ()=>{
       // XXX: create the etask only after memory
       if (mem_iter){
         if (!first){
@@ -155,59 +155,63 @@ export default class Index {
         max = up.seq-1;
       if (dn)
         min = dn.seq+1;
-      if (min!==undefined && max!==undefined && min>max);
-      else if (!db_iter){
-        db_iter = yield _this.find_db_iter(key, {min, max});
-        if (!db_iter.curr){
-          if (max!==undefined && max==up?.seq-1)
-            up.dn = true;
-          normalize_node(up);
-          if (up && dn){
-            up.dn = true;
-            dn.up = true;
+      return etask(function*index_find_iter_next(){
+        if (min!==undefined && max!==undefined && min>max);
+        else if (!db_iter){
+          db_iter = yield _this.find_db_iter(key, {min, max});
+          if (!db_iter.curr){
+            if (max!==undefined && max==up?.seq-1)
+              up.dn = true;
             normalize_node(up);
-            normalize_node(dn);
-          } else {
-            let query = {key, seq: max, query: true, up: !!up, dn: false};
-            _this.avl.insert(query);
-            normalize_node(query);
-            up = query;
+            if (up && dn){
+              up.dn = true;
+              dn.up = true;
+              normalize_node(up);
+              normalize_node(dn);
+            } else {
+              let query = {key, seq: max, query: true, up: !!up, dn: false};
+              _this.avl.insert(query);
+              normalize_node(query);
+              up = query;
+            }
           }
         }
-      }
-      else if (db_iter.curr)
-        yield db_iter.next();
-      if (db_iter?.curr){
-        let seq = db_iter.curr.seq, node = {key, seq, dn: false};
-        if (up)
-          up.dn = true;
-        normalize_node(up);
-        if (db_iter.i==0 && max!==undefined && max!=seq && up?.seq!=max+1){
-          let query = {key, seq: max, query: true, up: !!up, dn: true};
-          _this.avl.insert(query);
-          up = query;
+        else if (db_iter.curr)
+          yield db_iter.next();
+        if (db_iter?.curr){
+          let seq = db_iter.curr.seq, node = {key, seq, dn: false};
+          if (up)
+            up.dn = true;
+          normalize_node(up);
+          if (db_iter.i==0 && max!==undefined && max!=seq && up?.seq!=max+1){
+            let query = {key, seq: max, query: true, up: !!up, dn: true};
+            _this.avl.insert(query);
+            up = query;
+          }
+          node.up = db_iter.i>0 || !!up;
+          normalize_node(up);
+          normalize_node(node);
+          _this.avl.insert(node);
+          up = node;
+          return iter.curr = node;
         }
-        node.up = db_iter.i>0 || !!up;
-        normalize_node(up);
-        normalize_node(node);
-        _this.avl.insert(node);
-        up = node;
-        return iter.curr = node;
-      }
-      if (!dn)
-        return iter.curr = null;
-      if (dn.query){
-        up.dn = true;
-        normalize_node(up);
-        _this.avl.remove(dn);
-      }
-      if (!iter2){
-        iter2 = yield _this.find_iter(key, {min: opt.min, max: dn.seq});
+        if (!dn)
+          return iter.curr = null;
+        if (dn.query){
+          up.dn = true;
+          normalize_node(up);
+          _this.avl.remove(dn);
+        }
+        if (!iter2){
+          iter2 = yield _this.find_iter(key, {min: opt.min, max: dn.seq});
+          return iter.curr = iter2.curr;
+        }
+        yield iter2.next();
         return iter.curr = iter2.curr;
-      }
-      yield iter2.next();
-      return iter.curr = iter2.curr;
-    });
+      });
+    };
+    // XXX: optimize, change iter.next to return iter so we can avoid
+    // parent etask
     yield iter.next();
     return iter;
   }); }

@@ -133,9 +133,10 @@ export default class Index {
     min = min===undefined ? 0 : min;
     max = max===undefined ? scroll.conflict.get(cfid).top.seq : max;
     iter.step = 'mem';
-    iter.next = ()=>{
+    // XXX: can we avoid etask creation if only need to use mem?
+    iter.next = ()=>etask(function*index_find_iter_next(){
       if (iter.step=='mem'){
-        if (this.find_iter_step_mem(iter, key, min, max))
+        if (_this.find_iter_step_mem(iter, key, min, max))
           return iter;
         up = iter.up;
         dn = iter.dn;
@@ -154,62 +155,60 @@ export default class Index {
         if (dn)
           min = dn.seq+1;
       }
-      return etask(function*index_find_iter_next(){
-        if (min>max);
-        else if (!db_iter){
-          db_iter = yield _this.find_db_iter(key, {min, max});
-          if (!db_iter.curr){
-            if (up)
-              up.dn = true;
-            normalize_node(up);
-            if (up && dn){
-              dn.up = true;
-              normalize_node(dn);
-            } else {
-              up = _this.avl_insert_query(
-                {key, seq: max, query: true, up: !!up, dn: false});
-            }
-          }
-        }
-        else if (db_iter.curr)
-          yield db_iter.next();
-        if (db_iter?.curr){
-          let seq = db_iter.curr.seq, node = {key, seq, dn: false};
+      if (min>max);
+      else if (!db_iter){
+        db_iter = yield _this.find_db_iter(key, {min, max});
+        if (!db_iter.curr){
           if (up)
             up.dn = true;
           normalize_node(up);
-          if (db_iter.i==0 && max!=seq && up?.seq!=max+1){
+          if (up && dn){
+            dn.up = true;
+            normalize_node(dn);
+          } else {
             up = _this.avl_insert_query(
-              {key, seq: max, query: true, up: !!up, dn: true});
+              {key, seq: max, query: true, up: !!up, dn: false});
           }
-          node.up = db_iter.i>0 || !!up;
-          normalize_node(up);
-          normalize_node(node);
-          // XXX: need insert similar to avl_insert_query and unite both
-          // functions. need to merge after insert
-          _this.avl.insert(node);
-          up = node;
-          iter.curr = node;
-          return iter;
         }
-        if (!dn)
-          return iter;
-        if (dn.query && dn.dn!==false){
+      }
+      else if (db_iter.curr)
+        yield db_iter.next();
+      if (db_iter?.curr){
+        let seq = db_iter.curr.seq, node = {key, seq, dn: false};
+        if (up)
           up.dn = true;
-          normalize_node(up);
-          _this.avl.remove(dn);
+        normalize_node(up);
+        if (db_iter.i==0 && max!=seq && up?.seq!=max+1){
+          up = _this.avl_insert_query(
+            {key, seq: max, query: true, up: !!up, dn: true});
         }
-        if (!iter2){
-          xerr.notice('XXX new iter2');
-          iter2 = yield _this.find_iter(key, {min: opt.min, max: dn.seq});
-          iter.curr = iter2.curr;
-          return iter;
-        }
-        yield iter2.next();
+        node.up = db_iter.i>0 || !!up;
+        normalize_node(up);
+        normalize_node(node);
+        // XXX: need insert similar to avl_insert_query and unite both
+        // functions. need to merge after insert
+        _this.avl.insert(node);
+        up = node;
+        iter.curr = node;
+        return iter;
+      }
+      if (!dn)
+        return iter;
+      if (dn.query && dn.dn!==false){
+        up.dn = true;
+        normalize_node(up);
+        _this.avl.remove(dn);
+      }
+      if (!iter2){
+        xerr.notice('XXX new iter2');
+        iter2 = yield _this.find_iter(key, {min: opt.min, max: dn.seq});
         iter.curr = iter2.curr;
         return iter;
-      });
-    };
+      }
+      yield iter2.next();
+      iter.curr = iter2.curr;
+      return iter;
+    });
     return iter.next();
   }
   avl_insert_query(query){

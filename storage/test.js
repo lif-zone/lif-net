@@ -2550,7 +2550,7 @@ describe('scroll', ()=>{
             {id:0 key:/derry seq:4}
             !{id:0 key:/derry seq:5 query up:false}
             {id:0 key:/derry seq:6 query}
-            {id:0 key:/derry seq:7 dn:false}]
+            {id:0 key:/derry seq:7}]
             db_query=[index,rev,key==0_/derry_6
             index,rev,0_/derry_0<=key<=0_/derry_3])`);
         // XXX: rename
@@ -2601,10 +2601,10 @@ describe('scroll', ()=>{
             #(index=[{${s}:4 dn:false} {${s}:6 up:false}]
             db_query=[index,rev,0_arik_0<=key<=0_arik_6 next])
           // XXX: missing query at seq:7, then need to merge
+          // #(index={${s}:7 query up:true dn:false}
           ##index_find(name:user key:arik bseq:8 count:2)=[8 6]
-            #(index={${s}:7 query up:true dn:false}
-            db_query=[index,rev,key==0_arik_7])
-        `);
+            #(index=[{${s}:7 query dn:false} {${s}:8}]
+            db_query=[index,rev,key==0_arik_7])`);
         t('db_conflict', `s.scroll(index:path) s.decl({path:/f})
           s.decl({path:/f}) s1.clone(s.M1) s1.decl({path:/f})
           S..scroll(s..M0 db) tput(0 1  ) tput(0 1 2) tput(0 1 c)
@@ -2616,15 +2616,14 @@ describe('scroll', ()=>{
           ##index_find(name:path key:/f cfid:0 bseq:2)=[2 1]
           // XXX: no point to check index_0 (only from 1)
           // XXX BUG: uneeded query entry
-          #(index=[{id:0 key:/f seq:0 query:true up:true dn:false}
-            {id:0 key:/f seq:1 dn:false} {id:0 key:/f seq:2 up:false}]
+          #(index=[{id:0 key:/f seq:0 query:true dn:false}
+            {id:0 key:/f seq:1} {id:0 key:/f seq:2 up:false}]
             db_query=[index,rev,0_/f_0<=key<=0_/f_2
             next next index,rev,key==0_/f_0])
           ##index_find(name:path key:/f cfid:1 bseq:2)=[2 1]
-          #(index=[{id:0 key:/f seq:0 query up:false dn:false}
+          #(index=[{id:0 key:/f seq:0 query dn:false}
             {id:0 key:/f seq:1} {id:1 key:/f seq:2 dn:false up:false}]
-            db_query=[index,rev,1_/f_0<=key<=1_/f_2 next
-            index,rev,key==0_/f_0])`);
+            db_query=[index,rev,1_/f_0<=key<=1_/f_2 next])`);
         // XXX: need tests for adding declarations after partial search
       });
       // XXX: test update of avl in memory after new entries added to db

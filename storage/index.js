@@ -131,7 +131,6 @@ export default class Index {
     let iter = {}, first = true;
     let db_iter, iter2;
     iter.next = ()=>{
-      // XXX: create the etask only after memory
       if (mem_iter){
         if (!first){
           if (mem_iter.curr.dn===false){

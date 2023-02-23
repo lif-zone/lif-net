@@ -81,6 +81,7 @@ export default class Index {
     let nmin = {key, seq: min===undefined ? 0 : min};
     let nmax = {key, seq: max===undefined ? Infinity : max};
     iter.next = ()=>{
+      iter.i = iter.i===undefined ? 0 : iter.i+1;
       while (Q.length || node){
         if (node){
           Q.push(node);
@@ -141,10 +142,10 @@ export default class Index {
             mem_iter.next();
         }
         first = false;
-        for (; mem_iter?.curr; mem_iter.next()){
+        for (; mem_iter?.curr?.query; mem_iter.next())
           up = mem_iter.curr;
-          if (mem_iter.curr.query)
-            continue;
+        if (mem_iter?.curr){
+          up = mem_iter.curr;
           iter.curr = mem_iter.curr;
           return iter;
         }

@@ -139,11 +139,14 @@ export default class Index {
           return iter;
         up = iter.up;
         dn = iter.dn;
-        iter.step = 'db';
+        iter.step = !scroll.storage || up && up.dn!==false ? 'done' : 'db';
       }
-      iter.curr = null;
-      if (!scroll.storage || !db_iter && up && up.dn!==false)
+      if (iter.step=='done'){
+        iter.curr = null;
         return iter;
+      }
+      assert.equal(iter.step, 'db', 'XXX WIP');
+      iter.curr = null;
       // XXX: check if we reached min and return
       if (!db_iter){
         if (up)

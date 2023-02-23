@@ -2601,6 +2601,7 @@ describe('scroll', ()=>{
         //                  n-q (<=9 n=1)
         //          n---n   n-q (<=6 n=2)
         //      n---n---n-q n-q (<=7 n=3) // XXX: merge 6-7-8
+        //      n---n---n---n-q (<=8 n=3)
         t('zzz4', `${t_zzz}
           ##index_find(name:user key:arik bseq:9 count:1)=8
             #(index=[{${s}:8 dn:false} {${s}:9 query up:false}]
@@ -2612,7 +2613,32 @@ describe('scroll', ()=>{
             #(index=[{${s}:2 dn:false} {${s}:4} {${s}:6 up:false}
             {${s}:7 query up:false dn:false} {${s}:8 dn:false}]
             db_query=[index,rev,key==0_arik_7
-            index,rev,0_arik_0<=key<=0_arik_3])`);
+            index,rev,0_arik_0<=key<=0_arik_3])
+          ##index_find(name:user key:arik bseq:8 count:3)=[8 6 4]
+            // XXX: bug, uneeded db_query and no merge
+            #db_query=[index,rev,key==0_arik_7]`);
+        //  0 1 2 3 4 5 6 7 8 9
+        //                  n-q (<=9 n=1)
+        //          n---n   n-q (<=6 n=2)
+        //  ----n           n-q (<=2)
+        //  ----n---n---n---n-q (<=9)
+        t('zzz5', `${t_zzz}
+           ##index_find(name:user key:arik bseq:9 count:1)=8
+            #(index=[{${s}:8 dn:false} {${s}:9 query up:false}]
+            db_query=[index,rev,0_arik_0<=key<=0_arik_9])
+          ##index_find(name:user key:arik bseq:6 count:2)=[6 4]
+            #(index=[{${s}:4 dn:false} {${s}:6 up:false}]
+            db_query=[index,rev,0_arik_0<=key<=0_arik_6 next])
+          ##index_find(name:user key:arik bseq:2)=2
+            #(index=[{${s}:2 dn:false up:false}]
+              db_query=[index,rev,0_arik_0<=key<=0_arik_2 next])
+          // XXX: no need for query on seq:1
+          ##index_find(name:user key:arik bseq:9)=[8 6 4 2]
+            #(index=[{${s}:1 query:true dn:false} {${s}:2} {${s}:4}
+            {${s}:6} {${s}:8}]
+            db_query=[index,rev,key==0_arik_7
+            index,rev,key==0_arik_3 index,rev,0_arik_0<=key<=0_arik_1])
+        `);
         t('db_conflict', `s.scroll(index:path) s.decl({path:/f})
           s.decl({path:/f}) s1.clone(s.M1) s1.decl({path:/f})
           S..scroll(s..M0 db) tput(0 1  ) tput(0 1 2) tput(0 1 c)

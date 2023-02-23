@@ -130,6 +130,7 @@ export default class Index {
   find_iter(key, opt={}){
     let _this = this, {min, max} = opt, scroll = this.scroll;
     let iter = {}, up, dn, mem_iter, db_iter, iter2;
+    xerr.notice('XXX find_iter min %s max %s', min, max);
     iter.next = ()=>{
       mem_iter = mem_iter ? mem_iter.next() : this.find_mem_iter(key, opt);
       if (!dn && mem_iter.curr?.up===false && mem_iter.curr.seq!=max)
@@ -199,8 +200,7 @@ export default class Index {
         }
         if (!dn)
           return iter;
-        if (dn.query){
-          xerr.notice('XXX rm %O up %O', dn, up);
+        if (dn.query && dn.dn!==false){
           up.dn = true;
           normalize_node(up);
           _this.avl.remove(dn);

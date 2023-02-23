@@ -2,6 +2,7 @@
 'use strict';
 import assert from 'assert';
 import etask from '../util/etask.js';
+import xerr from '../util/xerr.js';
 import Branch_table from './branch.js';
 const {bseq_branch} = Branch_table;
 import Tree from 'avl';
@@ -131,12 +132,14 @@ export default class Index {
     let iter = {}, up, dn, mem_iter, db_iter, iter2;
     iter.next = ()=>{
       mem_iter = mem_iter ? mem_iter.next() : this.find_mem_iter(key, opt);
-      if (mem_iter?.curr && !dn){
+      if (!dn && mem_iter.curr?.up===false && mem_iter.curr.seq!=max)
+        dn = mem_iter.curr;
+      else if (!dn && mem_iter.curr){
         for (; mem_iter.curr?.query && mem_iter.curr.dn!==false;
           up = mem_iter.curr, mem_iter.next());
         if (mem_iter.curr?.query && mem_iter.curr.dn===false)
           dn = mem_iter.next()?.curr; // XXX: verify to test it
-        else if (mem_iter?.curr){
+        else if (mem_iter.curr){
           up = iter.curr = mem_iter.curr;
           if (mem_iter.curr.dn===false)
             dn = mem_iter.next()?.curr;
@@ -151,6 +154,7 @@ export default class Index {
         max = up.seq-1;
       if (dn)
         min = dn.seq+1;
+      xerr.notice('XXX up %O dn %O', up, dn);
       return etask(function*index_find_iter_next(){
         if (min>max);
         else if (!db_iter){
@@ -159,6 +163,7 @@ export default class Index {
             if (up)
               up.dn = true;
             normalize_node(up);
+            xerr.notice('pre add query A up %O dn %O', up, dn);
             if (up && dn){
               dn.up = true;
               normalize_node(dn);
@@ -177,6 +182,8 @@ export default class Index {
           if (up)
             up.dn = true;
           normalize_node(up);
+          if (db_iter.i==0)
+            xerr.notice('pre add query B up %O dn %O', up, dn);
           if (db_iter.i==0 && max!==undefined && max!=seq && up?.seq!=max+1){
             let query = {key, seq: max, query: true, up: !!up, dn: true};
             _this.avl.insert(query);
@@ -193,6 +200,7 @@ export default class Index {
         if (!dn)
           return iter;
         if (dn.query){
+          xerr.notice('XXX rm %O up %O', dn, up);
           up.dn = true;
           normalize_node(up);
           _this.avl.remove(dn);

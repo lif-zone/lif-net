@@ -143,16 +143,18 @@ export default class Index {
             return iter;
           up = iter.up;
           dn = iter.dn;
-          iter.step = !scroll.storage || up && up.dn!==false ? 'done' : 'db';
-        } else if (iter.step=='db'){
-          iter.curr = null;
-          // XXX: check if we reached min and return
-          if (!db_iter){
+          if (!scroll.storage || up && up.dn!==false)
+            iter.step = 'done';
+          else {
+            // XXX: check if we reached min and return
             if (up)
               max = up.seq-1;
             if (dn)
               min = dn.seq+1;
+            iter.step = 'db';
           }
+        } else if (iter.step=='db'){
+          iter.curr = null; // XXX: rm from here
           if (min>max);
           else if (!db_iter){
             db_iter = yield _this.find_db_iter(key, {min, max});

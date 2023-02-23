@@ -2460,20 +2460,21 @@ describe('scroll', ()=>{
         decl({path:/arik}) decl({path:/derry}) decl({path:/derry})
         decl({path:/arik}) decl({path:/arik}) decl({path:/derry})
         decl({path:/derry}) decl({path:/derry}) decl({path:/arik})
-        decl({path:/arik}) decl({path:/arik})
-        Soul.db_copy(s.soul)
-          S..#(db_query_index index index_table) Soul.S.scroll(s..M0 db)
-          #(index_table={id:0 cfid:0 bseqb:null name:path})`;
+        decl({path:/arik}) decl({path:/arik}) Soul.db_copy(s.soul)
+        S..#(db_query_index index index_table) Soul.S.scroll(s..M0 db)
+        #(index_table={id:0 cfid:0 bseqb:null name:path})`;
         t('basic', `${t_db}
           ##index_find(index:0 key:/derry)=[9 8 7 4 3 1]
-          #(index=[{id:0 key:/derry seq:9 up:false} {id:0 key:/derry seq:8}
+          #(index=[{id:0 key:/derry query seq:12 up:false}
+            {id:0 key:/derry seq:9} {id:0 key:/derry seq:8}
             {id:0 key:/derry seq:7} {id:0 key:/derry seq:4}
             {id:0 key:/derry seq:3} {id:0 key:/derry seq:1 dn:false}]
-            db_query=[index,rev,0_/derry_0<=key<=0_/derry_Infinity
+            db_query=[index,rev,0_/derry_0<=key<=0_/derry_12
               next next next next next next])`);
         t('db_max', `${t_db} ##index_find(index:0 key:/derry count:1)=9
-          #(index={id:0 key:/derry seq:9 dn:false up:false}
-            db_query=[index,rev,0_/derry_0<=key<=0_/derry_Infinity])`);
+          #(index=[{id:0 key:/derry seq:9 dn:false}
+            {id:0 key:/derry seq:12 query up:false}]
+            db_query=[index,rev,0_/derry_0<=key<=0_/derry_12])`);
         t('db_max9', `${t_db} ##index_find(index:0 key:/derry max:9 count:1)=9
           #(index={id:0 key:/derry seq:9 dn:false up:false}
             db_query=[index,rev,0_/derry_0<=key<=0_/derry_9])`);

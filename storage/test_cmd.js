@@ -523,6 +523,7 @@ const cmd_db_init = t=>etask(function*cmd_db_init(){
 });
 
 const cmd_db_copy = t=>etask(function*cmd_db_copy(){
+  yield cmd_flush();
   let d_sname = t.ctx, s_soul, m = t.r.match(/(^[^.]*)\.soul$/);
   if (m?.[1])
     s_soul = get_scroll(m[1]).soul;

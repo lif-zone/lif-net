@@ -128,24 +128,18 @@ export default class Index {
   }); }
   find_iter(key, opt={}){
     let _this = this, {min, max} = opt, scroll = this.scroll;
-    let up, dn, mem_iter;
-    let iter = {}, first = true;
-    let db_iter, iter2;
+    let iter = {}, up, dn, mem_iter, db_iter, iter2;
     iter.next = ()=>{
-      if (!mem_iter)
-        mem_iter = this.find_mem_iter(key, opt);
-      else
-        mem_iter.next();
+      mem_iter = mem_iter ? mem_iter.next() : this.find_mem_iter(key, opt);
       if (mem_iter?.curr && !dn){
-        for (; mem_iter?.curr?.query; up = mem_iter.curr, mem_iter.next());
-        // XXX: if no mem_iter.curr after query, we don't set dn correctly
-        if (mem_iter?.curr){
-          up = mem_iter.curr;
-          iter.curr = mem_iter.curr;
-          if (mem_iter.curr.dn===false){
-            mem_iter.next();
-            dn = mem_iter.curr;
-          }
+        for (; mem_iter.curr?.query && mem_iter.curr.dn!==false;
+          up = mem_iter.curr, mem_iter.next());
+        if (mem_iter.curr?.query && mem_iter.curr.dn===false)
+          dn = mem_iter.next()?.curr; // XXX: verify to test it
+        else if (mem_iter?.curr){
+          up = iter.curr = mem_iter.curr;
+          if (mem_iter.curr.dn===false)
+            dn = mem_iter.next()?.curr;
           return iter;
         }
       }

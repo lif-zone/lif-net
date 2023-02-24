@@ -151,12 +151,14 @@ export default class Index {
               max = up.seq-1;
             if (dn)
               min = dn.seq+1;
-            iter.step = 'db';
+            if (min>max)
+              iter.step = 'continue';
+            else
+              iter.step = 'db';
           }
         } else if (iter.step=='db'){
           iter.curr = null; // XXX: rm from here
-          if (min>max);
-          else if (!db_iter){
+          if (!db_iter){
             db_iter = yield _this.find_db_iter(key, {min, max});
             if (!db_iter.curr){
               if (up)

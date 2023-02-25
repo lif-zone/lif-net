@@ -159,13 +159,10 @@ export default class Index {
           if (!db_iter){
             db_iter = yield _this.find_db_iter(key, {min, max});
             if (!db_iter.curr){
-              if (up)
-                up.dn = true;
-              normalize_node(up);
-              if (up && dn){
-                dn.up = true;
-                normalize_node(dn);
-              } else {
+              if_ptr_set(up, 'dn', true);
+              if (up && dn)
+                if_ptr_set(dn, 'up', true);
+              else {
                 up = _this.avl_insert_query(
                   {key, seq: max, query: true, up: !!up, dn: false});
               }
@@ -175,16 +172,12 @@ export default class Index {
             yield db_iter.next();
           if (db_iter?.curr){
             let seq = db_iter.curr.seq, node = {key, seq, dn: false};
-            if (up)
-              up.dn = true;
-            normalize_node(up);
+            if_ptr_set(up, 'dn', true);
             if (db_iter.i==0 && max!=seq && up?.seq!=max+1){
               up = _this.avl_insert_query(
                 {key, seq: max, query: true, up: !!up, dn: true});
             }
-            node.up = db_iter.i>0 || !!up;
-            normalize_node(up);
-            normalize_node(node);
+            ptr_set(node, 'up', db_iter.i>0 || !!up);
             // XXX: need insert similar to avl_insert_query and unite both
             // functions. need to merge after insert
             _this.avl.insert(node);
@@ -195,8 +188,7 @@ export default class Index {
           if (!dn)
             return iter;
           if (dn.query && dn.dn!==false){
-            up.dn = true;
-            normalize_node(up);
+            if_ptr_set(up, 'dn', true);
             _this.avl.remove(dn);
           }
           iter.step = 'continue';
@@ -225,15 +217,12 @@ export default class Index {
     if (up = mem_iter.curr)
       dn = mem_iter.next()?.curr;
     if (up && dn){
-      up.dn = true;
-      dn.up = true;
-      normalize_node(up);
-      normalize_node(dn);
+      ptr_set(up, 'dn', true);
+      ptr_set(dn, 'up', true);
       return dn;
     } else if (up){
-      up.dn = true;
-      query.up = true;
-      normalize_node(up);
+      ptr_set(up, 'dn', true);
+      ptr_set(query, 'up', true);
     } else if (dn){
       // XXX: need test for this scenario
       xerr('XXX avl_insert_query dn %O up %O query %O', dn, up, query);
@@ -438,6 +427,19 @@ function normalize_node(node){
   if (node.dn!==false)
     delete node.dn;
   return node;
+}
+
+function ptr_set(node, field, val){
+  if (val)
+    delete node[field];
+  else
+    node[field] = false;
+}
+
+function if_ptr_set(node, field, val){
+  if (!node)
+    return;
+  ptr_set(node, field, val);
 }
 
 function normalize_desc(desc){

@@ -131,7 +131,7 @@ export default class Index {
     let _this = this, {min, max} = opt, {cfid, scroll} = this;
     let iter = {step: 'mem'}, up, dn, db_iter;
     let _min = min = min===undefined ? 0 : min;
-    let _max = max = max===undefined ? scroll.conflict.get(cfid).top.seq : max;
+    let max = max===undefined ? scroll.conflict.get(cfid).top.seq : max;
     // XXX: can we avoid etask creation if only need to use mem?
     iter.next = ()=>etask(function*index_find_iter_next(){
       assert(iter.step!='done', 'call to next after done');
@@ -160,16 +160,17 @@ export default class Index {
             if (!db_iter.curr){
               if_ptr_set(up, 'dn', true);
               if_ptr_set(dn, 'up', true);
-              _this.avl_insert_query({key, seq: max, query: true,
+              up = _this.avl_insert_query({key, seq: max, query: true,
                 up: !!up, dn: !!dn});
-              if (!dn)
-                iter.step = 'done';
+              if (dn?.query && dn.dn!==false)
+                _this.avl.remove(dn);
+              iter.step = dn ? 'continue' : 'done';
               break;
             }
           }
-          else if (db_iter.curr)
+          else
             yield db_iter.next();
-          if (db_iter?.curr){
+          if (db_iter.curr){
             let seq = db_iter.curr.seq, node = {key, seq, dn: false};
             if_ptr_set(up, 'dn', true);
             if (db_iter.i==0 && max!=seq && up?.seq!=max+1){

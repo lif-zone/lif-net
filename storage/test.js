@@ -2597,6 +2597,7 @@ describe('scroll', ()=>{
           ##index_find(name:user key:arik bseq:6 count:2)=[6 4]
             #(index=[{${s}:4 dn:false} {${s}:6 up:false}]
             db_query=[index,rev,0_arik_0<=key<=0_arik_6 next])
+          dbg
           ##index_find(name:user key:arik bseq:8 count:2)=[8 6]
             #(index=[{${s}:6} {${s}:8}] db_query=[index,rev,key==0_arik_7])`);
         //  0 1 2 3 4 5 6 7 8 9

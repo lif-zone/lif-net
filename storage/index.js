@@ -132,6 +132,10 @@ export default class Index {
     let iter = {step: 'mem'}, up, dn, db_iter;
     let _min = min = min===undefined ? 0 : min;
     max = max===undefined ? scroll.conflict.get(cfid).top.seq : max;
+    const done = ()=>{
+      iter.curr = null;
+      return iter;
+    };
     // XXX: can we avoid etask creation if only need to use mem?
     iter.next = ()=>etask(function*index_find_iter_next(){
       assert(iter.step!='done', 'call to next after done');
@@ -140,17 +144,11 @@ export default class Index {
         case 'mem':
           if (_this.find_iter_step_mem(iter, key, min, max))
             return iter;
-          up = iter.up;
-          dn = iter.dn;
-          if (!scroll.storage || up && up.dn!==false){
-            iter.step = 'done';
-            break;
-          }
+          [up, dn] = [iter.up, iter.dn];
+          if (!scroll.storage || up && up.dn!==false)
+            return done();
           // XXX: check if we reached min and return + test it
-          if (up)
-            max = up.seq-1;
-          if (dn)
-            min = dn.seq+1;
+          [max, min] = [up ? up.seq-1 : max, dn ? dn.seq+1 : min];
           assert(min<=max, 'unexpected min>max');
           iter.step = 'db';
           break;
@@ -162,9 +160,7 @@ export default class Index {
               if_ptr_set(dn, 'up', true);
               up = _this.avl_insert_query({key, seq: max, query: true,
                 up: !!up, dn: !!dn});
-              if (dn?.query && dn.dn!==false)
-                _this.avl.remove(dn);
-              iter.step = dn ? 'continue' : 'done';
+              iter.step = 'db_done';
               break;
             }
             else if (max!=db_iter.curr.seq && up?.seq!=max+1){
@@ -185,33 +181,21 @@ export default class Index {
             iter.curr = node;
             return iter;
           }
-          if (!dn){
-            iter.step = 'done';
-            break;
-          }
-          if (dn.query && dn.dn!==false){
+          iter.step = 'db_done';
+          break;
+        case 'db_done':
+          if (!dn)
+            return done();
+          if (dn?.query && dn.dn!==false){
             if_ptr_set(up, 'dn', true);
             _this.avl.remove(dn);
           }
-          iter.step = 'continue';
-          break;
-        case 'continue':
-        /*
-          if (!dn){
-            iter.step = 'done';
-            break;
-          }
-          */
           iter.step = 'mem';
           min = _min;
           max = dn.seq;
           // XXX: rm all this mess
-          db_iter = null;
-          iter.mem_iter = iter.up = iter.dn = up = dn = null;
+          db_iter = iter.mem_iter = iter.up = iter.dn = up = dn = null;
           break;
-        case 'done':
-          iter.curr = null;
-          return iter;
         default: assert.fail('invalid step '+iter.step);
         }
       }

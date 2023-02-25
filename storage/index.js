@@ -155,17 +155,16 @@ export default class Index {
           iter.step = 'db';
           break;
         case 'db':
-          iter.curr = null; // XXX: rm from here
           if (!db_iter){
             db_iter = yield _this.find_db_iter(key, {min, max});
             if (!db_iter.curr){
               if_ptr_set(up, 'dn', true);
-              if (up && dn)
-                if_ptr_set(dn, 'up', true);
-              else {
-                up = _this.avl_insert_query(
-                  {key, seq: max, query: true, up: !!up, dn: false});
-              }
+              if_ptr_set(dn, 'up', true);
+              _this.avl_insert_query({key, seq: max, query: true,
+                up: !!up, dn: !!dn});
+              if (!dn)
+                iter.step = 'done';
+              break;
             }
           }
           else if (db_iter.curr)
@@ -185,8 +184,10 @@ export default class Index {
             iter.curr = node;
             return iter;
           }
-          if (!dn)
-            return iter;
+          if (!dn){
+            iter.step = 'done';
+            break;
+          }
           if (dn.query && dn.dn!==false){
             if_ptr_set(up, 'dn', true);
             _this.avl.remove(dn);
@@ -194,6 +195,12 @@ export default class Index {
           iter.step = 'continue';
           break;
         case 'continue':
+        /*
+          if (!dn){
+            iter.step = 'done';
+            break;
+          }
+          */
           iter.step = 'mem';
           min = _min;
           max = dn.seq;

@@ -129,16 +129,13 @@ export default class Index {
   }); }
   find_iter(key, opt={}){
     let _this = this, {min, max} = opt, {cfid, scroll} = this;
-    let iter = {}, up, dn, db_iter;
-    iter.step = 'start';
+    let iter = {step: 'mem'}, up, dn, db_iter;
+    let _min = min = min===undefined ? 0 : min;
+    let _max = max = max===undefined ? scroll.conflict.get(cfid).top.seq : max;
     // XXX: can we avoid etask creation if only need to use mem?
     iter.next = ()=>etask(function*index_find_iter_next(){
       while (iter.step!='done'){
-        if (iter.step=='start'){
-          min = min===undefined ? 0 : min;
-          max = max===undefined ? scroll.conflict.get(cfid).top.seq : max;
-          iter.step = 'mem';
-        } else if (iter.step=='mem'){
+        if (iter.step=='mem'){
           if (_this.find_iter_step_mem(iter, key, min, max))
             return iter;
           up = iter.up;
@@ -203,8 +200,8 @@ export default class Index {
           }
           iter.step = 'continue';
         } else if (iter.step=='continue'){
-          iter.step = 'start';
-          min = opt.min;
+          iter.step = 'mem';
+          min = _min;
           max = dn.seq;
           // XXX: rm all this mess
           db_iter = null;

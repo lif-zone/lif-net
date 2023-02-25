@@ -134,8 +134,10 @@ export default class Index {
     let _max = max = max===undefined ? scroll.conflict.get(cfid).top.seq : max;
     // XXX: can we avoid etask creation if only need to use mem?
     iter.next = ()=>etask(function*index_find_iter_next(){
-      while (iter.step!='done'){
-        if (iter.step=='mem'){
+      assert(iter.step!='done', 'call to next after done');
+      while (true){
+        switch (iter.step){
+        case 'mem':
           if (_this.find_iter_step_mem(iter, key, min, max))
             return iter;
           up = iter.up;
@@ -153,7 +155,8 @@ export default class Index {
             else
               iter.step = 'db';
           }
-        } else if (iter.step=='db'){
+          break;
+        case 'db':
           iter.curr = null; // XXX: rm from here
           if (!db_iter){
             db_iter = yield _this.find_db_iter(key, {min, max});
@@ -199,19 +202,21 @@ export default class Index {
             _this.avl.remove(dn);
           }
           iter.step = 'continue';
-        } else if (iter.step=='continue'){
+          break;
+        case 'continue':
           iter.step = 'mem';
           min = _min;
           max = dn.seq;
           // XXX: rm all this mess
           db_iter = null;
           iter.mem_iter = iter.up = iter.dn = up = dn = null;
-        } else
-          assert.fail('invalid step '+iter.step);
+          break;
+        case 'done':
+          iter.curr = null;
+          return iter;
+        default: assert.fail('invalid step '+iter.step);
+        }
       }
-      assert.equal(iter.step, 'done', 'invalid step');
-      iter.curr = null;
-      return iter;
     });
     return iter.next();
   }

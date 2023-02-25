@@ -136,7 +136,6 @@ export default class Index {
     iter.next = ()=>etask(function*index_find_iter_next(){
       assert(iter.step!='done', 'call to next after done');
       while (true){
-        debugger;
         switch (iter.step){
         case 'mem':
           if (_this.find_iter_step_mem(iter, key, min, max))
@@ -168,16 +167,16 @@ export default class Index {
               iter.step = dn ? 'continue' : 'done';
               break;
             }
+            else if (max!=db_iter.curr.seq && up?.seq!=max+1){
+              up = _this.avl_insert_query(
+                {key, seq: max, query: true, up: !!up, dn: true});
+            }
           }
           else
             yield db_iter.next();
           if (db_iter.curr){
             let seq = db_iter.curr.seq, node = {key, seq, dn: false};
             if_ptr_set(up, 'dn', true);
-            if (db_iter.i==0 && max!=seq && up?.seq!=max+1){
-              up = _this.avl_insert_query(
-                {key, seq: max, query: true, up: !!up, dn: true});
-            }
             ptr_set(node, 'up', db_iter.i>0 || !!up);
             // XXX: need insert similar to avl_insert_query and unite both
             // functions. need to merge after insert

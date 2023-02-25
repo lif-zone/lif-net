@@ -142,19 +142,16 @@ export default class Index {
             return iter;
           up = iter.up;
           dn = iter.dn;
-          if (!scroll.storage || up && up.dn!==false)
+          if (!scroll.storage || up && up.dn!==false){
             iter.step = 'done';
-          else {
-            // XXX: check if we reached min and return
-            if (up)
-              max = up.seq-1;
-            if (dn)
-              min = dn.seq+1;
-            if (min>max)
-              iter.step = 'continue';
-            else
-              iter.step = 'db';
+            break;
           }
+          // XXX: check if we reached min and return
+          if (up)
+            max = up.seq-1;
+          if (dn)
+            min = dn.seq+1;
+          iter.step = min>max ? 'continue' : 'db';
           break;
         case 'db':
           iter.curr = null; // XXX: rm from here

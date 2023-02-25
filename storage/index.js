@@ -146,12 +146,13 @@ export default class Index {
             iter.step = 'done';
             break;
           }
-          // XXX: check if we reached min and return
+          // XXX: check if we reached min and return + test it
           if (up)
             max = up.seq-1;
           if (dn)
             min = dn.seq+1;
-          iter.step = min>max ? 'continue' : 'db';
+          assert(min<=max, 'unexpected min>max');
+          iter.step = 'db';
           break;
         case 'db':
           iter.curr = null; // XXX: rm from here

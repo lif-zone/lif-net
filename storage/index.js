@@ -155,17 +155,11 @@ export default class Index {
         case 'db':
           if (!db_iter){
             db_iter = yield _this.find_db_iter(key, {min, max});
-            if (!db_iter.curr){
+            if (!db_iter.curr || max!=db_iter.curr.seq && up?.seq!=max+1){
               if_ptr_set(up, 'dn', true);
               if_ptr_set(dn, 'up', true);
               up = _this.avl_insert_query({key, seq: max, query: true,
                 up: !!up, dn: !!dn});
-              iter.step = 'db_done';
-              break;
-            }
-            else if (max!=db_iter.curr.seq && up?.seq!=max+1){
-              up = _this.avl_insert_query(
-                {key, seq: max, query: true, up: !!up, dn: true});
             }
           }
           else

@@ -169,7 +169,6 @@ export default class Index {
           query_rm = dn;
         }
         [min, max] = [_min, dn.seq];
-        // XXX: rm all this mess
         iter.db_iter = iter.mem_iter = iter.up = iter.dn = null;
       }
     });

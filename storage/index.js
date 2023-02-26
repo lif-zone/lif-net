@@ -149,47 +149,37 @@ export default class Index {
     iter.next = ()=>etask(function*index_find_iter_next(){
       assert(iter.step!='done', 'call to next after done');
       while (true){
-        switch (iter.step){
-        case 'mem':
-          if (_this.find_iter_step_mem(iter, key, min, max)){
-            query_rm = null;
-            return iter;
-          }
-          [up, dn] = [iter.up, iter.dn];
-          if (!scroll.storage || up && up.dn!==false || !dn && query_rm)
-            return done();
+        if (_this.find_iter_step_mem(iter, key, min, max)){
           query_rm = null;
-          [max, min] = [up ? up.seq-1 : max, dn ? dn.seq+1 : min];
-          assert(min<=max, 'unexpected min>max');
-          iter.step = 'db';
-          break;
-        case 'db':
-          if (yield _this.find_iter_step_db(iter, key, min, max))
-            return iter;
-          [up, dn] = [iter.up, iter.dn];
-          if (up && up.seq!=min)
-            ptr_set(up, 'dn', true);
-          iter.step = 'db_done';
-          break;
-        case 'db_done':
-          if (!dn)
-            return done();
-          if (up && dn){
-            ptr_set(up, 'dn', true);
-            ptr_set(dn, 'up', true);
-          }
-          if (dn?.query && dn.dn!==false){
-            if_ptr_set(up, 'dn', true); // XXX: needed?
-            _this.avl.remove(dn);
-            query_rm = dn;
-          }
-          iter.step = 'mem';
-          [min, max] = [_min, dn.seq];
-          // XXX: rm all this mess
-          iter.db_iter = iter.mem_iter = iter.up = iter.dn = null;
-          break;
-        default: assert.fail('invalid step '+iter.step);
+          return iter;
         }
+        [up, dn] = [iter.up, iter.dn];
+        if (!scroll.storage || up && up.dn!==false || !dn && query_rm)
+          return done();
+        query_rm = null;
+        [max, min] = [up ? up.seq-1 : max, dn ? dn.seq+1 : min];
+        assert(min<=max, 'unexpected min>max');
+        iter.step = 'db';
+        if (yield _this.find_iter_step_db(iter, key, min, max))
+          return iter;
+        [up, dn] = [iter.up, iter.dn];
+        if (up && up.seq!=min)
+          ptr_set(up, 'dn', true);
+        if (!dn)
+          return done();
+        if (up && dn){
+          ptr_set(up, 'dn', true);
+          ptr_set(dn, 'up', true);
+        }
+        if (dn?.query && dn.dn!==false){
+          if_ptr_set(up, 'dn', true); // XXX: needed?
+          _this.avl.remove(dn);
+          query_rm = dn;
+        }
+        iter.step = 'mem';
+        [min, max] = [_min, dn.seq];
+        // XXX: rm all this mess
+        iter.db_iter = iter.mem_iter = iter.up = iter.dn = null;
       }
     });
     return iter.next();

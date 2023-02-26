@@ -83,7 +83,7 @@ export default class Index {
   }
   schedule_db(key, seq){ this.storage_queue.push({id: this.id, key, seq}); }
   find_mem_iter(key, opt={}){
-    let avl = this.avl, Q = [], compare = avl._comparator, node = avl._root;
+    let avl = this.avl, Q = [], cmp = avl._comparator, node = avl._root;
     let {min, max, dir} = opt, iter = {};
     let nmin = {key, seq: min===undefined ? 0 : min};
     let nmax = {key, seq: max===undefined ? Infinity : max};
@@ -100,17 +100,12 @@ export default class Index {
         node = Q.pop();
         iter.curr = node.key;
         node = dir=='up' ? node.right : node.left;
-        if (dir=='up' ?
-          compare(iter.curr, nmax)>0 : compare(iter.curr, nmin)<0)
-        {
+        if (dir=='up' ?  cmp(iter.curr, nmax)>0 : cmp(iter.curr, nmin)<0){
           iter.curr = null;
           return iter;
         }
-        if (dir=='up' ?
-          compare(iter.curr, nmin)>=0 : compare(iter.curr, nmax)<=0)
-        {
+        if (dir=='up' ?  cmp(iter.curr, nmin)>=0 : cmp(iter.curr, nmax)<=0)
           return iter;
-        }
       }
       iter.curr = null;
       return iter;
@@ -118,14 +113,16 @@ export default class Index {
     return iter.next();
   }
   find_db_iter(key, opt={}){ return etask({_: this}, function*find_db_iter(){
-    let _this = this._, scroll = _this.scroll, {min, max} = opt, {id} = _this;
-    let db = scroll.soul.db, tx = db.transaction('index', 'readonly');
-    let store = tx.store('index'), query;
+    let _this = this._, scroll = _this.scroll, {min, max, dir} = opt;
+    let {id} = _this, db = scroll.soul.db, query;
+    let tx = db.transaction('index', 'readonly'), store = tx.store('index');
+    dir = dir||'dn';
+    assert(['up', 'dn'].includes(dir), 'invalid dir '+dir);
     if (min!==undefined && max!==undefined)
       assert(min<=max, 'invalid query min<=max min '+min+' max '+max);
     query = IDBKeyRange.bound([id, key, min===undefined ? 0 : min],
       [id, key, max===undefined ? Infinity : max]);
-    let cursor = yield db.cursor(store, query, 'prev');
+    let cursor = yield db.cursor(store, query, dir=='up' ? '' : 'prev');
     let iter = {i: 0, curr: cursor?.value};
     iter.next = ()=>etask(function*iter_next(){
       assert(cursor, 'db iter already finished');

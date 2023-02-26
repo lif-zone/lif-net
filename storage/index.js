@@ -72,8 +72,14 @@ export default class Index {
       return;
     if (!scroll.storage)
       this.avl.insert({key, seq});
-    else if (!decl?.db?.cfid?.[e.cfid]?.busy) // XXX: need is_loading
+    else if (!decl?.db?.cfid?.[e.cfid]?.busy){ // XXX: need is_loading
       this.schedule_db(key, seq);
+      // XXX: do we need to check up as well?
+      // let up_iter = this.find_mem_iter(key, {min: seq+1, dir: 'up'});
+      let dn_iter = this.find_mem_iter(key, {max: seq-1, dir: 'dn'});
+      if (dn_iter.curr && dn_iter.curr.up!==false)
+        this.avl.insert({key, seq});
+    }
   }
   schedule_db(key, seq){ this.storage_queue.push({id: this.id, key, seq}); }
   find_mem_iter(key, opt={}){
@@ -150,8 +156,8 @@ export default class Index {
           iter.step = 'db';
           break;
         case 'db':
-          yield scroll.flush();
           if (!db_iter){
+            yield scroll.flush();
             db_iter = yield _this.find_db_iter(key, {min, max});
             if (!db_iter.curr || max!=db_iter.curr.seq && up?.seq!=max+1){
               if_ptr_set(up, 'dn', true);
@@ -165,14 +171,15 @@ export default class Index {
           if (db_iter.curr){
             let seq = db_iter.curr.seq, node = {key, seq, dn: false};
             if_ptr_set(up, 'dn', true);
-            ptr_set(node, 'up', db_iter.i>0 || !!up);
+            ptr_set(node, 'up', !!up);
             // XXX: need insert similar to avl_insert_query and unite both
             // functions. need to merge after insert
             _this.avl_insert(node);
             up = node;
             iter.curr = node;
             return iter;
-          }
+          } else if (up && up.seq!=min)
+            ptr_set(up, 'dn', true);
           iter.step = 'db_done';
           break;
         case 'db_done':

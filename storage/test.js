@@ -2468,7 +2468,7 @@ describe('scroll', ()=>{
           #(index=[{id:0 key:/derry query seq:12 up:false}
             {id:0 key:/derry seq:9} {id:0 key:/derry seq:8}
             {id:0 key:/derry seq:7} {id:0 key:/derry seq:4}
-            {id:0 key:/derry seq:3} {id:0 key:/derry seq:1 dn:false}]
+            {id:0 key:/derry seq:3} {id:0 key:/derry seq:1}]
             db_query=[index,rev,0_/derry_0<=key<=0_/derry_12
               next next next next next next])`);
         t('db_max', `${t_db} ##index_find(index:0 key:/derry count:1)=9
@@ -2561,7 +2561,7 @@ describe('scroll', ()=>{
         //  ----n---n---n---n-q (<=9 all)
         t('zzz0', `${t_zzz}
           ##index_find(name:user key:arik bseq:9)=[8 6 4 2]
-            #(index=[{${s}:2 dn:false} {${s}:4} {${s}:6} {${s}:8}
+            #(index=[{${s}:2} {${s}:4} {${s}:6} {${s}:8}
             {${s}:9 query up:false}]
             db_query=[index,rev,0_arik_0<=key<=0_arik_9 next next next next])
         `);
@@ -2630,14 +2630,11 @@ describe('scroll', ()=>{
             #(index=[{${s}:4 dn:false} {${s}:6 up:false}]
             db_query=[index,rev,0_arik_0<=key<=0_arik_6 next])
           ##index_find(name:user key:arik bseq:2)=2
-            #(index=[{${s}:2 dn:false up:false}]
+            #(index=[{${s}:2 up:false}]
               db_query=[index,rev,0_arik_0<=key<=0_arik_2 next])
-          // XXX: no need for query on seq:1
           ##index_find(name:user key:arik bseq:9)=[8 6 4 2]
-            #(index=[{${s}:1 query:true dn:false} {${s}:2} {${s}:4}
-            {${s}:6} {${s}:8}]
-            db_query=[index,rev,key==0_arik_7
-            index,rev,key==0_arik_3 index,rev,0_arik_0<=key<=0_arik_1])
+            #(index=[{${s}:2} {${s}:4} {${s}:6} {${s}:8}]
+            db_query=[index,rev,key==0_arik_7 index,rev,key==0_arik_3])
         `);
         //  0 1 2 3 4 5 6 7 8 9 10 11
         //                  n-q       (<=11 n=1)
@@ -2652,6 +2649,25 @@ describe('scroll', ()=>{
           ##index_find(name:user key:arik bseq:_11 count:1)=10
             #(index=[{${s}:10 up:false} !{${s}:9 query}]
             db_query=index,rev,key==0_arik_10)`);
+        t('zzz_partial_scroll_find', `${t_zzz}
+          S2..#(db_query_index index) Soul2.S2.scroll(s..M0 db) #index=[]
+          tput(0 1                 ) #
+          tput(0 1 2               ) #
+          tput(0 1 2 3             ) #
+          tput(0 1 2 3 4_5 6       ) #
+          ##index_find(name:user key:arik bseq:9)=[6 2]
+            #(index=[{${s}:2} {${s}:6 up:false}]
+            db_query=[index,rev,0_arik_0<=key<=0_arik_6 next next])
+          tput(0 1 2 3 4 5) #
+          tput(0 1 2 3 4) #index={${s}:4}
+          ##index_find(name:user key:arik bseq:9)=[6 4 2] #
+          tput(0 1 2 3 4 5 6       ) #
+          tput(0 1 2 3 4 5 6 7     ) #
+          tput(0 1 2 3 4 5 6 7 8   ) #
+          tput(0 1 2 3 4 5 6 7 8  9) #
+          ##index_find(name:user key:arik bseq:9)=[8 6 4 2]
+            #(index=[{${s}:6} {${s}:8} {${s}:9 query up:false}]
+            db_query=[index,rev,0_arik_7<=key<=0_arik_9 next])`);
         t('db_conflict', `s.scroll(index:path) s.decl({path:/f})
           s.decl({path:/f}) s1.clone(s.M1) s1.decl({path:/f})
           S..scroll(s..M0 db) tput(0 1  ) tput(0 1 2) tput(0 1 c)
@@ -2663,13 +2679,10 @@ describe('scroll', ()=>{
           ##index_find(name:path key:/f cfid:0 bseq:2)=[2 1]
           // XXX: no point to check index_0 (only from 1)
           // XXX BUG: uneeded query entry
-          #(index=[{id:0 key:/f seq:0 query:true dn:false}
-            {id:0 key:/f seq:1} {id:0 key:/f seq:2 up:false}]
-            db_query=[index,rev,0_/f_0<=key<=0_/f_2
-            next next index,rev,key==0_/f_0])
+          #(index=[{id:0 key:/f seq:1} {id:0 key:/f seq:2 up:false}]
+            db_query=[index,rev,0_/f_0<=key<=0_/f_2 next next])
           ##index_find(name:path key:/f cfid:1 bseq:2)=[2 1]
-          #(index=[{id:0 key:/f seq:0 query dn:false}
-            {id:0 key:/f seq:1} {id:1 key:/f seq:2 dn:false up:false}]
+          #(index=[{id:0 key:/f seq:1} {id:1 key:/f seq:2 up:false}]
             db_query=[index,rev,1_/f_0<=key<=1_/f_2 next])`);
         // XXX: need tests for adding declarations after partial search
       });

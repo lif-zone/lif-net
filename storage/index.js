@@ -2,7 +2,6 @@
 'use strict';
 import assert from 'assert';
 import etask from '../util/etask.js';
-import xerr from '../util/xerr.js';
 import Branch_table from './branch.js';
 const {bseq_branch} = Branch_table;
 import Tree from 'avl';
@@ -144,7 +143,7 @@ export default class Index {
     // XXX: can we avoid etask creation if only need to use mem?
     iter.next = ()=>etask(function*index_find_iter_next(){
       while (true){
-        if (_this.find_iter_step_mem(iter, key, min, max)){
+        if (_this.find_iter_step_mem(iter, key, min, max, dir)){
           query_rm = null;
           return iter;
         }
@@ -154,7 +153,7 @@ export default class Index {
         query_rm = null;
         [max, min] = [up ? up.seq-1 : max, dn ? dn.seq+1 : min];
         assert(min<=max, 'unexpected min>max');
-        if (yield _this.find_iter_step_db(iter, key, min, max))
+        if (yield _this.find_iter_step_db(iter, key, min, max, dir))
           return iter;
         [up, dn] = [iter.up, iter.dn];
         if (!dn)
@@ -255,7 +254,7 @@ export default class Index {
     normalize_node(query);
     return query;
   }
-  find_iter_step_mem(iter, key, min, max){
+  find_iter_step_mem(iter, key, min, max, dir){
     let {mem_iter, up, dn} = iter, ret;
     if (!mem_iter)
       mem_iter = iter.mem_iter = this.find_mem_iter(key, {min, max});
@@ -264,22 +263,18 @@ export default class Index {
     if (!dn && mem_iter.curr?.up===false && mem_iter.curr.seq!=max)
       dn = mem_iter.curr;
     else if (!dn && mem_iter.curr){
-      for (; mem_iter.curr?.query && mem_iter.curr.dn!==false;
+      for (; mem_iter.curr.query && mem_iter.curr.dn!==false;
         up = mem_iter.curr, mem_iter.next());
-      if (mem_iter.curr?.query && mem_iter.curr.dn===false)
-        dn = mem_iter.next()?.curr; // XXX: verify to test it
-      else if (mem_iter.curr){
-        up = iter.curr = mem_iter.curr;
-        if (mem_iter.curr.dn===false)
-          dn = mem_iter.next()?.curr;
-        ret = true;
-      }
+      up = iter.curr = mem_iter.curr;
+      if (mem_iter.curr.dn===false)
+        dn = mem_iter.next()?.curr;
+      ret = true;
     }
     iter.up = up;
     iter.dn = dn;
     return ret;
   }
-  find_iter_step_db(iter, key, min, max){ return etask({_: this},
+  find_iter_step_db(iter, key, min, max, dir){ return etask({_: this},
     function*find_iter_step_db()
   {
     let _this = this._, scroll = _this.scroll;

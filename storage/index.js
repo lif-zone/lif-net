@@ -269,20 +269,23 @@ export default class Index {
     let dn, up;
     let mem_iter = this.find_mem_iter(query.key, {min: query.seq-1,
       max: query.seq+1});
-    if (up = mem_iter.curr)
+    if (mem_iter.curr?.seq > query.seq){
+      up = mem_iter.curr;
       dn = mem_iter.next()?.curr;
+    } else
+      dn = mem_iter.curr;
     if (up && dn){
       ptr_set(up, 'dn', true);
       ptr_set(dn, 'up', true);
       return dn;
-    } else if (up){
+    }
+    if (up){
       ptr_set(up, 'dn', true);
       ptr_set(query, 'up', true);
     } else if (dn){
-      // XXX: need test for this scenario
-      xerr('XXX avl_insert_query dn %O up %O query %O', dn, up, query);
+      ptr_set(dn, 'up', true);
+      ptr_set(query, 'dn', true);
     }
-    //  xerr('XXX avl_insert_query dn %O up %O query %O', dn, up, query);
     this.avl.insert(query);
     normalize_node(query);
     return query;

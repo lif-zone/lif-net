@@ -2635,6 +2635,17 @@ describe('scroll', ()=>{
             #(index=[{${s}:2} {${s}:4} {${s}:6} {${s}:8}]
             db_query=[index,rev,key==0_arik_7 index,rev,key==0_arik_3])
         `);
+        //  0 1 2 3 4 5 6 7 8 9
+        //          n           (bseq<=4 n=1)
+        //          n-q         (bseq<=5 n=1)
+        t('zzz6', `${t_zzz}
+          ##index_find(name:user key:arik bseq:4 count:1)=4
+            #(index={${s}:4 dn:false up:false}
+            db_query=index,rev,0_arik_0<=key<=0_arik_4)
+          ##index_find(name:user key:arik bseq:5 count:1)=4
+            #(index=[{${s}:4 dn:false} {${s}:5 query up:false}]
+            db_query=index,rev,key==0_arik_5)
+          `);
         t('zzz_query_with_holes_a', `${t_zzz}
           //  0 1 2 3 4 5 6 7 8 9
           //  --q-n-q             (bseq<=1 =3 n=1)

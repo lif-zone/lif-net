@@ -2550,6 +2550,7 @@ describe('scroll', ()=>{
             db_query=[index,rev,key==0_/derry_6
             index,rev,0_/derry_0<=key<=0_/derry_3])`);
         // XXX: rename
+        // XXX: use macro decl({user:*})=(niko arik niko arik...)
         let t_zzz = `s..scroll(index:user db) decl({user:niko})
           decl({user:arik}) decl({user:niko}) decl({user:arik})
           decl({user:niko}) decl({user:arik}) decl({user:niko})
@@ -2577,14 +2578,13 @@ describe('scroll', ()=>{
             db_query=[index,rev,0_arik_0<=key<=0_arik_7])`);
         //  0 1 2 3 4 5 6 7 8 9
         //                  n-q (<=9 n=1)
-        //          n---n-q-n-q (<=7 n=2)
+        //          n---n---n-q (<=7 n=2)
         t('zzz2', `${t_zzz}
           ##index_find(name:user key:arik bseq:9 count:1)=8
             #(index=[{${s}:8 dn:false} {${s}:9 query up:false}]
             db_query=[index,rev,0_arik_0<=key<=0_arik_9])
-          // XXX BUG: need to rm query node
           ##index_find(name:user key:arik bseq:7 count:2)=[6 4]
-            #(index=[{${s}:4 dn:false} {${s}:6} {${s}:7 query} {${s}:8}]
+            #(index=[{${s}:4 dn:false} {${s}:6} {${s}:8}]
             db_query=[index,rev,0_arik_0<=key<=0_arik_7 next])`);
         //  0 1 2 3 4 5 6 7 8 9
         //                  n-q (<=9 n=1)
@@ -2618,10 +2618,10 @@ describe('scroll', ()=>{
             index,rev,0_arik_0<=key<=0_arik_3])
           ##index_find(name:user key:arik bseq:8 count:3)=[8 6 4] #`);
         //  0 1 2 3 4 5 6 7 8 9
-        //                  n-q (<=9 n=1)
-        //          n---n   n-q (<=6 n=2)
-        //  ----n           n-q (<=2)
-        //  ----n---n---n---n-q (<=9)
+        //                  n-q (bseq<=9 n=1)
+        //          n---n   n-q (bseq<=6 n=2)
+        //  ----n           n-q (bseq<=2)
+        //  ----n---n---n---n-q (bseq<=9)
         t('zzz5', `${t_zzz}
            ##index_find(name:user key:arik bseq:9 count:1)=8
             #(index=[{${s}:8 dn:false} {${s}:9 query up:false}]
@@ -2636,19 +2636,40 @@ describe('scroll', ()=>{
             #(index=[{${s}:2} {${s}:4} {${s}:6} {${s}:8}]
             db_query=[index,rev,key==0_arik_7 index,rev,key==0_arik_3])
         `);
-        //  0 1 2 3 4 5 6 7 8 9 10 11
-        //                  n-q       (<=11 n=1)
-        //  decl 10
-        //                  n---n    (<=11 n=1 all)
-        t('zzz_decl_after_find', `${t_zzz}
-          ##index_find(name:user key:arik bseq:_11 count:1)=8
-            #(index=[{${s}:8 dn:false} {${s}:9 query up:false}]
-            db_query=[index,rev,0_arik_0<=key<=0_arik_9])
-          load_c(9) # load_c(8) # load_c(7) #
-          decl({user:arik}) #
-          ##index_find(name:user key:arik bseq:_11 count:1)=10
-            #(index=[{${s}:10 up:false} !{${s}:9 query}]
-            db_query=index,rev,key==0_arik_10)`);
+        t('zzz_query_with_holes_a', `${t_zzz}
+          //  0 1 2 3 4 5 6 7 8 9
+          //  --q-n-q             (bseq<=1 =3 n=1)
+          //  --q-n---n-q         (bseq<=5 n=1)
+          //  --q-n---n-q---q     (bseq<=7 n=1)
+          ##index_find(name:user key:arik bseq:1 count:1)=[]
+            #(index={${s}:1 query up:false}
+            db_query=index,rev,0_arik_0<=key<=0_arik_1)
+          ##index_find(name:user key:arik bseq:3 count:1)=2
+            #(index=[{${s}:1 query} {${s}:2} {${s}:3 query up:false}]
+            db_query=index,rev,0_arik_2<=key<=0_arik_3)
+          ##index_find(name:user key:arik bseq:5 count:1)=4
+            #(index=[{${s}:4} {${s}:5 query up:false} !{${s}:3 query}]
+            db_query=index,rev,0_arik_4<=key<=0_arik_5)
+          ##index_find(name:user key:arik bseq:7 count:1)=6
+            #(index=[{${s}:6} {${s}:7 query up:false} !{${s}:5 query}]
+            db_query=index,rev,0_arik_6<=key<=0_arik_7)`);
+        t('zzz_query_with_holes_b', `${t_zzz}
+          //  0 1 2 3 4 5 6 7 8 9
+          //  --q-n-q             (bseq<=1 =3 n=1)
+          //  --q-n-q     n-q     (bseq<=7 n=1)
+          //  --q-n---n---n-q     (bseq<=5 n=1)
+          ##index_find(name:user key:arik bseq:1 count:1)=[]
+            #(index={${s}:1 query up:false}
+            db_query=index,rev,0_arik_0<=key<=0_arik_1)
+          ##index_find(name:user key:arik bseq:3 count:1)=2
+            #(index=[{${s}:1 query} {${s}:2} {${s}:3 query up:false}]
+            db_query=index,rev,0_arik_2<=key<=0_arik_3)
+          ##index_find(name:user key:arik bseq:7 count:1)=6
+            #(index=[{${s}:6 dn:false} {${s}:7 query up:false}]
+            db_query=index,rev,0_arik_4<=key<=0_arik_7)
+          ##index_find(name:user key:arik bseq:5 count:1)=4
+            #(index=[{${s}:4} {${s}:6} !{${s}:3 query}]
+            db_query=index,rev,0_arik_4<=key<=0_arik_5)`);
         t('zzz_partial_scroll_find', `${t_zzz}
           S2..#(db_query_index index) Soul2.S2.scroll(s..M0 db) #index=[]
           tput(0 1                 ) #
@@ -2726,4 +2747,23 @@ x - que
 q-40: node 50
 
 0-10
+
+db_index:
+val:/adam seq:1
+val:/arik seq:2
+val:/adam seq:3
+val:/arik seq:4
+val:/adam seq:5
+val:/arik seq:6
+
+// XXX: change what we discussed on dn (up) on edge
+ 0 1 2 3 4 5 6
+ ----n         (val==arik start_seq:2)
+
+val:arik seq:2 dn:true // we said before dn:false
+
+// XXX: partial scroll t('zzz_partial_scroll_find')
+
+// XXX: lock scorll for write during index iteration (check only avl)
+
 */

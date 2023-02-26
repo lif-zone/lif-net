@@ -84,26 +84,33 @@ export default class Index {
   schedule_db(key, seq){ this.storage_queue.push({id: this.id, key, seq}); }
   find_mem_iter(key, opt={}){
     let avl = this.avl, Q = [], compare = avl._comparator, node = avl._root;
-    let {min, max} = opt, iter = {};
+    let {min, max, dir} = opt, iter = {};
     let nmin = {key, seq: min===undefined ? 0 : min};
     let nmax = {key, seq: max===undefined ? Infinity : max};
+    dir = dir||'dn';
+    assert(['up', 'dn'].includes(dir), 'invalid dir '+dir);
     iter.next = ()=>{
       iter.i = iter.i===undefined ? 0 : iter.i+1;
       while (Q.length || node){
         if (node){
           Q.push(node);
-          node = node.right;
+          node = dir=='up' ? node.left : node.right;
           continue;
         }
         node = Q.pop();
         iter.curr = node.key;
-        node = node.left;
-        if (compare(iter.curr, nmin)<0){
+        node = dir=='up' ? node.right : node.left;
+        if (dir=='up' ?
+          compare(iter.curr, nmax)>0 : compare(iter.curr, nmin)<0)
+        {
           iter.curr = null;
           return iter;
         }
-        if (compare(iter.curr, nmax)<=0)
+        if (dir=='up' ?
+          compare(iter.curr, nmin)>=0 : compare(iter.curr, nmax)<=0)
+        {
           return iter;
+        }
       }
       iter.curr = null;
       return iter;
@@ -138,7 +145,7 @@ export default class Index {
       iter.curr = null;
       return iter;
     };
-    // XXX: lock scroll
+    // XXX: verify mem_iter will work correctly even if scroll changed
     // XXX: can we avoid etask creation if only need to use mem?
     iter.next = ()=>etask(function*index_find_iter_next(){
       assert(iter.step!='done', 'call to next after done');
@@ -160,8 +167,6 @@ export default class Index {
             yield scroll.flush();
             db_iter = yield _this.find_db_iter(key, {min, max});
             if (!db_iter.curr || max!=db_iter.curr.seq && up?.seq!=max+1){
-              if_ptr_set(up, 'dn', true);
-              if_ptr_set(dn, 'up', true);
               up = _this.avl_insert_query({key, seq: max, query: true,
                 up: !!up, dn: !!dn});
             }
@@ -185,6 +190,10 @@ export default class Index {
         case 'db_done':
           if (!dn)
             return done();
+          if (up && dn){
+            ptr_set(up, 'dn', true);
+            ptr_set(dn, 'up', true);
+          }
           if (dn?.query && dn.dn!==false){
             if_ptr_set(up, 'dn', true); // XXX: needed?
             _this.avl.remove(dn);
@@ -201,27 +210,27 @@ export default class Index {
     return iter.next();
   }
   avl_insert(node){
-    let del = [];
     this.avl.insert(node);
-    let dn = node;
-    let mem_iter = this.find_mem_iter(node.key, {max: node.seq-1});
-    while (mem_iter.curr){
-      if (mem_iter.curr.seq!=dn.seq-1)
+    let del = [], dn = node;
+    let dn_iter = this.find_mem_iter(node.key, {max: node.seq-1});
+    // XXX: simplify code
+    while (dn_iter.curr){
+      if (dn_iter.curr.seq!=dn.seq-1)
         break;
-      if (!mem_iter.curr.query){
+      if (!dn_iter.curr.query){
         if (dn===node){
-          ptr_set(mem_iter.curr, 'up', true);
+          ptr_set(dn_iter.curr, 'up', true);
           ptr_set(node, 'dn', true);
         } else if (dn.dn!==false){
             del.push(dn);
-            dn = mem_iter.curr;
+            dn = dn_iter.curr;
         }
         break;
       }
       if (dn!==node)
         del.push(dn);
-      dn = mem_iter.curr;
-      mem_iter.next();
+      dn = dn_iter.curr;
+      dn_iter.next();
     }
     if (dn!==node){
       del.forEach(o=>this.avl.remove(o));
@@ -229,6 +238,32 @@ export default class Index {
       ptr_set(node, 'dn', true);
     }
     // XXX: need also to go upwards and merge if needed + add test
+    let up = node;
+    del = [];
+    let up_iter = this.find_mem_iter(node.key, {dir: 'up', min: node.seq+1});
+    while (up_iter.curr){
+      if (up_iter.curr.seq!=up.seq+1)
+        break;
+      if (!up_iter.curr.query){
+        if (up===node){
+          ptr_set(up_iter.curr, 'dn', true);
+          ptr_set(node, 'up', true);
+        } else if (up.up!==false){
+            del.push(up);
+            up = up_iter.curr;
+        }
+        break;
+      }
+      if (up!==node)
+        del.push(up);
+      up = up_iter.curr;
+      up_iter.next();
+    }
+    if (up!==node){
+      del.forEach(o=>this.avl.remove(o));
+      ptr_set(up, 'dn', true);
+      ptr_set(node, 'up', true);
+    }
   }
   avl_insert_query(query){
     let dn, up;

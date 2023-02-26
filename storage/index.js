@@ -181,13 +181,13 @@ export default class Index {
           if (!dn)
             return done();
           if (dn?.query && dn.dn!==false){
-            if_ptr_set(up, 'dn', true);
+            if_ptr_set(up, 'dn', true); // XXX: needed?
             _this.avl.remove(dn);
           }
           iter.step = 'mem';
           [min, max] = [_min, dn.seq];
           // XXX: rm all this mess
-          db_iter = iter.mem_iter = iter.up = iter.dn = up = dn = null;
+          db_iter = iter.mem_iter = iter.up = iter.dn = null;
           break;
         default: assert.fail('invalid step '+iter.step);
         }

@@ -185,8 +185,7 @@ export default class Index {
             _this.avl.remove(dn);
           }
           iter.step = 'mem';
-          min = _min;
-          max = dn.seq;
+          [min, max] = [_min, dn.seq];
           // XXX: rm all this mess
           db_iter = iter.mem_iter = iter.up = iter.dn = up = dn = null;
           break;

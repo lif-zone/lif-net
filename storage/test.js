@@ -2451,7 +2451,7 @@ describe('scroll', ()=>{
         // XXX: need tag_multi
         // XXX: need conflict_basic
         // XXX: need conflict_tag
-        // XXX: support < > operators
+        // XXX: support search < > operators
       });
       describe('db', ()=>{
         let t_db = `s..#(db_query_index index index_table)
@@ -2522,7 +2522,6 @@ describe('scroll', ()=>{
           #(index={id:0 key:/derry seq:9 dn:false up:false}
             db_query=index,rev,0_/derry_0<=key<=0_/derry_9)
           ##index_find(index:0 key:/derry max:9 count:3)=[9 8 7]
-          // XXX: bug, why we query seq9
           #(index=[{id:0 key:/derry seq:7 dn:false}
             {id:0 key:/derry seq:8}
             {id:0 key:/derry seq:9 up:false}]
@@ -2698,8 +2697,6 @@ describe('scroll', ()=>{
             {id:1 cfid:1 bseqb:null name:path}])
           ##index_find(name:path key:/f cfid:0 bseq:3)=[2 1]
           ##index_find(name:path key:/f cfid:0 bseq:2)=[2 1]
-          // XXX: no point to check index_0 (only from 1)
-          // XXX BUG: uneeded query entry
           #(index=[{id:0 key:/f seq:1} {id:0 key:/f seq:2 up:false}]
             db_query=[index,rev,0_/f_0<=key<=0_/f_2 next next])
           ##index_find(name:path key:/f cfid:1 bseq:2)=[2 1]

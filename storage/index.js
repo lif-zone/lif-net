@@ -134,9 +134,11 @@ export default class Index {
     return iter;
   }); }
   find_iter(key, opt={}){
-    let _this = this, {min, max} = opt, {cfid, scroll} = this;
+    let _this = this, {min, max, dir} = opt, {cfid, scroll} = this;
     let iter = {step: 'mem'}, up, dn, db_iter, query_rm;
     let _min = min = min===undefined ? 0 : min;
+    dir = dir||'dn';
+    assert(['up', 'dn'].includes(dir), 'invalid dir '+dir);
     max = max===undefined ? scroll.conflict.get(cfid).top.seq : max;
     const done = ()=>{
       iter.curr = null;

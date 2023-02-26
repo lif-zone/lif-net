@@ -194,9 +194,34 @@ export default class Index {
     return iter.next();
   }
   avl_insert(node){
+    let del = [];
     this.avl.insert(node);
-    // let mem_iter = this.find_mem_iter(query.key, {min: query.seq-1,
-    //  max: query.seq+1});
+    let dn = node;
+    let mem_iter = this.find_mem_iter(node.key, {max: node.seq-1});
+    while (mem_iter.curr){
+      if (mem_iter.curr.seq!=dn.seq-1)
+        break;
+      if (!mem_iter.curr.query){
+        if (dn===node){
+          ptr_set(mem_iter.curr, 'up', true);
+          ptr_set(node, 'dn', true);
+        } else if (dn.dn!==false){
+            del.push(dn);
+            dn = mem_iter.curr;
+        }
+        break;
+      }
+      if (dn!==node)
+        del.push(dn);
+      dn = mem_iter.curr;
+      mem_iter.next();
+    }
+    if (dn!==node){
+      del.forEach(o=>this.avl.remove(o));
+      ptr_set(dn, 'up', true);
+      ptr_set(node, 'dn', true);
+    }
+    // XXX: need also to go upwards and merge if needed + add test
   }
   avl_insert_query(query){
     let dn, up;

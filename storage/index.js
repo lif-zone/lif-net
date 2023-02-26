@@ -147,7 +147,7 @@ export default class Index {
           query_rm = null;
           return iter;
         }
-        [up, dn] = [iter.up, iter.dn];
+        [dn, up] = [iter.dn, iter.up];
         if (!scroll.storage || up && up.dn!==false || !dn && query_rm)
           return iter_done(iter);
         query_rm = null;
@@ -155,7 +155,7 @@ export default class Index {
         assert(min<=max, 'unexpected min>max');
         if (yield _this.find_iter_step_db(iter, key, min, max, dir))
           return iter;
-        [up, dn] = [iter.up, iter.dn];
+        [dn, up] = [iter.dn, iter.up];
         if (!dn)
           return iter_done(iter);
         if (up && dn){
@@ -272,8 +272,7 @@ export default class Index {
         ret = true;
       }
     }
-    iter.up = up;
-    iter.dn = dn;
+    [iter.dn, iter.up] = [dn, up];
     return ret;
   }
   find_iter_step_db(iter, key, min, max, dir){ return etask({_: this},
@@ -303,8 +302,7 @@ export default class Index {
       ret = true;
     } else if (up && up.seq!=min)
       ptr_set(up, 'dn', true);
-    iter.up = up;
-    iter.dn = dn;
+    [iter.dn, iter.up] = [dn, up];
     return ret;
   }); }
 }

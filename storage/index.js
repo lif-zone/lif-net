@@ -135,19 +135,14 @@ export default class Index {
   }); }
   find_iter(key, opt={}){
     let _this = this, {min, max, dir} = opt, {cfid, scroll} = this;
-    let iter = {step: 'mem'}, up, dn, query_rm;
+    let iter = {}, up, dn, query_rm;
     let _min = min = min===undefined ? 0 : min;
     dir = dir||'dn';
     assert(['up', 'dn'].includes(dir), 'invalid dir '+dir);
     max = max===undefined ? scroll.conflict.get(cfid).top.seq : max;
-    const done = ()=>{
-      iter.curr = null;
-      return iter;
-    };
     // XXX: verify mem_iter will work correctly even if scroll changed
     // XXX: can we avoid etask creation if only need to use mem?
     iter.next = ()=>etask(function*index_find_iter_next(){
-      assert(iter.step!='done', 'call to next after done');
       while (true){
         if (_this.find_iter_step_mem(iter, key, min, max)){
           query_rm = null;
@@ -155,18 +150,15 @@ export default class Index {
         }
         [up, dn] = [iter.up, iter.dn];
         if (!scroll.storage || up && up.dn!==false || !dn && query_rm)
-          return done();
+          return iter_done(iter);
         query_rm = null;
         [max, min] = [up ? up.seq-1 : max, dn ? dn.seq+1 : min];
         assert(min<=max, 'unexpected min>max');
-        iter.step = 'db';
         if (yield _this.find_iter_step_db(iter, key, min, max))
           return iter;
         [up, dn] = [iter.up, iter.dn];
-        if (up && up.seq!=min)
-          ptr_set(up, 'dn', true);
         if (!dn)
-          return done();
+          return iter_done(iter);
         if (up && dn){
           ptr_set(up, 'dn', true);
           ptr_set(dn, 'up', true);
@@ -176,7 +168,6 @@ export default class Index {
           _this.avl.remove(dn);
           query_rm = dn;
         }
-        iter.step = 'mem';
         [min, max] = [_min, dn.seq];
         // XXX: rm all this mess
         iter.db_iter = iter.mem_iter = iter.up = iter.dn = null;
@@ -314,7 +305,8 @@ export default class Index {
       up = node;
       iter.curr = node;
       ret = true;
-    }
+    } else if (up && up.seq!=min)
+      ptr_set(up, 'dn', true);
     iter.up = up;
     iter.dn = dn;
     return ret;
@@ -490,6 +482,11 @@ function normalize_node(node){
   if (node.dn!==false)
     delete node.dn;
   return node;
+}
+
+function iter_done(iter){
+  iter.curr = null;
+  return iter;
 }
 
 function ptr_set(node, field, val){

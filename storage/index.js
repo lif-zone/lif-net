@@ -132,6 +132,7 @@ export default class Index {
       iter.curr = null;
       return iter;
     };
+    // XXX: lock scroll
     // XXX: can we avoid etask creation if only need to use mem?
     iter.next = ()=>etask(function*index_find_iter_next(){
       assert(iter.step!='done', 'call to next after done');
@@ -149,6 +150,7 @@ export default class Index {
           iter.step = 'db';
           break;
         case 'db':
+          yield scroll.flush();
           if (!db_iter){
             db_iter = yield _this.find_db_iter(key, {min, max});
             if (!db_iter.curr || max!=db_iter.curr.seq && up?.seq!=max+1){
@@ -166,7 +168,7 @@ export default class Index {
             ptr_set(node, 'up', db_iter.i>0 || !!up);
             // XXX: need insert similar to avl_insert_query and unite both
             // functions. need to merge after insert
-            _this.avl.insert(node);
+            _this.avl_insert(node);
             up = node;
             iter.curr = node;
             return iter;
@@ -190,6 +192,11 @@ export default class Index {
       }
     });
     return iter.next();
+  }
+  avl_insert(node){
+    this.avl.insert(node);
+    // let mem_iter = this.find_mem_iter(query.key, {min: query.seq-1,
+    //  max: query.seq+1});
   }
   avl_insert_query(query){
     let dn, up;

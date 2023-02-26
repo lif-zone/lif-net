@@ -2639,6 +2639,21 @@ describe('scroll', ()=>{
             db_query=[index,rev,key==0_arik_7
             index,rev,key==0_arik_3 index,rev,0_arik_0<=key<=0_arik_1])
         `);
+        //  0 1 2 3 4 5 6 7 8 9 10 11
+        //                  n-q       (<=11 n=1)
+        //  decl 10
+        // XXX: need to merge 8-10 and rm q
+        //                  n-q  n    (<=11 n=1 all)
+        t('zzz_decl_after_find', `${t_zzz}
+          ##index_find(name:user key:arik bseq:_11 count:1)=8
+            #(index=[{${s}:8 dn:false} {${s}:9 query up:false}]
+            db_query=[index,rev,0_arik_0<=key<=0_arik_9])
+          load_c(9) # load_c(8) # load_c(7) #
+          decl({user:arik}) #
+          ##index_find(name:user key:arik bseq:_11 count:1)=10
+            #(index={${s}:10 dn:false up:false}
+            db_query=index,rev,key==0_arik_10)
+        `);
         t('db_conflict', `s.scroll(index:path) s.decl({path:/f})
           s.decl({path:/f}) s1.clone(s.M1) s1.decl({path:/f})
           S..scroll(s..M0 db) tput(0 1  ) tput(0 1 2) tput(0 1 c)

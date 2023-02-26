@@ -260,15 +260,17 @@ export default class Index {
       mem_iter = iter.mem_iter = this.find_mem_iter(key, {min, max});
     else
       mem_iter.next();
-    if (!dn && mem_iter.curr?.up===false && mem_iter.curr.seq!=max)
-      dn = mem_iter.curr;
-    else if (!dn && mem_iter.curr){
-      for (; mem_iter.curr.query && mem_iter.curr.dn!==false;
-        up = mem_iter.curr, mem_iter.next());
-      up = iter.curr = mem_iter.curr;
-      if (mem_iter.curr.dn===false)
-        dn = mem_iter.next()?.curr;
-      ret = true;
+    if (!dn){
+      if (mem_iter.curr?.up===false && mem_iter.curr.seq!=max)
+        dn = mem_iter.curr;
+      else if (mem_iter.curr){
+        for (; mem_iter.curr.query && mem_iter.curr.dn!==false;
+          up = mem_iter.curr, mem_iter.next());
+        up = iter.curr = mem_iter.curr;
+        if (mem_iter.curr.dn===false)
+          dn = mem_iter.next()?.curr;
+        ret = true;
+      }
     }
     iter.up = up;
     iter.dn = dn;

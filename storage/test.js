@@ -2646,6 +2646,18 @@ describe('scroll', ()=>{
             #(index=[{${s}:4 dn:false} {${s}:5 query up:false}]
             db_query=index,rev,key==0_arik_5)
           `);
+        t('zzz_not_found', `${t_zzz}
+          //  0 1 2 3 4 5 6 7 8 9
+          //  --------q            (val=not_found bseq<=4 n=1)
+          //  ------------q        (val=not_found bseq<=6 n=1)
+          ##index_find(name:user key:not_found bseq:4 count:1)=[]
+            #(index={id:0 key:not_found seq:4 query up:false}
+            db_query=index,rev,0_not_found_0<=key<=0_not_found_4)
+          // XXX: no need query: index,rev,0_not_found_0<=key<=0_not_found_4
+          ##index_find(name:user key:not_found bseq:6 count:1)=[]
+            #(index=[{id:0 key:not_found seq:6 query up:false}
+            !{id:0 key:not_found seq:4 query}]
+            db_query=index,rev,0_not_found_5<=key<=0_not_found_6)`);
         t('zzz_query_with_holes_a', `${t_zzz}
           //  0 1 2 3 4 5 6 7 8 9
           //  --q-n-q             (bseq<=1 =3 n=1)

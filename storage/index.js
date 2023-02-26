@@ -138,7 +138,7 @@ export default class Index {
   }); }
   find_iter(key, opt={}){
     let _this = this, {min, max} = opt, {cfid, scroll} = this;
-    let iter = {step: 'mem'}, up, dn, db_iter;
+    let iter = {step: 'mem'}, up, dn, db_iter, query_rm;
     let _min = min = min===undefined ? 0 : min;
     max = max===undefined ? scroll.conflict.get(cfid).top.seq : max;
     const done = ()=>{
@@ -152,19 +152,24 @@ export default class Index {
       while (true){
         switch (iter.step){
         case 'mem':
-          if (_this.find_iter_step_mem(iter, key, min, max))
+          if (_this.find_iter_step_mem(iter, key, min, max)){
+            query_rm = null;
             return iter;
+          }
           [up, dn] = [iter.up, iter.dn];
           if (!scroll.storage || up && up.dn!==false)
             return done();
           // XXX: check if we reached min and return + test it
+          if (!dn && query_rm)
+            return done();
+          query_rm = null;
           [max, min] = [up ? up.seq-1 : max, dn ? dn.seq+1 : min];
           assert(min<=max, 'unexpected min>max');
           iter.step = 'db';
           break;
         case 'db':
           if (!db_iter){
-            yield scroll.flush();
+            yield scroll.flush(); // XXX: mv to other place
             db_iter = yield _this.find_db_iter(key, {min, max});
             if (!db_iter.curr || max!=db_iter.curr.seq && up?.seq!=max+1){
               up = _this.avl_insert_query({key, seq: max, query: true,
@@ -197,6 +202,7 @@ export default class Index {
           if (dn?.query && dn.dn!==false){
             if_ptr_set(up, 'dn', true); // XXX: needed?
             _this.avl.remove(dn);
+            query_rm = dn;
           }
           iter.step = 'mem';
           [min, max] = [_min, dn.seq];

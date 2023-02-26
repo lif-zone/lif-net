@@ -90,18 +90,14 @@ export default class Index {
           continue;
         }
         node = Q.pop();
-        if (node.key.key==key)
-          iter.last = node.key;
-        if (compare(node.key, nmin)<0){
+        iter.curr = node.key;
+        node = node.left;
+        if (compare(iter.curr, nmin)<0){
           iter.curr = null;
           return iter;
         }
-        if (compare(node.key, nmax)<=0){
-          iter.curr = node.key;
-          node = node.left;
+        if (compare(iter.curr, nmax)<=0)
           return iter;
-        }
-        node = node.left;
       }
       iter.curr = null;
       return iter;

@@ -76,9 +76,9 @@ E.parse_get_next = function(curr){
     }
     return {exp, s, at};
   }
-  if (exp.indexOf('$$')!=-1)
+  if (exp.includes('$$'))
     return {exp, s, at};
-  if (exp.indexOf('$')!=-1){
+  if (exp.includes('$')){
     let curr2 = E.parse_get_next({s, at}), ss = '';
     assert(curr2, 'missing $$');
     let o = E.parse_exp(curr2.exp);
@@ -90,7 +90,7 @@ E.parse_get_next = function(curr){
         _s = _s.replace(new RegExp('\\$'+(i+1)+'\\b', 'g'), el));
       ss += (_s ? ' ' : '')+_s;
     });
-    assert(-1==ss.indexOf('$'), 'missing args for '+exp);
+    assert(!ss.includes('$'), 'missing args for '+exp);
     let l = s.substr(0, curr.at||0);
     let r = s.substr(curr2.at);
     return E.parse_get_next({s: l+ss+' '+r, at: curr.at||0});

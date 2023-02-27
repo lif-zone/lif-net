@@ -84,7 +84,7 @@ E.parse_get_next = function(curr){
     let o = E.parse_exp(curr2.exp);
     assert.equal(o.cmd, '$$', 'missing $$');
     assert(!o.l, 'invalid $$ '+curr2.exp);
-    get_array_str(o.r).forEach(els=>{
+    get_array_str(o.r, '(').forEach(els=>{
       let _s = exp;
       get_array_str(els).forEach((el, i)=>
         _s = _s.replace(new RegExp('\\$'+(i+1)+'\\b', 'g'), el));
@@ -98,9 +98,9 @@ E.parse_get_next = function(curr){
   return {exp, s, at};
 };
 
-function get_array_str(s){
+function get_array_str(s, open){
   let ret = [];
-  s = rm_parentesis(s, '[');
+  s = rm_parentesis(s, open||'[');
   for (let curr=s; curr = E.parse_get_next(curr);)
     ret.push(curr.exp);
   return ret;

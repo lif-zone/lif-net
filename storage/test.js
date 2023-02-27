@@ -252,11 +252,12 @@ describe('parser', ()=>{
     t('cmd($1) $$', []);
     t('cmd($1) $$(a1)', ['cmd(a1)']);
     t('cmd($1) $$(a1 a2 a3)', ['cmd(a1)', 'cmd(a2)', 'cmd(a3)']);
-    t('cmd($1 $2) $$([[a1 a2]])', ['cmd(a1 a2)']);
-    t('cmd($1 $2) $$([[a1 a2] [b1 b2]])', ['cmd(a1 a2)', 'cmd(b1 b2)']);
-    t('#cmd($1)=$2 $$([[a1 a2]])', ['#cmd(a1)=a2']);
+    t('cmd($1 $2) $$([a1 a2])', ['cmd(a1 a2)']);
+    t('cmd($1 $2) $$([a1 a2] [b1 b2])', ['cmd(a1 a2)', 'cmd(b1 b2)']);
+    t('#cmd($1)=$2 $$([a1 a2])', ['#cmd(a1)=a2']);
     t('cmd0 cmd1($1) $$(a1 a2) cmd2',
       ['cmd0', 'cmd1(a1)', 'cmd1(a2)', 'cmd2']);
+    t('cmd($1 $2) $$([5 [7 1]] [4 [7 1]])', ['cmd(5 [7 1])', 'cmd(4 [7 1])']);
   });
   it('parse_exp', ()=>{
     const t = (s, exp)=>assert.deepEqual(parse_exp(s),
@@ -2717,7 +2718,7 @@ describe('scroll', ()=>{
           // cfid:0 branch:main
           // XXX: support macro expansion
           ##index_find(cfid:0 name:path key:/arik bseq:$1)=$2
-          $$([[5 [7 1]] [4 [7 1]] [3 [7 1]] [2 1] [1 1] [0 []]])
+          $$([5 [7 1]] [4 [7 1]] [3 [7 1]] [2 1] [1 1] [0 []])
           // cfid:1 branch:main
           ##index_find(cfid:1 name:path key:/arik bseq:5)=[8 1]
           ##index_find(cfid:1 name:path key:/arik bseq:4)=[8 1]

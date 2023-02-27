@@ -283,6 +283,7 @@ describe('parser', ()=>{
     t('#(a)', {cmd: '#', l: '', r: 'a'});
     t('#a', {cmd: '#', l: '', r: 'a'});
     t('#ab', {cmd: '#', l: '', r: 'ab'});
+    t(`a(b\nc)`, {cmd: 'a', l: '', r: 'b c'});
   });
   it('parse_exp_arg', ()=>{
     const t = (s, exp)=>assert.deepEqual(parse_exp_arg(s),
@@ -2348,8 +2349,10 @@ describe('scroll', ()=>{
           ##index_find(dir:up name:path key:/arik bseq:4-1.1)=[1 3 5]
           ##index_find(dir:up name:path key:/arik bseq:4-1.0)=[1 3 5]
           // branch:b2 4-1.3-1
-          ##index_find(dir:up name:path key:/arik bseq:4-1.3-1.3)=[1 3 5 7 9 11]
-          ##index_find(dir:up name:path key:/arik bseq:4-1.3-1.2)=[1 3 5 7 9 11]
+          ##index_find(dir:up name:path key:/arik
+            bseq:4-1.3-1.3)=[1 3 5 7 9 11]
+          ##index_find(dir:up name:path key:/arik
+            bseq:4-1.3-1.2)=[1 3 5 7 9 11]
           ##index_find(dir:up name:path key:/arik bseq:4-1.3-1.1)=[1 3 5 7 9]
           ##index_find(dir:up name:path key:/arik bseq:4-1.3-1.0)=[1 3 5 7 9]
           // branch:b3 8-1.0
@@ -2492,7 +2495,8 @@ describe('scroll', ()=>{
           ##index_find(dir:up cfid:0 name:path key:/arik bseq:1)=1
           ##index_find(dir:up cfid:0 name:path key:/arik bseq:0)=[]
           // conflict:1
-          ##index_find(dir:up cfid:1 name:path key:/arik bseq:_10)=[1 3 5 6 8 9]
+          ##index_find(dir:up cfid:1 name:path key:/arik
+            bseq:_10)=[1 3 5 6 8 9]
           ##index_find(dir:up cfid:1 name:path key:/arik bseq:9)=[1 3 5 6 8 9]
           ##index_find(dir:up cfid:1 name:path key:/arik bseq:8)=[1 3 5 6 8]
           ##index_find(dir:up cfid:1 name:path key:/arik bseq:7)=[1 3 5 6]
@@ -2647,7 +2651,8 @@ describe('scroll', ()=>{
           ##index_find(dir:up cfid:0 name:path key:/arik bseq:1)=1
           ##index_find(dir:up cfid:0 name:path key:/arik bseq:0)=[]
           // conflict:1
-          ##index_find(dir:up cfid:1 name:path key:/arik bseq:_10)=[1 3 5 6 8 9]
+          ##index_find(dir:up cfid:1 name:path key:/arik
+            bseq:_10)=[1 3 5 6 8 9]
           ##index_find(dir:up cfid:1 name:path key:/arik bseq:9)=[1 3 5 6 8 9]
           ##index_find(dir:up cfid:1 name:path key:/arik bseq:8)=[1 3 5 6 8]
           ##index_find(dir:up cfid:1 name:path key:/arik bseq:7)=[1 3 5 6]
@@ -2797,12 +2802,17 @@ describe('scroll', ()=>{
           ##index_find(dir:up cfid:1 name:path key:/arik bseq:2-1.1)=[1 3 4]
           ##index_find(dir:up cfid:1 name:path key:/arik bseq:2-1.0)=[1 3]
           // cfid:0 branch:b2
-          ##index_find(dir:up cfid:0 name:path key:/arik bseq:2-1.1-1.2)=[1 3 4 6]
-          ##index_find(dir:up cfid:0 name:path key:/arik bseq:2-1.1-1.1)=[1 3 4 6]
-          ##index_find(dir:up cfid:0 name:path key:/arik bseq:2-1.1-1.0)=[1 3 4]
+          ##index_find(dir:up cfid:0 name:path key:/arik
+            bseq:2-1.1-1.2)=[1 3 4 6]
+          ##index_find(dir:up cfid:0 name:path key:/arik
+            bseq:2-1.1-1.1)=[1 3 4 6]
+          ##index_find(dir:up cfid:0 name:path key:/arik
+            bseq:2-1.1-1.0)=[1 3 4]
           // cfid:1 branch:b2
-          ##index_find(dir:up cfid:1 name:path key:/arik bseq:2-1.2-1.1)=[1 3 4 5 6]
-          ##index_find(dir:up cfid:1 name:path key:/arik bseq:2-1.2-1.0)=[1 3 4 5 6]`);
+          ##index_find(dir:up cfid:1 name:path key:/arik
+            bseq:2-1.2-1.1)=[1 3 4 5 6]
+          ##index_find(dir:up cfid:1 name:path key:/arik
+            bseq:2-1.2-1.0)=[1 3 4 5 6]`);
         // support filter by bseq+seq
         // XXX: need tag_multi
         // XXX: need conflict_basic

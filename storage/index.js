@@ -451,7 +451,7 @@ class Index_table {
   // XXX: rename to find_iter and add scroll api
   index_find_iter(key, opt){ return etask({_: this}, function*index_find(){
     let _this = this._, {id, name, cfid, min, max, dir, bseq} = opt;
-    let iter = {};
+    let iter = {}, _max = max;
     if (id!==undefined){
       assert(cfid===undefined && bseq===undefined && name===undefined,
         'invalid id/bseq/cfid/name');
@@ -462,13 +462,26 @@ class Index_table {
     }
     assert(cfid!==undefined && bseq!==undefined && name!==undefined,
       'invalid id/bseq/cfid/name');
-    let scroll = _this.scroll, bt = scroll.get_branch_table(cfid);
-    let curr = bseq, bseqs = [];
+    let scroll = _this.scroll, bt;
+    let curr = bseq, bseqs = [], conflicts = [];
     if (dir=='up'){
-      for (; curr; curr=Branch_table.bseq_parent(curr))
+      for (curr=bseq; curr; curr=Branch_table.bseq_parent(curr))
         bseqs.push(curr);
       curr = bseqs.pop();
+      for (let co = scroll.conflict.get(cfid); co;
+        co = co.parent && scroll.conflict.get(co.parent.cfid))
+      {
+        conflicts.push(co);
+      }
+      let co = conflicts.pop(), co_child = conflicts[conflicts.length-1];
+      cfid = co.cfid;
+      max = _max===undefined ? co_child?.parent.seq :
+        co_child?.parent?.seq!==undefined ?
+        Math.min(_max, co_child.parent.seq) : _max;
+      bt = scroll.get_branch_table(cfid);
     }
+    else
+      bt = scroll.get_branch_table(cfid);
     iter.next = ()=>etask(function*index_find_iter_next(){
       if (iter.iter){
         if (iter.iter.curr){
@@ -495,6 +508,21 @@ class Index_table {
           iter.curr = iter.iter.curr;
           return iter;
         }
+        if (!conflicts.length){
+          iter.curr = null;
+          return iter;
+        }
+        let co = conflicts.pop(), co_child = conflicts[conflicts.length-1];
+        cfid = co.cfid;
+        max = _max===undefined ? co_child?.parent.seq :
+          co_child?.parent?.seq!==undefined ?
+          Math.min(_max, co_child.parent.seq) : _max;
+        bt = scroll.get_branch_table(cfid);
+        bseqs = [];
+        for (curr=bseq; curr; curr=Branch_table.bseq_parent(curr))
+          bseqs.push(curr);
+        curr = bseqs.pop();
+        return iter.next();
       } else {
         for (; curr; curr = Branch_table.bseq_parent(curr)){
           let id = _this.get_index_id(cfid, bseq_branch(curr), name);
@@ -510,17 +538,17 @@ class Index_table {
           iter.curr = iter.iter.curr;
           return iter;
         }
+        if (!cfid){
+          iter.curr = null;
+          return iter;
+        }
+        let co = scroll.conflict.get(cfid);
+        cfid = co.parent.cfid;
+        max = max===undefined ? co.parent.seq : Math.min(max, co.parent.seq);
+        curr = bseq;
+        bt = scroll.get_branch_table(cfid);
+        return iter.next();
       }
-      if (!cfid){
-        iter.curr = null;
-        return iter;
-      }
-      let co = scroll.conflict.get(cfid);
-      cfid = co.parent.cfid;
-      max = max===undefined ? co.parent.seq : Math.min(max, co.parent.seq);
-      curr = bseq;
-      bt = scroll.get_branch_table(cfid);
-      return iter.next();
     });
     return iter.next();
   }); }

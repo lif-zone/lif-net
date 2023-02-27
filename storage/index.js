@@ -134,16 +134,16 @@ export default class Index {
   }); }
   find_iter(key, opt={}){
     let _this = this, {min, max, dir} = opt, {cfid, scroll} = this;
-    let iter = {}, up, dn, query_rm;
-    let _min = min = min===undefined ? 0 : min;
+    let iter = {step: 'mem'}, up, dn, query_rm;
+    let _max, _min = min = min===undefined ? 0 : min;
     dir = dir||'dn';
     assert(['up', 'dn'].includes(dir), 'invalid dir '+dir);
-    max = max===undefined ? scroll.conflict.get(cfid).top.seq : max;
+    _max = max = max===undefined ? scroll.conflict.get(cfid).top.seq : max;
     // XXX: verify mem_iter will work correctly even if scroll changed
     // XXX: can we avoid etask creation if only need to use mem?
     iter.next = ()=>etask(function*index_find_iter_next(){
       while (true){
-        if (!iter.db_iter){
+        if (iter.step=='mem'){
           if (_this.find_iter_step_mem(iter, key, min, max, dir)){
             query_rm = null;
             return iter;
@@ -156,6 +156,7 @@ export default class Index {
           if (dir=='dn' && (up && up.dn!==false || !dn && query_rm))
             return iter_done(iter);
           query_rm = null;
+          iter.step = 'db';
           [min, max] = [dn ? dn.seq+1 : min, up ? up.seq-1 : max];
           assert(min<=max, 'unexpected min>max');
         }
@@ -178,7 +179,8 @@ export default class Index {
           _this.avl.remove(dn);
           query_rm = dn;
         }
-        [min, max] = dir=='up' ? [up.seq, max] : [_min, dn.seq];
+        iter.step = 'mem';
+        [min, max] = dir=='up' ? [up.seq, _max] : [_min, dn.seq];
         iter.db_iter = iter.mem_iter = iter.up = iter.dn = null;
       }
     });

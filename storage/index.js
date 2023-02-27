@@ -148,10 +148,14 @@ export default class Index {
           return iter;
         }
         [dn, up] = [iter.dn, iter.up];
-        if (!scroll.storage || up && up.dn!==false || !dn && query_rm)
+        if (!scroll.storage)
+          return iter_done(iter);
+        if (dir=='up' && (dn && dn.dn!==false || !up && query_rm))
+          return iter_done(iter);
+        if (dir=='dn' && (up && up.dn!==false || !dn && query_rm))
           return iter_done(iter);
         query_rm = null;
-        [max, min] = [up ? up.seq-1 : max, dn ? dn.seq+1 : min];
+        [min, max] = [dn ? dn.seq+1 : min, up ? up.seq-1 : max];
         assert(min<=max, 'unexpected min>max');
         if (yield _this.find_iter_step_db(iter, key, min, max, dir))
           return iter;
@@ -162,12 +166,17 @@ export default class Index {
           ptr_set(up, 'dn', true);
           ptr_set(dn, 'up', true);
         }
-        if (dn?.query && dn.dn!==false){
+        if (dir=='up' && (up?.query && up.up!==false)){
+          if_ptr_set(dn, 'up', true); // XXX: needed?
+          _this.avl.remove(up);
+          query_rm = up;
+        }
+        if (dir=='dn' && (dn?.query && dn.dn!==false)){
           if_ptr_set(up, 'dn', true); // XXX: needed?
           _this.avl.remove(dn);
           query_rm = dn;
         }
-        [min, max] = [_min, dn.seq];
+        [min, max] = dir=='up' ? [up.seq, max] : [_min, dn.seq];
         iter.db_iter = iter.mem_iter = iter.up = iter.dn = null;
       }
     });
@@ -257,10 +266,10 @@ export default class Index {
   find_iter_step_mem(iter, key, min, max, dir){
     let {mem_iter, up, dn} = iter, ret;
     if (!mem_iter)
-      mem_iter = iter.mem_iter = this.find_mem_iter(key, {min, max});
+      mem_iter = iter.mem_iter = this.find_mem_iter(key, {min, max, dir});
     else
       mem_iter.next();
-    if (!dn){
+    if (dir=='dn' && !dn){
       if (mem_iter.curr?.up===false && mem_iter.curr.seq!=max)
         dn = mem_iter.curr;
       else if (mem_iter.curr){
@@ -269,6 +278,17 @@ export default class Index {
         up = iter.curr = mem_iter.curr;
         if (mem_iter.curr.dn===false)
           dn = mem_iter.next()?.curr;
+        ret = true;
+      }
+    } else if (dir=='up' && !up){
+      if (mem_iter.curr?.dn===false && mem_iter.curr.seq!=min)
+        up = mem_iter.curr;
+      else if (mem_iter.curr){
+        for (; mem_iter.curr.query && mem_iter.curr.up!==false;
+          dn = mem_iter.curr, mem_iter.next());
+        dn = iter.curr = mem_iter.curr;
+        if (mem_iter.curr.up===false)
+          up = mem_iter.next()?.curr;
         ret = true;
       }
     }
@@ -281,27 +301,42 @@ export default class Index {
     let _this = this._, scroll = _this.scroll;
     let {db_iter, up, dn} = iter, ret;
     if (!db_iter){
-      yield scroll.flush(); // XXX: mv to other place
-      db_iter = iter.db_iter = yield _this.find_db_iter(key, {min, max});
-      if (!db_iter.curr || max!=db_iter.curr.seq && up?.seq!=max+1){
-        up = _this.avl_insert_query({key, seq: max, query: true,
-          up: !!up, dn: !!dn});
+      yield scroll.flush(); // XXX: mv to other place and only once
+      db_iter = iter.db_iter = yield _this.find_db_iter(key, {min, max, dir});
+      if (dir=='up'){
+        if (!db_iter.curr || min!=db_iter.curr.seq && dn?.seq!=min-1){
+          dn = _this.avl_insert_query({key, seq: max, query: true,
+            up: !!up, dn: !!dn});
+        }
+      } else if (dir=='dn'){
+        if (!db_iter.curr || max!=db_iter.curr.seq && up?.seq!=max+1){
+          up = _this.avl_insert_query({key, seq: max, query: true,
+            up: !!up, dn: !!dn});
+        }
       }
     }
     else
       yield db_iter.next();
-    if (db_iter.curr){
-      let seq = db_iter.curr.seq, node = {key, seq, dn: false};
-      if_ptr_set(up, 'dn', true);
-      ptr_set(node, 'up', !!up);
-      // XXX: need insert similar to avl_insert_query and unite both
-      // functions. need to merge after insert
-      _this.avl_insert(node);
-      up = node;
-      iter.curr = node;
-      ret = true;
-    } else if (up && up.seq!=min)
-      ptr_set(up, 'dn', true);
+    if (dir=='up'){
+      if (db_iter.curr){
+        let seq = db_iter.curr.seq, node = {key, seq, up: false};
+        if_ptr_set(dn, 'up', true);
+        ptr_set(node, 'dn', !!dn);
+        _this.avl_insert(node);
+        [dn, ret.curr, ret] = [node, node, true];
+      } else if (dn && dn.seq!=max)
+        ptr_set(dn, 'up', true);
+
+    } else if (dir=='dn'){
+      if (db_iter.curr){
+        let seq = db_iter.curr.seq, node = {key, seq, dn: false};
+        if_ptr_set(up, 'dn', true);
+        ptr_set(node, 'up', !!up);
+        _this.avl_insert(node);
+        [up, iter.curr, ret] = [node, node, true];
+      } else if (up && up.seq!=min)
+        ptr_set(up, 'dn', true);
+    }
     [iter.dn, iter.up] = [dn, up];
     return ret;
   }); }
@@ -401,6 +436,7 @@ class Index_table {
       yield _this.on_data({cfid, seq, bseq, data});
     }
   });
+  // XXX: rename to find and add scroll api
   index_find(key, opt){ return etask({_: this}, function*index_find(){
     let _this = this._, {count} = opt, ret = [];
     let iter = yield _this.index_find_iter(key, opt);
@@ -412,8 +448,9 @@ class Index_table {
     }
     return ret;
   }); }
+  // XXX: rename to find_iter and add scroll api
   index_find_iter(key, opt){ return etask({_: this}, function*index_find(){
-    let _this = this._, {id, name, cfid, min, max, bseq} = opt;
+    let _this = this._, {id, name, cfid, min, max, dir, bseq} = opt;
     let iter = {};
     if (id!==undefined){
       assert(cfid===undefined && bseq===undefined && name===undefined,
@@ -421,7 +458,7 @@ class Index_table {
       let index = _this.index.get(id);
       if (!index)
         return iter;
-      return index.find_iter(key, {min, max});
+      return index.find_iter(key, {min, max, dir});
     }
     assert(cfid!==undefined && bseq!==undefined && name!==undefined,
       'invalid id/bseq/cfid/name');
@@ -446,7 +483,7 @@ class Index_table {
           continue;
         let index = _this.index.get(id);
         iter.iter = yield index.find_iter(key, {min,
-          max: max===undefined ? seq_max : Math.min(seq_max, max)});
+          max: max===undefined ? seq_max : Math.min(seq_max, max), dir});
         if (!iter.iter.curr)
           continue;
         curr=Branch_table.bseq_parent(curr);

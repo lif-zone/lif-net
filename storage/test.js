@@ -2090,7 +2090,7 @@ describe('scroll', ()=>{
     });
     describe('find', ()=>{
       describe('mem', ()=>{
-        t('basic', `s..#(db_query_index index index_table)
+        t('basic_dir_dn', `s..#(db_query_index index index_table)
           scroll(index:path) #
           decl({path:/derry}) #(index={id:0 key:/derry seq:1}
             index_table={id:0 cfid:0 bseqb:null name:path})
@@ -2109,8 +2109,8 @@ describe('scroll', ()=>{
           ##index_find(index:0 key:/derry)=[9 8 7 4 3 1] #
           ##index_find(index:0 key:/derry max:9)=[9 8 7 4 3 1] #
           ##index_find(index:0 key:/derry max:8)=[8 7 4 3 1] #
-          ##index_find(index:0 key:/derry max:1)=[1] #
-//          ##!index_find(index:0 key:/derry max:0) #
+          ##index_find(index:0 key:/derry max:1)=1 #
+          ##!index_find(index:0 key:/derry max:0) #
           ##index_find(index:0 key:/arik)=[12 11 10 6 5 2] #
           ##index_find(index:0 key:/arik max:12)=[12 11 10 6 5 2] #
           ##index_find(index:0 key:/arik max:11)=[11 10 6 5 2] #
@@ -2121,7 +2121,38 @@ describe('scroll', ()=>{
           ##index_find(index:0 key:/derry max:9 count:5)=[9 8 7 4 3] #
           ##index_find(index:0 key:/derry max:9 count:1)=[9] #
           ##index_find(index:0 key:/derry max:8 count:4)=[8 7 4 3] #`);
-        t('tag_basic', `s..#(index index_table) scroll(index:i) #
+        t('basic_dir_up', `s..#(db_query_index index index_table)
+          scroll(index:path) #
+          decl({path:/derry}) #(index={id:0 key:/derry seq:1}
+            index_table={id:0 cfid:0 bseqb:null name:path})
+          decl({path:/arik}) #index={id:0 key:/arik seq:2}
+          decl({path:/derry}) #index={id:0 key:/derry seq:3}
+          decl({path:/derry}) #index={id:0 key:/derry seq:4}
+          decl({path:/arik}) #index={id:0 key:/arik seq:5}
+          decl({path:/arik}) #index={id:0 key:/arik seq:6}
+          decl({path:/derry}) #index={id:0 key:/derry seq:7}
+          decl({path:/derry}) #index={id:0 key:/derry seq:8}
+          decl({path:/derry}) #index={id:0 key:/derry seq:9}
+          decl({path:/arik}) #index={id:0 key:/arik seq:10}
+          decl({path:/arik}) #index={id:0 key:/arik seq:11}
+          decl({path:/arik}) #index={id:0 key:/arik seq:12}
+          // min/max
+          ##index_find(dir:up index:0 key:/derry)=[1 3 4 7 8 9] #
+          ##index_find(dir:up index:0 key:/derry max:9)=[1 3 4 7 8 9] #
+          ##index_find(dir:up index:0 key:/derry max:8)=[1 3 4 7 8] #
+          ##index_find(dir:up index:0 key:/derry max:1)=1 #
+          ##!index_find(dir:up index:0 key:/derry max:0) #
+          ##index_find(dir:up index:0 key:/arik)=[2 5 6 10 11 12] #
+          ##index_find(dir:up index:0 key:/arik max:12)=[2 5 6 10 11 12] #
+          ##index_find(dir:up index:0 key:/arik max:11)=[2 5 6 10 11] #
+          ##index_find(dir:up index:0 key:/arik max:2)=2 #
+          ##!index_find(dir:up index:0 key:/arik max:1) #
+          // count
+          ##index_find(dir:up index:0 key:/derry max:9 count:6)=[1 3 4 7 8 9] #
+          ##index_find(dir:up index:0 key:/derry max:9 count:5)=[1 3 4 7 8] #
+          ##index_find(dir:up index:0 key:/derry max:9 count:1)=1 #
+          ##index_find(dir:up index:0 key:/derry max:8 count:4)=[1 3 4 7] #`);
+        t('tag_basic_dir_dn', `s..#(index index_table) scroll(index:i) #
           decl({i:v1}) #(index={id:0 key:v1 seq:1}
             index_table={id:0 cfid:0 bseqb:null name:i})
           decl({i:v1} branch:b) #(index={id:1 key:v1 seq:2}
@@ -2159,6 +2190,45 @@ describe('scroll', ()=>{
           ##index_find(name:i key:v2 bseq:1-1.1)=3  #
           ##!index_find(name:i key:v2 bseq:1-1.0) #
           ##!index_find(name:i key:v2 bseq:1) #`);
+        if (0) // XXX: WIP
+        t('tag_basic_dir_up', `s..#(index index_table) scroll(index:i) #
+          decl({i:v1}) #(index={id:0 key:v1 seq:1}
+            index_table={id:0 cfid:0 bseqb:null name:i})
+          decl({i:v1} branch:b) #(index={id:1 key:v1 seq:2}
+            index_table=[{id:0 cfid:0 bseqb:null name:i}
+            {id:1 cfid:0 bseqb:1-1 name:i}])
+          decl({i:v2}) #index={id:1 key:v2 seq:3}
+          decl({i:v2}) #index={id:1 key:v2 seq:4}
+          decl({i:v3}) #index={id:1 key:v3 seq:5}
+          decl({i:v1} prev:1) #index={id:0 key:v1 seq:6}
+          decl({i:v2}) #index={id:0 key:v2 seq:7}
+          decl({i:v2}) #index={id:0 key:v2 seq:8}
+          // top of branch
+          ##index_find(dir:up index:0 key:v1)=[1 6] #
+          ##index_find(dir:up index:0 key:v2)=[7 8] #
+          ##!index_find(dir:up index:0 key:v3) #
+          ##index_find(dir:up index:1 key:v1)=2 #
+          ##index_find(dir:up index:1 key:v2)=[3 4] #
+          ##index_find(dir:up index:1 key:v3)=5 #
+          // by seq
+          ##index_find(dir:up index:0 key:v2 max:9)=[7 8] #
+          ##index_find(dir:up index:0 key:v2 max:8)=[7 8] #
+          ##index_find(dir:up index:0 key:v2 max:7)=7 #
+          ##!index_find(dir:up index:0 key:v2 max:6) #
+          ##index_find(dir:up index:1 key:v2 max:4)=[3 4] #
+          ##index_find(dir:up index:1 key:v2 max:3)=3 #
+          ##!index_find(dir:up index:1 key:v2 max:2) #
+          // by bseq
+          ##index_find(dir:up name:i key:v1 bseq:1-1.4)=[1 2] #
+          ##index_find(dir:up name:i key:v1 bseq:1-1.3)=[1 2] #
+          ##index_find(dir:up name:i key:v1 bseq:1-1.0)=[1 2] #
+          ##index_find(dir:up name:i key:v1 bseq:1)=1 #
+          ##!index_find(dir:up name:i key:v1 bseq:0) #
+          ##index_find(dir:up name:i key:v2 bseq:1-1.3)=[3 4] #
+          ##index_find(dir:up name:i key:v2 bseq:1-1.2)=[3 4] #
+          ##index_find(dir:up name:i key:v2 bseq:1-1.1)=3  #
+          ##!index_find(dir:up name:i key:v2 bseq:1-1.0) #
+          ##!index_find(dir:up name:i key:v2 bseq:1) #`);
         t('tag_multi', `s..#(index index_table bseq)
           scroll(index:path) #bseq0=0
           decl({path:/arik}) #(bseq1=1 index={id:0 key:/arik seq:1}
@@ -2558,7 +2628,7 @@ describe('scroll', ()=>{
         // XXX: test behavior for query not found
         let s = 'id:0 key:arik seq';
         //  0 1 2 3 4 5 6 7 8 9
-        //  ----n---n---n---n-q (<=9 all)
+        //  ----n---n---n---n-q (bseq<=9 all)
         t('zzz0', `${t_zzz}
           ##index_find(name:user key:arik bseq:9)=[8 6 4 2]
             #(index=[{${s}:2} {${s}:4} {${s}:6} {${s}:8}
@@ -2566,8 +2636,8 @@ describe('scroll', ()=>{
             db_query=[index,rev,0_arik_0<=key<=0_arik_9 next next next next])
         `);
         //  0 1 2 3 4 5 6 7 8 9
-        //                  n-q (<=9 n=1)
-        //              n---n-q (<=8 n=2)
+        //                  n-q (bseq<=9 n=1)
+        //              n---n-q (bseq<=8 n=2)
         t('zzz1', `${t_zzz}
           ##index_find(name:user key:arik bseq:9 count:1)=8
             #(index=[{${s}:8 dn:false} {${s}:9 query up:false}]
@@ -2576,8 +2646,8 @@ describe('scroll', ()=>{
             #(index=[{${s}:6 dn:false} {${s}:8}]
             db_query=[index,rev,0_arik_0<=key<=0_arik_7])`);
         //  0 1 2 3 4 5 6 7 8 9
-        //                  n-q (<=9 n=1)
-        //          n---n---n-q (<=7 n=2)
+        //                  n-q (bseq<=9 n=1)
+        //          n---n---n-q (bseq<=7 n=2)
         t('zzz2', `${t_zzz}
           ##index_find(name:user key:arik bseq:9 count:1)=8
             #(index=[{${s}:8 dn:false} {${s}:9 query up:false}]
@@ -2586,9 +2656,9 @@ describe('scroll', ()=>{
             #(index=[{${s}:4 dn:false} {${s}:6} {${s}:8}]
             db_query=[index,rev,0_arik_0<=key<=0_arik_7 next])`);
         //  0 1 2 3 4 5 6 7 8 9
-        //                  n-q (<=9 n=1)
-        //          n---n   n-q (<=6 n=2)
-        //          n---n---n-q (<=8 n=2)
+        //                  n-q (bseq<=9 n=1)
+        //          n---n   n-q (bseq<=6 n=2)
+        //          n---n---n-q (bseq<=8 n=2)
         t('zzz3', `${t_zzz}
           ##index_find(name:user key:arik bseq:9 count:1)=8
             #(index=[{${s}:8 dn:false} {${s}:9 query up:false}]
@@ -2600,10 +2670,10 @@ describe('scroll', ()=>{
           ##index_find(name:user key:arik bseq:8 count:2)=[8 6]
             #(index=[{${s}:6} {${s}:8}] db_query=[index,rev,key==0_arik_7])`);
         //  0 1 2 3 4 5 6 7 8 9
-        //                  n-q (<=9 n=1)
-        //          n---n   n-q (<=6 n=2)
-        //      n---n---n---n-q (<=7 n=3)
-        //      n---n---n---n-q (<=8 n=3)
+        //                  n-q (bseq<=9 n=1)
+        //          n---n   n-q (bseq<=6 n=2)
+        //      n---n---n---n-q (bseq<=7 n=3)
+        //      n---n---n---n-q (bseq<=8 n=3)
         t('zzz4', `${t_zzz}
           ##index_find(name:user key:arik bseq:9 count:1)=8
             #(index=[{${s}:8 dn:false} {${s}:9 query up:false}]

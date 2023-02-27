@@ -1463,7 +1463,8 @@ const db_get_index = scroll=>etask(function*db_get_index(){
 const index_find = (scroll, filter)=>etask(function*index_find(){
   let ret;
   for (let i=0; i<filter.length; i++){
-    let t = parse_exp_arg(filter[i]), id, key, max, count, bseq, cfid, name;
+    let t = parse_exp_arg(filter[i]), id, key, min, max, dir, count, bseq;
+    let cfid, name;
     assert.equal(t.cmd, 'index_find', 'invalid index_find '+filter[i]);
     assert(!t.l, 'invalid index_find '+filter[i]);
     for (let curr=t.r; curr = parse_get_next(curr);){
@@ -1472,17 +1473,19 @@ const index_find = (scroll, filter)=>etask(function*index_find(){
       case 'index': id = +tt.r; break;
       case 'key': key = tt.r; break;
       case 'max': max = +tt.r; break;
+      case 'min': min = +tt.r; break;
       case 'count': count = +tt.r; break;
       case 'bseq': bseq = tt.r; break;
       case 'cfid': cfid = +tt.r; break;
       case 'name': name = tt.r; break;
+      case 'dir': dir = tt.r; break;
       default: assert.fail('invalid index_find '+tt.l+' for '+filter[i]);
       }
     }
     if (bseq)
       cfid = cfid||0;
-    let found = yield scroll.index_find(key, {id, cfid, bseq, max, count,
-      name});
+    let found = yield scroll.index_find(key, {id, cfid, bseq, min, max, dir,
+      count, name});
     if (!found)
       continue;
     ret = ret||{};

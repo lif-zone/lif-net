@@ -462,9 +462,13 @@ class Index_table {
     }
     assert(cfid!==undefined && bseq!==undefined && name!==undefined,
       'invalid id/bseq/cfid/name');
-    let scroll = _this.scroll;
-    let bt = scroll.get_branch_table(cfid);
-    let curr = bseq;
+    let scroll = _this.scroll, bt = scroll.get_branch_table(cfid);
+    let curr = bseq, bseqs = [];
+    if (dir=='up'){
+      for (; curr; curr=Branch_table.bseq_parent(curr))
+        bseqs.push(curr);
+      curr = bseqs.pop();
+    }
     iter.next = ()=>etask(function*index_find_iter_next(){
       if (iter.iter){
         if (iter.iter.curr){
@@ -476,19 +480,36 @@ class Index_table {
         }
         iter.iter = null;
       }
-      for (; curr; curr=Branch_table.bseq_parent(curr)){
-        let id = _this.get_index_id(cfid, bseq_branch(curr), name);
-        let seq_max = bt.bseq_get_max_seq(curr);
-        if (id===undefined || seq_max===undefined)
-          continue;
-        let index = _this.index.get(id);
-        iter.iter = yield index.find_iter(key, {min,
-          max: max===undefined ? seq_max : Math.min(seq_max, max), dir});
-        if (!iter.iter.curr)
-          continue;
-        curr=Branch_table.bseq_parent(curr);
-        iter.curr = iter.iter.curr;
-        return iter;
+      if (dir=='up'){
+        for (; curr; curr = bseqs.pop()){
+          let id = _this.get_index_id(cfid, bseq_branch(curr), name);
+          let seq_max = bt.bseq_get_max_seq(curr);
+          if (id===undefined || seq_max===undefined)
+            continue;
+          let index = _this.index.get(id);
+          iter.iter = yield index.find_iter(key, {min,
+            max: max===undefined ? seq_max : Math.min(seq_max, max), dir});
+          if (!iter.iter.curr)
+            continue;
+          curr = bseqs.pop();
+          iter.curr = iter.iter.curr;
+          return iter;
+        }
+      } else {
+        for (; curr; curr = Branch_table.bseq_parent(curr)){
+          let id = _this.get_index_id(cfid, bseq_branch(curr), name);
+          let seq_max = bt.bseq_get_max_seq(curr);
+          if (id===undefined || seq_max===undefined)
+            continue;
+          let index = _this.index.get(id);
+          iter.iter = yield index.find_iter(key, {min,
+            max: max===undefined ? seq_max : Math.min(seq_max, max), dir});
+          if (!iter.iter.curr)
+            continue;
+          curr = Branch_table.bseq_parent(curr);
+          iter.curr = iter.iter.curr;
+          return iter;
+        }
       }
       if (!cfid){
         iter.curr = null;

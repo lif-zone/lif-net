@@ -2915,7 +2915,10 @@ describe('scroll', ()=>{
             db_query=[index,rev,key==0_/derry_6
             index,rev,0_/derry_0<=key<=0_/derry_3])`);
         // XXX: rename
-        // XXX: use macro decl({user:*})=(niko arik niko arik...)
+        // XXX: use macro
+        // ##index_find(cfid:0 name:path key:/arik bseq:*)=
+        // (5:[7 1] 4:[7 1] 3:1 1:1 0:[])
+        // decl({user:*})=(niko arik niko arik...)
         let t_zzz = `s..scroll(index:user db) decl({user:niko})
           decl({user:arik}) decl({user:niko}) decl({user:arik})
           decl({user:niko}) decl({user:arik}) decl({user:niko})

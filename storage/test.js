@@ -1911,7 +1911,6 @@ describe('scroll', ()=>{
     });
     const t = (name, test)=>it(name, ()=>test_run(test));
     describe('mem', ()=>{
-      // XXX: test global index_table
       t('one_index', `s..#(index index_table) scroll(index:file) #
         decl({file:/f1}) #(index={id:0 key:/f1 seq:1}
           index_table={id:0 cfid:0 bseqb:null name:file})
@@ -2916,7 +2915,9 @@ describe('scroll', ()=>{
             index,rev,0_/derry_0<=key<=0_/derry_3])`);
         // XXX: rename
         // XXX: use macro
-        // ##index_find(cfid:0 name:path key:/arik bseq:*)=
+        // ##index_find(cfid:0 name:path key:/arik bseq:5)=[7 1]
+        // ##index_find(cfid:0 name:path key:/arik bseq:$1)=[$2]
+        //   $$(5:[7 1] 4:[7 1] 3:1 1:1 0:[])
         // (5:[7 1] 4:[7 1] 3:1 1:1 0:[])
         // decl({user:*})=(niko arik niko arik...)
         let t_zzz = `s..scroll(index:user db) decl({user:niko})
@@ -2924,7 +2925,6 @@ describe('scroll', ()=>{
           decl({user:niko}) decl({user:arik}) decl({user:niko})
           decl({user:arik}) decl({user:niko}) Soul.db_copy(s.soul)
           S..#(db_query_index index) Soul.S.scroll(s..M0 db) #index=[]`;
-        // XXX: test behavior for query not found
         let s = 'id:0 key:arik seq';
         t('zzz0_dir_dn', `${t_zzz}
           //  0 1 2 3 4 5 6 7 8 9
@@ -3245,3 +3245,64 @@ val:arik seq:2 dn:true // we said before dn:false
 // XXX: lock scorll for write during index iteration (check only avl)
 
 */
+
+/*
+decl:
+seq1 arik
+seq2 niko
+...
+seq7 niko
+seq8 arik
+
+mem_index (full)
+{arik seq:1 dn:0 up:8} {arik seq:8 dn:true up:8}
+{niko seq:2 dn:true up:true} ... {niko seq:7 dn:true up:true}
+
+tput(0 1 2_3 4_7 8)
+{val:arik seq:1 dn:0 up:1}
+{val:arik seq:8 dn:8 up:8}
+
+tput(0 1 2 3 4 5 6_7) // no change for {val:arik}
+tput(0 1 2 3 4 5 6 7) // after this step
+
+// after seq 2-7: no change
+// query 8 dn for arik:
+//   till where in mem? till 0
+//   query mem 8-0 (8 to 0): return 8, no change
+// continue mem 8-0 query:
+//   find 1
+//   update {val:arik seq:1 dn:0 up:1-->8} {val:arik seq:8 dn:8-->1 up:8}
+
+// hole in 4-5, query 8 dn for arik:
+// query mem 8-6:
+//   return 8, no change
+// query mem 7-6 query:
+//   not found
+//   update {val:arik seq:8 dn:8-->6 up:8}
+// query indexdb 5-4:
+//   not found
+//   update {val:arik seq:8 dn:6-->4 up:8}
+// query mem 3-0 query:
+//   found 1
+//   update {val:arik seq:1 dn:0 up:1-->8} {val:arik seq:8 dn:4-->1 up:8}
+
+{val:arik seq:8 dn:8-->1 up:8}
+{val:arik seq:1 dn:0 up:1-->8}
+{val:arik seq:8 dn:8-->1 up:8}
+
+add 0: {dn:0 up:0}
+add 34: {dn:34 up:34}
+add 33: {dn:34-->33 up:34}
+add 1: {dn:0 up:0-->1}
+
+what is in mem: (sections)
+0 1 2   6 7 8   10 11   13 14 15
+0(2)    6(8)    10(11)  13(15)
+
+
+{val:arik seq:1 dn:true up:true} // how to know that up:true
+{val:arik seq:8 dn:true up:true} // how to know that dn:true
+{niko seq:2 dn:true up:true} ... {niko seq:7 dn:true up:true}
+
+*/
+

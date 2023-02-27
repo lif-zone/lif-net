@@ -2928,10 +2928,9 @@ describe('scroll', ()=>{
         //   $$(5:[7 1] 4:[7 1] 3:1 1:1 0:[])
         // (5:[7 1] 4:[7 1] 3:1 1:1 0:[])
         // decl({user:*})=(niko arik niko arik...)
-        let t_zzz = `s..scroll(index:user db) decl({user:niko})
-          decl({user:arik}) decl({user:niko}) decl({user:arik})
-          decl({user:niko}) decl({user:arik}) decl({user:niko})
-          decl({user:arik}) decl({user:niko}) Soul.db_copy(s.soul)
+        let t_zzz = `s..scroll(index:user db)
+          decl({user:$1}) $$(niko arik niko arik niko arik niko arik niko)
+          Soul.db_copy(s.soul)
           S..#(db_query_index index) Soul.S.scroll(s..M0 db) #index=[]`;
         let s = 'id:0 key:arik seq';
         t('zzz0_dir_dn', `${t_zzz}

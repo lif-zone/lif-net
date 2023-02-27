@@ -17,7 +17,7 @@ import {r_str, r_from_str} from './range.js';
 import Branch_table from './branch.js';
 const {bseq_valid} = Branch_table;
 const {rm_parentesis, parse_get_next, parse_exp_arg_pair, parse_exp,
-  parse_exp_arg, parse_push} = tparser;
+  parse_exp_arg, parse_push, get_array_str} = tparser;
 const {b2s, s2b, b2s_obj} = buf_util;
 const test_cmd_hooks = [];
 
@@ -1304,14 +1304,7 @@ const get_btable = s=>etask(function*get_btable(){
   return bo;
 });
 
-function get_array_str(s){
-  let ret = [];
-  s = rm_parentesis(s, '[');
-  for (let curr=s; curr = parse_get_next(curr);)
-    ret.push(curr.exp);
-  return ret;
-}
-
+// XXX: mv all get_array_* to tparser.js
 function get_array_int(s){
   let ret = [];
   s = rm_parentesis(s, '[');

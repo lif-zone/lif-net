@@ -76,8 +76,36 @@ E.parse_get_next = function(curr){
     }
     return {exp, s, at};
   }
+  if (exp.indexOf('$$')!=-1)
+    return {exp, s, at};
+  if (exp.indexOf('$')!=-1){
+    let curr2 = E.parse_get_next({s, at}), ss = '';
+    assert(curr2, 'missing $$');
+    let o = E.parse_exp(curr2.exp);
+    assert.equal(o.cmd, '$$', 'missing $$');
+    assert(!o.l, 'invalid $$ '+curr2.exp);
+    get_array_str(o.r).forEach(els=>{
+      let _s = exp;
+      get_array_str(els).forEach((el, i)=>
+        _s = _s.replace(new RegExp('\\$'+(i+1)+'\\b', 'g'), el));
+      ss += (_s ? ' ' : '')+_s;
+    });
+    assert(-1==ss.indexOf('$'), 'missing args for '+exp);
+    let l = s.substr(0, curr.at||0);
+    let r = s.substr(curr2.at);
+    return E.parse_get_next({s: l+ss+' '+r, at: curr.at||0});
+  }
   return {exp, s, at};
 };
+
+function get_array_str(s){
+  let ret = [];
+  s = rm_parentesis(s, '[');
+  for (let curr=s; curr = E.parse_get_next(curr);)
+    ret.push(curr.exp);
+  return ret;
+}
+E.get_array_str = get_array_str;
 
 E.parse_push = function(curr, s){
   let pre = curr.s.substr(0, curr.at), post = curr.s.substr(curr.at);

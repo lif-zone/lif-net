@@ -249,6 +249,14 @@ describe('parser', ()=>{
       `, ['a', '// XXX b']);
     t(`a
       // XXX`, ['a', '// XXX']);
+    t('cmd($1) $$', []);
+    t('cmd($1) $$(a1)', ['cmd(a1)']);
+    t('cmd($1) $$(a1 a2 a3)', ['cmd(a1)', 'cmd(a2)', 'cmd(a3)']);
+    t('cmd($1 $2) $$([[a1 a2]])', ['cmd(a1 a2)']);
+    t('cmd($1 $2) $$([[a1 a2] [b1 b2]])', ['cmd(a1 a2)', 'cmd(b1 b2)']);
+    t('#cmd($1)=$2 $$([[a1 a2]])', ['#cmd(a1)=a2']);
+    t('cmd0 cmd1($1) $$(a1 a2) cmd2',
+      ['cmd0', 'cmd1(a1)', 'cmd1(a2)', 'cmd2']);
   });
   it('parse_exp', ()=>{
     const t = (s, exp)=>assert.deepEqual(parse_exp(s),

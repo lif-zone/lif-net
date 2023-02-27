@@ -2716,14 +2716,8 @@ describe('scroll', ()=>{
           tput(0 1 2 3 4 f g h i) #(bseq8c1=4 index={id:5 key:/arik seq:8})
           // cfid:0 branch:main
           // XXX: support macro expansion
-          // ##index_find(cfid:0 name:path key:/arik bseq:*)=
-          // (5:[7 1] 4:[7 1] 3:1 1:1 0:[])
-          ##index_find(cfid:0 name:path key:/arik bseq:5)=[7 1]
-          ##index_find(cfid:0 name:path key:/arik bseq:4)=[7 1]
-          ##index_find(cfid:0 name:path key:/arik bseq:3)=[7 1]
-          ##index_find(cfid:0 name:path key:/arik bseq:2)=1
-          ##index_find(cfid:0 name:path key:/arik bseq:1)=1
-          ##index_find(cfid:0 name:path key:/arik bseq:0)=[]
+          ##index_find(cfid:0 name:path key:/arik bseq:$1)=$2
+          $$([[5 [7 1]] [4 [7 1]] [3 [7 1]] [2 1] [1 1] [0 []]])
           // cfid:1 branch:main
           ##index_find(cfid:1 name:path key:/arik bseq:5)=[8 1]
           ##index_find(cfid:1 name:path key:/arik bseq:4)=[8 1]

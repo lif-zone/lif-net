@@ -3103,7 +3103,7 @@ describe('scroll', ()=>{
             #(index=[{id:0 key:not_found seq:6 query up:false}
             !{id:0 key:not_found seq:4 query}]
             db_query=index,rev,0_not_found_5<=key<=0_not_found_6)`);
-        t('zzz_query_with_holes_a', `${t_zzz}
+        t('zzz_query_with_missing_a', `${t_zzz}
           //  0 1 2 3 4 5 6 7 8 9
           //  --q-n-q             (bseq<=1 =3 n=1)
           //  --q-n---n-q         (bseq<=5 n=1)
@@ -3120,7 +3120,7 @@ describe('scroll', ()=>{
           ##index_find(name:user key:arik bseq:7 count:1)=6
             #(index=[{${s}:6} {${s}:7 query up:false} !{${s}:5 query}]
             db_query=index,rev,0_arik_6<=key<=0_arik_7)`);
-        t('zzz_query_with_holes_b', `${t_zzz}
+        t('zzz_query_with_missing_b', `${t_zzz}
           //  0 1 2 3 4 5 6 7 8 9
           //  --q-n-q             (bseq<=1 =3 n=1)
           //  --q-n-q     n-q     (bseq<=7 n=1)

@@ -1242,7 +1242,8 @@ export default class Scroll extends EventEmitterAsync {
     return this.branch.get(cfid)?.bseq_to_branch(bseq); }
   hash(buf){ return crypto.hash(this.crypt, buf); }
   hash_str(buf){ return b2s(crypto.hash(this.crypt, buf)); }
-  index_find(key, opt){ return this.index_table?.index_find(key, opt); }
+  find(key, opt){ return this.index_table?.find(key, opt); }
+  find_iter(key, opt){ return this.index_table?.find_iter(key, opt); }
 }
 
 class Decl extends EventEmitterAsync {

@@ -3071,17 +3071,26 @@ describe('scroll', ()=>{
             {${s}:8} !{${s}:1 query}]
             db_query=[index,key==0_arik_0 index,key==0_arik_3
             index,key==0_arik_7])`);
-        //  0 1 2 3 4 5 6 7 8 9
-        //          n           (bseq<=4 n=1)
-        //          n-q         (bseq<=5 n=1)
-        t('zzz6', `${t_zzz}
+        t('zzz6_dir_dn', `${t_zzz}
+          //  0 1 2 3 4 5 6 7 8 9
+          //          n           (bseq<=4 n=1)
+          //          n-q         (bseq<=5 n=1)
           ##index_find(name:user key:arik bseq:4 count:1)=4
             #(index={${s}:4 dn:false up:false}
             db_query=index,rev,0_arik_0<=key<=0_arik_4)
           ##index_find(name:user key:arik bseq:5 count:1)=4
             #(index=[{${s}:4 dn:false} {${s}:5 query up:false}]
-            db_query=index,rev,key==0_arik_5)
-          `);
+            db_query=index,rev,key==0_arik_5)`);
+        t('zzz6_dir_up', `${t_zzz}
+          //  0 1 2 3 4 5 6 7 8 9
+          //          n           (min>=4 n=1)
+          //        q-n           (min>=3 n=1)
+          ##index_find(dir:up name:user key:arik min:4 bseq:9 count:1)=4
+            #(index={${s}:4 dn:false up:false}
+            db_query=index,0_arik_4<=key<=0_arik_9)
+          ##index_find(dir:up name:user key:arik min:3 bseq:9 count:1)=4
+            #(index=[{${s}:3 query dn:false} {${s}:4 up:false}]
+            db_query=index,key==0_arik_3)`);
         t('zzz_not_found', `${t_zzz}
           //  0 1 2 3 4 5 6 7 8 9
           //  --------q            (val=not_found bseq<=4 n=1)

@@ -121,7 +121,7 @@ export default class Index {
       assert(min<=max, 'invalid query min<=max min '+min+' max '+max);
     query = IDBKeyRange.bound([id, key, min===undefined ? 0 : min],
       [id, key, max===undefined ? Infinity : max]);
-    let cursor = yield db.cursor(store, query, dir=='up' ? '' : 'prev');
+    let cursor = yield db.cursor(store, query, dir=='up' ? 'next' : 'prev');
     let iter = {i: 0, curr: cursor?.value};
     iter.next = ()=>etask(function*iter_next(){
       assert(cursor, 'db iter already finished');
@@ -143,24 +143,26 @@ export default class Index {
     // XXX: can we avoid etask creation if only need to use mem?
     iter.next = ()=>etask(function*index_find_iter_next(){
       while (true){
-        if (_this.find_iter_step_mem(iter, key, min, max, dir)){
+        if (!iter.db_iter){
+          if (_this.find_iter_step_mem(iter, key, min, max, dir)){
+            query_rm = null;
+            return iter;
+          }
+          [dn, up] = [iter.dn, iter.up];
+          if (!scroll.storage)
+            return iter_done(iter);
+          if (dir=='up' && (dn && dn.up!==false || !up && query_rm))
+            return iter_done(iter);
+          if (dir=='dn' && (up && up.dn!==false || !dn && query_rm))
+            return iter_done(iter);
           query_rm = null;
-          return iter;
+          [min, max] = [dn ? dn.seq+1 : min, up ? up.seq-1 : max];
+          assert(min<=max, 'unexpected min>max');
         }
-        [dn, up] = [iter.dn, iter.up];
-        if (!scroll.storage)
-          return iter_done(iter);
-        if (dir=='up' && (dn && dn.dn!==false || !up && query_rm))
-          return iter_done(iter);
-        if (dir=='dn' && (up && up.dn!==false || !dn && query_rm))
-          return iter_done(iter);
-        query_rm = null;
-        [min, max] = [dn ? dn.seq+1 : min, up ? up.seq-1 : max];
-        assert(min<=max, 'unexpected min>max');
         if (yield _this.find_iter_step_db(iter, key, min, max, dir))
           return iter;
         [dn, up] = [iter.dn, iter.up];
-        if (!dn)
+        if (dir=='dn' && !dn || dir=='up' && !up)
           return iter_done(iter);
         if (up && dn){
           ptr_set(up, 'dn', true);
@@ -305,7 +307,7 @@ export default class Index {
       db_iter = iter.db_iter = yield _this.find_db_iter(key, {min, max, dir});
       if (dir=='up'){
         if (!db_iter.curr || min!=db_iter.curr.seq && dn?.seq!=min-1){
-          dn = _this.avl_insert_query({key, seq: max, query: true,
+          dn = _this.avl_insert_query({key, seq: min, query: true,
             up: !!up, dn: !!dn});
         }
       } else if (dir=='dn'){
@@ -323,7 +325,7 @@ export default class Index {
         if_ptr_set(dn, 'up', true);
         ptr_set(node, 'dn', !!dn);
         _this.avl_insert(node);
-        [dn, ret.curr, ret] = [node, node, true];
+        [dn, iter.curr, ret] = [node, node, true];
       } else if (dn && dn.seq!=max)
         ptr_set(dn, 'up', true);
 

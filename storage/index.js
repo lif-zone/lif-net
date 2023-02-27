@@ -42,14 +42,15 @@ file2path('/arik/x') = '/arik/'
 */
 
 // XXX: need test
-function indexdb_cmp(a, b){ return indexedDB.cmp(a, b); }
-function node_cmp(a, b){ return indexdb_cmp(a.key, b.key) || a.seq-b.seq; }
-/* XXX: optimize for string/integer/buffer
+function cmp_indexdb(a, b){ return indexedDB.cmp(a, b); }
+function cmp_str_num(a, b){ return a==b ? 0 : a<b ? -1 : 1; }
+function cmp_mem(a, b){ return a.cmp(b); }
+function cmp_func_indexdb(a, b){
+  return cmp_indexdb(a.key, b.key) || a.seq-b.seq; }
 function cmp_func_str_num(a, b){
-  return a.key<b.key ? 1 : a.key>b.key ? -1 : b.seq-a.seq; }
+  return cmp_str_num(a.key, b.key) || a.seq-b.seq; }
 function cmp_func_mem(a, b){
-  return a.cmp(b) || b.seq-a.seq; }
-*/
+  return cmp_mem(a.key, b.key) || a.seq-b.seq; }
 
 export default class Index {
   constructor(opt){
@@ -58,7 +59,7 @@ export default class Index {
     assert(cfid>=0 && bseqb!==undefined, 'missing cfid/bseqb');
     [this.scroll, this.id, this.desc] = [scroll, id, desc];
     [this.cfid, this.bseqb] = [cfid, bseqb];
-    this.avl = new Tree(node_cmp, true);
+    this.avl = new Tree(cmp_func_indexdb, true);
     this.storage_queue = [];
   }
   on_data(e){
@@ -595,5 +596,9 @@ function normalize_desc(desc){
 
 Index.Index_table = Index_table;
 Index.normalize_desc = normalize_desc;
-Index.node_cmp = node_cmp;
-Index.indexdb_cmp = indexdb_cmp;
+Index.cmp_func_indexdb = cmp_func_indexdb;
+Index.cmp_func_str_num = cmp_func_str_num;
+Index.cmp_func_mem = cmp_func_mem;
+Index.cmp_indexdb = cmp_indexdb;
+Index.cmp_str_num = cmp_str_num;
+Index.cmp_mem = cmp_mem;

@@ -1341,6 +1341,22 @@ describe('scroll', ()=>{
           tput(0_1_2_3 4 5 6      ) c(M9 5t0.M6) S.D4c0=s.D4
           tput(0_1_2_3 4_5 6 7    ) c(M9) S.D4c0=s.D4`);
       });
+      describe('mem_map', ()=>{
+        t('basic', `s..#map s..scroll #map_c0={seq:0 sz:1}
+          decl(1) #map_c0={seq:0 sz:2} decl(2) #map_c0={seq:0 sz:3}`);
+        t('partial', `s..scroll decl(1-5) S..#map scroll(s..M0)
+          tput(0 1        ) #map_c0={seq:0 sz:2}
+          tput(0 1 2_3 4  ) #map_c0=[{seq:0 sz:2} {seq:4 sz:1}]
+          tput(0 1 2_3 4 5) #map_c0=[{seq:0 sz:2} {seq:4 sz:2}]
+          tput(0 1 2 3    ) #map_c0=[{seq:0 sz:2} {seq:3 sz:3}]
+          tput(0 1 2      ) #map_c0={seq:0 sz:6}`);
+        t('conflict', `s..scroll decl(1-5) S..#map scroll(s..M0)
+          tput(0 1      ) #map_c0={seq:0 sz:2}
+          S.decl(3-5)     #map_c0={seq:0 sz:5}
+          tput(0 1 2_3 4) #map_c1={seq:4 sz:1}
+          tput(0 1 2 3  ) #map_c1={seq:3 sz:2}
+          tput(0 1 2    ) #map_c1={seq:2 sz:3}`);
+      });
     });
     describe('branch', ()=>{
       // XXX: test invalid format (eg. same branch appear twice, prev to wrong

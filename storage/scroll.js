@@ -5,6 +5,7 @@ import EventEmitterAsync from '../util/events_async.js';
 import crypto from '../util/crypto.js';
 import util from '../util/util.js';
 import Branch_table from './branch.js';
+import Mem_map from './mem_map.js';
 import Index from './index.js';
 import etask from '../util/etask.js';
 import xerr from '../util/xerr.js';
@@ -474,13 +475,15 @@ export default class Scroll extends EventEmitterAsync {
     if (cfid===undefined || seq===undefined){
       assert(cfid===undefined && seq===undefined, 'invalid new_conflict');
       assert.equal(cfid2, 0);
-      this.conflict.set(cfid2, {cfid: cfid2, top: null, conflicts: new Map()});
+      this.conflict.set(cfid2, {cfid: cfid2, top: null, conflicts: new Map(),
+        mem_map: new Mem_map});
       return cfid2;
     }
     let M = this.get_decl(seq).M_hash(cfid);
     assert(M, 'missing M'+seq);
     this.conflict.set(cfid2, {cfid: cfid2, top: null,
-      parent: {cfid, seq, type: 't'}, conflicts: new Map()});
+      parent: {cfid, seq, type: 't'}, conflicts: new Map(),
+      mem_map: new Mem_map});
     this.notify_M({cfid: cfid2, seq: seq, M});
     return cfid2;
   }
@@ -1185,7 +1188,7 @@ export default class Scroll extends EventEmitterAsync {
         max_top = {cfid, seq: top.seq, M};
       let co = {cfid, top: {seq: top.seq, M: M}, parent: parent ?
         {cfid: parent.cfid, seq: parent.seq, type: parent.type} : null,
-        conflicts: new Map()};
+        conflicts: new Map(), mem_map: new Mem_map()};
       if (cb)
         cb(o, co);
       _this.conflict.set(cfid, co);
@@ -1202,9 +1205,10 @@ export default class Scroll extends EventEmitterAsync {
     let {data, seq, cfid} = e, h = data.get_header(cfid);
     if (!h)
       return;
-    if (!this.indexe_table && seq==0){
-      let body = data.get_body(cfid);
-      if (body){
+    let body = data.get_body(cfid);
+    if (body){
+      this.conflict.get(cfid).mem_map.add(seq);
+      if (!this.indexe_table && seq==0){
         assert.equal(cfid, 0, 'seq0 must be on cfid 0');
         if (body.scroll?.index?.length){
           this.index_table = new Index.Index_table({scroll: this,

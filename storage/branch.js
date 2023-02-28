@@ -133,8 +133,6 @@ export default class Branch_table {
     // try to merge with prev bo
     bo = this.get_bo(seq-1);
     if (bo && bseq_branch_eq(bseq, bo.bseq)){
-      if (bo.seq<=seq && seq<bo.seq+bo.size)
-        return;
       assert.equal(bo.seq+bo.size, seq, 'branch corruption');
       bo.size++;
       this._update_top(bseq, seq); // XXX: need test

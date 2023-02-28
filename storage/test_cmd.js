@@ -172,6 +172,8 @@ export function parse_var(v){
   {
     return {type: v, ctx, def};
   }
+  if (m = v.match(/^map_c(\d+)$/))
+    return {type: 'map_c', cfid: +m[1], ctx, def};
   if (m = v.match(/^btc(\d+)\[(\d+)\]$/))
     return {type: 'btc', cfid: +m[1], index: +m[2], ctx, def};
   if (m = v.match(/^db_btc(\d+)\[(\d+)\]$/))
@@ -734,6 +736,8 @@ function state_split_var(v, def){
   {
     return {name, type};
   }
+  if (['map_c'].includes(type))
+    return {name, type, cfid};
   if (['btc'].includes(type))
     return {name, type, cfid, index};
   if (['db_btc'].includes(type))
@@ -771,6 +775,10 @@ const state_split = (exp, def)=>etask(function*state_split(){
       return {...state_split_var(o.l, def), val: yield get_static_c(o.r)};
     if (['bname'].includes(o.l))
       return {...state_split_var(o.l, def), val: yield get_static_bname(o.r)};
+    if (/^map_c/.test(o.l)){
+      return {...state_split_var(o.l, def),
+        val: yield get_array(o.r, {num: ['id', 'sz']})};
+    }
     if (/^btc/.test(o.l))
       return {...state_split_var(o.l, def), val: yield get_btable(o.r)};
     if (/^db_btc/.test(o.l))
@@ -826,6 +834,11 @@ function state_apply(state, o){
         so.push(v);
     });
     so.sort((a, b)=>a.id-b.id || string.cmp(a.key, b.key) || a.seq-b.seq);
+    return;
+  }
+  if (type=='map_c'){
+    let so = state.map = state.map||{};
+    so[cfid] = [...val];
     return;
   }
   if (type=='index_find'){
@@ -897,6 +910,7 @@ function get_filter(s){
     case 'mem_c': break;
     case 'seq': break;
     case 'bname': break;
+    case 'map': break;
     case 'btable': break;
     case 'bseq': break;
     case 'db_btable': break;
@@ -936,6 +950,8 @@ const state_next = (name, curr_state, filter, steps)=>etask(
     }
     if (filter.includes('mem_c'))
       state.mem_c = yield mem_get_c(scroll);
+    if (filter.includes('map'))
+      state.map = yield mem_get_map(scroll);
     if (filter.includes('btable'))
       state.btable = yield mem_get_btable(scroll);
     if (filter.includes('bname'))
@@ -1040,6 +1056,10 @@ const state_next = (name, curr_state, filter, steps)=>etask(
   if (filter.includes('db_data')){
     assert_b2s_obj(state.db_data, curr_state[name].db_data,
       'db_data state mismach '+steps);
+  }
+  if (filter.includes('map')){
+    assert_b2s_obj(state.map, curr_state[name].map,
+      'map state mismach '+steps);
   }
   if (filter.includes('btable')){
     assert_b2s_obj(state.btable, curr_state[name].btable,
@@ -1397,7 +1417,19 @@ const mem_get_c = scroll=>etask(function mem_get_c(){
   return ret;
 });
 
-const mem_get_btable = scroll=>etask(function mem_get_btable(){
+function mem_get_map(scroll){
+  let ret = {};
+  for (const [cfid, co] of scroll.conflict){
+    ret[cfid] = ret[cfid]||[];
+    co.mem_map.avl.forEach(node=>{
+      let section = node.key;
+      ret[cfid].push({seq: section.seq, sz: section.size});
+    });
+  }
+  return ret;
+}
+
+function mem_get_btable(scroll){
   let ret;
   for (const [cfid] of scroll.conflict){
     ret = ret||{};
@@ -1407,9 +1439,9 @@ const mem_get_btable = scroll=>etask(function mem_get_btable(){
       delete ret[cfid];
   }
   return ret;
-});
+}
 
-const mem_get_bname = scroll=>etask(function mem_get_bname(){
+function mem_get_bname(scroll){
   let ret;
   for (const [cfid] of scroll.conflict){
     let btable = scroll.get_branch_table(cfid);
@@ -1420,9 +1452,9 @@ const mem_get_bname = scroll=>etask(function mem_get_bname(){
     }
   }
   return ret;
-});
+}
 
-const mem_get_index = scroll=>etask(function mem_get_index(){
+function mem_get_index(scroll){
   let ret;
   if (!scroll.index_table)
     return;
@@ -1433,7 +1465,7 @@ const mem_get_index = scroll=>etask(function mem_get_index(){
       ret.push({id, ...avl.at(i).key});
   }
   return ret;
-});
+}
 
 const db_get_index = scroll=>etask(function*db_get_index(){
   let ret;

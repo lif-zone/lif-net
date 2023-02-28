@@ -27,9 +27,7 @@ export default class Mem_map {
       this._insert(section_next);
       return;
     }
-    // new entry
-    section = {seq, size: 1};
-    this._insert(section);
+    this._insert({seq, size: 1}); // new entry
   }
   get_section(seq){
     for (let n = this.avl._root; n; n = seq < n.key.seq ? n.left : n.right){

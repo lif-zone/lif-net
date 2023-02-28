@@ -1677,10 +1677,10 @@ describe('scroll', ()=>{
             db3={M3 m3 m2_3 m0_3} db4={M4 sig4 D4 m4} db5={M5c1 m4_5c1}
             db6={M6c1 sig6c1 D6c1 m6c1})
           Soul2.db_copy(S.soul) S2.#(mem mem_c)
-          Soul2.S2..scroll(M0 db) #(mem0={M0 sig0 D0 m0} mem1={M1 m1 m0_1}
-            mem3={M3 m3 m2_3 m0_3} mem4={M4 sig4 D4 m4} mem5={M5c1 m4_5c1}
+          Soul2.S2..scroll(M0 db) #(mem0={M0 sig0 D0 m0}
+            mem4={M4 sig4 D4 m4} mem5={M5c1 m4_5c1}
             mem_c={0:M4 1:3t0.M6=s0.M6})
-          load_c(1) #
+          load_c(1) #(mem1={M1 m1 m0_1} mem3={M3 m3 m2_3 m0_3})
           load_c(2) #mem2={M2 m2} load_c(2c1) #
           load_c(3) #
           load_c(4) # load_c(4c1) #
@@ -1726,9 +1726,9 @@ describe('scroll', ()=>{
           tput(0 1 2 3 4          ) tput(0_1_2_3 4_5 6_7 8 9)
           flush #(db_c={0:0:M4 1:1:3t0.M9}) Soul2.db_copy(Soul)
           S2.#(mem) Soul2.S2..scroll(M0 db)
-          #(mem0={M0 m0 D0 sig0} mem1={M1 m1 m0_1} mem3={M3 m3 m2_3 m0_3}
-            mem4={m4 M4 sig4 D4} mem5={S.m4_5c1 S.M5c1}
+          #(mem0={M0 m0 D0 sig0} mem4={m4 M4 sig4 D4} mem5={S.m4_5c1 S.M5c1}
             mem7={S.m6_7c1 S.m4_7c1 S.m0_7c1 S.M7c1})
+          load_c(1) #(mem1={M1 m1 m0_1} mem3={M3 m3 m2_3 m0_3})
           load_c(4) # load_c(5) load_c(5c1) # load_c(8) #
           load_c(8c1) #mem8={S.M8c1 S.m8c1} load_c(9) #
           load_c(9c1) #mem9={S.M9c1 S.sig9c1 S.D9c1 S.m9c1 S.m8_9c1}`);
@@ -1749,13 +1749,17 @@ describe('scroll', ()=>{
           tput(0 1 2 3 4          ) tput(0_1_2_3 4_5 6_7 8 9)
           flush #(db_c={0:0:M4 1:1:3t0.M9})
           Soul2.db_copy(Soul) S2.#(mem mem_c) Soul2.S2..scroll(M0 db)
-          #(mem_c={0:M4 1:3t0.M9} mem0={M0 m0 sig0 D0} mem1={M1 m1 m0_1}
-            mem1={M1 m1 m0_1} mem3={M3 m3 m2_3 m0_3} mem4={M4 sig4 D4 m4}
+          #(mem_c={0:M4 1:3t0.M9} mem0={M0 m0 sig0 D0} mem4={M4 sig4 D4 m4}
             mem5={M5c1:M5 m4_5c1:m4_5}
             mem7={M7c1:M7 m6_7c1:m6_7 m4_7c1:m4_7 m0_7c1:m0_7})
           tput(0_1_2_3 4 5 6      ) flush
-          #(mem_c={0:M9 2:5t0.M6} mem5={M5 m5 m4_5}
-            mem6={M6c2:M6 sig6c2:sig6 D6c2:D6 m6c2:m6} mem7={M7 m6_7 m4_7 m0_7}
+          #(mem_c={0:M6 1:5t0.M9} mem5={M5 m5 m4_5} mem3={M3 m3 m2_3 m0_3}
+            mem6={M6 sig6 D6 m6}
+            mem7={M7c1:M7 m6_7c1:m6_7 m4_7c1:m4_7 m0_7c1:m0_7})
+          tput(0_1 2              ) flush
+          #(mem1={M1 m1 m0_1} mem2={M2 sig2 D2 m2})
+          tput(0_1_2_3 4_5 6 7 8 9) flush
+          #(mem_c={0:M9} mem7={M7 m7 m6_7 m4_7 m0_7} mem8={M8 m8}
             mem9={M9 sig9 D9 m9 m8_9})`);
         t('on_demand_v2', `conf(soul:manual)
           soul.s..scroll(d:1-10) Soul.S..scroll(s..M0 db)
@@ -1806,14 +1810,13 @@ describe('scroll', ()=>{
           tput(0 1 2 3 4          )
           tput(0_1_2_3 4_5 6_7 8 9)
           flush Soul2.db_copy(Soul) S2..#(mem_c mem) Soul2.S2.scroll(M0 db)
-          #(mem0={M0 m0 sig0 D0} mem_c={0:M4 1:3t0.M9} mem1={M1 m1 m0_1}
-            mem3={M3 m3 m2_3 m0_3} mem4={M4 sig4 D4 m4}
+          #(mem0={M0 m0 sig0 D0} mem_c={0:M4 1:3t0.M9}
+            mem4={M4 sig4 D4 m4}
             mem5={M5c1:S2..M5c1 m4_5c1}
             mem7={M7c1 m6_7c1 m4_7c1 m0_7c1})
           def(s..) tput(0_1_2_3 4 5 6      )
-          #(mem_c={0:M9 2:5t0.M6} mem4={M4 sig4 D4 m4} mem5={M5 m5 m4_5}
-            mem6={M6c2:S2.M6c2 sig6c2:S2.sig6c2 D6c2:S2.D6c2 m6c2:S2.m6c2}
-            mem7={M7 m6_7 m4_7 m0_7} mem9={M9 sig9 D9 m9 m8_9})
+          #(mem_c={0:M6 1:5t0.M9} mem4={M4 sig4 D4 m4} mem5={M5 m5 m4_5}
+            mem6={M6 sig6 D6 m6} mem3={M3 m3 m2_3 m0_3})
           def(s..) tput(0_1_2_3 4_5 6 7    ) #(mem_c={0:M9} mem5={M5 m5 m4_5}
             mem6={M6 sig6 D6 m6} mem7={M7 sig7 D7 m7 m6_7 m4_7 m0_7}
             mem9={M9 sig9 D9 m9 m8_9})`);
@@ -1823,10 +1826,11 @@ describe('scroll', ()=>{
           tput(0_1_2_3 4_5 6_7 8 9)
           tput(0_1_2_3 4 5 6      )
           flush Soul2.db_copy(Soul) S2..#(mem_c mem) Soul2.S2.scroll(M0 db)
-          #(mem_c={0:M9 2:5t0.M6} mem0={M0 m0 sig0 D0} mem1={M1 m1 m0_1}
+          #(mem_c={0:M9 2:5t0.M6} mem0={M0 m0 sig0 D0}
             mem6={M6c2:S.M6c2 sig6c2:S.sig6c2 D6c2:S.D6c2 m6c2:S.m6c2}
-            mem3={M3 m3 m2_3 m0_3} mem7={M7 m6_7 m4_7 m0_7})
+            mem7={M7 m6_7 m4_7 m0_7})
           def(s..) tput(0_1_2_3 4_5 6 7    ) #(mem_c={0:M9} mem5={M5 m5 m4_5}
+            mem3={M3 m3 m2_3 m0_3}
             mem7={M7 sig7 D7 m7 m6_7 m4_7 m0_7} mem6={M6 sig6 D6 m6}
             mem9={M9 sig9 D9 m9 m8_9})`);
       });
@@ -2028,15 +2032,20 @@ describe('scroll', ()=>{
     describe('db', ()=>{
       t('one_index', `// test write
         s..#(index index_table db_index db_index_table) scroll(db index:file) #
-        decl({file:/f1}) flush #(db_index={id:0 key:/f1 seq:1}
+        decl({file:/f1}) flush #(index={id:0 key:/f1 seq:1}
+          db_index={id:0 key:/f1 seq:1}
           index_table={id:0 cfid:0 bseqb:null name:file}
           db_index_table={id:0 cfid:0 bseqb:null name:file})
-        decl({file:/f2}) flush #(db_index={id:0 key:/f2 seq:2})
-        decl({file:/f1}) flush #(db_index={id:0 key:/f1 seq:3})
-        decl({file:/f2}) flush #(db_index={id:0 key:/f2 seq:4})
+        decl({file:/f2}) flush #(index={id:0 key:/f2 seq:2}
+          db_index={id:0 key:/f2 seq:2})
+        decl({file:/f1}) flush #(index={id:0 key:/f1 seq:3}
+          db_index={id:0 key:/f1 seq:3})
+        decl({file:/f2}) flush #(index={id:0 key:/f2 seq:4}
+          db_index={id:0 key:/f2 seq:4})
         decl({}) flush #
         decl({file:null}) flush #
-        decl({file:/f3}) flush #(db_index={id:0 key:/f3 seq:7})
+        decl({file:/f3}) flush #(index={id:0 key:/f3 seq:7}
+          db_index={id:0 key:/f3 seq:7})
         // test read
         Soul.db_copy(s.soul) S..#(index index_table db_index db_index_table)
         Soul.S.scroll(s..M0 db) #(
@@ -2044,15 +2053,16 @@ describe('scroll', ()=>{
           db_index_table={id:0 cfid:0 bseqb:null name:file}
           db_index=[{id:0 key:/f1 seq:3} {id:0 key:/f1 seq:1}
             {id:0 key:/f2 seq:4} {id:0 key:/f2 seq:2} {id:0 key:/f3 seq:7}])
-        S.load_c(1) #
-        S.load_c(2) #
-        S.load_c(3) #
-        S.load_c(4) #
+        S.load_c(1) #index={id:0 key:/f1 seq:1}
+        S.load_c(2) #index={id:0 key:/f2 seq:2}
+        S.load_c(3) #index={id:0 key:/f1 seq:3}
+        S.load_c(4) #index={id:0 key:/f2 seq:4}
         S.load_c(5) #
         S.load_c(6) #
-        S.load_c(7) #
+        S.load_c(7) #index={id:0 key:/f3 seq:7}
         // test valid new index id
         S.decl(branch:b {file:/f3}) flush #(
+          index={id:1 key:/f3 seq:8}
           index_table={id:1 cfid:0 bseqb:7-1 name:file}
           db_index_table={id:1 cfid:0 bseqb:7-1 name:file}
           db_index={id:1 key:/f3 seq:8})`);
@@ -2060,14 +2070,17 @@ describe('scroll', ()=>{
         s..#(index index_table db_index db_index_table) scroll(index:i db) #
         decl({i:v0}) flush #(index_table={id:0 cfid:0 bseqb:null name:i}
           db_index_table={id:0 cfid:0 bseqb:null name:i}
-          db_index={id:0 key:v0 seq:1})
+          index={id:0 key:v0 seq:1} db_index={id:0 key:v0 seq:1})
         decl({i:v1} branch:b) flush #(
           index_table={id:1 cfid:0 bseqb:1-1 name:i}
           db_index_table={id:1 cfid:0 bseqb:1-1 name:i}
-          db_index={id:1 key:v1 seq:2})
-        decl({i:v2}) flush #db_index={id:1 key:v2 seq:3}
-        decl({i:v1} prev:1) flush #(db_index={id:0 key:v1 seq:4})
-        decl({i:v2}) flush #db_index={id:0 key:v2 seq:5}
+          index={id:1 key:v1 seq:2} db_index={id:1 key:v1 seq:2})
+        decl({i:v2}) flush #(index={id:1 key:v2 seq:3}
+          db_index={id:1 key:v2 seq:3})
+        decl({i:v1} prev:1) flush #(index={id:0 key:v1 seq:4}
+          db_index={id:0 key:v1 seq:4})
+        decl({i:v2}) flush #(index={id:0 key:v2 seq:5}
+          db_index={id:0 key:v2 seq:5})
         // test read
         Soul.db_copy(s.soul) S..#(index index_table db_index db_index_table)
         Soul.S.scroll(s..M0 db) #(index_table=[{id:0 cfid:0 bseqb:null name:i}
@@ -2076,27 +2089,28 @@ describe('scroll', ()=>{
           {id:1 cfid:0 bseqb:1-1 name:i}]
           db_index=[{id:0 key:v0 seq:1} {id:0 key:v1 seq:4} {id:0 key:v2 seq:5}
             {id:1 key:v1 seq:2} {id:1 key:v2 seq:3}])
-        S.load_c(1) #
-        S.load_c(2) #
-        S.load_c(3) #
-        S.load_c(4) #
-        S.load_c(5) #
+        S.load_c(1) #index={id:0 key:v0 seq:1}
+        S.load_c(2) #index={id:1 key:v1 seq:2}
+        S.load_c(3) #index={id:1 key:v2 seq:3}
+        S.load_c(4) #index={id:0 key:v1 seq:4}
+        S.load_c(5) #index={id:0 key:v2 seq:5}
         // test valid new index id
         S.decl(branch:b2 {i:/v4}) flush #(
           index_table={id:2 cfid:0 bseqb:3-1 name:i}
           db_index_table={id:2 cfid:0 bseqb:3-1 name:i}
-          db_index={id:2 key:/v4 seq:6})`);
+          index={id:2 key:/v4 seq:6} db_index={id:2 key:/v4 seq:6})`);
       t('conflict', `// test write
         s.scroll(index:i) s.decl({i:v1}) s.decl({i:v2})
         s1.clone(s.M1) s1.decl({i:V2})
         S..#(index index_table db_index db_index_table) scroll(s..M0 db) #
         tput(0 1  ) flush #(index_table={id:0 cfid:0 bseqb:null name:i}
           db_index_table={id:0 cfid:0 bseqb:null name:i}
-          db_index={id:0 key:v1 seq:1})
-        tput(0 1 2) flush #db_index={id:0 key:v2 seq:2}
+          index={id:0 key:v1 seq:1} db_index={id:0 key:v1 seq:1})
+        tput(0 1 2) flush #(index={id:0 key:v2 seq:2}
+          db_index={id:0 key:v2 seq:2})
         tput(0 1 c) flush #(index_table={id:1 cfid:1 bseqb:null name:i}
           db_index_table={id:1 cfid:1 bseqb:null name:i}
-          db_index={id:1 key:V2 seq:2})
+          index={id:1 key:V2 seq:2} db_index={id:1 key:V2 seq:2})
         // test read
         Soul2.db_copy(S.soul) S2..#(index index_table db_index db_index_table)
         Soul2.S2.scroll(s..M0 db) #(
@@ -2104,15 +2118,20 @@ describe('scroll', ()=>{
             {id:1 cfid:1 bseqb:null name:i}]
           db_index_table=[{id:0 cfid:0 bseqb:null name:i}
             {id:1 cfid:1 bseqb:null name:i}]
+          index=[{id:0 key:v2 seq:2} {id:1 key:V2 seq:2}]
           db_index=[{id:0 key:v1 seq:1} {id:0 key:v2 seq:2}
             {id:1 key:V2 seq:2}])
-        S2.load_c(1) #
-        S2.load_c(2) #
+        load_c(1) #index={id:0 key:v1 seq:1}
+        load_c(2) #
+        load_c(1c1) #
+        load_c(2c1) #
         S2.decl(branch:b {i:v3}) flush #(
           index_table={id:2 cfid:0 bseqb:2-1 name:i}
           db_index_table={id:2 cfid:0 bseqb:2-1 name:i}
-          db_index={id:2 key:v3 seq:3})`);
+          index={id:2 key:v3 seq:3} db_index={id:2 key:v3 seq:3})`);
+      // XXX: need a more complex example
     });
+    if (0) // XXX: WIP
     describe('find', ()=>{
       describe('mem', ()=>{
         // XXX: use macros with * to simplify tests

@@ -70,16 +70,15 @@ export default class Index {
     let body = data.get_body(cfid), key = body?.[field];
     if (key===undefined || key===null)
       return;
-    if (!scroll.storage)
-      this.avl.insert({key, seq});
-    else if (!decl?.db?.cfid?.[e.cfid]?.busy){ // XXX: need is_loading
-      this.schedule_db(key, seq);
-      // XXX: do we need to check up as well?
-      // let up_iter = this.find_mem_iter(key, {min: seq+1, dir: 'up'});
-      let dn_iter = this.find_mem_iter(key, {max: seq-1, dir: 'dn'});
-      if (dn_iter.curr && dn_iter.curr.up!==false)
-        this.avl.insert({key, seq});
-    }
+    let curr = this.find_mem_iter(key, {min: seq, max: seq})?.curr;
+    if (curr)
+      return;
+    // XXX: add dn/up:seq
+    this.avl.insert({key, seq});
+    // XXX: need is_loading
+    if (scroll.storage && decl?.db?.cfid?.[e.cfid]?.busy)
+      return;
+    this.schedule_db(key, seq);
   }
   schedule_db(key, seq){ this.storage_queue.push({id: this.id, key, seq}); }
   find_mem_iter(key, opt={}){

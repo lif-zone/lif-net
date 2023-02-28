@@ -1196,37 +1196,43 @@ export default class Scroll extends EventEmitterAsync {
         _this.conflict.get(co.parent.cfid).conflicts.set(cfid, co);
       if (cfid)
         yield _this.update_mergeable(cfid);
+      else if (_this.storage)
+        yield _this.storage.load_cfid(_this.get_decl(0), 0);
     }
     _this.conflict.next_id = max_c+1;
     _this.top = max_top;
   }); }
   flush(){ return this.storage?.flush(); }
-  on_data = e=>{
+  // XXX optimize: try to minimize etask creation
+  on_data = e=>etask({_: this}, function*on_data(){
+    let _this = this._;
     let {data, seq, cfid} = e, h = data.get_header(cfid);
     if (!h)
       return;
     let body = data.get_body(cfid);
+    let bseq = h.bseq||bint(seq), branch = h.branch;
+    let btable = _this.get_branch_table(cfid);
+    btable.add({branch, seq, bseq});
     if (body){
-      this.conflict.get(cfid).mem_map.add(seq);
-      if (!this.indexe_table && seq==0){
+      _this.conflict.get(cfid).mem_map.add(seq);
+      if (!_this.indexe_table && seq==0){
         assert.equal(cfid, 0, 'seq0 must be on cfid 0');
         if (body.scroll?.index?.length){
-          this.index_table = new Index.Index_table({scroll: this,
+          _this.index_table = new Index.Index_table({scroll: _this,
             index: body.scroll.index});
+          if (_this.storage && _this.name)
+            yield _this.storage.load_index_table(_this.name);
         }
         /* XXX: WIP
         if (!this.allow_missing_seq0)
-          assert(!this.top || this.top.seq==0, 'XXX top is '+this.top?.seq);
+          assert(!_this.top || _this.top.seq==0, 'XXX top is '+_this.top?.seq);
         */
       }
     }
-    let bseq = h.bseq||bint(seq), branch = h.branch;
-    let btable = this.get_branch_table(cfid);
-    btable.add({branch, seq, bseq});
-    if (this.index_table)
-      this.index_table.on_data({cfid, seq, bseq, data});
-    return this.emit_async('data', {data, seq, cfid, bseq});
-  };
+    if (_this.index_table)
+      _this.index_table.on_data({cfid, seq, bseq, data});
+    return _this.emit_async('data', {data, seq, cfid, bseq});
+  });
   get_branch_table(cfid){
     let btable = this.branch.get(cfid);
     if (btable)

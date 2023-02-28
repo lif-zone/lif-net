@@ -780,14 +780,18 @@ const state_split = (exp, def)=>etask(function*state_split(){
         val: yield get_array(o.r, {num: ['id', 'sz']})};
     }
     if (/^btc/.test(o.l))
-      return {...state_split_var(o.l, def), val: yield get_btable(o.r)};
+      return {...state_split_var(o.l, def), val: get_btable(o.r)};
     if (/^db_btc/.test(o.l))
-      return {...state_split_var(o.l, def), val: yield get_btable(o.r)};
+      return {...state_split_var(o.l, def), val: get_btable(o.r)};
     if ('db_query'==o.l)
       return {...state_split_var(o.l, def), val: get_array_str(o.r)};
-    if (['index', 'db_index'].includes(o.l)){
+    if ('index'==o.l){
       return {...state_split_var(o.l, def),
         val: get_array(o.r, {num: ['id', 'seq'], bool: ['query']})};
+    }
+    if ('db_index'==o.l){
+      return {...state_split_var(o.l, def),
+        val: get_array(o.r, {num: ['id', 'seq']})};
     }
     if (/^index_find/.test(o.l))
       return {...state_split_var(o.l, def), val: get_array_int(o.r)};
@@ -1313,7 +1317,7 @@ const get_static_bname = s=>etask(function*get_static_bname(){
   return ret;
 });
 
-const get_btable = s=>etask(function*get_btable(){
+function get_btable(s){
   let bo = {};
   s = rm_parentesis(s, '{');
   for (let curr=s; curr = parse_get_next(curr);){
@@ -1322,7 +1326,7 @@ const get_btable = s=>etask(function*get_btable(){
     bo[o.l] = o.r=='null' ? null : o.l=='seq' ? +o.r : o.r;
   }
   return bo;
-});
+}
 
 // XXX: mv all get_array_* to tparser.js
 function get_array_int(s){

@@ -1220,14 +1220,12 @@ export default class Scroll extends EventEmitterAsync {
         */
       }
     }
-    let _this = this, bseq = h.bseq||bint(seq), branch = h.branch;
+    let bseq = h.bseq||bint(seq), branch = h.branch;
     let btable = this.get_branch_table(cfid);
     btable.add({branch, seq, bseq});
-    return etask(function*on_data(){
-      if (_this.index_table)
-        yield _this.index_table.on_data({cfid, seq, bseq, data});
-      return _this.emit_async('data', {data, seq, cfid, bseq});
-    });
+    if (this.index_table)
+      this.index_table.on_data({cfid, seq, bseq, data});
+    return this.emit_async('data', {data, seq, cfid, bseq});
   };
   get_branch_table(cfid){
     let btable = this.branch.get(cfid);

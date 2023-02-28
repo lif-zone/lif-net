@@ -73,8 +73,7 @@ export default class Index {
     let curr = this.find_mem_iter(key, {min: seq, max: seq})?.curr;
     if (curr)
       return;
-    // XXX: add dn/up:seq
-    this.avl.insert({key, seq});
+    this.avl.insert({key, seq, dn: seq, up: seq});
     // XXX: need is_loading
     if (scroll.storage && decl?.db?.cfid?.[e.cfid]?.busy)
       return;

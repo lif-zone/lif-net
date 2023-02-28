@@ -785,10 +785,8 @@ const state_split = (exp, def)=>etask(function*state_split(){
       return {...state_split_var(o.l, def), val: get_btable(o.r)};
     if ('db_query'==o.l)
       return {...state_split_var(o.l, def), val: get_array_str(o.r)};
-    if ('index'==o.l){
-      return {...state_split_var(o.l, def),
-        val: get_array(o.r, {num: ['id', 'seq'], bool: ['query']})};
-    }
+    if ('index'==o.l)
+      return {...state_split_var(o.l, def), val: get_index_array(o.r)};
     if ('db_index'==o.l){
       return {...state_split_var(o.l, def),
         val: get_array(o.r, {num: ['id', 'seq']})};
@@ -1326,6 +1324,17 @@ function get_btable(s){
     bo[o.l] = o.r=='null' ? null : o.l=='seq' ? +o.r : o.r;
   }
   return bo;
+}
+
+function get_index_array(s){
+  let ret = get_array(s, {num: ['id', 'seq'], bool: ['query']});
+  ret.forEach(o=>{
+    if (o.dn===undefined)
+      o.dn = o.seq;
+    if (o.up===undefined)
+      o.up = o.seq;
+  });
+  return ret;
 }
 
 // XXX: mv all get_array_* to tparser.js

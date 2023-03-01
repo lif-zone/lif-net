@@ -79,8 +79,11 @@ E.parse_get_next = function(curr){
   }
   if (exp.startsWith('$$')){
     let m = exp.match(/^\$\$([a-zA-Z][a-zA-Z0-9]*)\((.*)\)$/);
-    if (m)
+    if (m){
       vars[m[1]] = m[2];
+      let l = s.substr(0, curr.at||0), r = s.substr(at);
+      return E.parse_get_next({s: l+' '+r, at: curr.at||0, vars});
+    }
     return {exp, s, at, vars};
   }
   if (exp.includes('$')){

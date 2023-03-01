@@ -258,6 +258,13 @@ describe('parser', ()=>{
     t('cmd0 cmd1($1) $$(a1 a2) cmd2',
       ['cmd0', 'cmd1(a1)', 'cmd1(a2)', 'cmd2']);
     t('cmd($1 $2) $$([5 [7 1]] [4 [7 1]])', ['cmd(5 [7 1])', 'cmd(4 [7 1])']);
+    t('$$a(A) cmd($a)', ['$$a(A)', 'cmd(A)']);
+    t('$$A(a) cmd($A)', ['$$A(a)', 'cmd(a)']);
+    t('$$a2A(A) cmd($a2A)', ['$$a2A(A)', 'cmd(A)']);
+    t('$$a(a b(c:d)) $a', ['$$a(a b(c:d))', 'a', 'b(c:d)']);
+    t('$$a(A) $$b(B) cmd($a) cmd($b)', ['$$a(A)', '$$b(B)', 'cmd(A)',
+      'cmd(B)']);
+    t('$$a(A) cmd($a $1) $$(B C)', ['$$a(A)', 'cmd(A B)', 'cmd(A C)']);
   });
   it('parse_exp', ()=>{
     const t = (s, exp)=>assert.deepEqual(parse_exp(s),

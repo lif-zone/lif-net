@@ -18,13 +18,14 @@ function rm_parentesis(s, open='('){
 }
 
 E.parse_get_next = function(curr){
-  let i=0, s=curr, state='pre', done=false, exp='', parentesis = [];
+  let i=0, s=curr, state='pre', done=false, exp='', parentesis = [], vars = {};
   let at;
   if (typeof curr!='string'){
     if (curr.at===undefined)
       return;
     i = curr.at;
     s = curr.s;
+    vars = curr.vars;
   }
   for (i; i<s.length && !done; i++){
     let c = s.charAt(i);
@@ -74,29 +75,43 @@ E.parse_get_next = function(curr){
       exp += space(s.substr(at, nl));
       at += nl+1;
     }
-    return {exp, s, at};
+    return {exp, s, at, vars};
   }
-  if (exp.includes('$$'))
-    return {exp, s, at};
+  if (exp.startsWith('$$')){
+    let m = exp.match(/^\$\$([a-zA-Z][a-zA-Z0-9]*)\((.*)\)$/);
+    if (m)
+      vars[m[1]] = m[2];
+    return {exp, s, at, vars};
+  }
   if (exp.includes('$')){
+    let _exp = replace_macro_vars(exp, vars);
+    if (_exp!=exp){
+      let l = s.substr(0, curr.at||0), r = s.substr(at);
+      return E.parse_get_next({s: l+_exp+' '+r, at: curr.at||0, vars});
+    }
     let curr2 = E.parse_get_next({s, at}), ss = '';
     assert(curr2, 'missing $$');
     let o = E.parse_exp(curr2.exp);
     assert.equal(o.cmd, '$$', 'missing $$');
     assert(!o.l, 'invalid $$ '+curr2.exp);
     get_array_str(o.r, '(').forEach(els=>{
-      let _s = exp;
-      get_array_str(els).forEach((el, i)=>
-        _s = _s.replace(new RegExp('\\$'+(i+1)+'\\b', 'g'), el));
+      let args = {};
+      get_array_str(els).forEach((el, i)=>args[i+1]=el);
+      let _s = replace_macro_vars(exp, args);
       ss += (_s ? ' ' : '')+_s;
     });
     assert(!ss.includes('$'), 'missing args for '+exp);
-    let l = s.substr(0, curr.at||0);
-    let r = s.substr(curr2.at);
-    return E.parse_get_next({s: l+ss+' '+r, at: curr.at||0});
+    let l = s.substr(0, curr.at||0), r = s.substr(curr2.at);
+    return E.parse_get_next({s: l+ss+' '+r, at: curr.at||0, vars});
   }
-  return {exp, s, at};
+  return {exp, s, at, vars};
 };
+
+function replace_macro_vars(s, vars){
+  for (let v in vars)
+    s = s.replace(new RegExp('\\$'+v+'\\b', 'g'), vars[v]);
+  return s;
+}
 
 function get_array_str(s, open){
   let ret = [];

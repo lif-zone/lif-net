@@ -1327,7 +1327,7 @@ function get_btable(s){
 }
 
 function get_index_array(s){
-  let ret = get_array(s, {num: ['id', 'seq'], bool: ['query']});
+  let ret = get_array(s, {num: ['id', 'seq', 'up', 'dn'], bool: ['query']});
   ret.forEach(o=>{
     if (o.dn===undefined)
       o.dn = o.seq;

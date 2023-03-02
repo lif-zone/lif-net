@@ -131,8 +131,9 @@ export default class Index {
     let _this = this, {min, max, dir} = opt, {cfid, scroll} = this;
     if (!scroll.storage)
       return this.find_mem_iter(key, {min, max, dir});
-    let _max, _min = min = min===undefined ? 0 : min; // XXX: use conflict min
-    _max = max = max===undefined ? scroll.conflict.get(cfid).top.seq : max;
+    let co = scroll.conflict.get(cfid), _max, _min;
+    _min = min = min===undefined ? co.parent ? co.parent.seq+1 : 0 : min;
+    _max = max = max===undefined ? co.top.seq : max;
     let iter = {}, mem_iter, db_iter, prev, db_prev, section, curr;
     let db_prev_max;
     iter.next = ()=>etask(function*index_find_iter_next(){
@@ -152,12 +153,16 @@ export default class Index {
             db_prev_max = undefined;
           }
           if (curr){
-            let seq = curr.seq;
             if (prev && prev.dn > curr.up+1); // XXX: check get_section
             // XXX: do we need to check start of section of max?
             else if (!prev && curr.up<max && !scroll.get_section(cfid, max));
-            else
+            else {
+              if (prev){
+                prev.dn = curr.seq;
+                curr.up = prev.seq;
+              }
               return iter_ret(iter, prev = curr);
+            }
           }
           [min, max] = [curr ? curr.up+1 : min, prev ? prev.dn-1 : max];
           if (section = scroll.get_section(cfid, max)){

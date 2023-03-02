@@ -3055,7 +3055,9 @@ describe('scroll', ()=>{
             index,rev,0_/niko_1<=key<=0_/niko_3]
             index=[{$n:2 up:4} {$n:4 dn:2 up:6} {$n:6 dn:4 up:7} {$n:8 up:9}])
           ##index_find(index:0 key:/niko max:7 count:3)=[6 4 2] #
-          ##index_find(index:0 key:/niko max:8 count:3)=[8 6 4] #`);
+            #index={$n:6 dn:4 up:7}
+          ##index_find(index:0 key:/niko max:8 count:3)=[8 6 4]
+            #index=[{$n:6 dn:4 up:8} {$n:8 dn:6 up:9}]`);
         t('zzz5_dir_dn', `${t_init9}
           //  0 1 2 3 4 5 6 7 8 9
           //                  n-q find(max:9 n=1)
@@ -3084,6 +3086,83 @@ describe('scroll', ()=>{
           ##index_find(index:0 key:/niko max:5 count:1)=4
           #(db_query=${_q('/niko', 5)} index={$n:4 up:5})
           ##index_find(index:0 key:/niko max:5 count:1)=4 #`);
+        t('zzz_not_found', `${t_init9}
+          //  0 1 2 3 4 5 6 7 8 9
+          //  --------q            (val=not_found max:4 n=1)
+          //  ------------q        (val=not_found max:6 n=1)
+          ##index_find(index:0 key:not_found max:4 count:1)=[]
+            #db_query=${_q('not_found', 1, 4)}
+          ##index_find(index:0 key:not_found max:4 count:1)=[]
+            #db_query=${_q('not_found', 1, 4)}
+          ##index_find(index:0 key:not_found max:6 count:1)=[]
+            #db_query=${_q('not_found', 1, 6)}`);
+        t('zzz_query_with_missing_a', `${t_init9}
+          //  0 1 2 3 4 5 6 7 8 9
+          //  --q-n-q             (max:1 =3 n=1)
+          //  --q-n---n-q         (max:5 n=1)
+          //  --q-n---n-q---q     (max:7 n=1)
+          ##index_find(index:0 key:/niko max:1 count:1)=[]
+            #db_query=${_q('/niko', 1)}
+          ##index_find(index:0 key:/niko max:3 count:1)=2
+            #(db_query=${_q('/niko', 1, 3)} index={$n:2 up:3})
+          ##index_find(index:0 key:/niko max:5 count:1)=4
+            #(db_query=${_q('/niko', 4, 5)} index={$n:4 up:5})
+          ##index_find(index:0 key:/niko max:7 count:1)=6
+            #(db_query=${_q('/niko', 6, 7)} index={$n:6 up:7})
+          ##index_find(index:0 key:/niko max:7)=[6 4 2]
+            #(db_query=${_q('/niko', 1)}
+            index=[{$n:2 dn:0 up:4} {$n:4 dn:2 up:6} {$n:6 dn:4 up:7}])`);
+        t('zzz_query_with_missing_b', `${t_init9}
+          //  0 1 2 3 4 5 6 7 8 9
+          //  --q-n-q             (max:1 =3 n=1)
+          //  --q-n-q     n-q     (max:7 n=1)
+          //  --q-n---n---n-q     (max:5 n=1)
+          ##index_find(index:0 key:/niko max:1 count:1)=[]
+            #db_query=${_q('/niko', 1)}
+          ##index_find(index:0 key:/niko max:3 count:1)=2
+            #(db_query=${_q('/niko', 1, 3)} index={$n:2 up:3})
+          ##index_find(index:0 key:/niko max:7 count:1)=6
+            #(db_query=${_q('/niko', 4, 7)} index={$n:6 up:7})
+          ##index_find(index:0 key:/niko max:5 count:1)=4
+            #(db_query=${_q('/niko', 4, 5)} index={$n:4 up:5})`);
+        t('zzz_partial_scroll_find', `${t_init9}
+          S2..#(db_query_index index) Soul2.S2.scroll(s..M0 db) #index=[]
+          tput(0 1                 ) #index={$a:1}
+          tput(0 1 2               ) #index={$n:2}
+          tput(0 1 2 3             ) #index={$a:3}
+          tput(0 1 2 3 4_5 6       ) #index={$n:6}
+          ##index_find(index:0 key:/niko max:9)=[6 2]
+            #(index=[{$n:2 dn:0 up:6} {$n:6 dn:2 up:9}]
+            db_query=[index,rev,0_/niko_7<=key<=0_/niko_9
+              index,rev,0_/niko_4<=key<=0_/niko_5])
+          tput(0 1 2 3 4 5) #index={$a:5}
+          tput(0 1 2 3 4) #index={$n:4}
+          // XXX: there is some mess with up/dn
+          ##index_find(index:0 key:/niko max:9)=[6 4 2]
+            #index=[{$n:2 dn:0 up:4} {$n:4 dn:2 up:6} {$n:6 dn:4 up:9}]
+          tput(0 1 2 3 4 5 6 7     ) #index={$a:7}
+          tput(0 1 2 3 4 5 6 7 8   ) #index={$n:8}
+          tput(0 1 2 3 4 5 6 7 8  9) #index={$a:9}
+          ##index_find(index:0 key:/niko max:9)=[8 6 4 2]
+            #index=[{$n:6 dn:4 up:8} {$n:8 dn:6}]
+          ##index_find(index:0 key:/niko max:9)=[8 6 4 2] #`);
+        t('db_conflict', `s.scroll(index:path) s.decl({path:/f})
+          s.decl({path:/f}) s1.clone(s.M1) s1.decl({path:/f})
+          S..scroll(s..M0 db) tput(0 1  ) tput(0 1 2) tput(0 1 c)
+          Soul2.db_copy(S.soul) S2..#(index index_table db_query_index)
+          Soul2.S2.scroll(s..M0 db)
+            #(index=[{id:0 key:/f seq:2} {id:1 key:/f seq:2}]
+            index_table=[{id:0 cfid:0 bseqb:null name:path}
+            {id:1 cfid:1 bseqb:null name:path}])
+          // XXX: no point for next
+          ##index_find(name:path key:/f cfid:0 max:3 bseq:4)=[2 1]
+            #(db_query=[index,rev,key==0_/f_1 next]
+            index=[{id:0 key:/f seq:1 dn:0 up:2}
+            {id:0 key:/f seq:2 dn:1 up:2}])
+          ##index_find(name:path key:/f cfid:0 max:2 bseq:4)=[2 1] #
+          ##index_find(name:path key:/f cfid:1 max:2 bseq:4)=[2 1] #
+          ##index_find(name:path key:/f cfid:1 max:2 bseq:4)=[2 1] #`);
+          // XXX: need more advanced conflict tests
       });
       if (0) // XXX: obsolete, rm
       describe('xxx_db', ()=>{
@@ -3212,245 +3291,6 @@ describe('scroll', ()=>{
             {${s}:8}]
             db_query=[index,0_arik_0<=key<=0_arik_9 next next next next])
         `);
-        t('zzz1_dir_dn', `${t_zzz}
-          //  0 1 2 3 4 5 6 7 8 9
-          //                  n-q (bseq<=9 n=1)
-          //              n---n-q (bseq<=8 n=2)
-          ##index_find(name:user key:arik bseq:9 count:1)=8
-            #(index=[{${s}:8 dn:false} {${s}:9 query up:false}]
-            db_query=[index,rev,0_arik_0<=key<=0_arik_9])
-          ##index_find(name:user key:arik bseq:8 count:2)=[8 6]
-            #(index=[{${s}:6 dn:false} {${s}:8}]
-            db_query=[index,rev,0_arik_0<=key<=0_arik_7])`);
-        t('zzz1_dir_up', `${t_zzz}
-          //  0 1 2 3 4 5 6 7 8 9
-          //    q-n                (min>=1 n=1)
-          //    q-n---n            (max>=2 n=2)
-          ##index_find(dir:up name:user key:arik min:1 bseq:9 count:1)=2
-            #(index=[{${s}:1 query dn:false} {${s}:2 up:false}]
-            db_query=[index,0_arik_1<=key<=0_arik_9])
-          ##index_find(dir:up name:user key:arik min:2 bseq:9 count:2)=[2 4]
-            #(index=[{${s}:2} {${s}:4 up:false}]
-            db_query=[index,0_arik_3<=key<=0_arik_9])`);
-        t('zzz2_dir_dn', `${t_zzz}
-          //  0 1 2 3 4 5 6 7 8 9
-          //                  n-q (bseq<=9 n=1)
-          //          n---n---n-q (bseq<=7 n=2)
-          ##index_find(name:user key:arik bseq:9 count:1)=8
-            #(index=[{${s}:8 dn:false} {${s}:9 query up:false}]
-            db_query=[index,rev,0_arik_0<=key<=0_arik_9])
-          ##index_find(name:user key:arik bseq:7 count:2)=[6 4]
-            #(index=[{${s}:4 dn:false} {${s}:6} {${s}:8}]
-            db_query=[index,rev,0_arik_0<=key<=0_arik_7 next])`);
-        t('zzz2_dir_up', `${t_zzz}
-          //  0 1 2 3 4 5 6 7 8 9
-          //    q-n               (min>=1 n=1)
-          //    q-n---n---n       (min>=3 n=2)
-          ##index_find(dir:up name:user key:arik min:1 bseq:9 count:1)=2
-            #(index=[{${s}:1 query dn:false} {${s}:2 up:false}]
-            db_query=[index,0_arik_1<=key<=0_arik_9])
-          ##index_find(dir:up name:user key:arik min:3 bseq:9 count:2)=[4 6]
-            #(index=[{${s}:2} {${s}:4} {${s}:6 up:false}]
-            db_query=[index,0_arik_3<=key<=0_arik_9 next])`);
-        t('zzz3_dir_dn', `${t_zzz}
-          //  0 1 2 3 4 5 6 7 8 9
-          //                  n-q (bseq<=9 n=1)
-          //          n---n   n-q (bseq<=6 n=2)
-          //          n---n---n-q (bseq<=8 n=2)
-          ##index_find(name:user key:arik bseq:9 count:1)=8
-            #(index=[{${s}:8 dn:false} {${s}:9 query up:false}]
-            db_query=[index,rev,0_arik_0<=key<=0_arik_9])
-          ##index_find(name:user key:arik bseq:6 count:2)=[6 4]
-            #(index=[{${s}:4 dn:false} {${s}:6 up:false}]
-            db_query=[index,rev,0_arik_0<=key<=0_arik_6 next])
-          ##index_find(name:user key:arik bseq:8 count:2)=[8 6]
-            #(index=[{${s}:6} {${s}:8}] db_query=[index,rev,key==0_arik_7])`);
-        t('zzz3_dir_up', `${t_zzz}
-          //  0 1 2 3 4 5 6 7 8 9
-          //    q-n               (min>=1 n=1)
-          //    q-n   n---n       (min>=4 n=2)
-          //    q-n---n---n       (min>=2 n=2)
-          ##index_find(dir:up name:user key:arik min:1 bseq:9 count:1)=2
-            #(index=[{${s}:1 query dn:false} {${s}:2 up:false}]
-            db_query=[index,0_arik_1<=key<=0_arik_9])
-          ##index_find(dir:up name:user key:arik min:4 bseq:9 count:2)=[4 6]
-            #(index=[{${s}:4 dn:false} {${s}:6 up:false}]
-            db_query=[index,0_arik_4<=key<=0_arik_9 next])
-          ##index_find(dir:up name:user key:arik min:2 bseq:9 count:2)=[2 4]
-            #(index=[{${s}:2} {${s}:4}] db_query=[index,key==0_arik_3])`);
-        t('zzz4_dir_dn', `${t_zzz}
-          //  0 1 2 3 4 5 6 7 8 9
-          //                  n-q (bseq<=9 n=1)
-          //          n---n   n-q (bseq<=6 n=2)
-          //      n---n---n---n-q (bseq<=7 n=3)
-          //      n---n---n---n-q (bseq<=8 n=3)
-          ##index_find(name:user key:arik bseq:9 count:1)=8
-            #(index=[{${s}:8 dn:false} {${s}:9 query up:false}]
-            db_query=[index,rev,0_arik_0<=key<=0_arik_9])
-          ##index_find(name:user key:arik bseq:6 count:2)=[6 4]
-            #(index=[{${s}:4 dn:false} {${s}:6 up:false}]
-            db_query=[index,rev,0_arik_0<=key<=0_arik_6 next])
-          ##index_find(name:user key:arik bseq:7 count:3)=[6 4 2]
-            #(index=[{${s}:2 dn:false} {${s}:4} {${s}:6} {${s}:8}]
-            db_query=[index,rev,key==0_arik_7
-            index,rev,0_arik_0<=key<=0_arik_3])
-          ##index_find(name:user key:arik bseq:8 count:3)=[8 6 4] #`);
-        t('zzz4_dir_up', `${t_zzz}
-          //  0 1 2 3 4 5 6 7 8 9
-          //    q-n               (min>=1 n=1)
-          //    q-n   n---n       (min>=4 n=2)
-          //    q-n---n---n---n   (min>=3 n=3)
-          //    q-n---n---n---n   (min>=2 n=3)
-          ##index_find(dir:up name:user key:arik min:1 bseq:9 count:1)=2
-            #(index=[{${s}:1 query dn:false} {${s}:2 up:false}]
-            db_query=[index,0_arik_1<=key<=0_arik_9])
-          ##index_find(dir:up name:user key:arik min:4 bseq:9 count:2)=[4 6]
-            #(index=[{${s}:4 dn:false} {${s}:6 up:false}]
-            db_query=[index,0_arik_4<=key<=0_arik_9 next])
-          ##index_find(dir:up name:user key:arik min:3 bseq:9 count:3)=[4 6 8]
-            #(index=[{${s}:2} {${s}:4} {${s}:6} {${s}:8 up:false}]
-            db_query=[index,key==0_arik_3 index,0_arik_7<=key<=0_arik_9])
-          ##index_find(dir:up name:user key:arik min:2 bseq:9 count:3)=[2 4 6]
-            #`);
-        t('zzz5_dir_dn', `${t_zzz}
-          //  0 1 2 3 4 5 6 7 8 9
-          //                  n-q (bseq<=9 n=1)
-          //          n---n   n-q (bseq<=6 n=2)
-          //  ----n           n-q (bseq<=2)
-          //  ----n---n---n---n-q (bseq<=9)
-           ##index_find(name:user key:arik bseq:9 count:1)=8
-            #(index=[{${s}:8 dn:false} {${s}:9 query up:false}]
-            db_query=[index,rev,0_arik_0<=key<=0_arik_9])
-          ##index_find(name:user key:arik bseq:6 count:2)=[6 4]
-            #(index=[{${s}:4 dn:false} {${s}:6 up:false}]
-            db_query=[index,rev,0_arik_0<=key<=0_arik_6 next])
-          ##index_find(name:user key:arik bseq:2)=2
-            #(index=[{${s}:2 up:false}]
-              db_query=[index,rev,0_arik_0<=key<=0_arik_2 next])
-          ##index_find(name:user key:arik bseq:9)=[8 6 4 2]
-            #(index=[{${s}:2} {${s}:4} {${s}:6} {${s}:8}]
-            db_query=[index,rev,key==0_arik_7 index,rev,key==0_arik_3])`);
-        t('zzz5_dir_up', `${t_zzz}
-          //  0 1 2 3 4 5 6 7 8 9
-          //    q-n               (min>=1 n=1)
-          //    q-n   n---n       (min>=4 n=2)
-          //    q-n           n-- (min>=8)
-          //    q-n---n---n---n-- (min>=0)
-          ##index_find(dir:up name:user key:arik min:1 bseq:9 count:1)=2
-            #(index=[{${s}:1 query dn:false} {${s}:2 up:false}]
-            db_query=[index,0_arik_1<=key<=0_arik_9])
-          ##index_find(dir:up name:user key:arik min:4 bseq:9 count:2)=[4 6]
-            #(index=[{${s}:4 dn:false} {${s}:6 up:false}]
-            db_query=[index,0_arik_4<=key<=0_arik_9 next])
-          ##index_find(dir:up name:user key:arik min:8 bseq:9)=8
-            #(index=[{${s}:8 dn:false}]
-              db_query=[index,0_arik_8<=key<=0_arik_9 next])
-          // XXX: seq:0 is dn:true
-          ##index_find(dir:up name:user key:arik min:0 bseq:9)=[2 4 6 8]
-            #(index=[{${s}:0 query dn:false} {${s}:2} {${s}:4} {${s}:6}
-            {${s}:8} !{${s}:1 query}]
-            db_query=[index,key==0_arik_0 index,key==0_arik_3
-            index,key==0_arik_7])`);
-        t('zzz6_dir_dn', `${t_zzz}
-          //  0 1 2 3 4 5 6 7 8 9
-          //          n           (bseq<=4 n=1)
-          //          n-q         (bseq<=5 n=1)
-          ##index_find(name:user key:arik bseq:4 count:1)=4
-            #(index={${s}:4 dn:false up:false}
-            db_query=index,rev,0_arik_0<=key<=0_arik_4)
-          ##index_find(name:user key:arik bseq:5 count:1)=4
-            #(index=[{${s}:4 dn:false} {${s}:5 query up:false}]
-            db_query=index,rev,key==0_arik_5)`);
-        t('zzz6_dir_up', `${t_zzz}
-          //  0 1 2 3 4 5 6 7 8 9
-          //          n           (min>=4 n=1)
-          //        q-n           (min>=3 n=1)
-          ##index_find(dir:up name:user key:arik min:4 bseq:9 count:1)=4
-            #(index={${s}:4 dn:false up:false}
-            db_query=index,0_arik_4<=key<=0_arik_9)
-          ##index_find(dir:up name:user key:arik min:3 bseq:9 count:1)=4
-            #(index=[{${s}:3 query dn:false} {${s}:4 up:false}]
-            db_query=index,key==0_arik_3)`);
-        t('zzz_not_found', `${t_zzz}
-          //  0 1 2 3 4 5 6 7 8 9
-          //  --------q            (val=not_found bseq<=4 n=1)
-          //  ------------q        (val=not_found bseq<=6 n=1)
-          ##index_find(name:user key:not_found bseq:4 count:1)=[]
-            #(index={id:0 key:not_found seq:4 query up:false}
-            db_query=index,rev,0_not_found_0<=key<=0_not_found_4)
-          // XXX: no need query: index,rev,0_not_found_0<=key<=0_not_found_4
-          ##index_find(name:user key:not_found bseq:6 count:1)=[]
-            #(index=[{id:0 key:not_found seq:6 query up:false}
-            !{id:0 key:not_found seq:4 query}]
-            db_query=index,rev,0_not_found_5<=key<=0_not_found_6)`);
-        t('zzz_query_with_missing_a', `${t_zzz}
-          //  0 1 2 3 4 5 6 7 8 9
-          //  --q-n-q             (bseq<=1 =3 n=1)
-          //  --q-n---n-q         (bseq<=5 n=1)
-          //  --q-n---n-q---q     (bseq<=7 n=1)
-          ##index_find(name:user key:arik bseq:1 count:1)=[]
-            #(index={${s}:1 query up:false}
-            db_query=index,rev,0_arik_0<=key<=0_arik_1)
-          ##index_find(name:user key:arik bseq:3 count:1)=2
-            #(index=[{${s}:1 query} {${s}:2} {${s}:3 query up:false}]
-            db_query=index,rev,0_arik_2<=key<=0_arik_3)
-          ##index_find(name:user key:arik bseq:5 count:1)=4
-            #(index=[{${s}:4} {${s}:5 query up:false} !{${s}:3 query}]
-            db_query=index,rev,0_arik_4<=key<=0_arik_5)
-          ##index_find(name:user key:arik bseq:7 count:1)=6
-            #(index=[{${s}:6} {${s}:7 query up:false} !{${s}:5 query}]
-            db_query=index,rev,0_arik_6<=key<=0_arik_7)`);
-        t('zzz_query_with_missing_b', `${t_zzz}
-          //  0 1 2 3 4 5 6 7 8 9
-          //  --q-n-q             (bseq<=1 =3 n=1)
-          //  --q-n-q     n-q     (bseq<=7 n=1)
-          //  --q-n---n---n-q     (bseq<=5 n=1)
-          ##index_find(name:user key:arik bseq:1 count:1)=[]
-            #(index={${s}:1 query up:false}
-            db_query=index,rev,0_arik_0<=key<=0_arik_1)
-          ##index_find(name:user key:arik bseq:3 count:1)=2
-            #(index=[{${s}:1 query} {${s}:2} {${s}:3 query up:false}]
-            db_query=index,rev,0_arik_2<=key<=0_arik_3)
-          ##index_find(name:user key:arik bseq:7 count:1)=6
-            #(index=[{${s}:6 dn:false} {${s}:7 query up:false}]
-            db_query=index,rev,0_arik_4<=key<=0_arik_7)
-          ##index_find(name:user key:arik bseq:5 count:1)=4
-            #(index=[{${s}:4} {${s}:6} !{${s}:3 query}]
-            db_query=index,rev,0_arik_4<=key<=0_arik_5)`);
-        t('zzz_partial_scroll_find', `${t_zzz}
-          S2..#(db_query_index index) Soul2.S2.scroll(s..M0 db) #index=[]
-          tput(0 1                 ) #
-          tput(0 1 2               ) #
-          tput(0 1 2 3             ) #
-          tput(0 1 2 3 4_5 6       ) #
-          ##index_find(name:user key:arik bseq:9)=[6 2]
-            #(index=[{${s}:2} {${s}:6 up:false}]
-            db_query=[index,rev,0_arik_0<=key<=0_arik_6 next next])
-          tput(0 1 2 3 4 5) #
-          tput(0 1 2 3 4) #index={${s}:4}
-          ##index_find(name:user key:arik bseq:9)=[6 4 2] #
-          tput(0 1 2 3 4 5 6       ) #
-          tput(0 1 2 3 4 5 6 7     ) #
-          tput(0 1 2 3 4 5 6 7 8   ) #
-          tput(0 1 2 3 4 5 6 7 8  9) #
-          ##index_find(name:user key:arik bseq:9)=[8 6 4 2]
-            #(index=[{${s}:6} {${s}:8} {${s}:9 query up:false}]
-            db_query=[index,rev,0_arik_7<=key<=0_arik_9 next])`);
-        t('db_conflict', `s.scroll(index:path) s.decl({path:/f})
-          s.decl({path:/f}) s1.clone(s.M1) s1.decl({path:/f})
-          S..scroll(s..M0 db) tput(0 1  ) tput(0 1 2) tput(0 1 c)
-          Soul2.db_copy(S.soul) S2..#(index index_table db_query_index)
-          Soul2.S2.scroll(s..M0 db) #(index=[]
-            index_table=[{id:0 cfid:0 bseqb:null name:path}
-            {id:1 cfid:1 bseqb:null name:path}])
-          ##index_find(name:path key:/f cfid:0 bseq:3)=[2 1]
-          ##index_find(name:path key:/f cfid:0 bseq:2)=[2 1]
-          #(index=[{id:0 key:/f seq:1} {id:0 key:/f seq:2 up:false}]
-            db_query=[index,rev,0_/f_0<=key<=0_/f_2 next next])
-          ##index_find(name:path key:/f cfid:1 bseq:2)=[2 1]
-          #(index=[{id:0 key:/f seq:1} {id:1 key:/f seq:2 up:false}]
-            db_query=[index,rev,1_/f_0<=key<=1_/f_2 next])`);
-        // XXX: need tests for adding declarations after partial search
       });
       // XXX: test update of avl in memory after new entries added to db
       // XXX: listen on event db_query to follow up on db queries

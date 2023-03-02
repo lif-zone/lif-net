@@ -136,7 +136,7 @@ export default class Index {
     let _max, _min = min = min===undefined ? 0 : min; // XXX: use conflict min
     _max = max = max===undefined ? scroll.conflict.get(cfid).top.seq : max;
     let iter = {step: 'mem'};
-    let mem_iter, db_iter, prev, db_prev;
+    let mem_iter, db_iter, prev, db_prev, section;
     if (!scroll.storage)
       return this.find_mem_iter(key, {min, max, dir});
     iter.next = ()=>etask({_: this}, function*index_find_iter_next(){
@@ -150,8 +150,9 @@ export default class Index {
             db_prev.dn = curr ? curr.seq : min;
           if (mem_iter.curr){
             let seq = curr.seq;
-            if (prev && prev.dn > seq);
-            else if (curr.up <= max){
+            if (prev && prev.dn > seq); // XXX: check get_section
+            else if (!prev && curr.up<max && !scroll.get_section(cfid, max));
+            else { //if (prev && curr.up <= max){ // XXX: logic is correct?
               prev = iter.curr = curr;
               if (db_prev)
                 curr.up = db_prev.seq;
@@ -165,14 +166,12 @@ export default class Index {
             max = prev.dn-1;
           if (curr)
             min = curr.up+1;
-          let section = scroll.conflict.get(cfid).mem_map.get_section(max);
-          if (section){
+          if (section = scroll.get_section(cfid, max)){
             max = section.seq-1;
             if (prev)
               prev.dn = section.seq;
           }
-          section = scroll.conflict.get(cfid).mem_map.get_section(min);
-          if (section)
+          if (section = scroll.get_section(cfid, min))
             min = section.seq+section.size;
           mem_iter = db_prev = null;
         }
@@ -193,8 +192,7 @@ export default class Index {
         }
         if (prev)
           prev.dn = min;
-        max = min-1;
-        min = _min;
+        [min, max] = [_min, min-1]
         db_prev = prev;
         prev = db_iter = null;
         if (max<min)

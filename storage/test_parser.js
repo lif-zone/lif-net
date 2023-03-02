@@ -113,6 +113,7 @@ E.parse_get_next = function(curr){
 function replace_macro_vars(s, vars){
   for (let v in vars)
     s = s.replace(new RegExp('\\$'+v+'\\b', 'g'), vars[v]);
+  assert(!/\$[a-zA-Z]/.test(s), 'missing $ vars '+s);
   return s;
 }
 

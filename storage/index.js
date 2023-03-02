@@ -159,10 +159,7 @@ export default class Index {
             if (db_prev)
               curr.up = db_prev.seq;
           }
-          if (prev)
-            max = prev.dn-1;
-          if (curr)
-            min = curr.up+1;
+          [min, max] = [curr ? curr.up+1 : min, prev ? prev.dn-1 : max];
           if (section = scroll.get_section(cfid, max)){
             max = section.seq-1;
             if (prev)

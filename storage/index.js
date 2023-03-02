@@ -134,66 +134,67 @@ export default class Index {
     let co = scroll.conflict.get(cfid), _max, _min;
     _min = min = min===undefined ? co.parent ? co.parent.seq+1 : 0 : min;
     _max = max = max===undefined ? co.top.seq : max;
-    let iter = {}, mem_iter, db_iter, prev, db_prev, section, curr;
+    let iter = {}, mem_iter, db_iter, prev, db_prev, section;
     let db_prev_max;
     const next_mem_iter = ()=>{
-      if (!db_iter){
-        mem_iter = mem_iter ? mem_iter.next() :
-          _this.find_mem_iter(key, {min, max, dir});
-        curr = mem_iter.curr;
-        if (db_prev){
-          db_prev.dn = curr ? curr.seq : min;
-          if (curr)
-            curr.up = db_prev.seq;
-          db_prev = null;
-        } else if (db_prev_max!==undefined){
-          if (curr)
-            curr.up = db_prev_max;
-          db_prev_max = undefined;
-        }
-        if (curr){
-          if (prev && prev.dn > curr.up+1); // XXX: check get_section
-          // XXX: do we need to check start of section of max?
-          else if (!prev && curr.up<max && !scroll.get_section(cfid, max));
-          else {
-            if (prev){
-              prev.dn = curr.seq;
-              curr.up = prev.seq;
-            }
-            iter.curr = prev = curr;
-            return true;
-          }
-        }
-        [min, max] = [curr ? curr.up+1 : min, prev ? prev.dn-1 : max];
-        if (section = scroll.get_section(cfid, max)){
-          max = section.seq-1;
-          if (prev)
-            prev.dn = section.seq;
-        }
-        if (section = scroll.get_section(cfid, min))
-          min = section.seq+section.size;
-        mem_iter = null;
+      if (db_iter)
+        return;
+      mem_iter = mem_iter ? mem_iter.next() :
+        _this.find_mem_iter(key, {min, max, dir});
+      let curr = mem_iter.curr;
+      if (db_prev){
+        db_prev.dn = curr ? curr.seq : min;
+        if (curr)
+          curr.up = db_prev.seq;
+        db_prev = null;
+      } else if (db_prev_max!==undefined){
+        if (curr)
+          curr.up = db_prev_max;
+        db_prev_max = undefined;
       }
+      if (curr){
+        if (prev && prev.dn > curr.up+1); // XXX: check get_section
+        // XXX: do we need to check start of section of max?
+        else if (!prev && curr.up<max && !scroll.get_section(cfid, max));
+        else {
+          if (prev){
+            prev.dn = curr.seq;
+            curr.up = prev.seq;
+          }
+          iter.curr = prev = curr;
+          return true;
+        }
+      }
+      [min, max] = [curr ? curr.up+1 : min, prev ? prev.dn-1 : max];
+      if (section = scroll.get_section(cfid, max)){
+        max = section.seq-1;
+        if (prev)
+          prev.dn = section.seq;
+      }
+      if (section = scroll.get_section(cfid, min))
+        min = section.seq+section.size;
+      mem_iter = null;
     };
     const next_db_iter = ()=>etask(function*next_db_iter(){
+      assert(!mem_iter, 'mem_iter did not finish');
       yield scroll.flush(); // XXX mv to other place and only once
       db_iter = db_iter ? yield db_iter.next() :
         yield _this.find_db_iter(key, {min, max, dir});
-      if (curr = db_iter.curr){
-        let seq = curr.seq, node = {key, seq, dn: seq, up: max};
-        node.up = prev ? prev.seq : max;
+      if (!db_iter.curr){
         if (prev)
-          [node.up, prev.dn] = [prev.seq, seq];
-        _this.avl.insert(prev = node);
-        iter.curr = curr;
-        return true;
+          [db_prev, prev.dn] = [prev, min];
+        else
+          db_prev_max = max;
+        [min, max] = [_min, min-1];
+        prev = db_iter = null;
+        return;
       }
+      let seq = db_iter.curr.seq;
+      let curr = {key, seq, dn: seq, up: prev ? prev.seq : max};
       if (prev)
-        [db_prev, prev.dn] = [prev, min];
-      else
-        db_prev_max = max;
-      [min, max] = [_min, min-1];
-      prev = db_iter = null;
+        prev.dn = seq;
+      prev = iter.curr = _this.avl.insert(curr).key;
+      return true;
     });
     iter.next = ()=>{
       if (next_mem_iter())

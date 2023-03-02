@@ -182,8 +182,6 @@ export default class Index {
         [min, max] = [_min, min-1];
         db_prev = prev;
         prev = db_iter = null;
-        if (max<min)
-          break;
       }
     });
     return iter.next();

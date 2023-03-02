@@ -128,36 +128,31 @@ export default class Index {
     return iter;
   }); }
   find_iter(key, opt={}){
-    let {min, max, dir} = opt, {cfid, scroll} = this;
-    let _max, _min = min = min===undefined ? 0 : min; // XXX: use conflict min
-    _max = max = max===undefined ? scroll.conflict.get(cfid).top.seq : max;
-    let iter = {step: 'mem'};
-    let mem_iter, db_iter, prev, db_prev, section, curr;
+    let _this = this, {min, max, dir} = opt, {cfid, scroll} = this;
     if (!scroll.storage)
       return this.find_mem_iter(key, {min, max, dir});
-    iter.next = ()=>etask({_: this}, function*index_find_iter_next(){
-      let _this = this._;
-      while (true){ // XXX: rm loop
+    let _max, _min = min = min===undefined ? 0 : min; // XXX: use conflict min
+    _max = max = max===undefined ? scroll.conflict.get(cfid).top.seq : max;
+    let iter = {}, mem_iter, db_iter, prev, db_prev, section, curr;
+    iter.next = ()=>etask(function*index_find_iter_next(){
+      while (true){ // XXX: rm loop and optimize not to use etask if just mem
         if (!db_iter){
           mem_iter = mem_iter ? mem_iter.next() :
             _this.find_mem_iter(key, {min, max, dir});
           curr = mem_iter.curr;
-          if (db_prev)
+          if (db_prev){
             db_prev.dn = curr ? curr.seq : min;
+            if (curr)
+              curr.up = db_prev.seq;
+            db_prev = null;
+          }
           if (curr){
             let seq = curr.seq;
             if (prev && prev.dn > seq); // XXX: check get_section
             // XXX: do we need to check start of section of max?
             else if (!prev && curr.up<max && !scroll.get_section(cfid, max));
-            else {
-              prev = curr;
-              if (db_prev)
-                curr.up = db_prev.seq;
-              db_prev = null;
-              return iter_ret(iter, curr);
-            }
-            if (db_prev)
-              curr.up = db_prev.seq;
+            else
+              return iter_ret(iter, prev = curr);
           }
           [min, max] = [curr ? curr.up+1 : min, prev ? prev.dn-1 : max];
           if (section = scroll.get_section(cfid, max)){
@@ -167,10 +162,10 @@ export default class Index {
           }
           if (section = scroll.get_section(cfid, min))
             min = section.seq+section.size;
-          mem_iter = db_prev = null;
+          mem_iter = null;
         }
         if (max<min)
-          break;
+          return iter_ret(iter);
         yield scroll.flush(); // mv to other place and only once
         db_iter = db_iter ? yield db_iter.next() :
           yield _this.find_db_iter(key, {min, max, dir});
@@ -190,7 +185,6 @@ export default class Index {
         if (max<min)
           break;
       }
-      return iter_ret(iter);
     });
     return iter.next();
   }

@@ -136,65 +136,80 @@ export default class Index {
     _max = max = max===undefined ? co.top.seq : max;
     let iter = {}, mem_iter, db_iter, prev, db_prev, section, curr;
     let db_prev_max;
-    iter.next = ()=>etask(function*index_find_iter_next(){
-      while (true){ // XXX: rm loop and optimize not to use etask if just mem
-        if (!db_iter){
-          mem_iter = mem_iter ? mem_iter.next() :
-            _this.find_mem_iter(key, {min, max, dir});
-          curr = mem_iter.curr;
-          if (db_prev){
-            db_prev.dn = curr ? curr.seq : min;
-            if (curr)
-              curr.up = db_prev.seq;
-            db_prev = null;
-          } else if (db_prev_max!==undefined){
-            if (curr)
-              curr.up = db_prev_max;
-            db_prev_max = undefined;
-          }
-          if (curr){
-            if (prev && prev.dn > curr.up+1); // XXX: check get_section
-            // XXX: do we need to check start of section of max?
-            else if (!prev && curr.up<max && !scroll.get_section(cfid, max));
-            else {
-              if (prev){
-                prev.dn = curr.seq;
-                curr.up = prev.seq;
-              }
-              return iter_ret(iter, prev = curr);
+    const next_mem_iter = ()=>{
+      if (!db_iter){
+        mem_iter = mem_iter ? mem_iter.next() :
+          _this.find_mem_iter(key, {min, max, dir});
+        curr = mem_iter.curr;
+        if (db_prev){
+          db_prev.dn = curr ? curr.seq : min;
+          if (curr)
+            curr.up = db_prev.seq;
+          db_prev = null;
+        } else if (db_prev_max!==undefined){
+          if (curr)
+            curr.up = db_prev_max;
+          db_prev_max = undefined;
+        }
+        if (curr){
+          if (prev && prev.dn > curr.up+1); // XXX: check get_section
+          // XXX: do we need to check start of section of max?
+          else if (!prev && curr.up<max && !scroll.get_section(cfid, max));
+          else {
+            if (prev){
+              prev.dn = curr.seq;
+              curr.up = prev.seq;
             }
+            iter.curr = prev = curr;
+            return true;
           }
-          [min, max] = [curr ? curr.up+1 : min, prev ? prev.dn-1 : max];
-          if (section = scroll.get_section(cfid, max)){
-            max = section.seq-1;
-            if (prev)
-              prev.dn = section.seq;
-          }
-          if (section = scroll.get_section(cfid, min))
-            min = section.seq+section.size;
-          mem_iter = null;
         }
-        if (max<min)
-          return iter_ret(iter);
-        yield scroll.flush(); // XXX mv to other place and only once
-        db_iter = db_iter ? yield db_iter.next() :
-          yield _this.find_db_iter(key, {min, max, dir});
-        if (curr = db_iter.curr){
-          let seq = curr.seq, node = {key, seq, dn: seq, up: max};
-          node.up = prev ? prev.seq : max;
+        [min, max] = [curr ? curr.up+1 : min, prev ? prev.dn-1 : max];
+        if (section = scroll.get_section(cfid, max)){
+          max = section.seq-1;
           if (prev)
-            [node.up, prev.dn] = [prev.seq, seq];
-          _this.avl.insert(prev = node);
-          return iter_ret(iter, curr);
+            prev.dn = section.seq;
         }
-        if (prev)
-          [db_prev, prev.dn] = [prev, min];
-        else
-          db_prev_max = max;
-        [min, max] = [_min, min-1];
-        prev = db_iter = null;
+        if (section = scroll.get_section(cfid, min))
+          min = section.seq+section.size;
+        mem_iter = null;
       }
+    };
+    const next_db_iter = ()=>etask(function*next_db_iter(){
+      yield scroll.flush(); // XXX mv to other place and only once
+      db_iter = db_iter ? yield db_iter.next() :
+        yield _this.find_db_iter(key, {min, max, dir});
+      if (curr = db_iter.curr){
+        let seq = curr.seq, node = {key, seq, dn: seq, up: max};
+        node.up = prev ? prev.seq : max;
+        if (prev)
+          [node.up, prev.dn] = [prev.seq, seq];
+        _this.avl.insert(prev = node);
+        iter.curr = curr;
+        return true;
+      }
+      if (prev)
+        [db_prev, prev.dn] = [prev, min];
+      else
+        db_prev_max = max;
+      [min, max] = [_min, min-1];
+      prev = db_iter = null;
     });
+    iter.next = ()=>{
+      if (next_mem_iter())
+        return iter;
+      if (max<min)
+        return iter_ret(iter);
+      return etask(function*index_find_iter_next(){
+        while (max>=min){ // eslint-disable-line no-unmodified-loop-condition
+          if (yield next_db_iter())
+            return iter;
+          if (next_mem_iter())
+            return iter;
+        }
+        return iter_ret(iter);
+      });
+    };
     return iter.next();
   }
 }

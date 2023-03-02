@@ -144,7 +144,7 @@ export default class Index {
           curr = mem_iter.curr;
           if (db_prev)
             db_prev.dn = curr ? curr.seq : min;
-          if (mem_iter.curr){
+          if (curr){
             let seq = curr.seq;
             if (prev && prev.dn > seq); // XXX: check get_section
             // XXX: do we need to check start of section of max?

@@ -2873,9 +2873,16 @@ describe('scroll', ()=>{
           Soul.db_copy(s.soul)
           S..#(db_query_index index index_table) Soul.S.scroll(s..M0 db)
           #(index_table={id:0 cfid:0 bseqb:null name:path})`;
-        let q = (min, max, n)=>max===undefined ?
-          'index,rev,key==0_/arik_'+min : '[index,rev,0_/arik_'+min+
-          '<=key<=0_/arik_'+max+' next'.repeat(n||0)+']';
+        let t_init9 = `s..scroll(index:path db) $$a(id:0 key:/arik seq)
+          $$n(id:0 key:/niko seq) $$m(id:0 key:/arik seq) decl({path:$1})
+          $$(${'/arik /niko '.repeat(4)}) decl({path:/arik})
+          Soul.db_copy(s.soul)
+          S..#(db_query_index index index_table) Soul.S.scroll(s..M0 db)
+          #(index_table={id:0 cfid:0 bseqb:null name:path})`;
+        let _q = (key, min, max, n)=>max===undefined ?
+          'index,rev,key==0_'+key+'_'+min : '[index,rev,0_'+key+'_'+min+
+          '<=key<=0_'+key+'_'+max+' next'.repeat(n||0)+']';
+        let q = (min, max, n)=>_q('/arik', min, max, n);
         // XXX: make sure index of 0 is alwasy in mem
         t('no_mem_find_all', `${t_init}
           // 0 1 2 3 4 5 6 7 8
@@ -2939,9 +2946,9 @@ describe('scroll', ()=>{
         if (0) // XXX: WIP
         t('not_found', `${t_init}
           // 0 1 2 3 4 5 6 7 8 9
-          //                 q   find(key:/mike n=1)
-          //                 q m decl(path:/mike)
-          //                 q m find(key:/mike n=1)
+          // ----------------q   find(key:/mike n=1)
+          // ----------------q m decl(path:/mike)
+          // ----------------q m find(key:/mike n=1)
           //                   m find(key:/mike n=2)
           ##index_find(index:0 key:/mike count:1)=[]
             #(db_query=[index,rev,0_/mike_1<=key<=0_/mike_8]
@@ -2949,8 +2956,7 @@ describe('scroll', ()=>{
           decl({path:/mike}) #index={$m:9}
           ##index_find(index:0 key:/mike count:1)=9 #
           ##index_find(index:0 key:/mike count:2)=9
-            #index=[!{$m8 query} {$m9 dn:0}]
-        `);
+            #index=[!{$m8 query} {$m9 dn:0}]`);
         let setup = `${t_init}
           // 0 1 2 3 4 5 6 7 8
           //               a-- find(seq<=8 n=1)
@@ -2997,6 +3003,87 @@ describe('scroll', ()=>{
           ##index_find(index:0 key:/arik)=[7 5 3 1]
           #(db_query=${q(3, 5, 2)} index=[{$a:1 dn:0 up:3}
             {$a:3 dn:1 up:5} {$a:5 dn:3 up:7} {$a:7 dn:5 up:8}])`);
+        t('zzz1_dir_dn', `${t_init9}
+          //  0 1 2 3 4 5 6 7 8 9
+          //                  n-q find(max:9 n=1)
+          //              n---n-q find(max:8 n=2)
+          ##index_find(index:0 key:/niko max:9 count:1)=8
+            #(db_query=${_q('/niko', 1, 9)} index={$n:8 up:9})
+          ##index_find(index:0 key:/niko max:9 count:1)=8 #
+          ##index_find(index:0 key:/niko max:8 count:2)=[8 6]
+            #(db_query=${_q('/niko', 1, 7)}
+            index=[{$n:6 up:8} {$n:8 dn:6 up:9}])
+          ##index_find(index:0 key:/niko max:8 count:2)=[8 6] #`);
+        t('zzz2_dir_dn', `${t_init9}
+          //  0 1 2 3 4 5 6 7 8 9
+          //                  n-q find(max:9 n=1)
+          //          n---n---n-q find(max:7 n=2)
+          ##index_find(index:0 key:/niko max:9 count:1)=8
+            #(db_query=${_q('/niko', 1, 9)} index={$n:8 up:9})
+          ##index_find(index:0 key:/niko max:9 count:1)=8 #
+          ##index_find(index:0 key:/niko max:7 count:2)=[6 4]
+            #(db_query=${_q('/niko', 1, 7, 1)}
+            index=[{$n:4 up:6} {$n:6 dn:4 up:7} {$n:8 dn:8 up:9}])
+          ##index_find(index:0 key:/niko max:7 count:2)=[6 4] #`);
+        t('zzz3_dir_dn', `${t_init9}
+          //  0 1 2 3 4 5 6 7 8 9
+          //                  n-q find(max:9 n=1)
+          //          n---n   n-q find(max:6 n=2)
+          //          n---n---n-q find(max:8 n=2)
+          ##index_find(index:0 key:/niko max:9 count:1)=8
+            #(db_query=${_q('/niko', 1, 9)} index={$n:8 up:9})
+          ##index_find(index:0 key:/niko max:9 count:1)=8 #
+          ##index_find(index:0 key:/niko max:6 count:2)=[6 4]
+            #(db_query=${_q('/niko', 1, 6, 1)} index=[{$n:4 up:6} {$n:6 dn:4}])
+          ##index_find(index:0 key:/niko max:6 count:2)=[6 4] #
+          ##index_find(index:0 key:/niko max:8 count:2)=[8 6]
+            #(db_query=${_q('/niko', 7)}
+            index=[{$n:6 dn:4 up:8} {$n:8 dn:6 up:9}])
+          ##index_find(index:0 key:/niko max:8 count:2)=[8 6] #`);
+        t('zzz4_dir_dn', `${t_init9}
+          //  0 1 2 3 4 5 6 7 8 9
+          //                  n-q find(max:9 n=1)
+          //          n---n   n-q find(max:6 n=2)
+          //      n---n---n---n-q find(max:7 n=3)
+          //      n---n---n---n-q find(max:8 n=3)
+          ##index_find(index:0 key:/niko max:9 count:1)=8
+            #(db_query=${_q('/niko', 1, 9)} index={$n:8 up:9})
+          ##index_find(index:0 key:/niko max:6 count:2)=[6 4]
+            #(db_query=${_q('/niko', 1, 6, 1)} index=[{$n:4 up:6} {$n:6 dn:4}])
+          ##index_find(index:0 key:/niko max:7 count:3)=[6 4 2]
+            #(db_query=[index,rev,key==0_/niko_7
+            index,rev,0_/niko_1<=key<=0_/niko_3]
+            index=[{$n:2 up:4} {$n:4 dn:2 up:6} {$n:6 dn:4 up:7} {$n:8 up:9}])
+          ##index_find(index:0 key:/niko max:7 count:3)=[6 4 2] #
+          ##index_find(index:0 key:/niko max:8 count:3)=[8 6 4] #`);
+        t('zzz5_dir_dn', `${t_init9}
+          //  0 1 2 3 4 5 6 7 8 9
+          //                  n-q find(max:9 n=1)
+          //          n---n   n-q find(max:6 n=2)
+          //  ----n   n---n   n-q find(max:2)
+          //  ----n---n---n---n-q find(max:9)
+          ##index_find(index:0 key:/niko max:9 count:1)=8
+            #(db_query=${_q('/niko', 1, 9)} index={$n:8 up:9})
+          ##index_find(index:0 key:/niko max:6 count:2)=[6 4]
+            #(db_query=${_q('/niko', 1, 6, 1)} index=[{$n:4 up:6} {$n:6 dn:4}])
+          ##index_find(index:0 key:/niko max:2)=2
+            #(db_query=${_q('/niko', 1, 2, 1)} index={$n:2 dn:0})
+          ##index_find(index:0 key:/niko max:2)=2 #
+          ##index_find(index:0 key:/niko max:9)=[8 6 4 2]
+            #(db_query=[index,rev,key==0_/niko_7 index,rev,key==0_/niko_3]
+            index=[{$n:2 dn:0 up:4} {$n:4 dn:2 up:6} {$n:6 dn:4 up:8}
+            {$n:8 dn:6 up:9}])
+          ##index_find(index:0 key:/niko max:9)=[8 6 4 2] #`);
+        t('zzz6_dir_dn', `${t_init9}
+          //  0 1 2 3 4 5 6 7 8 9
+          //          n           find(max:4 n=1)
+          //          n-q         find(max:5 n=1)
+          ##index_find(index:0 key:/niko max:4 count:1)=4
+          #(db_query=${_q('/niko', 1, 4)} index={$n:4})
+          ##index_find(index:0 key:/niko max:4 count:1)=4 #
+          ##index_find(index:0 key:/niko max:5 count:1)=4
+          #(db_query=${_q('/niko', 5)} index={$n:4 up:5})
+          ##index_find(index:0 key:/niko max:5 count:1)=4 #`);
       });
       if (0) // XXX: obsolete, rm
       describe('xxx_db', ()=>{

@@ -134,6 +134,7 @@ export default class Index {
     let _max, _min = min = min===undefined ? 0 : min; // XXX: use conflict min
     _max = max = max===undefined ? scroll.conflict.get(cfid).top.seq : max;
     let iter = {}, mem_iter, db_iter, prev, db_prev, section, curr;
+    let db_prev_max;
     iter.next = ()=>etask(function*index_find_iter_next(){
       while (true){ // XXX: rm loop and optimize not to use etask if just mem
         if (!db_iter){
@@ -145,10 +146,14 @@ export default class Index {
             if (curr)
               curr.up = db_prev.seq;
             db_prev = null;
+          } else if (db_prev_max!==undefined){
+            if (curr)
+              curr.up = db_prev_max;
+            db_prev_max = undefined;
           }
           if (curr){
             let seq = curr.seq;
-            if (prev && prev.dn > seq); // XXX: check get_section
+            if (prev && prev.dn > curr.up+1); // XXX: check get_section
             // XXX: do we need to check start of section of max?
             else if (!prev && curr.up<max && !scroll.get_section(cfid, max));
             else
@@ -166,7 +171,7 @@ export default class Index {
         }
         if (max<min)
           return iter_ret(iter);
-        yield scroll.flush(); // mv to other place and only once
+        yield scroll.flush(); // XXX mv to other place and only once
         db_iter = db_iter ? yield db_iter.next() :
           yield _this.find_db_iter(key, {min, max, dir});
         if (curr = db_iter.curr){
@@ -178,9 +183,10 @@ export default class Index {
           return iter_ret(iter, curr);
         }
         if (prev)
-          prev.dn = min;
+          [db_prev, prev.dn] = [prev, min];
+        else
+          db_prev_max = max;
         [min, max] = [_min, min-1];
-        db_prev = prev;
         prev = db_iter = null;
       }
     });

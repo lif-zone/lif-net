@@ -98,15 +98,12 @@ export default class Index {
         node = Q.pop();
         iter.curr = node.key;
         node = dir=='up' ? node.right : node.left;
-        if (dir=='up' ? cmp(iter.curr, nmax)>0 : cmp(iter.curr, nmin)<0){
-          iter.curr = null;
-          return iter;
-        }
+        if (dir=='up' ? cmp(iter.curr, nmax)>0 : cmp(iter.curr, nmin)<0)
+          return iter_ret(iter);
         if (dir=='up' ? cmp(iter.curr, nmin)>=0 : cmp(iter.curr, nmax)<=0)
           return iter;
       }
-      iter.curr = null;
-      return iter;
+      return iter_ret(iter);
     };
     return iter.next();
   }
@@ -126,8 +123,7 @@ export default class Index {
       assert(cursor, 'db iter already finished');
       cursor = yield cursor.next();
       iter.i++;
-      iter.curr = cursor?.value;
-      return iter;
+      return iter_ret(iter, cursor?.value);
     });
     return iter;
   }); }
@@ -136,7 +132,7 @@ export default class Index {
     let _max, _min = min = min===undefined ? 0 : min; // XXX: use conflict min
     _max = max = max===undefined ? scroll.conflict.get(cfid).top.seq : max;
     let iter = {step: 'mem'};
-    let mem_iter, db_iter, prev, db_prev, section;
+    let mem_iter, db_iter, prev, db_prev, section, curr;
     if (!scroll.storage)
       return this.find_mem_iter(key, {min, max, dir});
     iter.next = ()=>etask({_: this}, function*index_find_iter_next(){
@@ -145,19 +141,20 @@ export default class Index {
         if (!db_iter){
           mem_iter = mem_iter ? mem_iter.next() :
             _this.find_mem_iter(key, {min, max, dir});
-          let curr = mem_iter.curr;
+          curr = mem_iter.curr;
           if (db_prev)
             db_prev.dn = curr ? curr.seq : min;
           if (mem_iter.curr){
             let seq = curr.seq;
             if (prev && prev.dn > seq); // XXX: check get_section
+            // XXX: do we need to check start of section of max?
             else if (!prev && curr.up<max && !scroll.get_section(cfid, max));
-            else { //if (prev && curr.up <= max){ // XXX: logic is correct?
-              prev = iter.curr = curr;
+            else {
+              prev = curr;
               if (db_prev)
                 curr.up = db_prev.seq;
               db_prev = null;
-              return iter;
+              return iter_ret(iter, curr);
             }
             if (db_prev)
               curr.up = db_prev.seq;
@@ -180,25 +177,23 @@ export default class Index {
         yield scroll.flush(); // mv to other place and only once
         db_iter = db_iter ? yield db_iter.next() :
           yield _this.find_db_iter(key, {min, max, dir});
-        let curr = db_iter.curr;
-        if (curr){
-          let seq = curr.seq, node = {key, seq, dn: seq, up: seq};
+        if (curr = db_iter.curr){
+          let seq = curr.seq, node = {key, seq, dn: seq, up: max};
           node.up = prev ? prev.seq : max;
           if (prev)
-            prev.dn = seq;
+            [node.up, prev.dn] = [prev.seq, seq];
           _this.avl.insert(prev = node);
-          iter.curr = curr;
-          return iter;
+          return iter_ret(iter, curr);
         }
         if (prev)
           prev.dn = min;
-        [min, max] = [_min, min-1]
+        [min, max] = [_min, min-1];
         db_prev = prev;
         prev = db_iter = null;
         if (max<min)
           break;
       }
-      return iter_done(iter);
+      return iter_ret(iter);
     });
     return iter.next();
   }
@@ -345,10 +340,8 @@ class Index_table {
       if (iter.iter){
         if (iter.iter.curr){
           yield iter.iter.next();
-          if (iter.iter.curr){
-            iter.curr = iter.iter.curr;
-            return iter;
-          }
+          if (iter.iter.curr)
+            return iter_ret(iter, iter.iter.curr);
         }
         iter.iter = null;
       }
@@ -364,13 +357,10 @@ class Index_table {
           if (!iter.iter.curr)
             continue;
           curr = bseqs.pop();
-          iter.curr = iter.iter.curr;
-          return iter;
+          return iter_ret(iter, iter.iter.curr);
         }
-        if (!conflicts.length){
-          iter.curr = null;
-          return iter;
-        }
+        if (!conflicts.length)
+          return iter_ret(iter);
         let co = conflicts.pop(), co_child = conflicts[conflicts.length-1];
         cfid = co.cfid;
         max = _max===undefined ? co_child?.parent.seq :
@@ -395,13 +385,10 @@ class Index_table {
         if (!iter.iter.curr)
           continue;
         curr = Branch_table.bseq_parent(curr);
-        iter.curr = iter.iter.curr;
-        return iter;
+        return iter_ret(iter, iter.iter.curr);
       }
-      if (!cfid){
-        iter.curr = null;
-        return iter;
-      }
+      if (!cfid)
+        return iter_ret(iter);
       let co = scroll.conflict.get(cfid);
       cfid = co.parent.cfid;
       max = max===undefined ? co.parent.seq : Math.min(max, co.parent.seq);
@@ -413,8 +400,8 @@ class Index_table {
   }); }
 }
 
-function iter_done(iter){
-  iter.curr = null;
+function iter_ret(iter, val){
+  iter.curr = val||null;
   return iter;
 }
 

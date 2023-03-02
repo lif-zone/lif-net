@@ -2863,8 +2863,14 @@ describe('scroll', ()=>{
       });
       describe('db', ()=>{
         let t_init = `s..scroll(index:path db) $$a(id:0 key:/arik seq)
-          $$n(id:0 key:/niko seq) $$m(id:0 key:/arik seq)
-          decl({path:$1}) $$(${'/arik /niko '.repeat(4)}) Soul.db_copy(s.soul)
+          $$n(id:0 key:/niko seq) $$m(id:0 key:/arik seq) decl({path:$1})
+          $$(${'/arik /niko '.repeat(4)}) Soul.db_copy(s.soul)
+          S..#(db_query_index index index_table) Soul.S.scroll(s..M0 db)
+          #(index_table={id:0 cfid:0 bseqb:null name:path})`;
+        let t_init3 = `s..scroll(index:path db) $$a(id:0 key:/arik seq)
+          $$n(id:0 key:/niko seq) $$m(id:0 key:/arik seq) decl({path:$1})
+          $$(${'/arik /arik /arik /niko /niko /niko '.repeat(4)})
+          Soul.db_copy(s.soul)
           S..#(db_query_index index index_table) Soul.S.scroll(s..M0 db)
           #(index_table={id:0 cfid:0 bseqb:null name:path})`;
         let q = (min, max, n)=>max===undefined ?
@@ -2896,7 +2902,7 @@ describe('scroll', ()=>{
             index=[{$a:1 dn:1 up:3} {$a:3 dn:1 up:5}])
           ##index_find(index:0 key:/arik)=[7 5 3 1]
             #index={$a:1 dn:0 up:3}`);
-        t('no_mem_at_start_find_all', `${t_init}
+        t('no_mem_at_end_find_all', `${t_init}
           // 0 1 2 3 4 5 6 7 8
           //           a       find(seq<=5 n=1)
           //       a---a---a-- find(n=3)
@@ -2906,6 +2912,30 @@ describe('scroll', ()=>{
             #(db_query=[index,rev,0_/arik_6<=key<=0_/arik_8 next
             index,rev,0_/arik_1<=key<=0_/arik_4]
             index=[{$a:3 up:5} {$a:5 dn:3 up:7} {$a:7 dn:5 up:8}])`);
+        t('multi_no_mem_at_end_find_all', `${t_init}
+          // 0 1 2 3 4 5 6 7 8
+          //       a           find(seq<=3 n=1)
+          //   a---a---a---a-- find(n=4)
+          ##index_find(index:0 key:/arik max:3 count:1)=3 #(db_query=${q(1, 3)}
+            index={$a:3})
+          ##index_find(index:0 key:/arik count:4)=[7 5 3 1]
+            #(db_query=[index,rev,0_/arik_4<=key<=0_/arik_8 next next
+            index,rev,0_/arik_1<=key<=0_/arik_2]
+            index=[{$a:1 up:3} {$a:3 dn:1 up:5} {$a:5 dn:3 up:7}
+            {$a:7 dn:5 up:8}])`);
+          t('x3_no_mem_at_end_find_all', `${t_init3}
+          // 0 1 2 3 4 5 6 7 8 x3
+          //           a       find(seq<=15 n=3)
+          //       a---a---a-- find(n=9)
+          ##index_find(index:0 key:/arik max:15 count:3)=[15 14 13]
+            #(db_query=${q(1, 15, 2)}
+            index=[{$a:13 up:14} {$a:14 dn:13 up:15} {$a:15 dn:14}])
+          ##index_find(index:0 key:/arik count:9)=[21 20 19 15 14 13 9 8 7]
+            #(db_query=[index,rev,0_/arik_16<=key<=0_/arik_24 next next next
+            index,rev,0_/arik_1<=key<=0_/arik_12 next next]
+            index=[{$a:7 up:8} {$a:8 dn:7 up:9} {$a:9 dn:8 up:13}
+            {$a:13 up:14 dn:9} {$a:14 dn:13 up:15} {$a:15 dn:14 up:19}
+            {$a:19 dn:15 up:20} {$a:20 dn:19 up:21} {$a:21 dn:20 up:24}])`);
         if (0) // XXX: WIP
         t('not_found', `${t_init}
           // 0 1 2 3 4 5 6 7 8 9

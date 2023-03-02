@@ -3125,19 +3125,20 @@ describe('scroll', ()=>{
             #(db_query=${_q('/niko', 4, 7)} index={$n:6 up:7})
           ##index_find(index:0 key:/niko max:5 count:1)=4
             #(db_query=${_q('/niko', 4, 5)} index={$n:4 up:5})`);
+        // XXX: need more partial tests
         t('zzz_partial_scroll_find', `${t_init9}
           S2..#(db_query_index index) Soul2.S2.scroll(s..M0 db) #index=[]
           tput(0 1                 ) #index={$a:1}
           tput(0 1 2               ) #index={$n:2}
           tput(0 1 2 3             ) #index={$a:3}
           tput(0 1 2 3 4_5 6       ) #index={$n:6}
+          // XXX: there is some mess with up/dn
           ##index_find(index:0 key:/niko max:9)=[6 2]
             #(index=[{$n:2 dn:0 up:6} {$n:6 dn:2 up:9}]
             db_query=[index,rev,0_/niko_7<=key<=0_/niko_9
               index,rev,0_/niko_4<=key<=0_/niko_5])
           tput(0 1 2 3 4 5) #index={$a:5}
           tput(0 1 2 3 4) #index={$n:4}
-          // XXX: there is some mess with up/dn
           ##index_find(index:0 key:/niko max:9)=[6 4 2]
             #index=[{$n:2 dn:0 up:4} {$n:4 dn:2 up:6} {$n:6 dn:4 up:9}]
           tput(0 1 2 3 4 5 6 7     ) #index={$a:7}
@@ -3146,6 +3147,7 @@ describe('scroll', ()=>{
           ##index_find(index:0 key:/niko max:9)=[8 6 4 2]
             #index=[{$n:6 dn:4 up:8} {$n:8 dn:6}]
           ##index_find(index:0 key:/niko max:9)=[8 6 4 2] #`);
+        // XXX: need more conflict tests
         t('db_conflict', `s.scroll(index:path) s.decl({path:/f})
           s.decl({path:/f}) s1.clone(s.M1) s1.decl({path:/f})
           S..scroll(s..M0 db) tput(0 1  ) tput(0 1 2) tput(0 1 c)
@@ -3162,7 +3164,6 @@ describe('scroll', ()=>{
           ##index_find(name:path key:/f cfid:0 max:2 bseq:4)=[2 1] #
           ##index_find(name:path key:/f cfid:1 max:2 bseq:4)=[2 1] #
           ##index_find(name:path key:/f cfid:1 max:2 bseq:4)=[2 1] #`);
-          // XXX: need more advanced conflict tests
       });
       if (0) // XXX: obsolete, rm
       describe('xxx_db', ()=>{

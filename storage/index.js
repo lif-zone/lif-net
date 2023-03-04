@@ -136,18 +136,16 @@ export default class Index {
     _max = max = max===undefined ? co.top.seq : max;
     let iter = {}, mem_iter, db_iter, prev, db_prev, db_prev_max;
     const next_mem_iter = ()=>{
-      assert(!db_iter, 'db_iter did not finish');
+      if (db_iter)
+        return;
       mem_iter = mem_iter ? mem_iter.next() :
         _this.find_mem_iter(key, {min, max, dir});
       let curr = mem_iter.curr, section;
-      if (db_prev){
-        db_prev.dn = curr ? curr.seq : min;
+      if (db_prev || db_prev_max){
+        if (db_prev)
+          db_prev.dn = curr ? curr.seq : min;
         if (curr)
-          curr.up = db_prev.seq;
-        db_prev = db_prev_max = null;
-      } else if (db_prev_max){
-        if (curr)
-          curr.up = db_prev_max;
+          curr.up = db_prev ? db_prev.seq : db_prev_max;
         db_prev = db_prev_max = null;
       }
       if (curr){
@@ -155,10 +153,8 @@ export default class Index {
         // XXX: do we need to check start of section of max?
         else if (!prev && curr.up<max && !scroll.get_section(cfid, max));
         else {
-          if (prev){
-            prev.dn = curr.seq;
-            curr.up = prev.seq;
-          }
+          if (prev)
+            [prev.dn, curr.up] = [curr.seq, prev.seq];
           iter.curr = prev = curr;
           return true;
         }

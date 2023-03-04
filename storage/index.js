@@ -136,8 +136,7 @@ export default class Index {
     _max = max = max===undefined ? co.top.seq : max;
     let iter = {}, mem_iter, db_iter, prev, db_prev, db_prev_max;
     const next_mem_iter = ()=>{
-      if (db_iter)
-        return;
+      assert(!db_iter, 'db_iter did not finish');
       mem_iter = mem_iter ? mem_iter.next() :
         _this.find_mem_iter(key, {min, max, dir});
       let curr = mem_iter.curr, section;

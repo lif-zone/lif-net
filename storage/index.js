@@ -134,20 +134,15 @@ export default class Index {
     let co = scroll.conflict.get(cfid), _max, _min;
     _min = min = min===undefined ? co.parent ? co.parent.seq+1 : 0 : min;
     _max = max = max===undefined ? co.top.seq : max;
-    let iter = {}, mem_iter, db_iter, prev, db_prev, db_prev_max;
+    let iter = {}, mem_iter, db_iter, prev, db_prev_max;
     const next_mem_iter = ()=>{
       if (db_iter)
         return;
       mem_iter = mem_iter ? mem_iter.next() :
         _this.find_mem_iter(key, {min, max, dir});
       let curr = mem_iter.curr, section;
-      if (db_prev || db_prev_max){
-        if (db_prev)
-          db_prev.dn = curr ? curr.seq : min;
-        if (curr)
-          curr.up = db_prev ? db_prev.seq : db_prev_max;
-        db_prev = db_prev_max = null;
-      }
+      if (db_prev_max && curr)
+        [curr.up, db_prev_max] = [prev ? prev.seq : db_prev_max, 0];
       if (curr){
         if (prev && prev.dn > curr.up+1); // XXX: check get_section
         // XXX: do we need to check start of section of max?
@@ -155,8 +150,7 @@ export default class Index {
         else {
           if (prev)
             [prev.dn, curr.up] = [curr.seq, prev.seq];
-          iter.curr = prev = curr;
-          return true;
+          return iter.curr = prev = curr;
         }
       }
       [min, max] = [curr ? curr.up+1 : min, prev ? prev.dn-1 : max];
@@ -176,17 +170,15 @@ export default class Index {
         yield _this.find_db_iter(key, {min, max, dir});
       if (!db_iter.curr){
         if (prev)
-          [db_prev, prev.dn] = [prev, min];
+          prev.dn = min;
         [min, max, db_prev_max] = [_min, min-1, max];
-        prev = db_iter = null;
-        return;
+        return db_iter = null;
       }
       let seq = db_iter.curr.seq;
       let curr = {key, seq, dn: seq, up: prev ? prev.seq : max};
       if (prev)
         prev.dn = seq;
-      prev = iter.curr = _this.avl.insert(curr).key;
-      return true;
+      return prev = iter.curr = _this.avl.insert(curr).key;
     });
     iter.next = ()=>{
       if (next_mem_iter())

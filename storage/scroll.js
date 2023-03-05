@@ -1254,6 +1254,10 @@ export default class Scroll extends EventEmitterAsync {
   find_iter(key, opt){ return this.index_table?.find_iter(key, opt); }
   get_section(cfid, seq){
     return this.conflict.get(cfid).mem_map.get_section(seq); }
+  is_mem_exists(cfid, min, max){ // XXX: need test
+    let section = this.get_section(cfid, min);
+    return section && section.seq+section.size >= max;
+  }
 }
 
 class Decl extends EventEmitterAsync {

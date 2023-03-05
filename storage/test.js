@@ -2954,20 +2954,32 @@ describe('scroll', function(){
           ##index_find(index:0 dir:up key:/arik)=[1 3 5 7]
             #(db_query=${qup(8)} index={$a:7 dn:5 up:8})
           ##index_find(index:0 dir:up key:/arik)=[1 3 5 7] #`);
-        t('no_mem_at_end_find_all', `${t_init}
+        t('no_mem_at_end_find_all_dn', `${t_init}
           // 0 1 2 3 4 5 6 7 8
-          //           a       find(seq<=5 n=1)
+          // -         a       find(max:5 n=1)
           //       a---a---a-- find(n=3)
           ##index_find(index:0 key:/arik max:5 count:1)=5 #(db_query=${q(1, 5)}
             index={$a:5})
           ##index_find(index:0 key:/arik count:3)=[7 5 3]
             #(db_query=[index,rev,0_/arik_6<=key<=0_/arik_8 next
             index,rev,0_/arik_1<=key<=0_/arik_4]
-            index=[{$a:3 up:5} {$a:5 dn:3 up:7} {$a:7 dn:5 up:8}])`);
-        t('multi_no_mem_at_end_find_all', `${t_init}
+            index=[{$a:3 up:5} {$a:5 dn:3 up:7} {$a:7 dn:5 up:8}])
+            ##index_find(index:0 key:/arik count:3)=[7 5 3] #`);
+        t('no_mem_at_end_find_all_up', `${t_init}
           // 0 1 2 3 4 5 6 7 8
-          //       a           find(seq<=3 n=1)
-          //   a---a---a---a-- find(n=4)
+          // -         a       find(min:5 n=1)
+          // -   --a---a---a   find(min:2 n=3)
+          ##index_find(index:0 dir:up key:/arik min:5 count:1)=5
+          #(db_query=${qup(5, 8)} index={$a:5})
+          ##index_find(index:0 dir:up min:2 key:/arik count:3)=[3 5 7]
+            #(db_query=[index,0_/arik_2<=key<=0_/arik_4 next
+            index,0_/arik_6<=key<=0_/arik_8]
+            index=[{$a:3 dn:2 up:5} {$a:5 dn:3 up:7} {$a:7 dn:5}])
+          ##index_find(index:0 dir:up min:2 key:/arik count:3)=[3 5 7] #`);
+        t('multi_no_mem_at_end_find_all_dn', `${t_init}
+          // 0 1 2 3 4 5 6 7 8
+          // -     a           find(max:3 n=1)
+          // - a---a---a---a-- find(n=4)
           ##index_find(index:0 key:/arik max:3 count:1)=3 #(db_query=${q(1, 3)}
             index={$a:3})
           ##index_find(index:0 key:/arik count:4)=[7 5 3 1]
@@ -2975,7 +2987,18 @@ describe('scroll', function(){
             index,rev,0_/arik_1<=key<=0_/arik_2]
             index=[{$a:1 up:3} {$a:3 dn:1 up:5} {$a:5 dn:3 up:7}
             {$a:7 dn:5 up:8}])`);
-          t('x3_no_mem_at_end_find_all', `${t_init3}
+        t('multi_no_mem_at_end_find_all_up', `${t_init}
+          // 0 1 2 3 4 5 6 7 8
+          // -     a           find(min:3 n=1)
+          // - a---a---a---a-- find(n=4)
+          ##index_find(index:0 dir:up key:/arik min:3 count:1)=3
+            #(db_query=${qup(3, 8)} index={$a:3})
+          ##index_find(index:0 dir:up key:/arik count:4)=[1 3 5 7]
+            #(db_query=[index,0_/arik_1<=key<=0_/arik_2 next
+            index,0_/arik_4<=key<=0_/arik_8 next]
+            index=[{$a:1 dn:0 up:3} {$a:3 dn:1 up:5} {$a:5 dn:3 up:7}
+            {$a:7 dn:5}])`);
+        t('x3_no_mem_at_end_find_all', `${t_init3}
           // 0 1 2 3 4 5 6 7 8 x3
           //           a       find(seq<=15 n=3)
           //       a---a---a-- find(n=9)
@@ -3028,7 +3051,6 @@ describe('scroll', function(){
           //   a n         a-- load(2)
           // --a---a---a---a-- find(seq<=8)
           load_c(2) #index={$n:2}
-          dbg
           ##index_find(index:0 key:/arik)=[7 5 3 1]
           #(db_query=${q(3, 6, 2)} index=[{$a:1 dn:0 up:3}
             {$a:3 dn:1 up:5} {$a:5 dn:3 up:7} {$a:7 dn:5 up:8}])`);

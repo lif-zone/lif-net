@@ -151,9 +151,8 @@ export default class Index {
       }
       if (curr && dir=='up'){
         if (prev && prev.up < curr.dn-1); // XXX: check get_section
-        // XXX: do we need to check start of section of max?
-        // XXX: review logic for dir=='up'
-        else if (!prev && curr.dn>min && !scroll.get_section(cfid, min));
+        else if (!prev && curr.dn>min &&
+          !scroll.is_mem_exists(cfid, min, curr.dn));
         else {
           if (prev)
             [prev.up, curr.dn] = [curr.seq, prev.seq];
@@ -161,8 +160,8 @@ export default class Index {
         }
       } else if (curr){
         if (prev && prev.dn > curr.up+1); // XXX: check get_section
-        // XXX: do we need to check start of section of max?
-        else if (!prev && curr.up<max && !scroll.get_section(cfid, max));
+        else if (!prev && curr.up<max &&
+          !scroll.is_mem_exists(cfid, curr.up, max+1));
         else {
           if (prev)
             [prev.dn, curr.up] = [curr.seq, prev.seq];

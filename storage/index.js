@@ -466,3 +466,5 @@ Index.cmp_func_mem = cmp_func_mem;
 Index.cmp_indexdb = cmp_indexdb;
 Index.cmp_str_num = cmp_str_num;
 Index.cmp_mem = cmp_mem;
+
+// XXX: lock scorll for write during index iteration (check only avl)

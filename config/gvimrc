@@ -1,4 +1,5 @@
 :set lines=40 columns=80
-:set guifont=Monospace\ 16
+:set guifont=Monospace\ 12
 :set clipboard+=unnamedplus
 :set guioptions+=P
+:set guioptions-=T

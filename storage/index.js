@@ -149,23 +149,26 @@ export default class Index {
         else
           [curr.up, db_prev_edge] = [prev ? prev.seq : db_prev_edge, 0];
       }
-      if (curr && dir=='up'){
-        if (prev && prev.up < curr.dn-1);
-        else if (!prev && curr.dn>min &&
-          !scroll.is_mem_exists(cfid, min, curr.dn));
-        else {
-          if (prev)
-            [prev.up, curr.dn] = [curr.seq, prev.seq];
-          return iter.curr = prev = curr;
-        }
-      } else if (curr){
-        if (prev && prev.dn > curr.up+1);
-        else if (!prev && curr.up<max &&
-          !scroll.is_mem_exists(cfid, curr.up, max+1));
-        else {
-          if (prev)
-            [prev.dn, curr.up] = [curr.seq, prev.seq];
-          return iter.curr = prev = curr;
+      if (curr){
+        if (dir=='up'){
+          if (prev && prev.up < curr.dn-1);
+          else if (!prev && curr.dn>min &&
+            !scroll.is_mem_exists(cfid, min, curr.dn+1));
+          else {
+            if (prev)
+              [prev.up, curr.dn] = [curr.seq, prev.seq];
+            return iter.curr = prev = curr;
+          }
+        } else {
+          if (prev && prev.dn > curr.up+1);
+          // XXX: check +1 (doesn't appear in up)
+          else if (!prev && curr.up<max &&
+            !scroll.is_mem_exists(cfid, curr.up, max+1));
+          else {
+            if (prev)
+              [prev.dn, curr.up] = [curr.seq, prev.seq];
+            return iter.curr = prev = curr;
+          }
         }
       }
       if (dir=='up'){

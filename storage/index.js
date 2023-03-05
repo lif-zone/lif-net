@@ -6,21 +6,16 @@ import Branch_table from './branch.js';
 const {bseq_branch} = Branch_table;
 import Tree from 'avl';
 
-/* XXX: design
-scroll header:
-{scroll: {index: ['file', {...}]}}
-
+/* design:
+scroll header: {scroll: {index: ['file', {...}]}}
 indexs table:
 {scfid, indexid, index details?}
 index_details: {key: 'file', index_name: 'file', type: 'string'}
 index name: default - key name
-
 {1, /file1, 10}
 {1, /file1, 9}
-
 {scroll+conflict_selection+branch_selection+specific_index_of_scroll_conflict,
   file_name, seq, bseq}
-
 file: '/arik' --> simple key for index
 dir: file2path(file)
 file2path('/arik') = '/'
@@ -34,11 +29,6 @@ file2path('/arik/x') = '/arik/'
   decl_get_dir(decl){ return file2dir(decl.dir?.slice(-1) : decl.file); }
 {op:add dir:/d/} --> /d --> /
 {op:add file:/d/file}
-
-{indexid, key, seq}
-{indexid, key, seq, val}
-{scroll+conflict_selection+branch_selection+specific_index_of_scroll_conflict,
-  file_name, seq, bseq}
 */
 
 // XXX: need test
@@ -161,7 +151,6 @@ export default class Index {
           }
         } else {
           if (prev && prev.dn > curr.up+1);
-          // XXX: check +1 (doesn't appear in up)
           else if (!prev && curr.up<max &&
             !scroll.is_mem_exists(cfid, curr.up, max+1));
           else {

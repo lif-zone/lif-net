@@ -327,7 +327,8 @@ describe('parser', ()=>{
   // XXX: test invalid parsing
 });
 
-describe('scroll', ()=>{
+describe('scroll', function(){
+  this.timeout(10000); // XXX: db tests are slow
   describe('util', ()=>{
     it('seq_merkel_array_size', ()=>{
       const t = (seq, exp)=>assert.equal(Scroll.seq_merkel_array_size(seq),
@@ -1536,7 +1537,6 @@ describe('scroll', ()=>{
             btc0[1]={branch:b seq:2 bseq:1-1.0 size:2})`);
       });
       describe('db', function(){
-        this.timeout(5000);
         t('no_branch', `s..#(db_btable)
           soul.s.scroll(db) flush #db_btc0[0]={seq:0 bseq:0 size:1}
           decl(1) flush #db_btc0[0]={seq:0 bseq:0 size:2}
@@ -2883,21 +2883,48 @@ describe('scroll', ()=>{
           'index,rev,key==0_'+key+'_'+min : '[index,rev,0_'+key+'_'+min+
           '<=key<=0_'+key+'_'+max+' next'.repeat(n||0)+']';
         let q = (min, max, n)=>_q('/arik', min, max, n);
-        // XXX: make sure index of 0 is alwasy in mem
-        t('no_mem_find_all', `${t_init}
+        let _qup = (key, min, max, n)=>max===undefined ?
+          'index,key==0_'+key+'_'+min : '[index,0_'+key+'_'+min+
+          '<=key<=0_'+key+'_'+max+' next'.repeat(n||0)+']';
+        let qup = (min, max, n)=>_qup('/arik', min, max, n);
+        t('no_mem_find_all_dir_dn', `${t_init}
           // 0 1 2 3 4 5 6 7 8
-          // --a---a---a---a-- find(seq<=0)
-          // XXX: why query db for 0
+          // --a---a---a---a-- find(/arik)
           ##index_find(index:0 key:/arik)=[7 5 3 1] #(db_query=${q(1, 8, 4)}
             index=[{$a:1 dn:0 up:3} {$a:3 dn:1 up:5} {$a:5 dn:3 up:7}
             {$a:7 dn:5 up:8}])`);
-        t('no_mem_find_all_in_steps', `${t_init}
+        // XXX: need same test but with 2 skip itereations of db
+        t('edge_other_index_dn', `${t_init} load_c(8)
           // 0 1 2 3 4 5 6 7 8
-          //               a-- find(seq<=8 n=1)
-          //           a---a-- find(seq<=5 n=1)
-          //       a---a---a-- find(seq<=3 n=1)
-          //   a---a---a---a-- find(seq<=1 n=1)
-          // --a---a---a---a-- find(seq<=0 n=1)
+          // -               n load(8)
+          //           a---a-n find(/arik max:8 n:2)
+          ##index_find(index:0 key:/arik max:8 count:2)=[7 5]
+            #(db_query=${q(1, 7, 1)}
+            index=[{$a:5 up:7} {$a:7 dn:5 up:8} {$n:8}])
+          ##index_find(index:0 key:/arik max:8 count:2)=[7 5] #`);
+        // XXX: need same test but with 2 skip itereations of db
+        t('edge_other_index_up', `${t_init} load_c(2)
+          // 0 1 2 3 4 5 6 7 8
+          // -   n           n load(2)
+          //     n-a---a     find(/arik min:2 n:2)
+          ##index_find(index:0 dir:up key:/arik min:2 count:2)=[3 5]
+            #(db_query=${qup(3, 8, 1)}
+            index=[{$a:3 dn:2 up:5} {$a:5 dn:3 up:5} {$n:2}])
+          ##index_find(index:0 dir:up key:/arik min:2 count:2)=[3 5] #`);
+        t('no_mem_find_all_dir_up', `${t_init}
+          // 0 1 2 3 4 5 6 7 8
+          // --a---a---a---a-- find(/arik)
+          ##index_find(index:0 dir:up key:/arik)=[1 3 5 7]
+            #(db_query=${qup(1, 8, 4)}
+            index=[{$a:1 dn:0 up:3} {$a:3 dn:1 up:5} {$a:5 dn:3 up:7}
+            {$a:7 dn:5 up:8}])`);
+        t('no_mem_find_all_in_steps_dn', `${t_init}
+          // 0 1 2 3 4 5 6 7 8
+          // -             a-- find(n=1)
+          // -         a---a-- find(n=2)
+          // -     a---a---a-- find(n=3)
+          // - a---a---a---a-- find(n=4)
+          // --a---a---a---a-- find(n=4)
           ##index_find(index:0 key:/arik count:1)=7 #(db_query=${q(1, 8)}
             index={$a:7 up:8})
           ##index_find(index:0 key:/arik count:2)=[7 5] #(db_query=${q(1, 6)}
@@ -2907,8 +2934,26 @@ describe('scroll', ()=>{
           ##index_find(index:0 key:/arik count:4)=[7 5 3 1]
             #(db_query=${q(1, 2)}
             index=[{$a:1 dn:1 up:3} {$a:3 dn:1 up:5}])
-          ##index_find(index:0 key:/arik)=[7 5 3 1]
-            #index={$a:1 dn:0 up:3}`);
+          ##index_find(index:0 key:/arik)=[7 5 3 1] #index={$a:1 dn:0 up:3}
+          ##index_find(index:0 key:/arik)=[7 5 3 1] #`);
+        t('no_mem_find_all_in_steps_up', `${t_init}
+          // 0 1 2 3 4 5 6 7 8
+          // --a               find(n=1)
+          // --a---a--         find(n=2)
+          // --a---a---a--     find(n=3)
+          // --a---a---a---a-- find(n=4)
+          // --a---a---a---a-- find(n=4)
+          ##index_find(index:0 dir:up key:/arik count:1)=1
+            #(db_query=${qup(1, 8)} index={$a:1 dn:0})
+          ##index_find(index:0 dir:up key:/arik count:2)=[1 3]
+            #(db_query=${qup(2, 8)} index=[{$a:1 dn:0 up:3} {$a:3 dn:1}])
+          ##index_find(index:0 dir:up key:/arik count:3)=[1 3 5]
+            #(db_query=${qup(4, 8)} index=[{$a:3 dn:1 up:5} {$a:5 dn:3}])
+          ##index_find(index:0 dir:up key:/arik count:4)=[1 3 5 7]
+            #(db_query=${qup(6, 8)} index=[{$a:5 dn:3 up:7} {$a:7 dn:5}])
+          ##index_find(index:0 dir:up key:/arik)=[1 3 5 7]
+            #(db_query=${qup(8)} index={$a:7 dn:5 up:8})
+          ##index_find(index:0 dir:up key:/arik)=[1 3 5 7] #`);
         t('no_mem_at_end_find_all', `${t_init}
           // 0 1 2 3 4 5 6 7 8
           //           a       find(seq<=5 n=1)

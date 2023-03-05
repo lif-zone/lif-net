@@ -134,16 +134,32 @@ export default class Index {
     let co = scroll.conflict.get(cfid), _max, _min;
     _min = min = min===undefined ? co.parent ? co.parent.seq+1 : 0 : min;
     _max = max = max===undefined ? co.top.seq : max;
-    let iter = {}, mem_iter, db_iter, prev, db_prev_max;
+    // XXX: check db_prev_edge/mem_edge in cases where we have several
+    // iteration without curr
+    let iter = {}, mem_iter, db_iter, prev, db_prev_edge, mem_prev_edge;
     const next_mem_iter = ()=>{
       if (db_iter)
         return;
       mem_iter = mem_iter ? mem_iter.next() :
         _this.find_mem_iter(key, {min, max, dir});
       let curr = mem_iter.curr, section;
-      if (db_prev_max && curr)
-        [curr.up, db_prev_max] = [prev ? prev.seq : db_prev_max, 0];
-      if (curr){
+      if (db_prev_edge && curr){
+        if (dir=='up')
+          [curr.dn, db_prev_edge] = [prev ? prev.seq : db_prev_edge, 0];
+        else
+          [curr.up, db_prev_edge] = [prev ? prev.seq : db_prev_edge, 0];
+      }
+      if (curr && dir=='up'){
+        if (prev && prev.up < curr.dn-1); // XXX: check get_section
+        // XXX: do we need to check start of section of max?
+        // XXX: review logic for dir=='up'
+        else if (!prev && curr.dn>min && !scroll.get_section(cfid, min));
+        else {
+          if (prev)
+            [prev.up, curr.dn] = [curr.seq, prev.seq];
+          return iter.curr = prev = curr;
+        }
+      } else if (curr){
         if (prev && prev.dn > curr.up+1); // XXX: check get_section
         // XXX: do we need to check start of section of max?
         else if (!prev && curr.up<max && !scroll.get_section(cfid, max));
@@ -153,7 +169,15 @@ export default class Index {
           return iter.curr = prev = curr;
         }
       }
-      [min, max] = [curr ? curr.up+1 : min, prev ? prev.dn-1 : max];
+      if (dir=='up'){
+        mem_prev_edge = min;
+        [min, max] = [prev ? prev.up+1 : min, curr ? curr.dn-1 : max];
+      }
+      else {
+        mem_prev_edge = max;
+        [min, max] = [curr ? curr.up+1 : min, prev ? prev.dn-1 : max];
+      }
+      // XXX: review logic for dir==up
       if (section = scroll.get_section(cfid, max)){
         max = section.seq-1;
         if (prev)
@@ -169,15 +193,27 @@ export default class Index {
       db_iter = db_iter ? yield db_iter.next() :
         yield _this.find_db_iter(key, {min, max, dir});
       if (!db_iter.curr){
-        if (prev)
-          prev.dn = min;
-        [min, max, db_prev_max] = [_min, min-1, max];
+        if (dir=='up'){
+          if (prev)
+            prev.up = max;
+          [min, max, db_prev_edge] = [max+1, _max, min];
+        } else {
+          if (prev)
+            prev.dn = min;
+          [min, max, db_prev_edge] = [_min, min-1, max];
+        }
         return db_iter = null;
       }
-      let seq = db_iter.curr.seq;
-      let curr = {key, seq, dn: seq, up: prev ? prev.seq : max};
-      if (prev)
-        prev.dn = seq;
+      let seq = db_iter.curr.seq, curr;
+      if (dir=='up'){
+        curr = {key, seq, dn: prev ? prev.seq : mem_prev_edge, up: seq};
+        if (prev)
+          prev.up = seq;
+      } else {
+        curr = {key, seq, dn: seq, up: prev ? prev.seq : mem_prev_edge};
+        if (prev)
+          prev.dn = seq;
+      }
       return prev = iter.curr = _this.avl.insert(curr).key;
     });
     iter.next = ()=>{
@@ -186,13 +222,16 @@ export default class Index {
       if (max<min)
         return iter_ret(iter);
       return etask(function*index_find_iter_next(){
-        while (max>=min){ // eslint-disable-line no-unmodified-loop-condition
+        while (true){
           if (yield next_db_iter())
             return iter;
+          if (max<min)
+            return iter_ret(iter);
           if (next_mem_iter())
             return iter;
+          if (max<min)
+            return iter_ret(iter);
         }
-        return iter_ret(iter);
       });
     };
     return iter.next();

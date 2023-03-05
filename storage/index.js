@@ -183,7 +183,7 @@ export default class Index {
       }
       if (section = scroll.get_section(cfid, min)){
         min = section.seq+section.size;
-        if (dir=='up' && prev) // XXX: make sure we have test for it
+        if (dir=='up' && prev)
           prev.up = section.seq+section.size-1;
       }
       mem_iter = null;

@@ -2889,8 +2889,18 @@ describe('scroll', function(){
         let qup = (min, max, n)=>_qup('/arik', min, max, n);
         t('no_mem_find_all_dir_dn', `${t_init}
           // 0 1 2 3 4 5 6 7 8
+          // -                 // seq0 always loaded
           // --a---a---a---a-- find(/arik)
           ##index_find(index:0 key:/arik)=[7 5 3 1] #(db_query=${q(1, 8, 4)}
+            index=[{$a:1 dn:0 up:3} {$a:3 dn:1 up:5} {$a:5 dn:3 up:7}
+            {$a:7 dn:5 up:8}])`);
+        t('no_mem_find_all_dir_up', `${t_init}
+          // 0 1 2 3 4 5 6 7 8
+          //                 n load(8)
+          // --a---a---a---a-- find(/arik)
+          load_c(8) #index={$n:8}
+          ##index_find(index:0 dir:up key:/arik)=[1 3 5 7]
+            #(db_query=${qup(1, 7, 4)}
             index=[{$a:1 dn:0 up:3} {$a:3 dn:1 up:5} {$a:5 dn:3 up:7}
             {$a:7 dn:5 up:8}])`);
         t('edge_other_index_dn', `${t_init} load_c(8)
@@ -2927,13 +2937,6 @@ describe('scroll', function(){
             #(db_query=${qup(5, 24, 1)}
             index=[{$a:7 dn:4 up:8} {$a:8 dn:7} {$n:4} {$n:6} {$n:12}])
           ##index_find(index:0 dir:up key:/arik min:4 count:2)=[7 8] #`);
-        t('no_mem_find_all_dir_up', `${t_init}
-          // 0 1 2 3 4 5 6 7 8
-          // --a---a---a---a-- find(/arik)
-          ##index_find(index:0 dir:up key:/arik)=[1 3 5 7]
-            #(db_query=${qup(1, 8, 4)}
-            index=[{$a:1 dn:0 up:3} {$a:3 dn:1 up:5} {$a:5 dn:3 up:7}
-            {$a:7 dn:5 up:8}])`);
         t('no_mem_find_all_in_steps_dn', `${t_init}
           // 0 1 2 3 4 5 6 7 8
           // -             a-- find(n=1)

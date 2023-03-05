@@ -2756,7 +2756,7 @@ describe('scroll', function(){
           tput(0 1 2 3 4 f g h  ) #(bseq7c1=3 index={id:5 key:/derry seq:7})
           tput(0 1 2 3 4 f g h i) #(bseq8c1=4 index={id:5 key:/arik seq:8})
           // cfid:0 branch:main
-          // XXX: support macro expansion
+          // XXX: cleanup with  macro expansion (grep all code)
           ##index_find(cfid:0 name:path key:/arik bseq:$1)=$2
           $$([5 [7 1]] [4 [7 1]] [3 [7 1]] [2 1] [1 1] [0 []])
           // cfid:1 branch:main
@@ -2817,7 +2817,6 @@ describe('scroll', function(){
           tput(0 1 2 3 4 f g h  ) #(bseq7c1=3 index={id:5 key:/derry seq:7})
           tput(0 1 2 3 4 f g h i) #(bseq8c1=4 index={id:5 key:/arik seq:8})
           // cfid:0 branch:main
-          // XXX: support macro expansion
           // ##index_find(cfid:0 name:path key:/arik bseq:*)=
           // (5:[7 1] 4:[7 1] 3:1 1:1 0:[])
           ##index_find(dir:up cfid:0 name:path key:/arik bseq:5)=[1 7]
@@ -3173,7 +3172,6 @@ describe('scroll', function(){
           ##index_find(index:0 dir:up key:/niko min:0 count:1)=2
             #(db_query=${_qup('/niko', 1, 9)} index={$n:2 dn:0})
           ##index_find(index:0 dir:up key:/niko min:0 count:1)=2 #
-          // XXX {$n:4 dn:2 up:6}
           ##index_find(index:0 dir:up key:/niko min:3 count:2)=[4 6]
             #(db_query=${_qup('/niko', 3, 9, 1)}
             index=[{$n:4 dn:3 up:6} {$n:6 dn:4}])
@@ -3406,7 +3404,6 @@ describe('scroll', function(){
             #(index=[{id:0 key:/f seq:2} {id:1 key:/f seq:2}]
             index_table=[{id:0 cfid:0 bseqb:null name:path}
             {id:1 cfid:1 bseqb:null name:path}])
-          // XXX: no point for next
           ##index_find(name:path key:/f cfid:0 max:3 bseq:4)=[2 1]
             #(db_query=[index,rev,key==0_/f_1 next]
             index=[{id:0 key:/f seq:1 dn:0 up:2}
@@ -3422,7 +3419,6 @@ describe('scroll', function(){
             #(index=[{id:0 key:/f seq:2} {id:1 key:/f seq:2}]
             index_table=[{id:0 cfid:0 bseqb:null name:path}
             {id:1 cfid:1 bseqb:null name:path}])
-          // XXX: no point for next
           ##index_find(name:path dir:up key:/f cfid:0 max:3 bseq:4)=[1 2]
             #(db_query=[index,key==0_/f_1 next]
             index=[{id:0 key:/f seq:1 dn:0 up:2}

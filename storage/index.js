@@ -136,8 +136,6 @@ export default class Index {
     let co = scroll.conflict.get(cfid), _max, _min;
     _min = min = min===undefined ? co.parent ? co.parent.seq+1 : 0 : min;
     _max = max = max===undefined ? co.top.seq : max;
-    // XXX: check db_prev_edge/mem_edge in cases where we have several
-    // iteration without curr
     let iter = {}, mem_iter, db_iter, prev, db_prev_edge, mem_prev_edge;
     const next_mem_iter = ()=>{
       if (db_iter)

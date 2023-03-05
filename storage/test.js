@@ -2998,6 +2998,7 @@ describe('scroll', function(){
             index,0_/arik_4<=key<=0_/arik_8 next]
             index=[{$a:1 dn:0 up:3} {$a:3 dn:1 up:5} {$a:5 dn:3 up:7}
             {$a:7 dn:5}])`);
+        // XXX TODO: dir:up
         t('x3_no_mem_at_end_find_all', `${t_init3}
           // 0 1 2 3 4 5 6 7 8 x3
           //           a       find(seq<=15 n=3)
@@ -3027,49 +3028,87 @@ describe('scroll', function(){
             #index=[!{$m8 query} {$m9 dn:0}]`);
         let setup = `${t_init}
           // 0 1 2 3 4 5 6 7 8
-          //               a-- find(seq<=8 n=1)
-          //   a           a-- find(seq<=1 n=1)
+          //               a-- find(max:8 n=1)
+          //   a           a-- find(max:1 n=2)
           ##index_find(index:0 key:/arik count:1)=7 #(db_query=${q(1, 8)}
             index={$a:7 up:8})
-          ##index_find(index:0 key:/arik max:1 count:1)=1
-          #(db_query=${q(1)} index={$a:1})`;
-        t('mem_gap_find_all', `${setup}
-          // --a---a---a---a-- seq<=8)
+          ##index_find(index:0 key:/arik max:1 count:2)=1
+          #(db_query=[index,rev,key==0_/arik_1 next] index={$a:1 dn:0})`;
+        t('mem_gap_find_all_dir_dn', `${setup}
+          // --a---a---a---a-- find()
           ##index_find(index:0 key:/arik)=[7 5 3 1]
           #(db_query=${q(2, 6, 2)} index=[{$a:1 dn:0 up:3}
             {$a:3 dn:1 up:5} {$a:5 dn:3 up:7} {$a:7 dn:5 up:8}])`);
-        t('mem_gap_find_all_up_edge_loaded', `${setup}
+        t('mem_gap_find_all_dir_up', `${setup}
+          // --a---a---a---a-- find()
+          ##index_find(index:0 dir:up key:/arik)=[1 3 5 7]
+          #(db_query=${qup(2, 6, 2)} index=[{$a:1 dn:0 up:3}
+            {$a:3 dn:1 up:5} {$a:5 dn:3 up:7} {$a:7 dn:5 up:8}])`);
+        t('mem_gap_find_all_up_edge_loaded_dn', `${setup}
           // 0 1 2 3 4 5 6 7 8
           //   a         n a-- load(6)
-          // --a---a---a---a-- find(seq<=8)
+          // --a---a---a---a-- find
           load_c(6) #index={$n:6}
           ##index_find(index:0 key:/arik)=[7 5 3 1]
           #(db_query=${q(2, 5, 2)} index=[{$a:1 dn:0 up:3}
             {$a:3 dn:1 up:5} {$a:5 dn:3 up:7} {$a:7 dn:5 up:8}])`);
-        t('mem_gap_find_all_dn_edge_loaded', `${setup}
+        t('mem_gap_find_all_up_edge_loaded_up', `${setup}
+          // 0 1 2 3 4 5 6 7 8
+          //   a         n a-- load(6)
+          // --a---a---a---a-- find
+          load_c(6) #index={$n:6}
+          ##index_find(index:0 dir:up key:/arik)=[1 3 5 7]
+          #(db_query=${qup(2, 5, 2)} index=[{$a:1 dn:0 up:3}
+            {$a:3 dn:1 up:5} {$a:5 dn:3 up:7} {$a:7 dn:5 up:8}])`);
+        t('mem_gap_find_all_dn_edge_loaded_dn', `${setup}
           // 0 1 2 3 4 5 6 7 8
           //   a n         a-- load(2)
-          // --a---a---a---a-- find(seq<=8)
+          // --a---a---a---a-- find
           load_c(2) #index={$n:2}
           ##index_find(index:0 key:/arik)=[7 5 3 1]
           #(db_query=${q(3, 6, 2)} index=[{$a:1 dn:0 up:3}
             {$a:3 dn:1 up:5} {$a:5 dn:3 up:7} {$a:7 dn:5 up:8}])`);
-        t('mem_gap_find_all_both_edge_loaded', `${setup}
+        t('mem_gap_find_all_dn_edge_loaded_up', `${setup}
+          // 0 1 2 3 4 5 6 7 8
+          //   a n         a-- load(2)
+          // --a---a---a---a-- find
+          load_c(2) #index={$n:2}
+          ##index_find(index:0 dir:up key:/arik)=[1 3 5 7]
+          #(db_query=${qup(3, 6, 2)} index=[{$a:1 dn:0 up:3}
+            {$a:3 dn:1 up:5} {$a:5 dn:3 up:7} {$a:7 dn:5 up:8}])`);
+        t('mem_gap_find_all_both_edge_loaded_dn', `${setup}
           // 0 1 2 3 4 5 6 7 8
           //   a n       n a-- load(2); load(6)
-          // --a---a---a---a-- find(seq<=8)
+          // --a---a---a---a-- find
           load_c(2) load_c(6) #index=[{$n:2} {$n:6}]
           ##index_find(index:0 key:/arik)=[7 5 3 1]
           #(db_query=${q(3, 5, 2)} index=[{$a:1 dn:0 up:3}
             {$a:3 dn:1 up:5} {$a:5 dn:3 up:7} {$a:7 dn:5 up:8}])`);
-        t('mem_gap_find_all_both_edge_and_mid_loaded', `${setup}
+        t('mem_gap_find_all_both_edge_loaded_up', `${setup}
+          // 0 1 2 3 4 5 6 7 8
+          //   a n       n a-- load(2); load(6)
+          // --a---a---a---a-- find
+          load_c(2) load_c(6) #index=[{$n:2} {$n:6}]
+          ##index_find(index:0 dir:up key:/arik)=[1 3 5 7]
+          #(db_query=${qup(3, 5, 2)} index=[{$a:1 dn:0 up:3}
+            {$a:3 dn:1 up:5} {$a:5 dn:3 up:7} {$a:7 dn:5 up:8}])`);
+        t('mem_gap_find_all_both_edge_and_mid_loaded_dn', `${setup}
           // 0 1 2 3 4 5 6 7 8
           //   a n   n   n a-- load(2); load(4); load(6);
-          // --a---a---a---a-- find(seq<=8)
+          // --a---a---a---a-- find
           load_c(2) load_c(4) load_c(6) #index=[{$n:2} {$n:4} {$n:6}]
           ##index_find(index:0 key:/arik)=[7 5 3 1]
           #(db_query=${q(3, 5, 2)} index=[{$a:1 dn:0 up:3}
             {$a:3 dn:1 up:5} {$a:5 dn:3 up:7} {$a:7 dn:5 up:8}])`);
+        t('mem_gap_find_all_both_edge_and_mid_loaded_up', `${setup}
+          // 0 1 2 3 4 5 6 7 8
+          //   a n   n   n a-- load(2); load(4); load(6);
+          // --a---a---a---a-- find
+          load_c(2) load_c(4) load_c(6) #index=[{$n:2} {$n:4} {$n:6}]
+          ##index_find(index:0 dir:up key:/arik)=[1 3 5 7]
+          #(db_query=${qup(3, 5, 2)} index=[{$a:1 dn:0 up:3}
+            {$a:3 dn:1 up:5} {$a:5 dn:3 up:7} {$a:7 dn:5 up:8}])`);
+        // XXX: rename zzz
         t('zzz1_dir_dn', `${t_init9}
           //  0 1 2 3 4 5 6 7 8 9
           //                  n-q find(max:9 n=1)

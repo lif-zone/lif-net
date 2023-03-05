@@ -129,6 +129,8 @@ export default class Index {
   }); }
   find_iter(key, opt={}){
     let _this = this, {min, max, dir} = opt, {cfid, scroll} = this;
+    dir = dir||'dn';
+    assert(['up', 'dn'].includes(dir), 'invalid dir '+dir);
     if (!scroll.storage)
       return this.find_mem_iter(key, {min, max, dir});
     let co = scroll.conflict.get(cfid), _max, _min;
@@ -176,14 +178,16 @@ export default class Index {
         mem_prev_edge = max;
         [min, max] = [curr ? curr.up+1 : min, prev ? prev.dn-1 : max];
       }
-      // XXX: review logic for dir==up
       if (section = scroll.get_section(cfid, max)){
         max = section.seq-1;
-        if (prev)
+        if (dir=='dn' && prev)
           prev.dn = section.seq;
       }
-      if (section = scroll.get_section(cfid, min))
+      if (section = scroll.get_section(cfid, min)){
         min = section.seq+section.size;
+        if (dir=='up' && prev) // XXX: make sure we have test for it
+          prev.up = section.seq+section.size-1;
+      }
       mem_iter = null;
     };
     const next_db_iter = ()=>etask(function*next_db_iter(){

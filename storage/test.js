@@ -3304,6 +3304,7 @@ describe('scroll', function(){
             #db_query=${_qup('not_found', 6, 9)}
           ##index_find(index:0 dir:up key:not_found min:4 count:1)=[]
             #db_query=${_qup('not_found', 4, 9)}`);
+        // XXX: need dir:up version
         t('zzz_query_with_missing_a', `${t_init9}
           //  0 1 2 3 4 5 6 7 8 9
           //  ----n--             (max:1 =3 n=1)
@@ -3320,6 +3321,7 @@ describe('scroll', function(){
           ##index_find(index:0 key:/niko max:7)=[6 4 2]
             #(db_query=${_q('/niko', 1)}
             index=[{$n:2 dn:0 up:4} {$n:4 dn:2 up:6} {$n:6 dn:4 up:7}])`);
+        // XXX: need dir:up version
         t('zzz_query_with_missing_b', `${t_init9}
           //  0 1 2 3 4 5 6 7 8 9
           //  ----n--             (max:1 =3 n=1)
@@ -3334,7 +3336,7 @@ describe('scroll', function(){
           ##index_find(index:0 key:/niko max:5 count:1)=4
             #(db_query=${_q('/niko', 4, 5)} index={$n:4 up:5})`);
         // XXX: need more partial tests
-        t('zzz_partial_scroll_find', `${t_init9}
+        t('zzz_partial_scroll_find_dn', `${t_init9}
           S2..#(db_query_index index) Soul2.S2.scroll(s..M0 db) #index=[]
           tput(0 1                 ) #index={$a:1}
           tput(0 1 2               ) #index={$n:2}
@@ -3355,8 +3357,29 @@ describe('scroll', function(){
           ##index_find(index:0 key:/niko max:9)=[8 6 4 2]
             #index=[{$n:6 dn:4 up:8} {$n:8 dn:6}]
           ##index_find(index:0 key:/niko max:9)=[8 6 4 2] #`);
+        t('zzz_partial_scroll_find_up', `${t_init9}
+          S2..#(db_query_index index) Soul2.S2.scroll(s..M0 db) #index=[]
+          tput(0 1                 ) #index={$a:1}
+          tput(0 1 2               ) #index={$n:2}
+          tput(0 1 2 3             ) #index={$a:3}
+          tput(0 1 2 3 4_5 6       ) #index={$n:6}
+          // XXX: there is some mess with up/dn
+          ##index_find(index:0 dir:up key:/niko max:9)=[2 6]
+            #(index=[{$n:2 up:6} {$n:6 dn:2 up:9}]
+            db_query=[index,0_/niko_4<=key<=0_/niko_5
+              index,0_/niko_7<=key<=0_/niko_9])
+          tput(0 1 2 3 4 5) #index={$a:5}
+          tput(0 1 2 3 4) #index={$n:4}
+          ##index_find(index:0 dir:up key:/niko max:9)=[2 4 6]
+            #index=[{$n:2 dn:2 up:4} {$n:4 dn:2 up:6} {$n:6 dn:4 up:9}]
+          tput(0 1 2 3 4 5 6 7     ) #index={$a:7}
+          tput(0 1 2 3 4 5 6 7 8   ) #index={$n:8}
+          tput(0 1 2 3 4 5 6 7 8  9) #index={$a:9}
+          ##index_find(index:0 dir:up key:/niko max:9)=[2 4 6 8]
+            #index=[{$n:6 dn:4 up:8} {$n:8 dn:6 up:9}]
+          ##index_find(index:0 dir:up key:/niko max:9)=[2 4 6 8] #`);
         // XXX: need more conflict tests
-        t('db_conflict', `s.scroll(index:path) s.decl({path:/f})
+        t('db_conflict_dn', `s.scroll(index:path) s.decl({path:/f})
           s.decl({path:/f}) s1.clone(s.M1) s1.decl({path:/f})
           S..scroll(s..M0 db) tput(0 1  ) tput(0 1 2) tput(0 1 c)
           Soul2.db_copy(S.soul) S2..#(index index_table db_query_index)
@@ -3372,6 +3395,22 @@ describe('scroll', function(){
           ##index_find(name:path key:/f cfid:0 max:2 bseq:4)=[2 1] #
           ##index_find(name:path key:/f cfid:1 max:2 bseq:4)=[2 1] #
           ##index_find(name:path key:/f cfid:1 max:2 bseq:4)=[2 1] #`);
+        t('db_conflict_up', `s.scroll(index:path) s.decl({path:/f})
+          s.decl({path:/f}) s1.clone(s.M1) s1.decl({path:/f})
+          S..scroll(s..M0 db) tput(0 1  ) tput(0 1 2) tput(0 1 c)
+          Soul2.db_copy(S.soul) S2..#(index index_table db_query_index)
+          Soul2.S2.scroll(s..M0 db)
+            #(index=[{id:0 key:/f seq:2} {id:1 key:/f seq:2}]
+            index_table=[{id:0 cfid:0 bseqb:null name:path}
+            {id:1 cfid:1 bseqb:null name:path}])
+          // XXX: no point for next
+          ##index_find(name:path dir:up key:/f cfid:0 max:3 bseq:4)=[1 2]
+            #(db_query=[index,key==0_/f_1 next]
+            index=[{id:0 key:/f seq:1 dn:0 up:2}
+            {id:0 key:/f seq:2 dn:1 up:2}])
+          ##index_find(name:path dir:up key:/f cfid:0 max:2 bseq:4)=[1 2] #
+          ##index_find(name:path dir:up key:/f cfid:1 max:2 bseq:4)=[1 2] #
+          ##index_find(name:path dir:up key:/f cfid:1 max:2 bseq:4)=[1 2] #`);
       });
       if (0) // XXX: obsolete, rm
       describe('xxx_db', ()=>{

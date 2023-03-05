@@ -150,7 +150,7 @@ export default class Index {
           [curr.up, db_prev_edge] = [prev ? prev.seq : db_prev_edge, 0];
       }
       if (curr && dir=='up'){
-        if (prev && prev.up < curr.dn-1); // XXX: check get_section
+        if (prev && prev.up < curr.dn-1);
         else if (!prev && curr.dn>min &&
           !scroll.is_mem_exists(cfid, min, curr.dn));
         else {
@@ -159,7 +159,7 @@ export default class Index {
           return iter.curr = prev = curr;
         }
       } else if (curr){
-        if (prev && prev.dn > curr.up+1); // XXX: check get_section
+        if (prev && prev.dn > curr.up+1);
         else if (!prev && curr.up<max &&
           !scroll.is_mem_exists(cfid, curr.up, max+1));
         else {
@@ -190,7 +190,10 @@ export default class Index {
     };
     const next_db_iter = ()=>etask(function*next_db_iter(){
       assert(!mem_iter, 'mem_iter did not finish');
-      yield scroll.flush(); // XXX mv to other place and only once
+      if (!iter.db_flushed){
+        yield scroll.flush();
+        iter.db_flushed = true;
+      }
       db_iter = db_iter ? yield db_iter.next() :
         yield _this.find_db_iter(key, {min, max, dir});
       if (!db_iter.curr){

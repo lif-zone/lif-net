@@ -2867,7 +2867,7 @@ describe('scroll', function(){
           $$(${'/arik /niko '.repeat(4)}) Soul.db_copy(s.soul)
           S..#(db_query_index index index_table) Soul.S.scroll(s..M0 db)
           #(index_table={id:0 cfid:0 bseqb:null name:path})`;
-        let t_init3 = `s..scroll(index:path db) $$a(id:0 key:/arik seq)
+        let t_init_x3 = `s..scroll(index:path db) $$a(id:0 key:/arik seq)
           $$n(id:0 key:/niko seq) $$m(id:0 key:/arik seq) decl({path:$1})
           $$(${'/arik /arik /arik /niko /niko /niko '.repeat(4)})
           Soul.db_copy(s.soul)
@@ -2893,7 +2893,6 @@ describe('scroll', function(){
           ##index_find(index:0 key:/arik)=[7 5 3 1] #(db_query=${q(1, 8, 4)}
             index=[{$a:1 dn:0 up:3} {$a:3 dn:1 up:5} {$a:5 dn:3 up:7}
             {$a:7 dn:5 up:8}])`);
-        // XXX: need same test but with 2 skip itereations of db
         t('edge_other_index_dn', `${t_init} load_c(8)
           // 0 1 2 3 4 5 6 7 8
           // -               n load(8)
@@ -2902,7 +2901,6 @@ describe('scroll', function(){
             #(db_query=${q(1, 7, 1)}
             index=[{$a:5 up:7} {$a:7 dn:5 up:8} {$n:8}])
           ##index_find(index:0 key:/arik max:8 count:2)=[7 5] #`);
-        // XXX: need same test but with 2 skip itereations of db
         t('edge_other_index_up', `${t_init} load_c(2)
           // 0 1 2 3 4 5 6 7 8
           // -   n           n load(2)
@@ -2911,6 +2909,24 @@ describe('scroll', function(){
             #(db_query=${qup(3, 8, 1)}
             index=[{$a:3 dn:2 up:5} {$a:5 dn:3 up:5} {$n:2}])
           ##index_find(index:0 dir:up key:/arik min:2 count:2)=[3 5] #`);
+        t('x3_edge_other_index_dn', `${t_init_x3}
+          load_c(22) load_c(24) load_c(18)
+          // 0 1 2 3 4 5 6 7 8 x3
+          // -           n   n load(22) load(24) load(18)
+          //             n a-n find(/arik max:24 n:2)
+          ##index_find(index:0 key:/arik max:24 count:2)=[21 20]
+            #(db_query=${q(1, 23, 1)}
+            index=[{$a:20 up:21} {$a:21 dn:20 up:24} {$n:18} {$n:22} {$n:24}])
+          ##index_find(index:0 key:/arik max:24 count:2)=[21 20] #`);
+        t('x3_edge_other_index_up', `${t_init_x3}
+          load_c(4) load_c(6) load_c(12)
+          // 0 1 2 3 4 5 6 7 8 x3
+          // -   n   n         load(4) load(6) load(12)
+          // -   n a n         find(/arik min:2 n:2)
+          ##index_find(index:0 dir:up key:/arik min:4 count:2)=[7 8]
+            #(db_query=${qup(5, 24, 1)}
+            index=[{$a:7 dn:4 up:8} {$a:8 dn:7} {$n:4} {$n:6} {$n:12}])
+          ##index_find(index:0 dir:up key:/arik min:4 count:2)=[7 8] #`);
         t('no_mem_find_all_dir_up', `${t_init}
           // 0 1 2 3 4 5 6 7 8
           // --a---a---a---a-- find(/arik)
@@ -2999,7 +3015,7 @@ describe('scroll', function(){
             index=[{$a:1 dn:0 up:3} {$a:3 dn:1 up:5} {$a:5 dn:3 up:7}
             {$a:7 dn:5}])`);
         // XXX TODO: dir:up
-        t('x3_no_mem_at_end_find_all', `${t_init3}
+        t('x3_no_mem_at_end_find_all', `${t_init_x3}
           // 0 1 2 3 4 5 6 7 8 x3
           //           a       find(seq<=15 n=3)
           //       a---a---a-- find(n=9)

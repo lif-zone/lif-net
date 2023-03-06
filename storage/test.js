@@ -2363,22 +2363,12 @@ describe('scroll', function(){
             $$last
         `);
         t('conflict_parent', `
-          s..scroll(index:path)
-          decl({path:$1}) $$(/arik /derry /arik /derry)
-          s1..clone(s)
-          decl({path:$1}) $$(/arik /arik)
-          s2..clone(s1)
-          decl({path:/derry})
-          decl({path:/arik})
-          decl({path:/derry})
-          s1..decl({path:/derry})
-          decl({path:/arik})
-          decl({path:/arik})
-          s..decl({path:/derry})
-          decl({path:/derry})
-          decl({path:/derry})
-          decl({path:/derry})
-          decl({path:/arik})
+          decl({path:$1}) $$
+          s..scroll(index:path) $last $$(/arik /derry /arik /derry)
+          s1..clone(s)          $last $$(/arik /arik)
+          s2..clone(s1)         $last $$(/derry /arik /derry)
+          s1..def               $last $$(/derry /arik /arik)
+          s..def                $last $$(/derry /derry /derry /derry /arik)
           S..#index scroll(s..M0)
           tput(0 1                ) #index={id:0 key:/arik seq:1}
           tput(0 1 2              ) #index={id:0 key:/derry seq:2}

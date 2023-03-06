@@ -2195,7 +2195,7 @@ describe('scroll', function(){
             (/derry 8 5 [1 3 4 7 8]) (/derry 8 4 [1 3 4 7])
             (/derry 8 3 [1 3 4]) (/derry 8 2 [1 3]) (/derry 8 1 [1])
             (/derry 8 0 [1 3 4 7 8]))`);
-        t('tag_basic_dir', `s..#(index index_table) scroll(index:i) #
+        t('tag_basic', `s..#(index index_table) scroll(index:i) #
           decl({i:v1}) #(index={id:0 key:v1 seq:1}
             index_table={id:0 cfid:0 bseqb:null name:i})
           decl({i:v1} branch:b) #(index={id:1 key:v1 seq:2}
@@ -2259,24 +2259,25 @@ describe('scroll', function(){
           decl({path:/arik}) #(bseq17=8 index={id:0 key:/arik seq:17})
           decl({path:/derry} branch:b3) #(bseq18=8-1.0
             index={id:3 key:/derry seq:18}
-            index_table={id:3 cfid:0 bseqb:8-1 name:path}
-          )
+            index_table={id:3 cfid:0 bseqb:8-1 name:path})
           decl({path:/arik}) #(bseq19=8-1.1 index={id:3 key:/arik seq:19})
           decl({path:/derry} prev:17) #(bseq20=9
             index={id:0 key:/derry seq:20})
           decl({path:/arik}) #(bseq21=_10 index={id:0 key:/arik seq:21})
           // main branch
-          ##index_find(name:path key:/arik bseq:_11)=[21 17 15 3 1]
-          ##index_find(name:path key:/arik bseq:_10)=[21 17 15 3 1]
-          ##index_find(name:path key:/arik bseq:8)=[17 15 3 1]
-          ##index_find(name:path key:/arik bseq:7)=[15 3 1]
-          ##index_find(name:path key:/arik bseq:6)=[15 3 1]
-          ##index_find(name:path key:/arik bseq:5)=[3 1]
-          ##index_find(name:path key:/arik bseq:4)=[3 1]
-          ##index_find(name:path key:/arik bseq:3)=[3 1]
-          ##index_find(name:path key:/arik bseq:2)=1
-          ##index_find(name:path key:/arik bseq:1)=1
-          ##index_find(name:path key:/arik bseq:0)=[]
+          ##index_find(name:path key:/arik bseq:$1)=$2 # $$(
+            (_11 [21 17 15 3 1])
+            (_10 [21 17 15 3 1])
+            (  9 [   17 15 3 1])
+            (  8 [   17 15 3 1])
+            (  7 [      15 3 1])
+            (  6 [      15 3 1])
+            (  5 [         3 1])
+            (  4 [         3 1])
+            (  3 [         3 1])
+            (  2 [           1])
+            (  1 [           1])
+            (  0 [           ]))
           // branch:b1 4-1
           ##index_find(name:path key:/arik bseq:4-1.6)=[13 7 5 3 1]
           ##index_find(name:path key:/arik bseq:4-1.5)=[13 7 5 3 1]

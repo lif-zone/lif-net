@@ -198,13 +198,14 @@ describe('test_util', ()=>{
 describe('parser', ()=>{
   it('parse_get_next', ()=>{
     const t = (s, exp)=>{
-      let curr = s;
+      let curr = s, ret = [];
       while (curr = parse_get_next(curr)){
         assert(exp.length, 'unexpected '+curr.exp);
         assert.equal(curr.exp, exp[0]);
+        ret.push(exp[0]);
         exp.shift();
       }
-      assert(!exp.length, 'missing '+exp.join(' ')+' for "'+s+'"');
+      assert(!exp.length, 'missing '+exp.join(' ')+' for "'+s+'" got '+ret);
     };
     t('', []);
     t(' ', []);
@@ -258,6 +259,9 @@ describe('parser', ()=>{
     t('cmd0 cmd1($1) $$(a1 a2) cmd2',
       ['cmd0', 'cmd1(a1)', 'cmd1(a2)', 'cmd2']);
     t('cmd($1 $2) $$([5 [7 1]] [4 [7 1]])', ['cmd(5 [7 1])', 'cmd(4 [7 1])']);
+    t('cmd($1) cmd2($1) $$(a)', ['cmd(a)', 'cmd2(a)']);
+    t('cmd($1 $2) cmd2($1) cmd3($2) $$([a b] [c d])',
+      ['cmd(a b)', 'cmd2(a)', 'cmd3(b)', 'cmd(c d)', 'cmd2(c)', 'cmd3(d)']);
     t('$$a(A) cmd($a)', ['cmd(A)']);
     t('$$A(a) cmd($A)', ['cmd(a)']);
     t('$$a2A(A) cmd($a2A)', ['cmd(A)']);
@@ -1949,16 +1953,11 @@ describe('scroll', function(){
       t('one_index', `s..#(index index_table) scroll(index:file) #
         decl({file:/f1}) #(index={id:0 key:/f1 seq:1}
           index_table={id:0 cfid:0 bseqb:null name:file})
-        decl({file:/f2}) #index={id:0 key:/f2 seq:2}
-        decl({file:/f1}) #index={id:0 key:/f1 seq:3}
-        decl({file:/f2}) #index={id:0 key:/f2 seq:4}
-        decl({}) #
-        decl({file:null}) #
-        decl({file:/f3}) #index={id:0 key:/f3 seq:7}
-        ##index_find(index:0 key:/f1)=[3 1]
-        ##index_find(index:0 key:/f2)=[4 2]
-        ##index_find(index:0 key:/f3)=7
-        ##!index_find(index:0 key:/f4)`);
+        $$decl(decl({file:$1}) #index={id:0 key:$1 seq:$2})
+        $decl $$([/f2 2] [/f1 3] [/f2 4]) decl({}) # decl({file:null}) #
+        $decl $$([/f3 7])
+        ##index_find(index:0 key:$1)=$2
+          $$([/f1 [3 1]] [/f2 [4 2]] [/f3 7] [/f4 []])`);
       t('two_index', `s..#(index index_table) scroll(index:[i1 i2]) #
         decl({i1:i1v1 i2:i2v1}) #(index={id:0 key:i1v1 seq:1}
           index={id:1 key:i2v1 seq:1}

@@ -92,11 +92,14 @@ E.parse_get_next = function(curr){
       let l = s.substr(0, curr.at||0), r = s.substr(at);
       return E.parse_get_next({s: l+_exp+' '+r, at: curr.at||0, vars});
     }
-    let curr2 = E.parse_get_next({s, at}), ss = '';
+    let i = s.substr(at).indexOf('$$');
+    assert(i!=-1, 'missing $$');
+    let curr2 = E.parse_get_next({s, at: i+at}), ss = '';
     assert(curr2, 'missing $$');
     let o = E.parse_exp(curr2.exp);
     assert.equal(o.cmd, '$$', 'missing $$');
     assert(!o.l, 'invalid $$ '+curr2.exp);
+    exp = s.substr(curr.at||0, i+at-(curr.at||0));
     get_array_str(o.r, '(').forEach(els=>{
       let args = {};
       get_array_str(els).forEach((el, i)=>args[i+1]=el);

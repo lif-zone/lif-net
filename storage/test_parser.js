@@ -23,13 +23,14 @@ function rm_parentesis(s, open='('){
 
 E.parse_get_next = function(curr){
   let i=0, s=curr, state='pre', done=false, exp='', parentesis = [], vars = {};
-  let at;
+  let at, skip_macro;
   if (typeof curr!='string'){
     if (curr.at===undefined)
       return;
     i = curr.at;
     s = curr.s;
     vars = curr.vars||{};
+    skip_macro = curr.skip_macro;
   }
   for (i; i<s.length && !done; i++){
     let c = s.charAt(i);
@@ -79,27 +80,30 @@ E.parse_get_next = function(curr){
       exp += space(s.substr(at, nl));
       at += nl+1;
     }
-    return {exp, s, at, vars};
+    return {exp, s, at, vars, skip_macro};
   }
   if (exp.startsWith('$$')){
     if (exp=='$$last'){
       assert(vars.last, 'missing $$last');
-      return {exp: vars.last, s, at, vars};
+      return {exp: vars.last, s, at, vars, skip_macro};
     }
     let m = exp.match(/^\$\$([a-zA-Z][a-zA-Z0-9]*)\((.*)\)$/);
     if (m){
       vars[m[1]] = m[2];
       let l = s.substr(0, curr.at||0), r = s.substr(at);
-      return E.parse_get_next({s: l+' '+r, at: curr.at||0, vars});
+      return E.parse_get_next({s: l+' '+r, at: curr.at||0, vars, skip_macro});
     }
     vars.last = exp;
-    return {exp, s, at, vars};
+    return {exp, s, at, vars, skip_macro};
   }
+  if (skip_macro)
+    return {exp, s, at, vars, skip_macro};
   if (exp.includes('$')){
     let _exp = replace_macro_vars(exp, vars);
     if (_exp!=exp){
       let l = s.substr(0, curr.at||0), r = s.substr(at);
-      return E.parse_get_next({s: l+_exp+' '+r, at: curr.at||0, vars});
+      return E.parse_get_next({s: l+_exp+' '+r, at: curr.at||0, vars,
+        skip_macro});
     }
     let i = s.substr(at).indexOf('$$');
     assert(i!=-1, 'missing $$');
@@ -111,17 +115,18 @@ E.parse_get_next = function(curr){
     exp = s.substr(curr.at||0, i+at-(curr.at||0));
     get_array_str(o.r, null).forEach(els=>{
       let args = {};
-      get_array_str(els, '').forEach((el, i)=>args[i+1]=el);
+      get_array_str(els, '').forEach((el, i)=>args[i+1]=el=='!' ? '' : el);
       let _s = replace_macro_vars(exp, args);
+      _s = replace_macro_vars(_s, vars);
       _s = apply_macro_funcs(_s);
       ss += (_s ? ' ' : '')+_s;
     });
     assert(!ss.includes('$'), 'missing args for '+exp+'\n\n'+curr2.exp+
       '\n\n'+ss);
     let l = s.substr(0, curr.at||0), r = s.substr(curr2.at);
-    return E.parse_get_next({s: l+ss+' '+r, at: curr.at||0, vars});
+    return E.parse_get_next({s: l+ss+' '+r, at: curr.at||0, vars, skip_macro});
   }
-  return {exp, s, at, vars};
+  return {exp, s, at, vars, skip_macro};
 };
 
 // XXX: need test
@@ -130,7 +135,7 @@ function apply_macro_funcs(s){
   for (let i=0; i<s.length; i++){
     let ch = s.charAt(i);
     if (ch=='$'){
-      assert(!func, 'invalid macro func usage '+s);
+      assert(!func, 'invalid macro func usage i '+i+' '+s);
       func = '$';
       parentesis = 0;
       start = i;
@@ -189,7 +194,8 @@ function get_array_str(s, open){
   let ret = [];
   if (open!==null)
     s = rm_parentesis(s, open===undefined ? '[' : open);
-  for (let curr=s; curr = E.parse_get_next(curr);){
+  let curr = E.parse_get_next({s, at: 0, skip_macro: true});
+  for (; curr; curr = E.parse_get_next(curr)){
     if (!/^\/\//.test(curr.exp))
       ret.push(curr.exp);
   }

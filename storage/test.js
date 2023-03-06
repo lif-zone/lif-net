@@ -254,6 +254,7 @@ describe('parser', ()=>{
     t('cmd($1) $$(a1)', ['cmd(a1)']);
     t('cmd($1) $$(a1 a2 a3)', ['cmd(a1)', 'cmd(a2)', 'cmd(a3)']);
     t('cmd($1 $2) $$([a1 a2])', ['cmd(a1 a2)']);
+    t('cmd($1 $2) $$([a1 !])', ['cmd(a1 )']);
     t('cmd($1 $2) $$((a1 a2))', ['cmd(a1 a2)']);
     t('cmd($1 $2) $$({a1 a2})', ['cmd(a1 a2)']);
     t('cmd($1 $2) $$([a1 a2] [b1 b2])', ['cmd(a1 a2)', 'cmd(b1 b2)']);
@@ -2238,38 +2239,32 @@ describe('scroll', function(){
             (v2 1-1.0 []) (v2 1 []) (v2 0 []))`);
         t('tag_multi_dir', `s..#(index index_table bseq)
           scroll(index:path) #bseq0=0
-          decl({path:/arik}) #(bseq1=1 index={id:0 key:/arik seq:1}
-            index_table={id:0 cfid:0 bseqb:null name:path})
-          decl({path:/derry}) #(bseq2=2 index={id:0 key:/derry seq:2})
-          decl({path:/arik}) #(bseq3=3 index={id:0 key:/arik seq:3})
-          decl({path:/derry}) #(bseq4=4 index={id:0 key:/derry seq:4})
-          decl({path:/arik} branch:b1) #(bseq5=4-1.0
-              index={id:1 key:/arik seq:5}
-              index_table=[{id:1 cfid:0 bseqb:4-1 name:path}])
-          decl({path:/derry}) #(bseq6=4-1.1 index={id:1 key:/derry seq:6})
-          decl({path:/arik}) #(bseq7=4-1.2 index={id:1 key:/arik seq:7})
-          decl({path:/derry}) #(bseq8=4-1.3 index={id:1 key:/derry seq:8})
-          decl({path:/arik} branch:b2) #(bseq9=4-1.3-1.0
-              index={id:2 key:/arik seq:9}
-              index_table=[{id:2 cfid:0 bseqb:4-1.3-1 name:path}])
-          decl({path:/derry}) #(bseq10=4-1.3-1.1
-            index={id:2 key:/derry seq:10})
-          decl({path:/arik}) #(bseq11=4-1.3-1.2 index={id:2 key:/arik seq:11})
-          decl({path:/derry} prev:8) #(bseq12=4-1.4
-            index={id:1 key:/derry seq:12})
-          decl({path:/arik}) #(bseq13=4-1.5 index={id:1 key:/arik seq:13})
-          decl({path:/derry} prev:4) #(bseq14=5 index={id:0 key:/derry seq:14})
-          decl({path:/arik}) #(bseq15=6 index={id:0 key:/arik seq:15})
-          decl({path:/derry}) #(bseq16=7 index={id:0 key:/derry seq:16})
-          decl({path:/arik}) #(bseq17=8 index={id:0 key:/arik seq:17})
-          decl({path:/derry} branch:b3) #(bseq18=8-1.0
-            index={id:3 key:/derry seq:18}
-            index_table={id:3 cfid:0 bseqb:8-1 name:path})
-          decl({path:/arik}) #(bseq19=8-1.1 index={id:3 key:/arik seq:19})
-          decl({path:/derry} prev:17) #(bseq20=9
-            index={id:0 key:/derry seq:20})
-          decl({path:/arik}) #(bseq21=_10 index={id:0 key:/arik seq:21})
-          // dn
+          $$index0(index_table={id:0 cfid:0 bseqb:null name:path})
+          $$index1(index_table={id:1 cfid:0 bseqb:4-1 name:path})
+          $$index2(index_table={id:2 cfid:0 bseqb:4-1.3-1 name:path})
+          $$index3(index_table={id:3 cfid:0 bseqb:8-1 name:path})
+          decl({path:$3} $5) #(bseq$1=$2 index={$4 key:$3 seq:$1} $6) $$(
+            ( 1   1         /arik  id:0 !         $index0)
+            ( 2   2         /derry id:0 !         !      )
+            ( 3   3         /arik  id:0 !         !      )
+            ( 4   4         /derry id:0 !         !      )
+            ( 5   4-1.0     /arik  id:1 branch:b1 $index1)
+            ( 6   4-1.1     /derry id:1 !         !      )
+            ( 7   4-1.2     /arik  id:1 !         !      )
+            ( 8   4-1.3     /derry id:1 !         !      )
+            ( 9   4-1.3-1.0 /arik  id:2 branch:b2 $index2)
+            (10   4-1.3-1.1 /derry id:2 !         !      )
+            (11   4-1.3-1.2 /arik  id:2 !         !      )
+            (12   4-1.4     /derry id:1 prev:8    !      )
+            (13   4-1.5     /arik  id:1 !         !      )
+            (14   5         /derry id:0 prev:4    !      )
+            (15   6         /arik  id:0 !         !      )
+            (16   7         /derry id:0 !         !      )
+            (17   8         /arik  id:0 !         !      )
+            (18   8-1.0     /derry id:3 branch:b3 $index3)
+            (19   8-1.1     /arik  id:3 !         !      )
+            (20   9         /derry id:0 prev:17   !      )
+            (21 _10         /arik  id:0 !         !      ))
           ##index_find(name:path key:/arik bseq:$1)=$2 # $$(
             (_11         [   21 17 15 3 1]) // main
             (_10         [   21 17 15 3 1])
@@ -2297,6 +2292,7 @@ describe('scroll', function(){
             (  2         [              1])
             (  1         [              1])
             (  0         [               ]))
+          ##index_find(dir:dn name:path key:/arik bseq:$1)=$2 # $$last
           ##index_find(dir:up name:path key:/arik bseq:$1)=$rev($2) # $$last
         `);
         t('conflict_basic_dir_dn', `

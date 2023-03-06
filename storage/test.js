@@ -1998,12 +1998,8 @@ describe('scroll', function(){
         decl({i:v2}) #index={id:1 key:v2 seq:3}
         decl({i:v1} prev:1) #index={id:0 key:v1 seq:4}
         decl({i:v2}) #index={id:0 key:v2 seq:5}
-        ##index_find(index:0 key:v0)=1
-        ##index_find(index:0 key:v1)=4
-        ##index_find(index:0 key:v2)=5
-        ##!index_find(index:1 key:v0)
-        ##index_find(index:1 key:v1)=2
-        ##index_find(index:1 key:v2)=3`);
+        ##index_find(index:$1 key:$2)=$3 $$(
+          (0 v0 1) (0 v1 4) (0 v2 5) (1 v0 []) (1 v1 2) (1 v2 3))`);
       t('conflict', `s.scroll(index:i) s.decl({i:v1}) s.decl({i:v2})
         s1.clone(s.M1) s1.decl({i:V2}) S..#(index index_table) scroll(s..M0) #
         tput(0 1  ) #(index={id:0 key:v1 seq:1}

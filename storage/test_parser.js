@@ -128,8 +128,10 @@ function get_array_str(s, open){
   let ret = [];
   if (open!==null)
     s = rm_parentesis(s, open===undefined ? '[' : open);
-  for (let curr=s; curr = E.parse_get_next(curr);)
-    ret.push(curr.exp);
+  for (let curr=s; curr = E.parse_get_next(curr);){
+    if (!/^\/\//.test(curr.exp))
+      ret.push(curr.exp);
+  }
   return ret;
 }
 E.get_array_str = get_array_str;

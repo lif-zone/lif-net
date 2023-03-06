@@ -2264,37 +2264,33 @@ describe('scroll', function(){
           decl({path:/derry} prev:17) #(bseq20=9
             index={id:0 key:/derry seq:20})
           decl({path:/arik}) #(bseq21=_10 index={id:0 key:/arik seq:21})
-          // main branch
           ##index_find(name:path key:/arik bseq:$1)=$2 # $$(
-            (_11 [21 17 15 3 1])
-            (_10 [21 17 15 3 1])
-            (  9 [   17 15 3 1])
-            (  8 [   17 15 3 1])
-            (  7 [      15 3 1])
-            (  6 [      15 3 1])
-            (  5 [         3 1])
-            (  4 [         3 1])
-            (  3 [         3 1])
-            (  2 [           1])
-            (  1 [           1])
-            (  0 [           ]))
-          // branch:b1 4-1
-          ##index_find(name:path key:/arik bseq:4-1.6)=[13 7 5 3 1]
-          ##index_find(name:path key:/arik bseq:4-1.5)=[13 7 5 3 1]
-          ##index_find(name:path key:/arik bseq:4-1.4)=[7 5 3 1]
-          ##index_find(name:path key:/arik bseq:4-1.3)=[7 5 3 1]
-          ##index_find(name:path key:/arik bseq:4-1.2)=[7 5 3 1]
-          ##index_find(name:path key:/arik bseq:4-1.1)=[5 3 1]
-          ##index_find(name:path key:/arik bseq:4-1.0)=[5 3 1]
-          // branch:b2 4-1.3-1
-          ##index_find(name:path key:/arik bseq:4-1.3-1.3)=[11 9 7 5 3 1]
-          ##index_find(name:path key:/arik bseq:4-1.3-1.2)=[11 9 7 5 3 1]
-          ##index_find(name:path key:/arik bseq:4-1.3-1.1)=[9 7 5 3 1]
-          ##index_find(name:path key:/arik bseq:4-1.3-1.0)=[9 7 5 3 1]
-          // branch:b3 8-1.0
-          ##index_find(name:path key:/arik bseq:8-1.2)=[19 17 15 3 1]
-          ##index_find(name:path key:/arik bseq:8-1.1)=[19 17 15 3 1]
-          ##index_find(name:path key:/arik bseq:8-1.0)=[17 15 3 1]`);
+            (_11         [   21 17 15 3 1]) // main
+            (_10         [   21 17 15 3 1])
+            (  9         [      17 15 3 1])
+            (  8-1.2     [   19 17 15 3 1]) // branch:b3
+            (  8-1.1     [   19 17 15 3 1])
+            (  8-1.0     [      17 15 3 1])
+            (  8         [      17 15 3 1]) // main
+            (  7         [         15 3 1])
+            (  6         [         15 3 1])
+            (  5         [            3 1])
+            (  4-1.6     [   13  7  5 3 1]) // branch:b
+            (  4-1.5     [   13  7  5 3 1])
+            (  4-1.4     [       7  5 3 1])
+            (  4-1.3-1.3 [11  9  7  5 3 1]) // branch:b2
+            (  4-1.3-1.2 [11  9  7  5 3 1])
+            (  4-1.3-1.1 [    9  7  5 3 1])
+            (  4-1.3-1.0 [    9  7  5 3 1])
+            (  4-1.3     [       7  5 3 1]) // branch:b
+            (  4-1.2     [       7  5 3 1])
+            (  4-1.1     [          5 3 1])
+            (  4-1.0     [          5 3 1])
+            (  4         [            3 1]) // main
+            (  3         [            3 1])
+            (  2         [              1])
+            (  1         [              1])
+            (  0         [               ]))`);
         // XXX: need tests with min
         t('tag_multi_dir_up', `s..#(index index_table bseq)
           scroll(index:path) #bseq0=0

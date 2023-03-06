@@ -2138,15 +2138,22 @@ describe('scroll', function(){
           ##index_find(index:0 key:/arik)=[12 11 10 6 5 2] #
           // max
           ##index_find(index:0 key:$1 max:$2)=$3 # $$(
-            (/derry 9 [9 8 7 4 3 1]) (/derry 8 [8 7 4 3 1])
-            (/derry 7 [7 4 3 1]) (/derry 6 [4 3 1]) (/derry 5 [4 3 1])
-            (/derry 4 [4 3 1]) (/derry 3 [3 1]) (/derry 2 [1]) (/derry 1 [1])
-            (/derry 0 [])
-            (/arik 12 [12 11 10 6 5 2]) (/arik 11 [11 10 6 5 2])
-            (/arik 11 [11 10 6 5 2]) (/arik 10 [10 6 5 2]) (/arik 9 [6 5 2])
-            (/arik 8 [6 5 2]) (/arik 7 [6 5 2]) (/arik 6 [6 5 2])
-            (/arik 5 [5 2]) (/arik 4 [2]) (/arik 3 [2]) (/arik 2 [2])
-            (/arik 1 []) (/arik 0 []))
+            (/derry 10 [9 8 7 4 3 1]) (/derry 9 [9 8 7 4 3 1])
+            (/derry 8 [8 7 4 3 1]) (/derry 7 [7 4 3 1]) (/derry 6 [4 3 1])
+            (/derry 5 [4 3 1]) (/derry 4 [4 3 1]) (/derry 3 [3 1])
+            (/derry 2 [1]) (/derry 1 [1]) (/derry 0 [])
+            (/arik 13 [12 11 10 6 5 2]) (/arik 12 [12 11 10 6 5 2])
+            (/arik 11 [11 10 6 5 2]) (/arik 11 [11 10 6 5 2])
+            (/arik 10 [10 6 5 2]) (/arik 9 [6 5 2]) (/arik 8 [6 5 2])
+            (/arik 7 [6 5 2]) (/arik 6 [6 5 2]) (/arik 5 [5 2])
+            (/arik 4 [2]) (/arik 3 [2]) (/arik 2 [2]) (/arik 1 [])
+            (/arik 0 []))
+          // min
+          ##index_find(index:0 key:$1 min:$2)=$3 # $$(
+            (/derry 0 [9 8 7 4 3 1]) (/derry 1 [9 8 7 4 3 1])
+            (/derry 2 [9 8 7 4 3]) (/derry 3 [9 8 7 4 3]) (/derry 4 [9 8 7 4])
+            (/derry 5 [9 8 7]) (/derry 6 [9 8 7]) (/derry 7 [9 8 7])
+            (/derry 8 [9 8]) (/derry 9 [9]) (/derry 10 []))
           // max/count
           ##index_find(index:0 key:$1 max:$2 count:$3)=$4 # $$(
             (/derry 9 7 [9 8 7 4 3 1]) (/derry 9 6 [9 8 7 4 3 1])
@@ -2157,33 +2164,37 @@ describe('scroll', function(){
           scroll(index:path) #
           decl({path:/derry}) #(index={id:0 key:/derry seq:1}
             index_table={id:0 cfid:0 bseqb:null name:path})
-          decl({path:/arik}) #index={id:0 key:/arik seq:2}
-          decl({path:/derry}) #index={id:0 key:/derry seq:3}
-          decl({path:/derry}) #index={id:0 key:/derry seq:4}
-          decl({path:/arik}) #index={id:0 key:/arik seq:5}
-          decl({path:/arik}) #index={id:0 key:/arik seq:6}
-          decl({path:/derry}) #index={id:0 key:/derry seq:7}
-          decl({path:/derry}) #index={id:0 key:/derry seq:8}
-          decl({path:/derry}) #index={id:0 key:/derry seq:9}
-          decl({path:/arik}) #index={id:0 key:/arik seq:10}
-          decl({path:/arik}) #index={id:0 key:/arik seq:11}
-          decl({path:/arik}) #index={id:0 key:/arik seq:12}
-          // min/max
+          decl({path:$1}) #index={id:0 key:$1 seq:$2} $$(
+            (/arik 2) (/derry 3) (/derry 4) (/arik 5) (/arik 6) (/derry 7)
+            (/derry 8) (/derry 9) (/arik 10) (/arik 11) (/arik 12))
           ##index_find(dir:up index:0 key:/derry)=[1 3 4 7 8 9] #
-          ##index_find(dir:up index:0 key:/derry max:9)=[1 3 4 7 8 9] #
-          ##index_find(dir:up index:0 key:/derry max:8)=[1 3 4 7 8] #
-          ##index_find(dir:up index:0 key:/derry max:1)=1 #
-          ##!index_find(dir:up index:0 key:/derry max:0) #
           ##index_find(dir:up index:0 key:/arik)=[2 5 6 10 11 12] #
-          ##index_find(dir:up index:0 key:/arik max:12)=[2 5 6 10 11 12] #
-          ##index_find(dir:up index:0 key:/arik max:11)=[2 5 6 10 11] #
-          ##index_find(dir:up index:0 key:/arik max:2)=2 #
-          ##!index_find(dir:up index:0 key:/arik max:1) #
+          // max
+          ##index_find(dir:up index:0 key:$1 max:$2)=$3 # $$(
+            (/derry 10 [1 3 4 7 8 9]) (/derry 9 [1 3 4 7 8 9])
+            (/derry 8 [1 3 4 7 8]) (/derry 7 [1 3 4 7]) (/derry 6 [1 3 4])
+            (/derry 5 [1 3 4]) (/derry 4 [1 3 4]) (/derry 3 [1 3])
+            (/derry 2 [1]) (/derry 1 [1]) (/derry 0 [])
+            (/arik 13 [2 5 6 10 11 12]) (/arik 12 [2 5 6 10 11 12])
+            (/arik 11 [2 5 6 10 11]) (/arik 10 [2 5 6 10]) (/arik 9 [2 5 6])
+            (/arik 8 [2 5 6]) (/arik 7 [2 5 6]) (/arik 6 [2 5 6])
+            (/arik 5 [2 5]) (/arik 4 [2]) (/arik 3 [2]) (/arik 2 [2])
+            (/arik 1 []) (/arik 0 []))
+          // min
+          ##index_find(dir:up index:0 key:$1 min:$2)=$3 # $$(
+            (/derry 0 [1 3 4 7 8 9]) (/derry 1 [1 3 4 7 8 9])
+            (/derry 2 [3 4 7 8 9]) (/derry 3 [3 4 7 8 9]) (/derry 4 [4 7 8 9])
+            (/derry 5 [7 8 9]) (/derry 6 [7 8 9]) (/derry 7 [7 8 9])
+            (/derry 8 [8 9]) (/derry 8 [8 9]) (/derry 9 [9]) (/derry 10 []))
           // count
-          ##index_find(dir:up index:0 key:/derry max:9 count:6)=[1 3 4 7 8 9] #
-          ##index_find(dir:up index:0 key:/derry max:9 count:5)=[1 3 4 7 8] #
-          ##index_find(dir:up index:0 key:/derry max:9 count:1)=1 #
-          ##index_find(dir:up index:0 key:/derry max:8 count:4)=[1 3 4 7] #`);
+          ##index_find(dir:up index:0 key:$1 max:$2 count:$3)=$4 # $$(
+            (/derry 9 7 [1 3 4 7 8 9]) (/derry 9 6 [1 3 4 7 8 9])
+            (/derry 9 5 [1 3 4 7 8]) (/derry 9 4 [1 3 4 7])
+            (/derry 9 3 [1 3 4]) (/derry 9 2 [1 3]) (/derry 9 1 [1])
+            (/derry 9 0 [1 3 4 7 8 9]) (/derry 8 6 [1 3 4 7 8])
+            (/derry 8 5 [1 3 4 7 8]) (/derry 8 4 [1 3 4 7])
+            (/derry 8 3 [1 3 4]) (/derry 8 2 [1 3]) (/derry 8 1 [1])
+            (/derry 8 0 [1 3 4 7 8]))`);
         t('tag_basic_dir_dn', `s..#(index index_table) scroll(index:i) #
           decl({i:v1}) #(index={id:0 key:v1 seq:1}
             index_table={id:0 cfid:0 bseqb:null name:i})

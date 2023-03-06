@@ -2298,31 +2298,32 @@ describe('scroll', function(){
         `);
         t('conflict_basic', `
           decl({path:$1}) $$
+          // XXX derry: $last $$(...) -> $$$(...)
           s..scroll(index:path) $last $$(/arik /derry /arik /derry)
           s1..clone(s)          $last $$(/arik /arik /derry /arik /arik)
           s2..clone(s)          $last $$(/david /derry /derry /arik /derry)
           s..def                $last $$(/derry /derry /derry /derry /arik)
           S..#index scroll(s..M0)
-          // XXX derry: I don't use macro here
-          tput(0 1                ) #index={id:0 key:/arik  seq:1}
-          tput(0 1 2              ) #index={id:0 key:/derry seq:2}
-          tput(0 1 2 3            ) #index={id:0 key:/arik  seq:3}
-          tput(0 1 2 3 4          ) #index={id:0 key:/derry seq:4}
-          tput(0 1 2 3 4 5        ) #index={id:0 key:/derry seq:5}
-          tput(0 1 2 3 4 5 6      ) #index={id:0 key:/derry seq:6}
-          tput(0 1 2 3 4 5 6 7    ) #index={id:0 key:/derry seq:7}
-          tput(0 1 2 3 4 5 6 7 8  ) #index={id:0 key:/derry seq:8}
-          tput(0 1 2 3 4 5 6 7 8 9) #index={id:0 key:/arik  seq:9}
-          tput(0 1 2 3 4 f        ) #index={id:1 key:/arik  seq:5}
-          tput(0 1 2 3 4 f g      ) #index={id:1 key:/arik  seq:6}
-          tput(0 1 2 3 4 f h      ) #index={id:1 key:/derry seq:7}
-          tput(0 1 2 3 4 f h i    ) #index={id:1 key:/arik  seq:8}
-          tput(0 1 2 3 4 f h i j  ) #index={id:1 key:/arik  seq:9}
-          tput(0 1 2 3 4 F        ) #index={id:2 key:/david seq:5}
-          tput(0 1 2 3 4 F G      ) #index={id:2 key:/derry seq:6}
-          tput(0 1 2 3 4 F G H    ) #index={id:2 key:/derry seq:7}
-          tput(0 1 2 3 4 F G H I  ) #index={id:2 key:/arik  seq:8}
-          tput(0 1 2 3 4 F G H I J) #index={id:2 key:/derry seq:9}
+          tput$1 #index={id:$4 key:$3 seq:$2} $$(
+            ((0 1                ) 1 /arik  0)
+            ((0 1 2              ) 2 /derry 0)
+            ((0 1 2 3            ) 3 /arik  0)
+            ((0 1 2 3 4          ) 4 /derry 0)
+            ((0 1 2 3 4 5        ) 5 /derry 0)
+            ((0 1 2 3 4 5 6      ) 6 /derry 0)
+            ((0 1 2 3 4 5 6 7    ) 7 /derry 0)
+            ((0 1 2 3 4 5 6 7 8  ) 8 /derry 0)
+            ((0 1 2 3 4 5 6 7 8 9) 9 /arik  0)
+            ((0 1 2 3 4 f        ) 5 /arik  1)
+            ((0 1 2 3 4 f g      ) 6 /arik  1)
+            ((0 1 2 3 4 f h      ) 7 /derry 1)
+            ((0 1 2 3 4 f h i    ) 8 /arik  1)
+            ((0 1 2 3 4 f h i j  ) 9 /arik  1)
+            ((0 1 2 3 4 F        ) 5 /david 2)
+            ((0 1 2 3 4 F G      ) 6 /derry 2)
+            ((0 1 2 3 4 F G H    ) 7 /derry 2)
+            ((0 1 2 3 4 F G H I  ) 8 /arik  2)
+            ((0 1 2 3 4 F G H I J) 9 /derry 2))
           ##index_find(cfid:$1 name:path key:/arik bseq:$2)=$3 $$(
             (0 _10 [9       3 1]) // cfid:0
             (0   9 [9       3 1])

@@ -270,6 +270,8 @@ describe('parser', ()=>{
     t('$$a(a b(c:d)) $a', ['a', 'b(c:d)']);
     t('$$a(A) $$b(B) cmd($a) cmd($b)', ['cmd(A)', 'cmd(B)']);
     t('$$a(A) cmd($a $1) $$(B C)', ['cmd(A B)', 'cmd(A C)']);
+    t('cmd($1) $$(a1 a2 a3) cmd2($1) $$last',
+      ['cmd(a1)', 'cmd(a2)', 'cmd(a3)', 'cmd2(a1)', 'cmd2(a2)', 'cmd2(a3)']);
   });
   it('parse_exp', ()=>{
     const t = (s, exp)=>assert.deepEqual(parse_exp(s),
@@ -2231,7 +2233,7 @@ describe('scroll', function(){
             (v1 1-1.3 [1 2]) (v1 1-1.2 [1 2]) (v1 1-1.1 [1 2]) (v1 1-1.0 [1 2])
             (v1 1 1) (v1 0 []) (v2 1-1.3 [3 4]) (v2 1-1.2 [3 4]) (v2 1-1.1 [3])
             (v2 1-1.0 []) (v2 1 []) (v2 0 []))`);
-        t('tag_multi_dir_dn', `s..#(index index_table bseq)
+        t('tag_multi_dir', `s..#(index index_table bseq)
           scroll(index:path) #bseq0=0
           decl({path:/arik}) #(bseq1=1 index={id:0 key:/arik seq:1}
             index_table={id:0 cfid:0 bseqb:null name:path})
@@ -2264,6 +2266,7 @@ describe('scroll', function(){
           decl({path:/derry} prev:17) #(bseq20=9
             index={id:0 key:/derry seq:20})
           decl({path:/arik}) #(bseq21=_10 index={id:0 key:/arik seq:21})
+          // dn
           ##index_find(name:path key:/arik bseq:$1)=$2 # $$(
             (_11         [   21 17 15 3 1]) // main
             (_10         [   21 17 15 3 1])
@@ -2290,7 +2293,11 @@ describe('scroll', function(){
             (  3         [            3 1])
             (  2         [              1])
             (  1         [              1])
-            (  0         [               ]))`);
+            (  0         [               ]))
+          // XXX
+          // ##index_find(name:path key:/arik bseq:$1)=$2 # $$last
+          // ##index_find(name:path key:/arik bseq:$rev($1))=$2 # $$last
+        `);
         // XXX: need tests with min
         t('tag_multi_dir_up', `s..#(index index_table bseq)
           scroll(index:path) #bseq0=0

@@ -29,7 +29,7 @@ E.parse_get_next = function(curr){
       return;
     i = curr.at;
     s = curr.s;
-    vars = curr.vars;
+    vars = curr.vars||{};
   }
   for (i; i<s.length && !done; i++){
     let c = s.charAt(i);
@@ -82,12 +82,17 @@ E.parse_get_next = function(curr){
     return {exp, s, at, vars};
   }
   if (exp.startsWith('$$')){
+    if (exp=='$$last'){
+      assert(vars.last, 'missing $$last');
+      return {exp: vars.last, s, at, vars};
+    }
     let m = exp.match(/^\$\$([a-zA-Z][a-zA-Z0-9]*)\((.*)\)$/);
     if (m){
       vars[m[1]] = m[2];
       let l = s.substr(0, curr.at||0), r = s.substr(at);
       return E.parse_get_next({s: l+' '+r, at: curr.at||0, vars});
     }
+    vars.last = exp;
     return {exp, s, at, vars};
   }
   if (exp.includes('$')){
@@ -98,7 +103,7 @@ E.parse_get_next = function(curr){
     }
     let i = s.substr(at).indexOf('$$');
     assert(i!=-1, 'missing $$');
-    let curr2 = E.parse_get_next({s, at: i+at}), ss = '';
+    let curr2 = E.parse_get_next({s, at: i+at, vars}), ss = '';
     assert(curr2, 'missing $$');
     let o = E.parse_exp(curr2.exp);
     assert.equal(o.cmd, '$$', 'missing $$');
@@ -142,6 +147,7 @@ E.parse_push = function(curr, s){
 };
 
 E._parse_exp = function(s){
+  assert(s, 'missing string');
   let c, parentesis = [], first, meta = {s: s.trim()};
   s = string.split_ws(s).join(' ');
   // XXX: rm special handling for # and ##

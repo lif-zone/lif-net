@@ -2297,27 +2297,14 @@ describe('scroll', function(){
         `);
         t('conflict_basic_dir', `
           s..scroll(index:path)
-          decl({path:/arik})
-          decl({path:/derry})
-          decl({path:/arik})
-          decl({path:/derry})
+          // XXX derry: make $$ work on the last template?
+          decl({path:$1}) $$(/arik /derry /arik /derry)
           s1..clone(s)
-          decl({path:/arik})
-          decl({path:/arik})
-          decl({path:/derry})
-          decl({path:/arik})
-          decl({path:/arik})
+          decl({path:$1}) $$(/arik /arik /derry /arik /arik)
           s2..clone(s)
-          decl({path:/david})
-          decl({path:/derry})
-          decl({path:/derry})
-          decl({path:/arik})
-          decl({path:/derry})
+          decl({path:$1}) $$(/david /derry /derry /arik /derry)
           s..decl({path:/derry})
-          decl({path:/derry})
-          decl({path:/derry})
-          decl({path:/derry})
-          decl({path:/arik})
+          decl({path:$1}) $$(/derry /derry /derry /arik)
           S..#index scroll(s..M0)
           tput(0 1                ) #index={id:0 key:/arik seq:1}
           tput(0 1 2              ) #index={id:0 key:/derry seq:2}

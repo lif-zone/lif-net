@@ -2301,6 +2301,7 @@ describe('scroll', function(){
           decl({path:$1}) $$(/arik /derry /arik /derry)
           s1..clone(s)
           decl({path:$1}) $$(/arik /arik /derry /arik /arik)
+          // XXX $last $$(/arik /arik /derry /arik /arik)
           s2..clone(s)
           decl({path:$1}) $$(/david /derry /derry /arik /derry)
           s..decl({path:/derry})
@@ -2364,15 +2365,11 @@ describe('scroll', function(){
           ##index_find(dir:up cfid:$1 name:path key:/arik bseq:$2)=$rev($3)
             $$last
         `);
-        t('conflict_parent_dir_dn', `
+        t('conflict_parent', `
           s..scroll(index:path)
-          decl({path:/arik})
-          decl({path:/derry})
-          decl({path:/arik})
-          decl({path:/derry})
+          decl({path:$1}) $$(/arik /derry /arik /derry)
           s1..clone(s)
-          decl({path:/arik})
-          decl({path:/arik})
+          decl({path:$1}) $$(/arik /arik)
           s2..clone(s1)
           decl({path:/derry})
           decl({path:/arik})

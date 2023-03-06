@@ -2237,7 +2237,7 @@ describe('scroll', function(){
             (v1 1-1.3 [1 2]) (v1 1-1.2 [1 2]) (v1 1-1.1 [1 2]) (v1 1-1.0 [1 2])
             (v1 1 1) (v1 0 []) (v2 1-1.3 [3 4]) (v2 1-1.2 [3 4]) (v2 1-1.1 [3])
             (v2 1-1.0 []) (v2 1 []) (v2 0 []))`);
-        t('tag_multi_dir', `s..#(index index_table bseq)
+        t('tag_multi', `s..#(index index_table bseq)
           scroll(index:path) #bseq0=0
           $$index0(index_table={id:0 cfid:0 bseqb:null name:path})
           $$index1(index_table={id:1 cfid:0 bseqb:4-1 name:path})
@@ -2295,7 +2295,7 @@ describe('scroll', function(){
           ##index_find(dir:dn name:path key:/arik bseq:$1)=$2 # $$last
           ##index_find(dir:up name:path key:/arik bseq:$1)=$rev($2) # $$last
         `);
-        t('conflict_basic_dir', `
+        t('conflict_basic', `
           s..scroll(index:path)
           // XXX derry: make $$ work on the last template?
           decl({path:$1}) $$(/arik /derry /arik /derry)

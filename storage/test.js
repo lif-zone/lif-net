@@ -2127,38 +2127,32 @@ describe('scroll', function(){
     });
     describe('find', ()=>{
       describe('mem', ()=>{
-        // XXX: use macros with * to simplify tests
         t('basic_dir_dn', `s..#(db_query_index index index_table)
           scroll(index:path) #
           decl({path:/derry}) #(index={id:0 key:/derry seq:1}
             index_table={id:0 cfid:0 bseqb:null name:path})
-          decl({path:/arik}) #index={id:0 key:/arik seq:2}
-          decl({path:/derry}) #index={id:0 key:/derry seq:3}
-          decl({path:/derry}) #index={id:0 key:/derry seq:4}
-          decl({path:/arik}) #index={id:0 key:/arik seq:5}
-          decl({path:/arik}) #index={id:0 key:/arik seq:6}
-          decl({path:/derry}) #index={id:0 key:/derry seq:7}
-          decl({path:/derry}) #index={id:0 key:/derry seq:8}
-          decl({path:/derry}) #index={id:0 key:/derry seq:9}
-          decl({path:/arik}) #index={id:0 key:/arik seq:10}
-          decl({path:/arik}) #index={id:0 key:/arik seq:11}
-          decl({path:/arik}) #index={id:0 key:/arik seq:12}
-          // min/max
+          decl({path:$1}) #index={id:0 key:$1 seq:$2} $$(
+            (/arik 2) (/derry 3) (/derry 4) (/arik 5) (/arik 6) (/derry 7)
+            (/derry 8) (/derry 9) (/arik 10) (/arik 11) (/arik 12))
           ##index_find(index:0 key:/derry)=[9 8 7 4 3 1] #
-          ##index_find(index:0 key:/derry max:9)=[9 8 7 4 3 1] #
-          ##index_find(index:0 key:/derry max:8)=[8 7 4 3 1] #
-          ##index_find(index:0 key:/derry max:1)=1 #
-          ##!index_find(index:0 key:/derry max:0) #
           ##index_find(index:0 key:/arik)=[12 11 10 6 5 2] #
-          ##index_find(index:0 key:/arik max:12)=[12 11 10 6 5 2] #
-          ##index_find(index:0 key:/arik max:11)=[11 10 6 5 2] #
-          ##index_find(index:0 key:/arik max:2)=[2] #
-          ##!index_find(index:0 key:/arik max:1) #
-          // count
-          ##index_find(index:0 key:/derry max:9 count:6)=[9 8 7 4 3 1] #
-          ##index_find(index:0 key:/derry max:9 count:5)=[9 8 7 4 3] #
-          ##index_find(index:0 key:/derry max:9 count:1)=[9] #
-          ##index_find(index:0 key:/derry max:8 count:4)=[8 7 4 3] #`);
+          // max
+          ##index_find(index:0 key:$1 max:$2)=$3 # $$(
+            (/derry 9 [9 8 7 4 3 1]) (/derry 8 [8 7 4 3 1])
+            (/derry 7 [7 4 3 1]) (/derry 6 [4 3 1]) (/derry 5 [4 3 1])
+            (/derry 4 [4 3 1]) (/derry 3 [3 1]) (/derry 2 [1]) (/derry 1 [1])
+            (/derry 0 [])
+            (/arik 12 [12 11 10 6 5 2]) (/arik 11 [11 10 6 5 2])
+            (/arik 11 [11 10 6 5 2]) (/arik 10 [10 6 5 2]) (/arik 9 [6 5 2])
+            (/arik 8 [6 5 2]) (/arik 7 [6 5 2]) (/arik 6 [6 5 2])
+            (/arik 5 [5 2]) (/arik 4 [2]) (/arik 3 [2]) (/arik 2 [2])
+            (/arik 1 []) (/arik 0 []))
+          // max/count
+          ##index_find(index:0 key:$1 max:$2 count:$3)=$4 # $$(
+            (/derry 9 7 [9 8 7 4 3 1]) (/derry 9 6 [9 8 7 4 3 1])
+            (/derry 9 5 [9 8 7 4 3]) (/derry 9 4 [9 8 7 4])
+            (/derry 9 3 [9 8 7]) (/derry 9 2 [9 8]) (/derry 9 1 [9])
+            (/derry 9 0 [9 8 7 4 3 1]))`);
         t('basic_dir_up', `s..#(db_query_index index index_table)
           scroll(index:path) #
           decl({path:/derry}) #(index={id:0 key:/derry seq:1}

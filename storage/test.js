@@ -254,6 +254,8 @@ describe('parser', ()=>{
     t('cmd($1) $$(a1)', ['cmd(a1)']);
     t('cmd($1) $$(a1 a2 a3)', ['cmd(a1)', 'cmd(a2)', 'cmd(a3)']);
     t('cmd($1 $2) $$([a1 a2])', ['cmd(a1 a2)']);
+    t('cmd($1 $2) $$((a1 a2))', ['cmd(a1 a2)']);
+    t('cmd($1 $2) $$({a1 a2})', ['cmd(a1 a2)']);
     t('cmd($1 $2) $$([a1 a2] [b1 b2])', ['cmd(a1 a2)', 'cmd(b1 b2)']);
     t('#cmd($1)=$2 $$([a1 a2])', ['#cmd(a1)=a2']);
     t('cmd0 cmd1($1) $$(a1 a2) cmd2',
@@ -1971,14 +1973,9 @@ describe('scroll', function(){
         decl({i1:null i2:null}) #
         decl({i1:i1v3 i2:i2v3}) #(index={id:0 key:i1v3 seq:7}
           index={id:1 key:i2v3 seq:7})
-        ##index_find(index:0 key:i1v1)=1
-        ##index_find(index:0 key:i1v2)=2
-        ##index_find(index:0 key:i1v3)=[7 3]
-        ##!index_find(index:0 key:i2v1)
-        ##index_find(index:1 key:i2v1)=1
-        ##index_find(index:1 key:i2v2)=2
-        ##index_find(index:1 key:i2v3)=[7 4]
-        ##!index_find(index:1 key:i1v1)`);
+        ##index_find(index:$1 key:$2)=$3 $$(
+          (0 i1v1 1) (0 i1v2 2) (0 i1v3 [7 3]) (0 i2v1 [])
+          (1 i2v1 1) (1 i2v2 2) (1 i2v3 [7 4]) (1 i1v1 []))`);
       t('two_scroll', `conf(soul:same)
         s.#(index index_table) s.scroll(index:i) s.#
         S.#(index index_table) S.scroll(index:i) S.#

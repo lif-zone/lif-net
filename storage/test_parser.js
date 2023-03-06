@@ -9,7 +9,11 @@ function space(s){ return s ? ' '+s : ''; }
 
 E.rm_parentesis = rm_parentesis;
 function rm_parentesis(s, open='('){
-  if (s.charAt(0)!=open)
+  if (open==''){
+    open = s.charAt(0);
+    if (!['(', '[', '{'].includes(open))
+      return s;
+  } else if (s.charAt(0)!=open)
     return s;
   let close = open=='(' ? ')' : open=='{' ? '}' : open=='[' ? ']' : '';
   assert(close, 'invalid open parentesis '+open);
@@ -100,13 +104,13 @@ E.parse_get_next = function(curr){
     assert.equal(o.cmd, '$$', 'missing $$');
     assert(!o.l, 'invalid $$ '+curr2.exp);
     exp = s.substr(curr.at||0, i+at-(curr.at||0));
-    get_array_str(o.r, '(').forEach(els=>{
+    get_array_str(o.r, null).forEach(els=>{
       let args = {};
-      get_array_str(els).forEach((el, i)=>args[i+1]=el);
+      get_array_str(els, '').forEach((el, i)=>args[i+1]=el);
       let _s = replace_macro_vars(exp, args);
       ss += (_s ? ' ' : '')+_s;
     });
-    assert(!ss.includes('$'), 'missing args for '+exp);
+    assert(!ss.includes('$'), 'missing args for '+exp+' '+curr2.exp);
     let l = s.substr(0, curr.at||0), r = s.substr(curr2.at);
     return E.parse_get_next({s: l+ss+' '+r, at: curr.at||0, vars});
   }
@@ -122,7 +126,8 @@ function replace_macro_vars(s, vars){
 
 function get_array_str(s, open){
   let ret = [];
-  s = rm_parentesis(s, open||'[');
+  if (open!==null)
+    s = rm_parentesis(s, open===undefined ? '[' : open);
   for (let curr=s; curr = E.parse_get_next(curr);)
     ret.push(curr.exp);
   return ret;

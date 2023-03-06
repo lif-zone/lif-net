@@ -272,6 +272,9 @@ describe('parser', ()=>{
     t('$$a(A) cmd($a $1) $$(B C)', ['cmd(A B)', 'cmd(A C)']);
     t('cmd($1) $$(a1 a2 a3) cmd2($1) $$last',
       ['cmd(a1)', 'cmd(a2)', 'cmd(a3)', 'cmd2(a1)', 'cmd2(a2)', 'cmd2(a3)']);
+    t('cmd2(a $rev($1) b) $$(([a1 a2]))', ['cmd2(a [a2 a1] b)']);
+    t('cmd2(a $rev($1) b) $$(([a1 a2]) ([a3 a4]))',
+      ['cmd2(a [a2 a1] b)', 'cmd2(a [a4 a3] b)']);
   });
   it('parse_exp', ()=>{
     const t = (s, exp)=>assert.deepEqual(parse_exp(s),
@@ -2294,76 +2297,8 @@ describe('scroll', function(){
             (  2         [              1])
             (  1         [              1])
             (  0         [               ]))
-          // XXX
-          // ##index_find(name:path key:/arik bseq:$1)=$2 # $$last
-          // ##index_find(name:path key:/arik bseq:$rev($1))=$2 # $$last
+          ##index_find(dir:up name:path key:/arik bseq:$1)=$rev($2) # $$last
         `);
-        // XXX: need tests with min
-        t('tag_multi_dir_up', `s..#(index index_table bseq)
-          scroll(index:path) #bseq0=0
-          decl({path:/arik}) #(bseq1=1 index={id:0 key:/arik seq:1}
-            index_table={id:0 cfid:0 bseqb:null name:path})
-          decl({path:/derry}) #(bseq2=2 index={id:0 key:/derry seq:2})
-          decl({path:/arik}) #(bseq3=3 index={id:0 key:/arik seq:3})
-          decl({path:/derry}) #(bseq4=4 index={id:0 key:/derry seq:4})
-          decl({path:/arik} branch:b1) #(bseq5=4-1.0
-              index={id:1 key:/arik seq:5}
-              index_table=[{id:1 cfid:0 bseqb:4-1 name:path}])
-          decl({path:/derry}) #(bseq6=4-1.1 index={id:1 key:/derry seq:6})
-          decl({path:/arik}) #(bseq7=4-1.2 index={id:1 key:/arik seq:7})
-          decl({path:/derry}) #(bseq8=4-1.3 index={id:1 key:/derry seq:8})
-          decl({path:/arik} branch:b2) #(bseq9=4-1.3-1.0
-              index={id:2 key:/arik seq:9}
-              index_table=[{id:2 cfid:0 bseqb:4-1.3-1 name:path}])
-          decl({path:/derry}) #(bseq10=4-1.3-1.1
-            index={id:2 key:/derry seq:10})
-          decl({path:/arik}) #(bseq11=4-1.3-1.2 index={id:2 key:/arik seq:11})
-          decl({path:/derry} prev:8) #(bseq12=4-1.4
-            index={id:1 key:/derry seq:12})
-          decl({path:/arik}) #(bseq13=4-1.5 index={id:1 key:/arik seq:13})
-          decl({path:/derry} prev:4) #(bseq14=5 index={id:0 key:/derry seq:14})
-          decl({path:/arik}) #(bseq15=6 index={id:0 key:/arik seq:15})
-          decl({path:/derry}) #(bseq16=7 index={id:0 key:/derry seq:16})
-          decl({path:/arik}) #(bseq17=8 index={id:0 key:/arik seq:17})
-          decl({path:/derry} branch:b3) #(bseq18=8-1.0
-            index={id:3 key:/derry seq:18}
-            index_table={id:3 cfid:0 bseqb:8-1 name:path}
-          )
-          decl({path:/arik}) #(bseq19=8-1.1 index={id:3 key:/arik seq:19})
-          decl({path:/derry} prev:17) #(bseq20=9
-            index={id:0 key:/derry seq:20})
-          decl({path:/arik}) #(bseq21=_10 index={id:0 key:/arik seq:21})
-          // main branch
-          ##index_find(dir:up name:path key:/arik bseq:_11)=[1 3 15 17 21]
-          ##index_find(dir:up name:path key:/arik bseq:_10)=[1 3 15 17 21]
-          ##index_find(dir:up name:path key:/arik bseq:8)=[1 3 15 17]
-          ##index_find(dir:up name:path key:/arik bseq:7)=[1 3 15]
-          ##index_find(dir:up name:path key:/arik bseq:6)=[1 3 15]
-          ##index_find(dir:up name:path key:/arik bseq:5)=[1 3]
-          ##index_find(dir:up name:path key:/arik bseq:4)=[1 3]
-          ##index_find(dir:up name:path key:/arik bseq:3)=[1 3]
-          ##index_find(dir:up name:path key:/arik bseq:2)=1
-          ##index_find(dir:up name:path key:/arik bseq:1)=1
-          ##index_find(dir:up name:path key:/arik bseq:0)=[]
-          // branch:b1 4-1
-          ##index_find(dir:up name:path key:/arik bseq:4-1.6)=[1 3 5 7 13]
-          ##index_find(dir:up name:path key:/arik bseq:4-1.5)=[1 3 5 7 13]
-          ##index_find(dir:up name:path key:/arik bseq:4-1.4)=[1 3 5 7]
-          ##index_find(dir:up name:path key:/arik bseq:4-1.3)=[1 3 5 7]
-          ##index_find(dir:up name:path key:/arik bseq:4-1.2)=[1 3 5 7]
-          ##index_find(dir:up name:path key:/arik bseq:4-1.1)=[1 3 5]
-          ##index_find(dir:up name:path key:/arik bseq:4-1.0)=[1 3 5]
-          // branch:b2 4-1.3-1
-          ##index_find(dir:up name:path key:/arik
-            bseq:4-1.3-1.3)=[1 3 5 7 9 11]
-          ##index_find(dir:up name:path key:/arik
-            bseq:4-1.3-1.2)=[1 3 5 7 9 11]
-          ##index_find(dir:up name:path key:/arik bseq:4-1.3-1.1)=[1 3 5 7 9]
-          ##index_find(dir:up name:path key:/arik bseq:4-1.3-1.0)=[1 3 5 7 9]
-          // branch:b3 8-1.0
-          ##index_find(dir:up name:path key:/arik bseq:8-1.2)=[1 3 15 17 19]
-          ##index_find(dir:up name:path key:/arik bseq:8-1.1)=[1 3 15 17 19]
-          ##index_find(dir:up name:path key:/arik bseq:8-1.0)=[1 3 15 17]`);
         t('conflict_basic_dir_dn', `
           s..scroll(index:path)
           decl({path:/arik})

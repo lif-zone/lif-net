@@ -113,19 +113,75 @@ E.parse_get_next = function(curr){
       let args = {};
       get_array_str(els, '').forEach((el, i)=>args[i+1]=el);
       let _s = replace_macro_vars(exp, args);
+      _s = apply_macro_funcs(_s);
       ss += (_s ? ' ' : '')+_s;
     });
-    assert(!ss.includes('$'), 'missing args for '+exp+' '+curr2.exp);
+    assert(!ss.includes('$'), 'missing args for '+exp+'\n\n'+curr2.exp+
+      '\n\n'+ss);
     let l = s.substr(0, curr.at||0), r = s.substr(curr2.at);
     return E.parse_get_next({s: l+ss+' '+r, at: curr.at||0, vars});
   }
   return {exp, s, at, vars};
 };
 
+// XXX: need test
+function apply_macro_funcs(s){
+  let func, body, start, parentesis, queue = [];
+  for (let i=0; i<s.length; i++){
+    let ch = s.charAt(i);
+    if (ch=='$'){
+      assert(!func, 'invalid macro func usage '+s);
+      func = '$';
+      parentesis = 0;
+      start = i;
+      body = '';
+      continue;
+    }
+    if (!func)
+      continue;
+    if (ch=='(' && !parentesis){
+      parentesis++;
+      continue;
+    }
+    if (!parentesis){
+      func += ch;
+      continue;
+    }
+    if (ch=='(')
+      parentesis++;
+    else if (ch==')'){
+      parentesis--;
+      if (!parentesis){
+        queue.push({func, body, start, end: i+1});
+        func = body = '';
+        continue;
+      }
+    } else
+      body += ch;
+  }
+  if (!queue.length)
+    return s;
+  queue.reverse();
+  let l, r, mid, a;
+  for (let i=0; i<queue.length; i++){
+    let o = queue[i];
+    switch (o.func){
+    case '$rev':
+      l = s.substr(0, o.start);
+      r = s.substr(o.end);
+      mid = s.substr(o.start+o.func.length+1, o.end-o.start-o.func.length-2);
+      a = get_array_str(mid, '');
+      s = l+mid[0]+a.reverse().join(' ')+mid[mid.length-1]+r;
+      break;
+    default: assert.fail('invalid marco_func ' +o.func);
+    }
+  }
+  return s;
+}
+
 function replace_macro_vars(s, vars){
   for (let v in vars)
     s = s.replace(new RegExp('\\$'+v+'\\b', 'g'), vars[v]);
-  assert(!/\$[a-zA-Z]/.test(s), 'missing $ vars '+s);
   return s;
 }
 

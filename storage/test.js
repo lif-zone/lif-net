@@ -2051,13 +2051,9 @@ describe('scroll', function(){
           db_index_table={id:0 cfid:0 bseqb:null name:file}
           db_index=[{id:0 key:/f1 seq:3} {id:0 key:/f1 seq:1}
             {id:0 key:/f2 seq:4} {id:0 key:/f2 seq:2} {id:0 key:/f3 seq:7}])
-        S.load_c(1) #index={id:0 key:/f1 seq:1}
-        S.load_c(2) #index={id:0 key:/f2 seq:2}
-        S.load_c(3) #index={id:0 key:/f1 seq:3}
-        S.load_c(4) #index={id:0 key:/f2 seq:4}
-        S.load_c(5) #
-        S.load_c(6) #
-        S.load_c(7) #index={id:0 key:/f3 seq:7}
+        S.load_c($1) #index=$2 $$((1 {id:0 key:/f1 seq:1})
+          (2 {id:0 key:/f2 seq:2}) (3 {id:0 key:/f1 seq:3})
+          (4 {id:0 key:/f2 seq:4}) (5 []) (6 []) (7 {id:0 key:/f3 seq:7}))
         // test valid new index id
         S.decl(branch:b {file:/f3}) flush #(
           index={id:1 key:/f3 seq:8}

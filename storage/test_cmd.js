@@ -1583,6 +1583,8 @@ const db_get_btable = scroll=>etask(function*db_get_btable(){
 });
 
 const cmd_def = o=>etask(function*cmd_def(){
+  if (!o.r)
+    return;
   let m = o.r.match(/^([a-zA-Z0-9]+)\.\.$/);
   assert(m?.[1], 'invalid cmd_def '+o.meta.s);
   set_def('right', m[1]);

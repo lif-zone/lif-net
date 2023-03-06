@@ -276,6 +276,7 @@ describe('parser', ()=>{
     t('cmd2(a $rev($1) b) $$(([a1 a2]))', ['cmd2(a [a2 a1] b)']);
     t('cmd2(a $rev($1) b) $$(([a1 a2]) ([a3 a4]))',
       ['cmd2(a [a2 a1] b)', 'cmd2(a [a4 a3] b)']);
+    t('cmd($1) $$(a1) cmd2 $last $$(a2)', ['cmd(a1)', 'cmd2', 'cmd(a2)']);
   });
   it('parse_exp', ()=>{
     const t = (s, exp)=>assert.deepEqual(parse_exp(s),
@@ -2243,28 +2244,28 @@ describe('scroll', function(){
           $$index1(index_table={id:1 cfid:0 bseqb:4-1 name:path})
           $$index2(index_table={id:2 cfid:0 bseqb:4-1.3-1 name:path})
           $$index3(index_table={id:3 cfid:0 bseqb:8-1 name:path})
-          decl({path:$3} $5) #(bseq$1=$2 index={$4 key:$3 seq:$1} $6) $$(
-            ( 1   1         /arik  id:0 !         $index0)
-            ( 2   2         /derry id:0 !         !      )
-            ( 3   3         /arik  id:0 !         !      )
-            ( 4   4         /derry id:0 !         !      )
-            ( 5   4-1.0     /arik  id:1 branch:b1 $index1)
-            ( 6   4-1.1     /derry id:1 !         !      )
-            ( 7   4-1.2     /arik  id:1 !         !      )
-            ( 8   4-1.3     /derry id:1 !         !      )
-            ( 9   4-1.3-1.0 /arik  id:2 branch:b2 $index2)
-            (10   4-1.3-1.1 /derry id:2 !         !      )
-            (11   4-1.3-1.2 /arik  id:2 !         !      )
-            (12   4-1.4     /derry id:1 prev:8    !      )
-            (13   4-1.5     /arik  id:1 !         !      )
-            (14   5         /derry id:0 prev:4    !      )
-            (15   6         /arik  id:0 !         !      )
-            (16   7         /derry id:0 !         !      )
-            (17   8         /arik  id:0 !         !      )
-            (18   8-1.0     /derry id:3 branch:b3 $index3)
-            (19   8-1.1     /arik  id:3 !         !      )
-            (20   9         /derry id:0 prev:17   !      )
-            (21 _10         /arik  id:0 !         !      ))
+          decl({path:$3} $5) #(bseq$1=$2 index={id:$4 key:$3 seq:$1} $6) $$(
+            ( 1   1         /arik  0 !         $index0)
+            ( 2   2         /derry 0 !         !      )
+            ( 3   3         /arik  0 !         !      )
+            ( 4   4         /derry 0 !         !      )
+            ( 5   4-1.0     /arik  1 branch:b1 $index1)
+            ( 6   4-1.1     /derry 1 !         !      )
+            ( 7   4-1.2     /arik  1 !         !      )
+            ( 8   4-1.3     /derry 1 !         !      )
+            ( 9   4-1.3-1.0 /arik  2 branch:b2 $index2)
+            (10   4-1.3-1.1 /derry 2 !         !      )
+            (11   4-1.3-1.2 /arik  2 !         !      )
+            (12   4-1.4     /derry 1 prev:8    !      )
+            (13   4-1.5     /arik  1 !         !      )
+            (14   5         /derry 0 prev:4    !      )
+            (15   6         /arik  0 !         !      )
+            (16   7         /derry 0 !         !      )
+            (17   8         /arik  0 !         !      )
+            (18   8-1.0     /derry 3 branch:b3 $index3)
+            (19   8-1.1     /arik  3 !         !      )
+            (20   9         /derry 0 prev:17   !      )
+            (21 _10         /arik  0 !         !      ))
           ##index_find(name:path key:/arik bseq:$1)=$2 # $$(
             (_11         [   21 17 15 3 1]) // main
             (_10         [   21 17 15 3 1])
@@ -2296,16 +2297,11 @@ describe('scroll', function(){
           ##index_find(dir:up name:path key:/arik bseq:$1)=$rev($2) # $$last
         `);
         t('conflict_basic', `
-          s..scroll(index:path)
-          // XXX derry: make $$ work on the last template?
-          decl({path:$1}) $$(/arik /derry /arik /derry)
-          s1..clone(s)
-          decl({path:$1}) $$(/arik /arik /derry /arik /arik)
-          // XXX $last $$(/arik /arik /derry /arik /arik)
-          s2..clone(s)
-          decl({path:$1}) $$(/david /derry /derry /arik /derry)
-          s..decl({path:/derry})
-          decl({path:$1}) $$(/derry /derry /derry /arik)
+          decl({path:$1}) $$
+          s..scroll(index:path) $last $$(/arik /derry /arik /derry)
+          s1..clone(s)          $last $$(/arik /arik /derry /arik /arik)
+          s2..clone(s)          $last $$(/david /derry /derry /arik /derry)
+          s..def                $last $$(/derry /derry /derry /derry /arik)
           S..#index scroll(s..M0)
           // XXX derry: I don't use macro here
           tput(0 1                ) #index={id:0 key:/arik  seq:1}

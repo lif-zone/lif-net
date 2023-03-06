@@ -1,6 +1,7 @@
 'use strict';
 import assert from 'assert';
 import string from '../util/string.js';
+import xerr from '../util/xerr.js';
 
 const E = {};
 export default E;
@@ -84,8 +85,8 @@ E.parse_get_next = function(curr){
   }
   if (exp.startsWith('$$')){
     if (exp=='$$last'){
-      assert(vars.last, 'missing $$last');
-      return {exp: vars.last, s, at, vars, skip_macro};
+      assert(vars['$$last'], 'missing $$last');
+      return {exp: vars['$$last'], s, at, vars, skip_macro};
     }
     let m = exp.match(/^\$\$([a-zA-Z][a-zA-Z0-9]*)\((.*)\)$/);
     if (m){
@@ -93,7 +94,7 @@ E.parse_get_next = function(curr){
       let l = s.substr(0, curr.at||0), r = s.substr(at);
       return E.parse_get_next({s: l+' '+r, at: curr.at||0, vars, skip_macro});
     }
-    vars.last = exp;
+    vars['$$last'] = exp;
     return {exp, s, at, vars, skip_macro};
   }
   if (skip_macro)
@@ -113,6 +114,7 @@ E.parse_get_next = function(curr){
     assert.equal(o.cmd, '$$', 'missing $$');
     assert(!o.l, 'invalid $$ '+curr2.exp);
     exp = s.substr(curr.at||0, i+at-(curr.at||0));
+    vars.last = exp;
     get_array_str(o.r, null).forEach(els=>{
       let args = {};
       get_array_str(els, '').forEach((el, i)=>args[i+1]=el=='!' ? '' : el);
@@ -120,9 +122,9 @@ E.parse_get_next = function(curr){
       _s = replace_macro_vars(_s, vars);
       _s = apply_macro_funcs(_s);
       ss += (_s ? ' ' : '')+_s;
+      assert(!_s.includes('$'), 'missing args for '+exp+'\n\n'+curr2.exp+
+        '\n\n'+_s);
     });
-    assert(!ss.includes('$'), 'missing args for '+exp+'\n\n'+curr2.exp+
-      '\n\n'+ss);
     let l = s.substr(0, curr.at||0), r = s.substr(curr2.at);
     return E.parse_get_next({s: l+ss+' '+r, at: curr.at||0, vars, skip_macro});
   }
@@ -131,7 +133,7 @@ E.parse_get_next = function(curr){
 
 // XXX: need test
 function apply_macro_funcs(s){
-  let func, body, start, parentesis, queue = [];
+  let func, body, start, parentesis, queue = [], _s = s;
   for (let i=0; i<s.length; i++){
     let ch = s.charAt(i);
     if (ch=='$'){
@@ -181,12 +183,17 @@ function apply_macro_funcs(s){
     default: assert.fail('invalid marco_func ' +o.func);
     }
   }
+  if (s!=_s)
+    xerr.notice('macro_funcs %s -> %s', _s, s);
   return s;
 }
 
 function replace_macro_vars(s, vars){
+  let _s = s;
   for (let v in vars)
     s = s.replace(new RegExp('\\$'+v+'\\b', 'g'), vars[v]);
+  if (s!=_s)
+    xerr.notice('macro_vars %s -> %s', _s, s);
   return s;
 }
 

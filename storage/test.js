@@ -2430,142 +2430,58 @@ describe('scroll', function(){
           ##index_find(dir:up cfid:$1 name:path key:/arik bseq:$2)=$rev($3)
             $$last
           `);
-        t('conflict_tag_dir_dn', `
-          s..scroll(index:path)
-          decl({path:/arik})
-          decl({path:/derry})
-          decl({path:/arik} branch:b1)
-          decl({path:/arik})
-          decl({path:/derry} branch:b2)
-          decl({path:/arik})
-          decl({path:/arik} prev:2)
-          decl({path:/derry})
-          s1..clone(s..M4)
-          decl({path:/arik})
-          decl({path:/arik} branch:b2)
-          decl({path:/derry} prev:2)
-          decl({path:/arik})
-          S..#(index bseq) scroll(s..M0)
-          tput(0                ) #bseq0=0
-          tput(0 1              ) #(bseq1=1 index={id:0 key:/arik seq:1})
-          tput(0 1 2            ) #(bseq2=2 index={id:0 key:/derry seq:2})
-          tput(0 1 2 3          ) #(bseq3=2-1.0 index={id:1 key:/arik seq:3})
-          tput(0 1 2 3 4        ) #(bseq4=2-1.1 index={id:1 key:/arik seq:4})
-          tput(0 1 2 3 4 5      ) #(bseq5=2-1.1-1.0
-                                    index={id:2 key:/derry seq:5})
-          tput(0 1 2 3 4 5 6    ) #(bseq6=2-1.1-1.1
-                                    index={id:2 key:/arik seq:6})
-          tput(0 1 2 3 4 5 6 7  ) #(bseq7=3 index={id:0 key:/arik seq:7})
-          tput(0 1 2 3 4 5 6 7 8) #(bseq8=4 index={id:0 key:/derry seq:8})
-          tput(0 1 2 3 4 f      ) #(bseq5c1=2-1.2 index={id:3 key:/arik seq:5})
-          tput(0 1 2 3 4 f g    ) #(bseq6c1=2-1.2-1.0
-                                    index={id:4 key:/arik seq:6})
-          tput(0 1 2 3 4 f g h  ) #(bseq7c1=3 index={id:5 key:/derry seq:7})
-          tput(0 1 2 3 4 f g h i) #(bseq8c1=4 index={id:5 key:/arik seq:8})
-          // cfid:0 branch:main
-          // XXX: cleanup with  macro expansion (grep all code)
-          ##index_find(cfid:0 name:path key:/arik bseq:$1)=$2
-          $$([5 [7 1]] [4 [7 1]] [3 [7 1]] [2 1] [1 1] [0 []])
-          // cfid:1 branch:main
-          ##index_find(cfid:1 name:path key:/arik bseq:5)=[8 1]
-          ##index_find(cfid:1 name:path key:/arik bseq:4)=[8 1]
-          ##index_find(cfid:1 name:path key:/arik bseq:3)=1
-          ##index_find(cfid:1 name:path key:/arik bseq:2)=1
-          ##index_find(cfid:1 name:path key:/arik bseq:1)=1
-          ##index_find(cfid:1 name:path key:/arik bseq:0)=[]
-          // cfid:0 branch:b1
-          ##index_find(cfid:0 name:path key:/arik bseq:2-1.3)=[4 3 1]
-          ##index_find(cfid:0 name:path key:/arik bseq:2-1.2)=[4 3 1]
-          ##index_find(cfid:0 name:path key:/arik bseq:2-1.1)=[4 3 1]
-          ##index_find(cfid:0 name:path key:/arik bseq:2-1.0)=[3 1]
-          // cfid:1 branch:b1
-          ##index_find(cfid:1 name:path key:/arik bseq:2-1.3)=[5 4 3 1]
-          ##index_find(cfid:1 name:path key:/arik bseq:2-1.2)=[5 4 3 1]
-          ##index_find(cfid:1 name:path key:/arik bseq:2-1.1)=[4 3 1]
-          ##index_find(cfid:1 name:path key:/arik bseq:2-1.0)=[3 1]
-          // cfid:0 branch:b2
-          ##index_find(cfid:0 name:path key:/arik bseq:2-1.1-1.2)=[6 4 3 1]
-          ##index_find(cfid:0 name:path key:/arik bseq:2-1.1-1.1)=[6 4 3 1]
-          ##index_find(cfid:0 name:path key:/arik bseq:2-1.1-1.0)=[4 3 1]
-          // cfid:1 branch:b2
-          ##index_find(cfid:1 name:path key:/arik bseq:2-1.2-1.1)=[6 5 4 3 1]
-          ##index_find(cfid:1 name:path key:/arik bseq:2-1.2-1.0)=[6 5 4 3 1]
+        t('conflict_tag_dir', `
+          decl({path:$1} $2) $$
+          s..scroll(index:path) $last $$((/arik !) (/derry !)
+            (/arik branch:b1) (/arik !) (/derry branch:b2) (/arik !)
+            (/arik prev:2) (/derry !))
+          s1..clone(s..M4) $last $$((/arik !) (/arik branch:b2) (/derry prev:2)
+            (/arik !))
+          S..#(index bseq) scroll(s..M0) tput(0) #bseq0=0
+          tput$1 #(bseq$2$3=$4 index={id:$6 key:$5 seq:$2}) $$(
+            ((0 1              ) 1 c0  1         /arik  0)
+            ((0 1 2            ) 2 c0  2         /derry 0)
+            ((0 1 2 3          ) 3 c0  2-1.0     /arik  1)
+            ((0 1 2 3 4        ) 4 c0  2-1.1     /arik  1)
+            ((0 1 2 3 4 5      ) 5 c0  2-1.1-1.0 /derry 2)
+            ((0 1 2 3 4 5 6    ) 6 c0  2-1.1-1.1 /arik  2)
+            ((0 1 2 3 4 5 6 7  ) 7 c0  3         /arik  0)
+            ((0 1 2 3 4 5 6 7 8) 8 c0  4         /derry 0)
+            ((0 1 2 3 4 f      ) 5 c1  2-1.2     /arik  3)
+            ((0 1 2 3 4 f g    ) 6 c1  2-1.2-1.0 /arik  4)
+            ((0 1 2 3 4 f g h  ) 7 c1  3         /derry 5)
+            ((0 1 2 3 4 f g h i) 8 c1  4         /arik  5))
+          ##index_find(cfid:$1 name:path key:/arik bseq:$2)=$3
+          $$(
+            (0 5         [  7       1])
+            (0 4         [  7       1])
+            (0 3         [  7         1])
+            (0 2         [          1])
+            (0 1         [          1])
+            (0 0         [           ])
+            (0 2-1.3     [        4 3 1])
+            (0 2-1.2     [        4 3 1])
+            (0 2-1.1     [        4 3 1])
+            (0 2-1.0     [          3 1])
+            (0 2-1.1-1.2 [    6   4 3 1])
+            (0 2-1.1-1.1 [    6   4 3 1])
+            (0 2-1.1-1.0 [        4 3 1])
+            (1 5         [8           1])
+            (1 4         [8           1])
+            (1 3         [            1])
+            (1 2         [            1])
+            (1 1         [            1])
+            (1 0         [             ])
+            (1 2-1.3     [      5 4 3 1])
+            (1 2-1.2     [      5 4 3 1])
+            (1 2-1.1     [        4 3 1])
+            (1 2-1.0     [          3 1])
+            (1 2-1.2-1.1 [    6 5 4 3 1])
+            (1 2-1.2-1.0 [    6 5 4 3 1]))
+          ##index_find(dir:dn cfid:$1 name:path key:/arik bseq:$2)=$3 $$last
+          ##index_find(dir:up cfid:$1 name:path key:/arik bseq:$2)=$rev($3)
+            $$last
         `);
-        t('conflict_tag_dir_up', `
-          s..scroll(index:path)
-          decl({path:/arik})
-          decl({path:/derry})
-          decl({path:/arik} branch:b1)
-          decl({path:/arik})
-          decl({path:/derry} branch:b2)
-          decl({path:/arik})
-          decl({path:/arik} prev:2)
-          decl({path:/derry})
-          s1..clone(s..M4)
-          decl({path:/arik})
-          decl({path:/arik} branch:b2)
-          decl({path:/derry} prev:2)
-          decl({path:/arik})
-          S..#(index bseq) scroll(s..M0)
-          tput(0                ) #bseq0=0
-          tput(0 1              ) #(bseq1=1 index={id:0 key:/arik seq:1})
-          tput(0 1 2            ) #(bseq2=2 index={id:0 key:/derry seq:2})
-          tput(0 1 2 3          ) #(bseq3=2-1.0 index={id:1 key:/arik seq:3})
-          tput(0 1 2 3 4        ) #(bseq4=2-1.1 index={id:1 key:/arik seq:4})
-          tput(0 1 2 3 4 5      ) #(bseq5=2-1.1-1.0
-                                    index={id:2 key:/derry seq:5})
-          tput(0 1 2 3 4 5 6    ) #(bseq6=2-1.1-1.1
-                                    index={id:2 key:/arik seq:6})
-          tput(0 1 2 3 4 5 6 7  ) #(bseq7=3 index={id:0 key:/arik seq:7})
-          tput(0 1 2 3 4 5 6 7 8) #(bseq8=4 index={id:0 key:/derry seq:8})
-          tput(0 1 2 3 4 f      ) #(bseq5c1=2-1.2 index={id:3 key:/arik seq:5})
-          tput(0 1 2 3 4 f g    ) #(bseq6c1=2-1.2-1.0
-                                    index={id:4 key:/arik seq:6})
-          tput(0 1 2 3 4 f g h  ) #(bseq7c1=3 index={id:5 key:/derry seq:7})
-          tput(0 1 2 3 4 f g h i) #(bseq8c1=4 index={id:5 key:/arik seq:8})
-          // cfid:0 branch:main
-          // ##index_find(cfid:0 name:path key:/arik bseq:*)=
-          // (5:[7 1] 4:[7 1] 3:1 1:1 0:[])
-          ##index_find(dir:up cfid:0 name:path key:/arik bseq:5)=[1 7]
-          ##index_find(dir:up cfid:0 name:path key:/arik bseq:4)=[1 7]
-          ##index_find(dir:up cfid:0 name:path key:/arik bseq:3)=[1 7]
-          ##index_find(dir:up cfid:0 name:path key:/arik bseq:2)=1
-          ##index_find(dir:up cfid:0 name:path key:/arik bseq:1)=1
-          ##index_find(dir:up cfid:0 name:path key:/arik bseq:0)=[]
-          // cfid:1 branch:main
-          ##index_find(dir:up cfid:1 name:path key:/arik bseq:5)=[1 8]
-          ##index_find(dir:up cfid:1 name:path key:/arik bseq:4)=[1 8]
-          ##index_find(dir:up cfid:1 name:path key:/arik bseq:3)=1
-          ##index_find(dir:up cfid:1 name:path key:/arik bseq:2)=1
-          ##index_find(dir:up cfid:1 name:path key:/arik bseq:1)=1
-          ##index_find(dir:up cfid:1 name:path key:/arik bseq:0)=[]
-          // cfid:0 branch:b1
-          ##index_find(dir:up cfid:0 name:path key:/arik bseq:2-1.3)=[1 3 4]
-          ##index_find(dir:up cfid:0 name:path key:/arik bseq:2-1.2)=[1 3 4]
-          ##index_find(dir:up cfid:0 name:path key:/arik bseq:2-1.1)=[1 3 4]
-          ##index_find(dir:up cfid:0 name:path key:/arik bseq:2-1.0)=[1 3]
-          // cfid:1 branch:b1
-          ##index_find(dir:up cfid:1 name:path key:/arik bseq:2-1.3)=[1 3 4 5]
-          ##index_find(dir:up cfid:1 name:path key:/arik bseq:2-1.2)=[1 3 4 5]
-          ##index_find(dir:up cfid:1 name:path key:/arik bseq:2-1.1)=[1 3 4]
-          ##index_find(dir:up cfid:1 name:path key:/arik bseq:2-1.0)=[1 3]
-          // cfid:0 branch:b2
-          ##index_find(dir:up cfid:0 name:path key:/arik
-            bseq:2-1.1-1.2)=[1 3 4 6]
-          ##index_find(dir:up cfid:0 name:path key:/arik
-            bseq:2-1.1-1.1)=[1 3 4 6]
-          ##index_find(dir:up cfid:0 name:path key:/arik
-            bseq:2-1.1-1.0)=[1 3 4]
-          // cfid:1 branch:b2
-          ##index_find(dir:up cfid:1 name:path key:/arik
-            bseq:2-1.2-1.1)=[1 3 4 5 6]
-          ##index_find(dir:up cfid:1 name:path key:/arik
-            bseq:2-1.2-1.0)=[1 3 4 5 6]`);
-        // support filter by bseq+seq
-        // XXX: need tag_multi
-        // XXX: need conflict_basic
-        // XXX: need conflict_tag
-        // XXX: support search < > operators
       });
       describe('db', ()=>{
         let t_init = `s..scroll(index:path db) $$a(id:0 key:/arik seq)

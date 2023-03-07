@@ -2430,7 +2430,7 @@ describe('scroll', function(){
           ##index_find(dir:up cfid:$1 name:path key:/arik bseq:$2)=$rev($3)
             $$last
           `);
-        t('conflict_tag_dir', `
+        t('conflict_tag', `
           decl({path:$1} $2) $$
           s..scroll(index:path) $last $$((/arik !) (/derry !)
             (/arik branch:b1) (/arik !) (/derry branch:b2) (/arik !)
@@ -2566,17 +2566,13 @@ describe('scroll', function(){
           // -     a---a---a-- find(n=3)
           // - a---a---a---a-- find(n=4)
           // --a---a---a---a-- find(n=4)
-          ##index_find(index:0 key:/arik count:1)=7 #(db_query=${q(1, 8)}
-            index={$a:7 up:8})
-          ##index_find(index:0 key:/arik count:2)=[7 5] #(db_query=${q(1, 6)}
-            index=[{$a:5 up:7} {$a:7 dn:5 up:8}])
-          ##index_find(index:0 key:/arik count:3)=[7 5 3] #(db_query=${q(1, 4)}
-            index=[{$a:3 up:5} {$a:5 dn:3 up:7}])
-          ##index_find(index:0 key:/arik count:4)=[7 5 3 1]
-            #(db_query=${q(1, 2)}
-            index=[{$a:1 dn:1 up:3} {$a:3 dn:1 up:5}])
-          ##index_find(index:0 key:/arik)=[7 5 3 1] #index={$a:1 dn:0 up:3}
-          ##index_find(index:0 key:/arik)=[7 5 3 1] #`);
+          ##index_find(index:0 key:/arik count:$1)=$2 #(db_query=$3 index=$4)
+          $$((1 [7      ] ${q(1, 8)} [{$a:7 up:8}])
+             (2 [7 5    ] ${q(1, 6)} [{$a:5 up:7} {$a:7 dn:5 up:8}])
+             (3 [7 5 3  ] ${q(1, 4)} [{$a:3 up:5} {$a:5 dn:3 up:7}])
+             (4 [7 5 3 1] ${q(1, 2)} [{$a:1 dn:1 up:3} {$a:3 dn:1 up:5}])
+             (0 [7 5 3 1] []         [{$a:1 dn:0 up:3}])
+             (0 [7 5 3 1] []         []))`);
         t('no_mem_find_all_in_steps_up', `${t_init}
           // 0 1 2 3 4 5 6 7 8
           // --a               find(n=1)

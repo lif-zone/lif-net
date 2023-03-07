@@ -1412,20 +1412,20 @@ describe('scroll', function(){
           (4 !        2-1.1 {$n $b} 1 {seq:3 size:2 bseq:2-1.0 branch:b})
           (4 !        2-1.1 {$n $b} 1 $s(3 2 2-1.0 b)`);
         t('two_branch_differnt', `s..#(bseq btable bname)
-          scroll            #(bseq0=0 btc0[0]={seq:0 bseq:0 size:1}
-                              bname={0:null:0})
-          decl(1)           #(bseq1=1 btc0[0]={seq:0 bseq:0 size:2})
-          decl(2 branch:b)  #(bseq2=1-1.0
-                              btc0[1]={branch:b seq:2 bseq:1-1.0 size:1}
-                              bname={0:null:0 0:b:2})
-          decl(3)           #(bseq3=1-1.1
-                              btc0[1]={branch:b seq:2 bseq:1-1.0 size:2})
-          decl(4 branch:b2) #(bseq4=1-1.1-1.0
-                              btc0[2]={branch:b2 seq:4 bseq:1-1.1-1.0 size:1}
-                              bname={0:null:0 0:b:2 0:b2:4})
-          decl(5)           #(bseq5=1-1.1-1.1
-                              btc0[2]={branch:b2 seq:4 bseq:1-1.1-1.0 size:2})
-          decl(6 prev:3)    #(bseq6=1-1.2 btc0[3]={seq:6 bseq:1-1.2 size:1})`);
+          $$n(0:null:0) $$b(0:b:2) $$b2(0:b2:4)
+          scroll            #(bseq0=0 btc0[0]={seq:0 bseq:0 size:1} bname={$n})
+          // XXX: derry: line cut
+          decl($1 $2) #(bseq$1=$3 btc0[$5]=$6 bname=$4) $$(
+          (1 !         1         {$n   }     0 {seq:0 size:2 bseq:0    })
+          (2 branch:b  1-1.0     {$n $b}     1 {seq:2 size:1 bseq:1-1.0
+                                               branch:b})
+          (3 !         1-1.1     {$n $b}     1 {seq:2 size:2 bseq:1-1.0
+                                               branch:b})
+          (4 branch:b2 1-1.1-1.0 {$n $b $b2} 2 {seq:4 size:1 bseq:1-1.1-1.0
+                                               branch:b2})
+          (5 !         1-1.1-1.1 {$n $b $b2} 2 {seq:4 size:2 bseq:1-1.1-1.0
+                                               branch:b2})
+          (6 prev:3    1-1.2     {$n $b $b2} 3 {seq:6 size:1 bseq:1-1.2}))`);
         t('child_branch', `s..#(bseq btable bname)
           scroll                   #(bseq0=0 btc0[0]={seq:0 bseq:0 size:1}
                                      bname={0:null:0})

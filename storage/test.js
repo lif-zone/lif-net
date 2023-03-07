@@ -1390,8 +1390,7 @@ describe('scroll', function(){
         t('one_branch_test', `s..#(bseq btable bname)
           // XXX: check bug, if we move $$n below scroll, we get parse error
           $$n(0:null:0) $$b(0:b:3)
-          scroll           #(bseq0=0 btc0[0]={seq:0 bseq:0 size:1} bname={$n})
-          // XXX: derry: no indent after $$
+          scroll #(bseq0=0 btc0[0]={seq:0 bseq:0 size:1} bname={$n})
           decl($1 $2) #(bseq$1=$3 btc0[$5]=$6 bname=$4) $$(
           (1 !        1     {$n   } 0 {seq:0 size:2 bseq:0             })
           (2 !        2     {$n   } 0 {seq:0 size:3 bseq:0             })
@@ -1403,6 +1402,9 @@ describe('scroll', function(){
           (8 !        2-1.3 {$n $b} 3 {seq:7 size:2 bseq:2-1.2         })
           (9 prev:6   5     {$n $b} 4 {seq:9 size:1 bseq:5             }))`);
           // XXX: review with derry
+          // 1. no indent after $$
+          // 2. xxx below
+          // 3. find db tests
           if (0)
           t('xxx', `
           (2 !        2     {$n   } 0 {seq:0 size:3 bseq:0})

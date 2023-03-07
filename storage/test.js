@@ -276,6 +276,7 @@ describe('parser', ()=>{
     t('cmd2(a $rev($1) b) $$(([a1 a2]))', ['cmd2(a [a2 a1] b)']);
     t('cmd2(a $rev($1) b) $$(([a1 a2]) ([a3 a4]))',
       ['cmd2(a [a2 a1] b)', 'cmd2(a [a4 a3] b)']);
+    t('cmd2(a $rm_parentesis($1) b) $$(([a1 a2]))', ['cmd2(a a1 a2 b)']);
     t('cmd($1) $$(a1) cmd2 $last $$(a2)', ['cmd(a1)', 'cmd2', 'cmd(a2)']);
     t(`cmd($1) $$(// ignore
       a b)`, ['cmd(a)', 'cmd(b)']);
@@ -1455,19 +1456,20 @@ describe('scroll', function(){
           (4 prev:1    2         3 4   1  2         !))`);
       });
       describe('put', ()=>{
-        t('no_branch', `s..scroll decl(1-9) S..#(bseq btable)
-          scroll(s..M0)   #btc0[0]={seq:0 bseq:0 size:1}
-          tput(0)         #bseq0=0
-          tput(0 1      ) #(bseq1=1 btc0[0]={seq:0 bseq:0 size:2})
-          tput(0 1 2_3 4) #(bseq4=4 btc0[1]={seq:4 bseq:4 size:1})
-          tput(0 1 2 3  ) #(bseq3=3 btc0[1]={seq:3 bseq:3 size:2})
-          tput(0 1 2    ) #(bseq2=2 btc0[0]={seq:0 bseq:0 size:5} !btc0[1])
-          tput(0 1 2_3 4 5 6_7 8  ) #(bseq8=8 btc0[1]={seq:8 bseq:8 size:1})
-          tput(0 1 2_3 4 5 6_7 8 9) #(bseq9=9 btc0[1]={seq:8 bseq:8 size:2})
-          tput(0 1 2_3 4 5        ) #(bseq5=5 btc0[0]={seq:0 bseq:0 size:6})
-          tput(0 1 2_3 4 5 6      ) #(bseq6c1=6 btc1[0]={seq:6 bseq:6 size:1})
-          tput(0 1 2_3 4 5 6 7    ) #(bseq6=6 bseq7=7 !bseq6c1
-            !btc0[1] !btc1[0] btc0[0]={seq:0 bseq:0 size:10})`);
+        t('no_branch', `s..scroll decl(1-9) S..#(bseq btable) scroll(s..M0)
+          $$merge(bseq6=6 !bseq6c1 !btc0[1] !btc1[0])
+          tput$1 #(bseq$2$3=$2 bt$3[$4]={seq:$5 size:$6 bseq:$5} $7)
+          $$(// patch            seq c  i seq  sz extra
+          ((0                  ) 0   c0 0 0    1  !       )
+          ((0 1                ) 1   c0 0 0    2  !       )
+          ((0 1 2_3 4          ) 4   c0 1 4    1  !       )
+          ((0 1 2 3            ) 3   c0 1 3    2  !       )
+          ((0 1 2              ) 2   c0 0 0    5  !btc0[1])
+          ((0 1 2_3 4 5 6_7 8  ) 8   c0 1 8    1  !       )
+          ((0 1 2_3 4 5 6_7 8 9) 9   c0 1 8    2  !       )
+          ((0 1 2_3 4 5        ) 5   c0 0 0    6  !       )
+          ((0 1 2_3 4 5 6      ) 6   c1 0 6    1  !       )
+          ((0 1 2_3 4 5 6 7    ) 7   c0 0 0   10  $merge  ))`);
         t('one_branch', `s..scroll decl(1) decl(2) decl(3 branch:b) decl(4)
           decl(5 prev:2) decl(6) decl(7 prev:4) decl(8) decl(9 prev:6)
           S..scroll(s..M0) #(bseq btable)

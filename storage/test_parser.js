@@ -165,6 +165,12 @@ function apply_macro_funcs(s){
   for (let i=0; i<queue.length; i++){
     let o = queue[i];
     switch (o.func){
+    case '$rm_parentesis':
+      l = s.substr(0, o.start);
+      r = s.substr(o.end);
+      mid = s.substr(o.start+o.func.length+1, o.end-o.start-o.func.length-2);
+      s = l+rm_parentesis(mid, '')+r;
+      break;
     case '$rev':
       l = s.substr(0, o.start);
       r = s.substr(o.end);

@@ -6,8 +6,6 @@ import xerr from '../util/xerr.js';
 const E = {};
 export default E;
 
-function space(s){ return s ? ' '+s : ''; }
-
 E.rm_parentesis = rm_parentesis;
 function rm_parentesis(s, open='('){
   if (open==''){
@@ -74,14 +72,8 @@ E.parse_get_next = function(curr){
     at = s.length;
   if (exp=='//'){
     let nl = s.substr(at).search('\n');
-    if (nl==-1){
-      exp += space(s.substr(at));
-      at = undefined;
-    } else {
-      exp += space(s.substr(at, nl));
-      at += nl+1;
-    }
-    return {exp, s, at, vars, skip_macro};
+    at = nl==-1 ? undefined : at+nl+1;
+    return E.parse_get_next({s, at, vars, skip_macro});
   }
   if (exp.startsWith('$$')){
     if (exp=='$$last'){
@@ -215,9 +207,28 @@ E.parse_push = function(curr, s){
   curr.s = pre+' '+s+' '+post;
 };
 
+// XXX: need test
+function remove_comments(s){
+  let ret = '', comment;
+  for (let i=0; i<s.length; i++){
+    let ch = s.charAt(i);
+    if (s.substr(i, 2)=='//'){
+      comment = true;
+      continue;
+    }
+    if ('\n'==ch)
+      comment = false;
+    if (comment)
+      continue;
+    ret += ch;
+  }
+  return ret;
+}
+
 E._parse_exp = function(s){
   assert(s, 'missing string');
   let c, parentesis = [], first, meta = {s: s.trim()};
+  s = remove_comments(s);
   s = string.split_ws(s).join(' ');
   // XXX: rm special handling for # and ##
   if ('##'==s.substr(0, 2))

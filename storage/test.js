@@ -241,15 +241,15 @@ describe('parser', ()=>{
     t('a==b(c==d)', ['a==b(c==d)']);
     t('a b(c) d==e', ['a', 'b(c)', 'd==e']);
     t('b..c(d..e)', ['b..c(d..e)']);
-    t('a //', ['a', '//']);
-    t('a // XXX', ['a', '// XXX']);
-    t('a // XXX b', ['a', '// XXX b']);
+    t('a //', ['a']);
+    t('a // XXX', ['a']);
+    t('a // XXX b', ['a']);
     t(`a // XXX b
-      c`, ['a', '// XXX b', 'c']);
+      c`, ['a', 'c']);
     t(`a // XXX b
-      `, ['a', '// XXX b']);
+      `, ['a']);
     t(`a
-      // XXX`, ['a', '// XXX']);
+      // XXX`, ['a']);
     t('cmd($1) $$', []);
     t('cmd($1) $$(a1)', ['cmd(a1)']);
     t('cmd($1) $$(a1 a2 a3)', ['cmd(a1)', 'cmd(a2)', 'cmd(a3)']);
@@ -277,6 +277,8 @@ describe('parser', ()=>{
     t('cmd2(a $rev($1) b) $$(([a1 a2]) ([a3 a4]))',
       ['cmd2(a [a2 a1] b)', 'cmd2(a [a4 a3] b)']);
     t('cmd($1) $$(a1) cmd2 $last $$(a2)', ['cmd(a1)', 'cmd2', 'cmd(a2)']);
+    t(`cmd($1) $$(// ignore
+      a b)`, ['cmd(a)', 'cmd(b)']);
   });
   it('parse_exp', ()=>{
     const t = (s, exp)=>assert.deepEqual(parse_exp(s),
@@ -302,8 +304,6 @@ describe('parser', ()=>{
     t('a.b(c)', {cmd: '.', l: 'a', r: 'b(c)'});
     t('M7=s.M8', {cmd: '=', l: 'M7', r: 's.M8'});
     t('s.M7=s2.M8', {cmd: '.', l: 's', r: 'M7=s2.M8'});
-    t('//', {cmd: '//', l: '', r: ''});
-    t('// XXX', {cmd: '//', l: '', r: 'XXX'});
     t('s1..put(s2.sig)', {cmd: '..', l: 's1', r: 'put(s2.sig)'});
     t('!a', {cmd: '!', l: '', r: 'a'});
     t('!a.b', {cmd: '!', l: '', r: 'a.b'});
@@ -312,6 +312,8 @@ describe('parser', ()=>{
     t('#a', {cmd: '#', l: '', r: 'a'});
     t('#ab', {cmd: '#', l: '', r: 'ab'});
     t(`a(b\nc)`, {cmd: 'a', l: '', r: 'b c'});
+    t(`a(b // c
+      d)`, {cmd: 'a', l: '', r: 'b d'});
   });
   it('parse_exp_arg', ()=>{
     const t = (s, exp)=>assert.deepEqual(parse_exp_arg(s),
@@ -1387,47 +1389,44 @@ describe('scroll', function(){
           #(bseq0=0 bseq1=1 bseq2=2 bseq3=3 bseq4=4 bseq5=5 bseq6=6 bseq7=7
           bseq8=8 bseq9=9 bseq10=_10 btc0[0]={seq:0 bseq:0 size:11}
           bname={0:null:0}) !bseq11`);
-        t('one_branch_test', `s..#(bseq btable bname)
-          // XXX: check bug, if we move $$n below scroll, we get parse error
+        t('one_branch_test', `s..#(bseq btable bname) scroll
           $$n(0:null:0) $$b(0:b:3)
-          scroll #(bseq0=0 btc0[0]={seq:0 bseq:0 size:1} bname={$n})
+          #(bseq0=0 btc0[0]={seq:0 bseq:0 size:1} bname={$n})
           decl($1 $2) #(bseq$1=$3 btc0[$5]={seq:$6 size:$7 bseq:$8 branch:$9}
           bname=$4) $$(
           // seq-br   bseq  bname   i seq sz bseq  br
-          (1 !        1     {$n   } 0 0   2  0     null)
-          (2 !        2     {$n   } 0 0   3  0     null)
+          (1 !        1     {$n   } 0 0   2  0     !)
+          (2 !        2     {$n   } 0 0   3  0     !)
           (3 branch:b 2-1.0 {$n $b} 1 3   1  2-1.0 b   )
           (4 !        2-1.1 {$n $b} 1 3   2  2-1.0 b   )
-          (5 prev:2   3     {$n $b} 2 5   1  3     null)
-          (6 !        4     {$n $b} 2 5   2  3     null)
-          (7 prev:4   2-1.2 {$n $b} 3 7   1  2-1.2 b   )
-          (8 !        2-1.3 {$n $b} 3 7   2  2-1.2 b   )
-          (9 prev:6   5     {$n $b} 4 9   1  5     null))`);
-        t('two_branch_differnt', `s..#(bseq btable bname)
+          (5 prev:2   3     {$n $b} 2 5   1  3     !)
+          (6 !        4     {$n $b} 2 5   2  3     !)
+          (7 prev:4   2-1.2 {$n $b} 3 7   1  2-1.2 !   )
+          (8 !        2-1.3 {$n $b} 3 7   2  2-1.2 !   )
+          (9 prev:6   5     {$n $b} 4 9   1  5     !))`);
+        t('two_branch_differnt', `s..#(bseq btable bname) scroll
           $$n(0:null:0) $$b(0:b:2) $$b2(0:b2:4)
-          scroll            #(bseq0=0 btc0[0]={seq:0 bseq:0 size:1} bname={$n})
+          #(bseq0=0 btc0[0]={seq:0 bseq:0 size:1} bname={$n})
           decl($1 $2) #(bseq$1=$3 btc0[$5]={seq:$6 size:$7 bseq:$8 branch:$9}
           bname=$4) $$(
           // seq-br    bseq      bname       i seq sz bseq  br
-          (1 !         1         {$n   }     0 0   2  0     null  )
-          (2 branch:b  1-1.0     {$n $b}     1 2   1  1-1.0 b     )
-          (3 !         1-1.1     {$n $b}     1 2   2  1-1.0 b     )
+          (1 !         1         {$n   }     0 0   2  0         ! )
+          (2 branch:b  1-1.0     {$n $b}     1 2   1  1-1.0     b )
+          (3 !         1-1.1     {$n $b}     1 2   2  1-1.0     b )
           (4 branch:b2 1-1.1-1.0 {$n $b $b2} 2 4   1  1-1.1-1.0 b2)
           (5 !         1-1.1-1.1 {$n $b $b2} 2 4   2  1-1.1-1.0 b2)
-          (6 prev:3    1-1.2     {$n $b $b2} 3 6   1  1-1.2       ))`);
-        t('child_branch', `s..#(bseq btable bname)
-          scroll                   #(bseq0=0 btc0[0]={seq:0 bseq:0 size:1}
-                                     bname={0:null:0})
-          decl(1)                  #(bseq1=1 btc0[0]={seq:0 bseq:0 size:2})
-          decl(2 branch:b)         #(bseq2=1-1.0
-            btc0[1]={branch:b seq:2 bseq:1-1.0 size:1} bname={0:null:0 0:b:2})
-          decl(3)                  #(bseq3=1-1.1
-            btc0[1]={branch:b seq:2 bseq:1-1.0 size:2})
-          decl(4 prev:2 branch:b2) #(bseq4=1-1.0-1.0
-            btc0[2]={branch:b2 seq:4 bseq:1-1.0-1.0 size:1}
-            bname={0:null:0 0:b:2 0:b2:4})
-          decl(5)                  #(bseq5=1-1.0-1.1
-            btc0[2]={branch:b2 seq:4 bseq:1-1.0-1.0 size:2})`);
+          (6 prev:3    1-1.2     {$n $b $b2} 3 6   1  1-1.2     ! ))`);
+        t('child_branch', `s..#(bseq btable bname) scroll
+          $$n(0:null:0) $$b(0:b:2) $$b2(0:b2:4)
+          #(bseq0=0 btc0[0]={seq:0 bseq:0 size:1} bname={0:null:0})
+          decl($1 $2 $3) #(bseq$1=$4 btc0[$6]={seq:$7 size:$8 bseq:$9
+          branch:$10} bname=$5) $$(
+          // seq-br    !      bseq      bname       i seq sz bseq      br
+          (1 !         !      1         {$n   }     0 0   2  0         ! )
+          (2 branch:b  !      1-1.0     {$n $b}     1 2   1  1-1.0     b )
+          (3 !         !      1-1.1     {$n $b}     1 2   2  1-1.0     b )
+          (4 branch:b2 prev:2 1-1.0-1.0 {$n $b $b2} 2 4   1  1-1.0-1.0 b2)
+          (5 !         !      1-1.0-1.1 {$n $b $b2} 2 4   2  1-1.0-1.0 b2))`);
         t('two_branch_same', `s..#(bseq btable)
           scroll                   #(bseq0=0 btc0[0]={seq:0 bseq:0 size:1})
           decl(1)                  #(bseq1=1 btc0[0]={seq:0 bseq:0 size:2})
@@ -2356,7 +2355,7 @@ describe('scroll', function(){
             (2   3 [        3 1])
             (2   2 [          1])
             (2   1 [          1])
-            (2   0 [          1]))
+            (2   0 [           ]))
           ##index_find(dir:dn cfid:$1 name:path key:/arik bseq:$2)=$3 $$last
           ##index_find(dir:up cfid:$1 name:path key:/arik bseq:$2)=$rev($3)
             $$last
@@ -2424,7 +2423,7 @@ describe('scroll', function(){
             (2   3 [        3 1])
             (2   2 [          1])
             (2   1 [          1])
-            (2   0 [          1]))
+            (2   0 [           ]))
           ##index_find(dir:dn cfid:$1 name:path key:/arik bseq:$2)=$3 $$last
           ##index_find(dir:up cfid:$1 name:path key:/arik bseq:$2)=$rev($3)
             $$last

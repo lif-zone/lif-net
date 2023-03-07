@@ -1322,6 +1322,8 @@ function get_btable(s){
     let o = parse_exp(curr.exp);
     // XXX yield get_val(o.r);
     bo[o.l] = o.r=='null' ? null : o.l=='seq' ? +o.r : o.r;
+    if (bo[o.l]==='')
+      delete bo[o.l];
   }
   return bo;
 }

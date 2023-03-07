@@ -1437,24 +1437,22 @@ describe('scroll', function(){
           (3 !         !      1-1.1 1 2   2  1-1.0 b )
           (4 branch:b2 prev:1 1-2.0 2 4   1  1-2.0 b2)
           (5 !         !      1-2.1 2 4   2  1-2.0 b2))`);
-        t('branch_prev', `s..#(bseq btable)
-          scroll           #(bseq0=0 btc0[0]={seq:0 bseq:0 size:1})
-          decl(1)          #(bseq1=1 btc0[0]={seq:0 bseq:0 size:2})
-          decl(2 branch:b) #(bseq2=1-1.0
-                             btc0[1]={branch:b seq:2 bseq:1-1.0 size:1})
-          decl(3)          #(bseq3=1-1.1
-                             btc0[1]={branch:b seq:2 bseq:1-1.0 size:2})
-          decl(4 prev:1)   #(bseq4=2 btc0[2]={seq:4 bseq:2 size:1})
-        `);
-        t('two_branch_prev', `s..#(bseq btable)
-          scroll           #(bseq0=0 btc0[0]={seq:0 bseq:0 size:1})
-          decl(1)          #(bseq1=1 btc0[0]={seq:0 bseq:0 size:2})
-          decl(2 branch:b) #(bseq2=1-1.0
-                             btc0[1]={branch:b seq:2 bseq:1-1.0 size:1})
-          decl(3 branch:c) #(bseq3=1-1.0-1.0
-                             btc0[2]={branch:c seq:3 bseq:1-1.0-1.0 size:1})
-          decl(4 prev:1)   #(bseq4=2 btc0[3]={seq:4 bseq:2 size:1})
-        `);
+        t('branch_prev', `s..#(bseq btable) scroll
+          #(bseq0=0 btc0[0]={seq:0 bseq:0 size:1})
+          decl($1 $2) #(bseq$1=$3 btc0[$4]={seq:$5 size:$6 bseq:$7 branch:$8})
+          $$(// seq-br bseq  i seq sz bseq  br
+          (1 !         1     0 0   2  0     !)
+          (2 branch:b  1-1.0 1 2   1  1-1.0 b)
+          (3 !         1-1.1 1 2   2  1-1.0 b)
+          (4 prev:1    2     2 4   1  2     !))`);
+        t('two_branch_prev', `s..#(bseq btable) scroll
+          #(bseq0=0 btc0[0]={seq:0 bseq:0 size:1})
+          decl($1 $2) #(bseq$1=$3 btc0[$4]={seq:$5 size:$6 bseq:$7 branch:$8})
+          $$(// seq-br bseq      i seq sz bseq      br
+          (1 !         1         0 0   2  0         !)
+          (2 branch:b  1-1.0     1 2   1  1-1.0     b)
+          (3 branch:c  1-1.0-1.0 2 3   1  1-1.0-1.0 c)
+          (4 prev:1    2         3 4   1  2         !))`);
       });
       describe('put', ()=>{
         t('no_branch', `s..scroll decl(1-9) S..#(bseq btable)

@@ -704,25 +704,25 @@ describe('scroll', function(){
         m0=hleaf(d0+sig0) sig0=sign(d0+prev_scroll1) M0=hroot(m0)
         M0=h(2+m0+0+1) M1=h(2+m0_1+0+2) M2=h(2+m0_1+0+2+m2+2+1)
         m$1=hleaf(d$1+sig$1) sig$1=sign(d$1+M$2) M$1=hroot($3) $$(
-          ( 1   0 m0_1)
-          ( 2   1 m0_1+m2)
-          ( 3   2 m0_3)
-          ( 4   3 m0_3+m4)
-          ( 5   4 m0_3+m4_5)
-          ( 6   5 m0_3+m4_5+m6)
-          ( 7   6 m0_7)
-          ( 8   7 m0_7+m8)
-          ( 9   8 m0_7+m8_9)
-          (10   9 m0_7+m8_9+m10)
-          (11  10 m0_7+m8_11)
-          (12  11 m0_7+m8_11+m12)
-          (13  12 m0_7+m8_11+m12_13)
-          (14  13 m0_7+m8_11+m12_13+m14)
-          (15  14 m0_15)
-          (16  15 m0_15+m16)
-          (30  29 m0_15+m16_23+m24_27+m28_29+m30)
-          (31  30 m0_31)
-          (32  31 m0_31+m32))`);
+        ( 1  0 m0_1)
+        ( 2  1 m0_1+m2)
+        ( 3  2 m0_3)
+        ( 4  3 m0_3+m4)
+        ( 5  4 m0_3+m4_5)
+        ( 6  5 m0_3+m4_5+m6)
+        ( 7  6 m0_7)
+        ( 8  7 m0_7+m8)
+        ( 9  8 m0_7+m8_9)
+        (10  9 m0_7+m8_9+m10)
+        (11 10 m0_7+m8_11)
+        (12 11 m0_7+m8_11+m12)
+        (13 12 m0_7+m8_11+m12_13)
+        (14 13 m0_7+m8_11+m12_13+m14)
+        (15 14 m0_15)
+        (16 15 m0_15+m16)
+        (30 29 m0_15+m16_23+m24_27+m28_29+m30)
+        (31 30 m0_31)
+        (32 31 m0_31+m32))`);
     });
     describe('put', ()=>{
       describe('errors_invalid', ()=>{
@@ -1391,41 +1391,30 @@ describe('scroll', function(){
           // XXX: check bug, if we move $$n below scroll, we get parse error
           $$n(0:null:0) $$b(0:b:3)
           scroll #(bseq0=0 btc0[0]={seq:0 bseq:0 size:1} bname={$n})
-          decl($1 $2) #(bseq$1=$3 btc0[$5]=$6 bname=$4) $$(
-          (1 !        1     {$n   } 0 {seq:0 size:2 bseq:0             })
-          (2 !        2     {$n   } 0 {seq:0 size:3 bseq:0             })
-          (3 branch:b 2-1.0 {$n $b} 1 {seq:3 size:1 bseq:2-1.0 branch:b})
-          (4 !        2-1.1 {$n $b} 1 {seq:3 size:2 bseq:2-1.0 branch:b})
-          (5 prev:2   3     {$n $b} 2 {seq:5 size:1 bseq:3             })
-          (6 !        4     {$n $b} 2 {seq:5 size:2 bseq:3             })
-          (7 prev:4   2-1.2 {$n $b} 3 {seq:7 size:1 bseq:2-1.2         })
-          (8 !        2-1.3 {$n $b} 3 {seq:7 size:2 bseq:2-1.2         })
-          (9 prev:6   5     {$n $b} 4 {seq:9 size:1 bseq:5             }))`);
-          // XXX: review with derry
-          // 1. no indent after $$
-          // 2. xxx below
-          // 3. find db tests
-          if (0)
-          t('xxx', `
-          (2 !        2     {$n   } 0 {seq:0 size:3 bseq:0})
-          (2 !        2     {$n   } 0 $s(0 0 3 !))
-          (4 !        2-1.1 {$n $b} 1 {seq:3 size:2 bseq:2-1.0 branch:b})
-          (4 !        2-1.1 {$n $b} 1 $s(3 2 2-1.0 b)`);
+          decl($1 $2) #(bseq$1=$3 btc0[$5]={seq:$6 size:$7 bseq:$8 branch:$9}
+          bname=$4) $$(
+          // seq-br   bseq  bname   i seq sz bseq  br
+          (1 !        1     {$n   } 0 0   2  0     null)
+          (2 !        2     {$n   } 0 0   3  0     null)
+          (3 branch:b 2-1.0 {$n $b} 1 3   1  2-1.0 b   )
+          (4 !        2-1.1 {$n $b} 1 3   2  2-1.0 b   )
+          (5 prev:2   3     {$n $b} 2 5   1  3     null)
+          (6 !        4     {$n $b} 2 5   2  3     null)
+          (7 prev:4   2-1.2 {$n $b} 3 7   1  2-1.2 b   )
+          (8 !        2-1.3 {$n $b} 3 7   2  2-1.2 b   )
+          (9 prev:6   5     {$n $b} 4 9   1  5     null))`);
         t('two_branch_differnt', `s..#(bseq btable bname)
           $$n(0:null:0) $$b(0:b:2) $$b2(0:b2:4)
           scroll            #(bseq0=0 btc0[0]={seq:0 bseq:0 size:1} bname={$n})
-          // XXX: derry: line cut
-          decl($1 $2) #(bseq$1=$3 btc0[$5]=$6 bname=$4) $$(
-          (1 !         1         {$n   }     0 {seq:0 size:2 bseq:0    })
-          (2 branch:b  1-1.0     {$n $b}     1 {seq:2 size:1 bseq:1-1.0
-                                               branch:b})
-          (3 !         1-1.1     {$n $b}     1 {seq:2 size:2 bseq:1-1.0
-                                               branch:b})
-          (4 branch:b2 1-1.1-1.0 {$n $b $b2} 2 {seq:4 size:1 bseq:1-1.1-1.0
-                                               branch:b2})
-          (5 !         1-1.1-1.1 {$n $b $b2} 2 {seq:4 size:2 bseq:1-1.1-1.0
-                                               branch:b2})
-          (6 prev:3    1-1.2     {$n $b $b2} 3 {seq:6 size:1 bseq:1-1.2}))`);
+          decl($1 $2) #(bseq$1=$3 btc0[$5]={seq:$6 size:$7 bseq:$8 branch:$9}
+          bname=$4) $$(
+          // seq-br    bseq      bname       i seq sz bseq  br
+          (1 !         1         {$n   }     0 0   2  0     null  )
+          (2 branch:b  1-1.0     {$n $b}     1 2   1  1-1.0 b     )
+          (3 !         1-1.1     {$n $b}     1 2   2  1-1.0 b     )
+          (4 branch:b2 1-1.1-1.0 {$n $b $b2} 2 4   1  1-1.1-1.0 b2)
+          (5 !         1-1.1-1.1 {$n $b $b2} 2 4   2  1-1.1-1.0 b2)
+          (6 prev:3    1-1.2     {$n $b $b2} 3 6   1  1-1.2       ))`);
         t('child_branch', `s..#(bseq btable bname)
           scroll                   #(bseq0=0 btc0[0]={seq:0 bseq:0 size:1}
                                      bname={0:null:0})

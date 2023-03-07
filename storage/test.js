@@ -2370,139 +2370,66 @@ describe('scroll', function(){
           s1..def               $last $$(/derry /arik /arik)
           s..def                $last $$(/derry /derry /derry /derry /arik)
           S..#index scroll(s..M0)
-          tput(0 1                ) #index={id:0 key:/arik seq:1}
-          tput(0 1 2              ) #index={id:0 key:/derry seq:2}
-          tput(0 1 2 3            ) #index={id:0 key:/arik seq:3}
-          tput(0 1 2 3 4          ) #index={id:0 key:/derry seq:4}
-          tput(0 1 2 3 4 5        ) #index={id:0 key:/derry seq:5}
-          tput(0 1 2 3 4 5 6      ) #index={id:0 key:/derry seq:6}
-          tput(0 1 2 3 4 5 6 7    ) #index={id:0 key:/derry seq:7}
-          tput(0 1 2 3 4 5 6 7 8  ) #index={id:0 key:/derry seq:8}
-          tput(0 1 2 3 4 5 6 7 8 9) #index={id:0 key:/arik seq:9}
-          tput(0 1 2 3 4 f        ) #index={id:1 key:/arik seq:5}
-          tput(0 1 2 3 4 f g      ) #index={id:1 key:/arik seq:6}
-          tput(0 1 2 3 4 f h      ) #index={id:1 key:/derry seq:7}
-          tput(0 1 2 3 4 f h i    ) #index={id:1 key:/arik seq:8}
-          tput(0 1 2 3 4 f h i j  ) #index={id:1 key:/arik seq:9}
+          tput$1 #index={id:$4 key:$3 seq:$2} $$(
+            ((0 1                ) 1 /arik  0)
+            ((0 1 2              ) 2 /derry 0)
+            ((0 1 2 3            ) 3 /arik  0)
+            ((0 1 2 3 4          ) 4 /derry 0)
+            ((0 1 2 3 4 5        ) 5 /derry 0)
+            ((0 1 2 3 4 5 6      ) 6 /derry 0)
+            ((0 1 2 3 4 5 6 7    ) 7 /derry 0)
+            ((0 1 2 3 4 5 6 7 8  ) 8 /derry 0)
+            ((0 1 2 3 4 5 6 7 8 9) 9 /arik  0)
+            ((0 1 2 3 4 f        ) 5 /arik  1)
+            ((0 1 2 3 4 f g      ) 6 /arik  1)
+            ((0 1 2 3 4 f h      ) 7 /derry 1)
+            ((0 1 2 3 4 f h i    ) 8 /arik  1)
+            ((0 1 2 3 4 f h i j  ) 9 /arik  1))
+          // XXX: derry: how to handle it?
           tput(0 1 2 3 4 F        ) #
           tput(0 1 2 3 4 F G      ) #
-          tput(0 1 2 3 4 F G H    ) #index={id:2 key:/derry seq:7}
-          tput(0 1 2 3 4 F G H I    ) #index={id:2 key:/arik seq:8}
-          tput(0 1 2 3 4 F G H I J  ) #index={id:2 key:/derry seq:9}
-          // conflict:0
-          ##index_find(cfid:0 name:path key:/arik bseq:_10)=[9 3 1]
-          ##index_find(cfid:0 name:path key:/arik bseq:9)=[9 3 1]
-          ##index_find(cfid:0 name:path key:/arik bseq:8)=[3 1]
-          ##index_find(cfid:0 name:path key:/arik bseq:7)=[3 1]
-          ##index_find(cfid:0 name:path key:/arik bseq:6)=[3 1]
-          ##index_find(cfid:0 name:path key:/arik bseq:5)=[3 1]
-          ##index_find(cfid:0 name:path key:/arik bseq:4)=[3 1]
-          ##index_find(cfid:0 name:path key:/arik bseq:3)=[3 1]
-          ##index_find(cfid:0 name:path key:/arik bseq:2)=1
-          ##index_find(cfid:0 name:path key:/arik bseq:1)=1
-          ##index_find(cfid:0 name:path key:/arik bseq:0)=[]
-          // conflict:1
-          ##index_find(cfid:1 name:path key:/arik bseq:_10)=[9 8 6 5 3 1]
-          ##index_find(cfid:1 name:path key:/arik bseq:9)=[9 8 6 5 3 1]
-          ##index_find(cfid:1 name:path key:/arik bseq:8)=[8 6 5 3 1]
-          ##index_find(cfid:1 name:path key:/arik bseq:7)=[6 5 3 1]
-          ##index_find(cfid:1 name:path key:/arik bseq:6)=[6 5 3 1]
-          ##index_find(cfid:1 name:path key:/arik bseq:5)=[5 3 1]
-          ##index_find(cfid:1 name:path key:/arik bseq:4)=[3 1]
-          ##index_find(cfid:1 name:path key:/arik bseq:3)=[3 1]
-          ##index_find(cfid:1 name:path key:/arik bseq:2)=1
-          ##index_find(cfid:1 name:path key:/arik bseq:1)=1
-          ##index_find(cfid:1 name:path key:/arik bseq:0)=[]
-          // conflict:2
-          ##index_find(cfid:2 name:path key:/arik bseq:_10)=[8 6 5 3 1]
-          ##index_find(cfid:2 name:path key:/arik bseq:9)=[8 6 5 3 1]
-          ##index_find(cfid:2 name:path key:/arik bseq:8)=[8 6 5 3 1]
-          ##index_find(cfid:2 name:path key:/arik bseq:7)=[6 5 3 1]
-          ##index_find(cfid:2 name:path key:/arik bseq:6)=[6 5 3 1]
-          ##index_find(cfid:2 name:path key:/arik bseq:5)=[5 3 1]
-          ##index_find(cfid:2 name:path key:/arik bseq:4)=[3 1]
-          ##index_find(cfid:2 name:path key:/arik bseq:3)=[3 1]
-          ##index_find(cfid:2 name:path key:/arik bseq:2)=1
-          ##index_find(cfid:2 name:path key:/arik bseq:1)=1
-          ##index_find(cfid:2 name:path key:/arik bseq:0)=[]`);
-        t('conflict_parent_dir_up', `
-          s..scroll(index:path)
-          decl({path:/arik})
-          decl({path:/derry})
-          decl({path:/arik})
-          decl({path:/derry})
-          s1..clone(s)
-          decl({path:/arik})
-          decl({path:/arik})
-          s2..clone(s1)
-          decl({path:/derry})
-          decl({path:/arik})
-          decl({path:/derry})
-          s1..decl({path:/derry})
-          decl({path:/arik})
-          decl({path:/arik})
-          s..decl({path:/derry})
-          decl({path:/derry})
-          decl({path:/derry})
-          decl({path:/derry})
-          decl({path:/arik})
-          S..#index scroll(s..M0)
-          tput(0 1                ) #index={id:0 key:/arik seq:1}
-          tput(0 1 2              ) #index={id:0 key:/derry seq:2}
-          tput(0 1 2 3            ) #index={id:0 key:/arik seq:3}
-          tput(0 1 2 3 4          ) #index={id:0 key:/derry seq:4}
-          tput(0 1 2 3 4 5        ) #index={id:0 key:/derry seq:5}
-          tput(0 1 2 3 4 5 6      ) #index={id:0 key:/derry seq:6}
-          tput(0 1 2 3 4 5 6 7    ) #index={id:0 key:/derry seq:7}
-          tput(0 1 2 3 4 5 6 7 8  ) #index={id:0 key:/derry seq:8}
-          tput(0 1 2 3 4 5 6 7 8 9) #index={id:0 key:/arik seq:9}
-          tput(0 1 2 3 4 f        ) #index={id:1 key:/arik seq:5}
-          tput(0 1 2 3 4 f g      ) #index={id:1 key:/arik seq:6}
-          tput(0 1 2 3 4 f h      ) #index={id:1 key:/derry seq:7}
-          tput(0 1 2 3 4 f h i    ) #index={id:1 key:/arik seq:8}
-          tput(0 1 2 3 4 f h i j  ) #index={id:1 key:/arik seq:9}
-          tput(0 1 2 3 4 F        ) #
-          tput(0 1 2 3 4 F G      ) #
-          tput(0 1 2 3 4 F G H    ) #index={id:2 key:/derry seq:7}
-          tput(0 1 2 3 4 F G H I    ) #index={id:2 key:/arik seq:8}
-          tput(0 1 2 3 4 F G H I J  ) #index={id:2 key:/derry seq:9}
-          // conflict:0
-          ##index_find(dir:up cfid:0 name:path key:/arik bseq:_10)=[1 3 9]
-          ##index_find(dir:up cfid:0 name:path key:/arik bseq:9)=[1 3 9]
-          ##index_find(dir:up cfid:0 name:path key:/arik bseq:8)=[1 3]
-          ##index_find(dir:up cfid:0 name:path key:/arik bseq:7)=[1 3]
-          ##index_find(dir:up cfid:0 name:path key:/arik bseq:6)=[1 3]
-          ##index_find(dir:up cfid:0 name:path key:/arik bseq:5)=[1 3]
-          ##index_find(dir:up cfid:0 name:path key:/arik bseq:4)=[1 3]
-          ##index_find(dir:up cfid:0 name:path key:/arik bseq:3)=[1 3]
-          ##index_find(dir:up cfid:0 name:path key:/arik bseq:2)=1
-          ##index_find(dir:up cfid:0 name:path key:/arik bseq:1)=1
-          ##index_find(dir:up cfid:0 name:path key:/arik bseq:0)=[]
-          // conflict:1
-          ##index_find(dir:up cfid:1 name:path key:/arik
-            bseq:_10)=[1 3 5 6 8 9]
-          ##index_find(dir:up cfid:1 name:path key:/arik bseq:9)=[1 3 5 6 8 9]
-          ##index_find(dir:up cfid:1 name:path key:/arik bseq:8)=[1 3 5 6 8]
-          ##index_find(dir:up cfid:1 name:path key:/arik bseq:7)=[1 3 5 6]
-          ##index_find(dir:up cfid:1 name:path key:/arik bseq:6)=[1 3 5 6]
-          ##index_find(dir:up cfid:1 name:path key:/arik bseq:5)=[1 3 5]
-          ##index_find(dir:up cfid:1 name:path key:/arik bseq:4)=[1 3]
-          ##index_find(dir:up cfid:1 name:path key:/arik bseq:3)=[1 3]
-          ##index_find(dir:up cfid:1 name:path key:/arik bseq:2)=1
-          ##index_find(dir:up cfid:1 name:path key:/arik bseq:1)=1
-          ##index_find(dir:up cfid:1 name:path key:/arik bseq:0)=[]
-          // conflict:2
-          ##index_find(dir:up cfid:2 name:path key:/arik bseq:_10)=[1 3 5 6 8]
-          ##index_find(dir:up cfid:2 name:path key:/arik bseq:9)=[1 3 5 6 8]
-          ##index_find(dir:up cfid:2 name:path key:/arik bseq:8)=[1 3 5 6 8]
-          ##index_find(dir:up cfid:2 name:path key:/arik bseq:7)=[1 3 5 6]
-          ##index_find(dir:up cfid:2 name:path key:/arik bseq:6)=[1 3 5 6]
-          ##index_find(dir:up cfid:2 name:path key:/arik bseq:5)=[1 3 5]
-          ##index_find(dir:up cfid:2 name:path key:/arik bseq:4)=[1 3]
-          ##index_find(dir:up cfid:2 name:path key:/arik bseq:3)=[1 3]
-          ##index_find(dir:up cfid:2 name:path key:/arik bseq:2)=1
-          ##index_find(dir:up cfid:2 name:path key:/arik bseq:1)=1
-          ##index_find(dir:up cfid:2 name:path key:/arik bseq:0)=[]`);
+          $last $$(
+            ((0 1 2 3 4 F G H    ) 7 /derry 2)
+            ((0 1 2 3 4 F G H I  ) 8 /arik  2)
+            ((0 1 2 3 4 F G H I J) 9 /derry 2))
+          ##index_find(cfid:$1 name:path key:/arik bseq:$2)=$3 $$(
+            (0 _10 [9       3 1]) // cfid:0
+            (0   9 [9       3 1])
+            (0   8 [        3 1])
+            (0   7 [        3 1])
+            (0   6 [        3 1])
+            (0   5 [        3 1])
+            (0   4 [        3 1])
+            (0   3 [        3 1])
+            (0   2 [          1])
+            (0   1 [          1])
+            (0   0 [           ])
+            (1 _10 [9 8 6 5 3 1]) // cfid:1
+            (1   9 [9 8 6 5 3 1])
+            (1   8 [  8 6 5 3 1])
+            (1   7 [    6 5 3 1])
+            (1   6 [    6 5 3 1])
+            (1   5 [      5 3 1])
+            (1   4 [        3 1])
+            (1   3 [        3 1])
+            (1   2 [          1])
+            (1   1 [          1])
+            (1   0 [           ])
+            (2 _10 [  8 6 5 3 1]) // cfid:2
+            (2   9 [  8 6 5 3 1])
+            (2   8 [  8 6 5 3 1])
+            (2   7 [    6 5 3 1])
+            (2   6 [    6 5  3 1])
+            (2   5 [      5 3 1])
+            (2   4 [        3 1])
+            (2   3 [        3 1])
+            (2   2 [          1])
+            (2   1 [          1])
+            (2   0 [          1]))
+          ##index_find(dir:dn cfid:$1 name:path key:/arik bseq:$2)=$3 $$last
+          ##index_find(dir:up cfid:$1 name:path key:/arik bseq:$2)=$rev($3)
+            $$last
+          `);
         t('conflict_tag_dir_dn', `
           s..scroll(index:path)
           decl({path:/arik})

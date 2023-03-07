@@ -1427,17 +1427,16 @@ describe('scroll', function(){
           (3 !         !      1-1.1     {$n $b}     1 2   2  1-1.0     b )
           (4 branch:b2 prev:2 1-1.0-1.0 {$n $b $b2} 2 4   1  1-1.0-1.0 b2)
           (5 !         !      1-1.0-1.1 {$n $b $b2} 2 4   2  1-1.0-1.0 b2))`);
-        t('two_branch_same', `s..#(bseq btable)
-          scroll                   #(bseq0=0 btc0[0]={seq:0 bseq:0 size:1})
-          decl(1)                  #(bseq1=1 btc0[0]={seq:0 bseq:0 size:2})
-          decl(2 branch:b)         #(bseq2=1-1.0
-            btc0[1]={branch:b seq:2 bseq:1-1.0 size:1})
-          decl(3)                  #(bseq3=1-1.1
-            btc0[1]={branch:b seq:2 bseq:1-1.0 size:2})
-          decl(4 prev:1 branch:b2) #(bseq4=1-2.0
-            btc0[2]={branch:b2 seq:4 bseq:1-2.0 size:1})
-          decl(5)                  #(bseq5=1-2.1
-            btc0[2]={branch:b2 seq:4 bseq:1-2.0 size:2})`);
+        t('two_branch_same', `s..#(bseq btable) scroll
+          #(bseq0=0 btc0[0]={seq:0 bseq:0 size:1})
+          decl($1 $2 $3) #(bseq$1=$4 btc0[$5]={seq:$6 size:$7 bseq:$8
+          branch:$9}) $$(
+          // seq-br    prev   bseq  i seq sz bseq  br
+          (1 !         !      1     0 0   2  0     ! )
+          (2 branch:b  !      1-1.0 1 2   1  1-1.0 b )
+          (3 !         !      1-1.1 1 2   2  1-1.0 b )
+          (4 branch:b2 prev:1 1-2.0 2 4   1  1-2.0 b2)
+          (5 !         !      1-2.1 2 4   2  1-2.0 b2))`);
         t('branch_prev', `s..#(bseq btable)
           scroll           #(bseq0=0 btc0[0]={seq:0 bseq:0 size:1})
           decl(1)          #(bseq1=1 btc0[0]={seq:0 bseq:0 size:2})

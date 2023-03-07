@@ -1388,20 +1388,19 @@ describe('scroll', function(){
           bseq8=8 bseq9=9 bseq10=_10 btc0[0]={seq:0 bseq:0 size:11}
           bname={0:null:0}) !bseq11`);
         t('one_branch_test', `s..#(bseq btable bname)
-          scroll           #(bseq0=0 btc0[0]={seq:0 bseq:0 size:1}
-                             bname={0:null:0})
-          decl(1)          #(bseq1=1 btc0[0]={seq:0 bseq:0 size:2})
-          decl(2)          #(bseq2=2 btc0[0]={seq:0 bseq:0 size:3})
-          decl(3 branch:b) #(bseq3=2-1.0
-                             btc0[1]={branch:b seq:3 bseq:2-1.0 size:1}
-                             bname={0:null:0 0:b:3})
-          decl(4)          #(bseq4=2-1.1
-                             btc0[1]={branch:b seq:3 bseq:2-1.0 size:2})
-          decl(5 prev:2)   #(bseq5=3 btc0[2]={seq:5 bseq:3 size:1})
-          decl(6)          #(bseq6=4 btc0[2]={seq:5 bseq:3 size:2})
-          decl(7 prev:4)   #(bseq7=2-1.2 btc0[3]={seq:7 bseq:2-1.2 size:1})
-          decl(8)          #(bseq8=2-1.3 btc0[3]={seq:7 bseq:2-1.2 size:2})
-          decl(9 prev:6)   #(bseq9=5 btc0[4]={seq:9 bseq:5 size:1})`);
+          // XXX: check bug, if we move $$n below scroll, we get parse error
+          $$n(0:null:0) $$b(0:b:3)
+          scroll           #(bseq0=0 btc0[0]={seq:0 bseq:0 size:1} bname={$n})
+          decl($1 $2) #(bseq$1=$3 btc0[$5]=$6 bname=$4) $$(
+            (1 !        1     {$n   } 0 {seq:0 bseq:0 size:2})
+            (2 !        2     {$n   } 0 {seq:0 bseq:0 size:3})
+            (3 branch:b 2-1.0 {$n $b} 1 {branch:b seq:3 bseq:2-1.0 size:1})
+            (4 !        2-1.1 {$n $b} 1 {branch:b seq:3 bseq:2-1.0 size:2})
+            (5 prev:2   3     {$n $b} 2 {seq:5 bseq:3 size:1})
+            (6 !        4     {$n $b} 2 {seq:5 bseq:3 size:2})
+            (7 prev:4   2-1.2 {$n $b} 3 {seq:7 bseq:2-1.2 size:1})
+            (8 !        2-1.3 {$n $b} 3 {seq:7 bseq:2-1.2 size:2})
+            (9 prev:6   5     {$n $b} 4 {seq:9 bseq:5 size:1}))`);
         t('two_branch_differnt', `s..#(bseq btable bname)
           scroll            #(bseq0=0 btc0[0]={seq:0 bseq:0 size:1}
                               bname={0:null:0})

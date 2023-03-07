@@ -1391,16 +1391,24 @@ describe('scroll', function(){
           // XXX: check bug, if we move $$n below scroll, we get parse error
           $$n(0:null:0) $$b(0:b:3)
           scroll           #(bseq0=0 btc0[0]={seq:0 bseq:0 size:1} bname={$n})
+          // XXX: derry: no indent after $$
           decl($1 $2) #(bseq$1=$3 btc0[$5]=$6 bname=$4) $$(
-            (1 !        1     {$n   } 0 {seq:0 bseq:0 size:2})
-            (2 !        2     {$n   } 0 {seq:0 bseq:0 size:3})
-            (3 branch:b 2-1.0 {$n $b} 1 {branch:b seq:3 bseq:2-1.0 size:1})
-            (4 !        2-1.1 {$n $b} 1 {branch:b seq:3 bseq:2-1.0 size:2})
-            (5 prev:2   3     {$n $b} 2 {seq:5 bseq:3 size:1})
-            (6 !        4     {$n $b} 2 {seq:5 bseq:3 size:2})
-            (7 prev:4   2-1.2 {$n $b} 3 {seq:7 bseq:2-1.2 size:1})
-            (8 !        2-1.3 {$n $b} 3 {seq:7 bseq:2-1.2 size:2})
-            (9 prev:6   5     {$n $b} 4 {seq:9 bseq:5 size:1}))`);
+          (1 !        1     {$n   } 0 {seq:0 size:2 bseq:0             })
+          (2 !        2     {$n   } 0 {seq:0 size:3 bseq:0             })
+          (3 branch:b 2-1.0 {$n $b} 1 {seq:3 size:1 bseq:2-1.0 branch:b})
+          (4 !        2-1.1 {$n $b} 1 {seq:3 size:2 bseq:2-1.0 branch:b})
+          (5 prev:2   3     {$n $b} 2 {seq:5 size:1 bseq:3             })
+          (6 !        4     {$n $b} 2 {seq:5 size:2 bseq:3             })
+          (7 prev:4   2-1.2 {$n $b} 3 {seq:7 size:1 bseq:2-1.2         })
+          (8 !        2-1.3 {$n $b} 3 {seq:7 size:2 bseq:2-1.2         })
+          (9 prev:6   5     {$n $b} 4 {seq:9 size:1 bseq:5             }))`);
+          // XXX: review with derry
+          if (0)
+          t('xxx', `
+          (2 !        2     {$n   } 0 {seq:0 size:3 bseq:0})
+          (2 !        2     {$n   } 0 $s(0 0 3 !))
+          (4 !        2-1.1 {$n $b} 1 {seq:3 size:2 bseq:2-1.0 branch:b})
+          (4 !        2-1.1 {$n $b} 1 $s(3 2 2-1.0 b)`);
         t('two_branch_differnt', `s..#(bseq btable bname)
           scroll            #(bseq0=0 btc0[0]={seq:0 bseq:0 size:1}
                               bname={0:null:0})

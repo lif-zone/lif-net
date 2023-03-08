@@ -31,8 +31,8 @@ constructor(id){
   } else
     assert.fail('invalid id '+id);
   if (0) // XXX: TODO
-  assert.equal(this.s.length, CHARS, 'invalid id len '+this.s.length+'!='+
-    CHARS);
+  assert.strictEqual(this.s.length, CHARS,
+    'invalid id len '+this.s.length+'!='+CHARS);
 }
 get b(){
   if (this._b===undefined)

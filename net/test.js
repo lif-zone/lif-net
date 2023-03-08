@@ -55,13 +55,14 @@ NodeMap.t.node_from_id = Router.t.node_from_id = node_from_id;
 const etask_sleep = dur=>etask(function*etask_sleep(){
   let t0 = Date.now();
   yield etask.sleep(dur);
-  assert.equal(Date.now(), t0+dur, 'wrong time after sleep. timer skipped');
+  assert.strictEqual(Date.now(), t0+dur,
+    'wrong time after sleep. timer skipped');
 });
 
 function push_event(event){
   xerr.notice('push_event %s', event);
   if (t_event.length){
-    assert.equal(t_event[0].ts, Date.now(),
+    assert.strictEqual(t_event[0].ts, Date.now(),
      'got event before previous handled. event '+event+'\n'+events_str());
   }
   t_event.push({ts: Date.now(), event});
@@ -77,7 +78,7 @@ function shift_event(c){
   if (!t_event.length)
     return;
   let o = t_event.shift();
-  assert.equal(Date.now(), o.ts, 'wrong timing for event '+o.event+
+  assert.strictEqual(Date.now(), o.ts, 'wrong timing for event '+o.event+
     '\nexpected: '+c?.fwd+' '+c?.orig+'\npending: '+events_str());
   return o.event;
 }
@@ -537,7 +538,9 @@ function assert_peers(peers){
 */
 
 function assert_event(event, exp){
-  assert.equal(normalize(event), normalize(exp), 'events: '+events_str()); }
+  assert.strictEqual(normalize(event), normalize(exp),
+    'events: '+events_str());
+}
 
 // XXX: rm
 function assert_event_c(c, event, call){
@@ -647,7 +650,7 @@ function track_rtt_path(lbuffer){
   if (msg0.type!='fwd' || !rt?.path)
     return;
   let rtt_a = rt?.rtt, d0 = node_from_id(msg0.to);
-  assert.equal(path.length, rtt_a.length, 'invalid rtt for path');
+  assert.strictEqual(path.length, rtt_a.length, 'invalid rtt for path');
   for (let i=0, prev=d0; i<path.length; i++){
     let curr = node_from_id(path[i]), rtt = rtt_a[i];
     let hash = rtt_hash(prev.t.name, curr.t.name);
@@ -799,7 +802,7 @@ class FakeChannel extends EventEmitter {
     let dur = conf_rtt_from_node(from0, to0)/2;
     push_event(e);
     if (t_no_events_allowed_ts){
-      assert.equal(Date.now(), t_no_events_allowed_ts,
+      assert.strictEqual(Date.now(), t_no_events_allowed_ts,
         'unexpected event while sleeping: '+e);
     }
     if (t_conf.msg_delay)
@@ -1252,7 +1255,7 @@ function cmd_conf(opt){
 
 function setup_ring(arg){
   let arr = arg.match(/^([a-zA-Z])-([a-zA-Z])$/);
-  assert.equal(arr?.length, 3, 'invalid arg '+arg);
+  assert.strictEqual(arr?.length, 3, 'invalid arg '+arg);
   let a = arr[1], b = arr[2], s = '', is_upper = /[A-Z]/.test(a);
   assert(!is_upper && /[a-z]/.test(b) ||
     is_upper && /[A-Z]/.test(b), 'invalid arg '+arg);
@@ -1325,7 +1328,7 @@ function cmd_test_node_conn(opt){
       let d = node_from_id(id);
       s += (s ? ' ' : '')+d.t.name+':'+(conn.rtt||'na');
     });
-    assert.equal(s, n2, 'conn mismatch for '+n.t.name);
+    assert.strictEqual(s, n2, 'conn mismatch for '+n.t.name);
     delete exp[n.t.name];
   });
   assert(!Object.keys(exp).length, 'missing nodes '+Object.keys(exp));
@@ -1353,17 +1356,17 @@ function cmd_test_node_find(opt){
     return;
   if (next!==undefined){
     let found = s.router.node_map.find_next(NodeId.from(target));
-    assert.equal(node_from_id(found.id.s).t.name, next, 'next mismatch '+
+    assert.strictEqual(node_from_id(found.id.s).t.name, next, 'next mismatch '+
       c.orig);
   }
   if (prev!==undefined){
     let found = s.router.node_map.find_prev(NodeId.from(target));
-    assert.equal(found && node_from_id(found.id.s).t.name, prev,
+    assert.strictEqual(found && node_from_id(found.id.s).t.name, prev,
       'prev mismatch '+c.orig);
   }
   if (bidi!==undefined){
     let found = s.router.node_map.find_bidi(NodeId.from(target));
-    assert.equal(found && node_from_id(found.id.s).t.name, bidi,
+    assert.strictEqual(found && node_from_id(found.id.s).t.name, bidi,
       'bidi mismatch '+c.orig);
   }
 }
@@ -1414,12 +1417,12 @@ function cmd_test_rtt(s, arg){
       return;
     let conn = node.router.node_map.get_conn({ids: [node.id, dst.id]});
     let channel = node.router.get_channel_from_id(dst.id);
-    assert.equal(conn?.rtt, exp, 'invalid rtt '+s+'#'+arg);
-    assert.equal(channel.rtt, exp, 'invalid channel rtt '+s+'#'+arg);
+    assert.strictEqual(conn?.rtt, exp, 'invalid rtt '+s+'#'+arg);
+    assert.strictEqual(channel.rtt, exp, 'invalid channel rtt '+s+'#'+arg);
     return;
   }
   a = arg.match(/^([<>][0-9]+\.[0-9]+) ([0-9]+$)/);
-  assert.equal(a?.length, 3, 'invalid cmd_test_rtt '+arg);
+  assert.strictEqual(a?.length, 3, 'invalid cmd_test_rtt '+arg);
   let node = N(s), id = id_from_req_id(a[1]);
   let seq = seq_from_req_id(a[1]), dir = dir_from_req_id(a[1]);
   let rtt = assert_int(a[2]);
@@ -1430,7 +1433,8 @@ function cmd_test_rtt(s, arg){
   assert(state_o[dir], 'req not found '+arg);
   assert(state_o[dir][seq], 'req not found '+arg);
   let seq_o = node.router.state[id][dir][seq];
-  assert.equal(seq_o.rtt, rtt ? rtt : undefined, 'rtt mismatch '+s+' '+arg);
+  assert.strictEqual(seq_o.rtt, rtt ? rtt : undefined,
+    'rtt mismatch '+s+' '+arg);
 }
 
 function cmd_test_time(c, arg){
@@ -1440,7 +1444,7 @@ function cmd_test_time(c, arg){
     t_prev_time = Date.now();
   else {
     assert(t_prev_time!==undefined, 't_prev_time not defined, use #ms');
-    assert.equal(Date.now()-t_prev_time, ms, 'expected time mismatch');
+    assert.strictEqual(Date.now()-t_prev_time, +ms, 'expected time mismatch');
     t_prev_time = Date.now();
   }
 }
@@ -1453,7 +1457,7 @@ function cmd_test_state(c, arg){
   if (curr?.cmd=='!id'){ // eg. !id(1)
     id = id_from_req_id(curr.arg);
     if (!node.t.fake)
-      assert.equal(node.router.state[id], undefined);
+      assert.strictEqual(node.router.state[id], undefined);
   } else if (curr){ // eg. ac>opening(...)
     let o = xtest.parse_cmd_dir(curr.cmd);
     state = o.cmd;
@@ -1482,9 +1486,11 @@ function cmd_test_state(c, arg){
         v = v_from_req_id(a.cmd);
       }
       if (!node.t.fake){
-        assert.equal(node.router.state[id]?.src.s, src?.id.s, 'at '+c.orig);
-        assert.equal(node.router.state[id]?.dst.s, dst?.id.s, 'at '+c.orig);
-        assert.equal(node.router.state[id]?.state, state, 'at '+c.orig);
+        assert.strictEqual(node.router.state[id]?.src.s, src?.id.s,
+          'at '+c.orig);
+        assert.strictEqual(node.router.state[id]?.dst.s, dst?.id.s,
+          'at '+c.orig);
+        assert.strictEqual(node.router.state[id]?.state, state, 'at '+c.orig);
         if (not_exist){
           assert(!node.router.state[id][dir][seq], 'must not exists '+seq);
         } else {
@@ -1498,7 +1504,7 @@ function cmd_test_state(c, arg){
     });
   } else if (0){ // XXX: TODO
     if (!node.t.fake)
-      assert.equal(node.router.state[id]?.state, undefined);
+      assert.strictEqual(node.router.state[id]?.state, undefined);
   }
 }
 
@@ -1873,7 +1879,7 @@ function cmd_node_ring_join(opt){
   let s = N(c.s);
   assert(!c.d, 'dst not allowed '+c.orig);
   assert(!c.arg, 'arg not allowed '+c.orig);
-  assert.equal(event, undefined, 'unexpected event');
+  assert.strictEqual(event, undefined, 'unexpected event');
   if (t_pre_process)
     return;
   if (!s.t.fake)
@@ -2203,13 +2209,13 @@ function cmd_req(opt){
     if (type=='req'){
       assert(!Req.t.reqs[id], 'req already exists '+id);
       let req = new Req({node: s, dst: d.id.s, req_id: id, cmd, rt});
-      assert.equal(req.req_id, id, 'req_id mismatch');
+      assert.strictEqual(req.req_id, id, 'req_id mismatch');
       req.send({seq, ack}, body);
     } else if (type=='req_start'){
       assert(!Req.t.reqs[id], 'req already exists '+id);
       let req = new Req({node: s, stream: true, dst: d.id.s, req_id: id,
         cmd, rt});
-      assert.equal(req.req_id, id, 'req_id mismatch');
+      assert.strictEqual(req.req_id, id, 'req_id mismatch');
       req.send({seq, ack}, body);
     } else if (type=='req_next')
       Req.t.reqs[id].req.send({seq, ack}, body);
@@ -2565,7 +2571,7 @@ const cmd_run = ()=>etask(function*cmd_run(){
     return;
   t_i++;
   t_depth++;
-  assert.equal(t_depth, 1);
+  assert.strictEqual(t_depth, 1);
   xerr.notice('%scmd %s: %s%s', ''.repeat(t_depth), t_i,
     c.s ? build_cmd(c.s+c.d+'>'+c.cmd, c.arg) : c.orig,
     t_event.length ? ' event '+events_str() : '');
@@ -2669,7 +2675,8 @@ const _test_run = (role, cmds)=>etask(function*_test_run(){
         prev_plus = c.cmd=='+';
         yield test_sleep(ms);
       } else if (!t_conf.auto_time){
-        assert.equal(Date.now(), exp_time, 'time moved without explicit cmd');
+        assert.strictEqual(Date.now(), exp_time,
+          'time moved without explicit cmd');
         if (c.cmd=='ms'){
           let ms = get_next_sleep(+c.arg);
           yield test_sleep(ms);
@@ -2770,7 +2777,7 @@ const test_end = ()=>etask(function*(){
   xerr.notice('*** test_end');
   yield cmd_ensure_no_events();
   assert(t_cmds, 'test not running');
-  assert.equal(t_i, t_cmds.length, 'not all cmds run: '+t_cmds[t_i]);
+  assert.strictEqual(t_i, t_cmds.length, 'not all cmds run: '+t_cmds[t_i]);
   if (!t_pre_process){
     xsinon.set_max_auto_inc();
     yield etask_sleep(date.ms.YEAR);
@@ -2788,7 +2795,7 @@ const test_end = ()=>etask(function*(){
     'req handler node exists on test end '+
     stringify(Object.keys(ReqHandler.t.nodes)));
   assert(!t_pause, 'test is paused');
-  assert.equal(t_depth, 0, 'invalid t_depth');
+  assert.strictEqual(t_depth, 0, 'invalid t_depth');
   xerr.notice('*** test_done');
   xtest.xerr_level(xerr.L.ERR);
 });
@@ -2859,8 +2866,8 @@ function test_transform(s){
 describe('buf_util', ()=>{
   it('hash_from_int', function(){
     const _t = (val, bits, max_bits, exp)=>{
-      assert.equal(hash_from_int(val, bits, max_bits), exp);
-      assert.equal(int_from_hash(exp, bits, max_bits), val);
+      assert.strictEqual(hash_from_int(val, bits, max_bits), exp);
+      assert.strictEqual(int_from_hash(exp, bits, max_bits), ''+val);
     };
     const t = (val, bits, exp)=>_t(val, bits, 40, exp);
     t(1, 8, '0100000000');
@@ -2909,9 +2916,9 @@ describe('util', function(){
     const t = (s, exp)=>{
       let a = s.split('');
       let ret = util.path_fold(a);
-      assert.equal(ret.join(''), exp);
+      assert.strictEqual(ret.join(''), exp);
       if (s==exp)
-        assert.equal(ret, a);
+        assert.strictEqual(ret, a);
       else
         assert(ret!==a);
     };
@@ -2936,11 +2943,11 @@ describe('node_id', function(){
     const i2b = val=>s2b(hash_from_int(val, 80, 80));
     const t = (val, exp)=>{
       let id = NodeId.from(i2b(val));
-      assert.equal(id.s, exp);
-      assert.equal(id.b.toString('hex'), exp);
+      assert.strictEqual(id.s, exp);
+      assert.strictEqual(id.b.toString('hex'), exp);
       id = new NodeId(Buffer.from(exp, 'hex'));
-      assert.equal(id.s, exp);
-      assert.equal(id.b.toString('hex'), exp);
+      assert.strictEqual(id.s, exp);
+      assert.strictEqual(id.b.toString('hex'), exp);
     };
     t(1, '00000000000000000001');
     t(2, '00000000000000000002');
@@ -2959,7 +2966,7 @@ describe('node_id', function(){
   it('buffer', function(){
     const t = (s, exp)=>{
       let id = NodeId.from(s);
-      assert.equal(id.s, exp);
+      assert.strictEqual(id.s, exp);
     };
     t('00000000000000000000', '00000000000000000000');
     // XXX: fixme: it should be 00000000000000000000
@@ -2968,7 +2975,7 @@ describe('node_id', function(){
   it('number', function(){
     const t = (s, exp, exp_f)=>{
       let id = NodeId.from(s);
-      assert.equal(''+id.i, exp);
+      assert.equal(''+id.i, ''+exp);
       assert.equal(!id.d ? '0' : ''+id.d, exp_f);
     };
     t('00000000000000000000', '0', '0');
@@ -2985,14 +2992,14 @@ describe('node_id', function(){
     t('ffffffffffffff000000', '9007199254740991', '1');
     t('ffffffffffffff100000', '9007199254740991', '1');
     t('ffffffffffffffffffff', '9007199254740991', '1');
-    t('1ffffffffffff0000000', 9007199254740976, '0.12499999999999978');
+    t('1ffffffffffff0000000', '9007199254740976', '0.12499999999999978');
     t('20000000000000000000', 0, '0.125');
   });
   it('from_double', function(){
     const t = (d, exp_s, exp_d)=>{
       let id = NodeId.from(d);
-      assert.equal(''+id.s, exp_s);
-      assert.equal(''+id.d, exp_d);
+      assert.strictEqual(''+id.s, exp_s);
+      assert.strictEqual(''+id.d, exp_d);
     };
     t(0, '0000000000000000000000000000000000000000', '0');
     t(0.125, '1ffffffffffff000000000000000000000000000',
@@ -3035,7 +3042,7 @@ describe('node_id', function(){
     let t = (range, id, exp)=>{
       range = NodeId.range_from_msg(range);
       id = NodeId.from(id);
-      assert.equal(id.in_range(range), exp);
+      assert.strictEqual(id.in_range(range), exp);
     };
     t({min: 0.10, max: 0.20}, 0.9, false);
     t({min: 0.10, max: 0.20}, 0.10, false);
@@ -3094,8 +3101,8 @@ describe('node_id', function(){
   });
   it('dist', function(){
     const t = (a, b, exp)=>{
-      assert.equal(NodeId.from(a).dist(NodeId.from(b)), exp);
-      assert.equal(NodeId.from(b).dist(NodeId.from(a)), exp);
+      assert.strictEqual(NodeId.from(a).dist(NodeId.from(b)), exp);
+      assert.strictEqual(NodeId.from(b).dist(NodeId.from(a)), exp);
     };
     t('00000000000000000000', '00000000000000000000', 0);
     t('00000000000000000000', 'ffffffffffffffffffff', 0);
@@ -3288,7 +3295,7 @@ describe('node_id', function(){
 
 describe('api', function(){
   it('transform', ()=>{
-   let t = (s, exp)=>assert.equal(test_transform(s), exp);
+   let t = (s, exp)=>assert.strictEqual(test_transform(s), exp);
    t('ab:ad>msg', `ab>fwd(ad>msg)`);
    t('bc:ab:ad>msg', `bc>fwd(ab>fwd(ad>msg))`);
    t('cd:bc:ab:ad>msg', `cd>fwd(bc>fwd(ab>fwd(ad>msg)))`);
@@ -3322,7 +3329,7 @@ describe('api', function(){
    // XXX: add test for invalid
   });
   it('normalize', ()=>{
-    let t = (cmd, exp)=>assert.equal(normalize(cmd), exp);
+    let t = (cmd, exp)=>assert.strictEqual(normalize(cmd), exp);
     t('ab>', 'ab>');
     t('ab<', 'ba>');
     t('a>', 'a>');
@@ -3333,7 +3340,7 @@ describe('api', function(){
     t('ab<c(d)', 'ba>c(d)');
   });
   it('rev_trim', ()=>{
-    let t = (cmd, exp)=>assert.equal(rev_trim(cmd), exp);
+    let t = (cmd, exp)=>assert.strictEqual(rev_trim(cmd), exp);
     t('a>', 'a<');
     t('a<', 'a>');
     t('ab>', 'ab<');
@@ -3342,12 +3349,12 @@ describe('api', function(){
     t('ab>c(d)', 'ab<');
   });
   it('dir_str', ()=>{
-    let t = (s, d, dir, exp)=>assert.equal(dir_str(s, d, dir), exp);
+    let t = (s, d, dir, exp)=>assert.strictEqual(dir_str(s, d, dir), exp);
     t('a', 'b', '>', 'ab>');
     t('a', 'b', '<', 'ba<');
   });
   it('build_cmd', ()=>{
-    let t = (arg, exp)=>assert.equal(_build_cmd.apply(this, arg), exp);
+    let t = (arg, exp)=>assert.strictEqual(_build_cmd.apply(this, arg), exp);
     t(['a'], 'a');
     t(['ab>'], 'ab>');
     t(['ab>msg'], 'ab>msg');
@@ -3360,7 +3367,7 @@ describe('api', function(){
   });
   describe('lbuffer', ()=>{
     it('to_str', ()=>{
-      const t = exp=>assert.equal(lbuffer.to_str(), exp);
+      const t = exp=>assert.strictEqual(lbuffer.to_str(), exp);
       let lbuffer = new LBuffer();
       t('\0');
       lbuffer.add_data('a');
@@ -3466,10 +3473,10 @@ describe('net', function(){
           let res = yield test_pre_process(setup+test);
           if (both){
             let res_exp = yield test_pre_process(setup+exp);
-            assert.equal(test_to_str(res).replace(regex, ''),
+            assert.strictEqual(test_to_str(res).replace(regex, ''),
             test_to_str(res_exp).replace(regex, ''));
           } else {
-            assert.equal(test_to_str(res).replace(regex, ''),
+            assert.strictEqual(test_to_str(res).replace(regex, ''),
               string.split_ws(exp).join(' '));
           }
         }));
@@ -4042,7 +4049,7 @@ describe('net', function(){
       test_node_find(X:0.41 next:a prev:d bidi:d)
       test_node_find(X:0.91 next:a prev:d bidi:a)`);
     it('next_prev', ()=>{
-      const t = (val, exp)=>assert.equal(val, exp);
+      const t = (val, exp)=>assert.strictEqual(val, exp);
       let node_map = new NodeMap(NodeId.from(0.44));
       let n1 = node_map.get({id: NodeId.from(0.43), create: true});
       let n2 = node_map.get({id: NodeId.from(0.42), create: true});
@@ -4065,10 +4072,10 @@ describe('net', function(){
           max: NodeId.from(range[1])}});
         exp.split(' ').forEach(e=>{
           let n = itr.next();
-          assert.equal(n && n.id.d, e ? NodeId.from(e).d : null);
+          assert.strictEqual(n && n.id.d, e ? NodeId.from(e).d : null);
         });
         let n = itr.next();
-        assert.equal(n && n.id.d, null);
+        assert.strictEqual(n && n.id.d, null);
       };
       const t = (opt, exp)=>{
         _t('.1', opt.d, opt.peers, opt.exclude, opt.range, exp);

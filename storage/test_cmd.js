@@ -884,6 +884,7 @@ function state_apply(state, o){
     return;
   }
   if (['seq', 'bseq'].includes(type)){
+    debugger;
     if (val!==null && val!==undefined){
       state[type][cfid] = state[type][cfid]||{};
       assert(state[type][cfid][seq] != val,
@@ -968,7 +969,7 @@ const state_next = (name, curr_state, filter, steps)=>etask(
       state.index_table = yield mem_get_index_table(scroll);
     if (filter.includes('db_index_table'))
       state.db_index_table = yield db_get_index_table(scroll);
-    if (filter.includes('bseq')){
+    if (filter.includes('bseq') ||filter.includes('seq')){
       for (const [cfid] of scroll.conflict){
         for (let decl = scroll.get_decl(0, {create: false}); decl;
           decl = decl.next())

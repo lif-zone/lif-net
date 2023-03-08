@@ -143,8 +143,8 @@ describe('util', function(){
       });
   });
   it('render_header', ()=>{
-    let t = (key, val, exp)=>assert.equal(git_util.render_header(key, val),
-      exp);
+    let t = (key, val, exp)=>assert.strictEqual(
+      git_util.render_header(key, val), exp);
     t('tree', '1b130e91ce06ba813c9695da80eb58152fe32587',
       'tree 1b130e91ce06ba813c9695da80eb58152fe32587\n');
     t('author', 'lif-rnd <lif.zone.main@gmail.com> 1670842140 +0200',
@@ -194,18 +194,19 @@ describe('lib', function(){
         continue;
       if (data.op=='commit'){
         let buf = yield lib.get_commit(decl);
-        assert.equal(lib.git_hash('commit', buf), data.git.oid,
+        assert.strictEqual(lib.git_hash('commit', buf), data.git.oid,
           'git hash mismatch seq'+seq);
         continue;
       }
       if (data.file){
         if (data.op=='rm'){
-          assert.equal(yield lib.get_file(decl), null, 'git mismatch seq'+seq);
+          assert.strictEqual(yield lib.get_file(decl), null,
+            'git mismatch seq'+seq);
           continue;
         }
         let buf = yield lib.get_file(decl);
         assert(buf, 'file not found seq'+seq);
-        assert.equal(lib.git_hash('blob', buf), data.git.oid,
+        assert.strictEqual(lib.git_hash('blob', buf), data.git.oid,
           'git hash mismatch seq'+seq);
       }
       // XXX: TODO dir, tag

@@ -1207,6 +1207,7 @@ export default class Scroll extends EventEmitterAsync {
   flush(){ return this.storage?.flush(); }
   // XXX optimize: try to minimize etask creation
   on_data = e=>etask({_: this}, function*on_data(){
+    this.on('uncaught', e=>xerr.xexit(e));
     let _this = this._;
     let {data, seq, cfid} = e, h = data.get_header(cfid);
     if (!h)
@@ -1232,7 +1233,7 @@ export default class Scroll extends EventEmitterAsync {
       }
     }
     if (_this.index_table)
-      _this.index_table.on_data({cfid, seq, bseq, data});
+      yield _this.index_table.on_data({cfid, seq, bseq, data});
     return _this.emit_async('data', {data, seq, cfid, bseq});
   });
   get_branch_table(cfid){
@@ -1313,16 +1314,17 @@ class Decl extends EventEmitterAsync {
   }
   fbuf_get(cfid){ return this.data.get(this.to_c(cfid)); }
   data_get(){ return this.data; }
-  get_header(cfid){ return this.data_get().get_header(cfid); }
-  get_body(cfid){ return this.data_get().get_body(cfid); }
+  get_header(cfid){ return this.data_get().get_header(this.to_c(cfid)); }
+  // XXX: fix all api to use this.to_c
+  get_body(cfid){ return this.data_get().get_body(this.to_c(cfid)); }
   d_hash(cfid){ return this.fbuf_get(cfid).get_hash(); }
   m_get(range){
     let i = merkel_array_pos(range);
     assert.deepEqual(this.m[i].range, r_fix(range));
     return this.m[i];
   }
-  m_hash(cfid, range){ return this.m_get(range).get_hash(cfid); }
-  M_hash(cfid){ return this.M.get_hash(cfid); }
+  m_hash(cfid, range){ return this.m_get(range).get_hash(this.to_c(cfid)); }
+  M_hash(cfid){ return this.M.get_hash(this.to_c(cfid)); }
   fbuf_get_async(cfid){ return etask({_: this}, function*fbuf_get_async(){
     let _this = this._;
     yield _this.load(cfid);
@@ -1457,6 +1459,7 @@ class Decl extends EventEmitterAsync {
   }); }
   load(cfid, opt={}){
     assert(cfid>=0, 'invalid cfid '+cfid);
+    cfid = this.to_c(cfid);
     let scroll = this.scroll;
     if (!scroll.storage)
       return;

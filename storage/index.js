@@ -42,6 +42,32 @@ function cmp_func_str_num(a, b){
 function cmp_func_mem(a, b){
   return cmp_mem(a.key, b.key) || a.seq-b.seq; }
 
+// XXX: need test + move to fs/util.js
+function file2dir(file){
+  var i = file.lastIndexOf('/');
+  return i==file.length-1 ? file : file.substr(0, i+1);
+}
+
+// XXX: need test
+function decl_get_dir(body){
+  let {dir, file} = body;
+  return (file||dir) && file2dir(dir?.slice(-1)=='/' ?
+    dir.substr(0, dir.length-1) : file);
+}
+
+// XXX: need test
+function key_from_data(data, cfid, desc){
+  let body = data.get_body(cfid), {field, transform} = desc;
+  if (!transform){
+    assert(field!='*', 'cannot use * without transform');
+    return body?.[field];
+  }
+  switch (transform){
+  case 'decl_get_dir': return decl_get_dir(body);
+  default: throw new Error('unknown transform function '+transform);
+  }
+}
+
 export default class Index {
   constructor(opt){
     let {scroll, id, cfid, bseqb, desc} = opt;
@@ -53,11 +79,9 @@ export default class Index {
     this.storage_queue = [];
   }
   on_data(e){
-    let {cfid, seq, data} = e, {field, transform} = this.desc;
+    let {cfid, seq, data} = e;
     let scroll = this.scroll, decl = scroll.get_decl(seq, {create: false});
-    assert(!transform, 'XXX TODO: transform');
-    assert(field!='*', 'XXX TODO: *');
-    let body = data.get_body(cfid), key = body?.[field];
+    let key = key_from_data(data, cfid, this.desc);
     if (key===undefined || key===null)
       return;
     let curr = this.find_mem_iter(key, {min: seq, max: seq})?.curr;

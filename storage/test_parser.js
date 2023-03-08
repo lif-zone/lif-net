@@ -46,11 +46,11 @@ E.parse_get_next = function(curr){
       if (['(', '[', '{'].includes(c))
         parentesis.push(c);
       else if (c==')')
-        assert.equal(parentesis.pop(), '(');
+        assert.strictEqual(parentesis.pop(), '(');
       else if (c==']')
-        assert.equal(parentesis.pop(), '[');
+        assert.strictEqual(parentesis.pop(), '[');
       else if (c=='}')
-        assert.equal(parentesis.pop(), '{');
+        assert.strictEqual(parentesis.pop(), '{');
       else if (!parentesis.length && string.is_ws(c)){
         state = 'post';
         continue;
@@ -103,7 +103,7 @@ E.parse_get_next = function(curr){
     let curr2 = E.parse_get_next({s, at: i+at, vars}), ss = '';
     assert(curr2, 'missing $$');
     let o = E.parse_exp(curr2.exp);
-    assert.equal(o.cmd, '$$', 'missing $$');
+    assert.strictEqual(o.cmd, '$$', 'missing $$');
     assert(!o.l, 'invalid $$ '+curr2.exp);
     exp = s.substr(curr.at||0, i+at-(curr.at||0));
     vars.last = exp;
@@ -253,11 +253,11 @@ E._parse_exp = function(s){
       parentesis.push(c);
     }
     else if (c==')')
-      assert.equal(parentesis.pop(), '(');
+      assert.strictEqual(parentesis.pop(), '(');
     else if (!parentesis.length && ['+', '-', ':', '=', '.'].includes(c)){
       if (cn==cnn && ['=', '.'].includes(cnn)){
-        assert.equal(s.charAt(i), cn, 'invalid exp '+s);
-        assert.equal(s.charAt(i), cnn, 'invalid exp '+s);
+        assert.strictEqual(s.charAt(i), cn, 'invalid exp '+s);
+        assert.strictEqual(s.charAt(i), cnn, 'invalid exp '+s);
         return {cmd: c+cn+cnn, l: s.substr(0, i), r: s.substr(i+3), meta};
       }
       if (['=', '.'].includes(cn)){
@@ -269,10 +269,10 @@ E._parse_exp = function(s){
       return {cmd: c, l: s.substr(0, i), r: s.substr(i+1), meta};
     }
   }
-  assert.equal(parentesis.length, 0, 'invalid parentesis '+s);
+  assert.strictEqual(parentesis.length, 0, 'invalid parentesis '+s);
   if (first==undefined)
     return {cmd: s, l: '', r: '', meta};
-  assert.equal(s[s.length-1], ')');
+  assert.strictEqual(s[s.length-1], ')');
   return {cmd: s.substr(0, first), l: '',
     r: s.substr(first+1, s.length-first-2), meta};
 };

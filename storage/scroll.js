@@ -78,8 +78,8 @@ class Data extends EventEmitterAsync {
     if (fsrc.frames.length==1 && !fsrc.frames[0].h_rest)
       return;
     let fdst = _this.get(cdst);
-    assert.equal(fsrc.ctx.cfid, csrc);
-    assert.equal(fdst.ctx.cfid, cdst);
+    assert.strictEqual(fsrc.ctx.cfid, csrc);
+    assert.strictEqual(fdst.ctx.cfid, cdst);
     assert(!fdst.get_hash() && fdst.frames.length==1,
       'already contain data seq'+_this.seq);
     fdst.frames = fsrc.frames;
@@ -474,7 +474,7 @@ export default class Scroll extends EventEmitterAsync {
     let cfid2 = this.conflict.next_id++;
     if (cfid===undefined || seq===undefined){
       assert(cfid===undefined && seq===undefined, 'invalid new_conflict');
-      assert.equal(cfid2, 0);
+      assert.strictEqual(cfid2, 0);
       this.conflict.set(cfid2, {cfid: cfid2, top: null, conflicts: new Map(),
         mem_map: new Mem_map});
       return cfid2;
@@ -576,7 +576,7 @@ export default class Scroll extends EventEmitterAsync {
       this.conflict.get(cfid).top = {seq, M};
       if (!this.top || this.top.seq<seq)
         this.top = {cfid, seq, M};
-      assert.equal(b2s(M), b2s(this.M_hash(cfid,
+      assert.strictEqual(b2s(M), b2s(this.M_hash(cfid,
         this.conflict.get(cfid).top.seq)), 'invalid M'+seq+'c'+cfid);
     }
   }
@@ -938,7 +938,7 @@ export default class Scroll extends EventEmitterAsync {
       type: real_conflict ? 'c' : 't'});
     if (c2.top.seq!=cseq && c1.top.seq!=cseq)
       return;
-    assert.equal(c2.parent.type, 't', 'only can merge tmp conflict');
+    assert.strictEqual(c2.parent.type, 't', 'only can merge tmp conflict');
     // XXX: need more efficient way (just iterate on decl with data)
     for (let i=c2.parent.seq+1; i<=c2.top.seq; i++){
       let src = _this.get_decl(i, {create: false});
@@ -956,7 +956,7 @@ export default class Scroll extends EventEmitterAsync {
     assert(i1>=0, 'must provide new conflict');
     assert(i1<i2, 'new conflict must be smaller');
     let c2 = _this.conflict.get(i2);
-    assert.equal(c2.parent.type, 't', 'trying to remove real conflict');
+    assert.strictEqual(c2.parent.type, 't', 'trying to remove real conflict');
     _this.conflict.get(c2.parent.cfid).conflicts.delete(i2);
     for (const [i] of c2.conflicts)
       yield _this.conflict_update(i, {cfid: i1});
@@ -970,7 +970,7 @@ export default class Scroll extends EventEmitterAsync {
     // relevant places on new conflict
     assert(o.cfid!=cfid, 'conflict loop '+cfid);
     let src = _this.conflict.get(cfid);
-    assert.equal(src.cfid, cfid, 'conflict corruption '+cfid);
+    assert.strictEqual(src.cfid, cfid, 'conflict corruption '+cfid);
     assert(src.parent?.type, 'missing conflict type');
     if (o.init){
       assert(o.cfid===undefined && o.seq===undefined && o.type==undefined,
@@ -1018,7 +1018,8 @@ export default class Scroll extends EventEmitterAsync {
     let p_o = _this.conflict.get(c_o.parent?.cfid);
     if (!p_o.conflicts.get(cfid))
       p_o.conflicts.set(cfid, c_o);
-    assert.equal(p_o.conflicts.get(cfid), c_o, 'conflict corruption '+cfid);
+    assert.strictEqual(p_o.conflicts.get(cfid), c_o,
+      'conflict corruption '+cfid);
     if (c_o.minfo && c_o.minfo.parent?.cfid==c_o.parent?.cfid &&
       c_o.minfo.parent?.seq==c_o.parent?.seq)
     {
@@ -1129,7 +1130,8 @@ export default class Scroll extends EventEmitterAsync {
   bseq_get(cfid, seq){
     let btable = this.get_branch_table(this.to_c(cfid, seq));
     let bseq = this.get_decl(seq)?.bseq_get(cfid);
-    assert.equal(bseq, btable.get_bseq(seq), 'bseq mismatch branch table');
+    assert.strictEqual(bseq, btable.get_bseq(seq),
+      'bseq mismatch branch table');
     return bseq;
   }
   seq_d(cfid, seq){ return this.get_decl(seq).d_hash(cfid); }
@@ -1216,7 +1218,7 @@ export default class Scroll extends EventEmitterAsync {
     if (body){
       _this.conflict.get(cfid).mem_map.add(seq);
       if (!_this.indexe_table && seq==0){
-        assert.equal(cfid, 0, 'seq0 must be on cfid 0');
+        assert.strictEqual(cfid, 0, 'seq0 must be on cfid 0');
         if (body.scroll?.index?.length){
           _this.index_table = new Index.Index_table({scroll: _this,
             index: body.scroll.index});
@@ -1382,7 +1384,7 @@ class Decl extends EventEmitterAsync {
     let {max_decl, max_frame, blob} = opt, o = {};
     this.scroll.storage?.init_static_cfid(o, this.scroll.conflict.get(cfid));
     o.seq = this.seq;
-    assert.equal(cfid, this.to_c(cfid), 'cfid is not real seq'+this.seq);
+    assert.strictEqual(cfid, this.to_c(cfid), 'cfid is not real seq'+this.seq);
     let sig = this.sig_get(cfid), M = this.M_hash(cfid);
     if (sig)
       o.sig = sig;

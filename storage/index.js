@@ -344,9 +344,9 @@ class Index_table {
     let _this = this._, {id, name, cfid, min, max, dir, bseq} = opt;
     let iter = {}, _max = max;
     if (id!==undefined){
-      assert.equal(cfid, undefined, 'invalid cfid when using id');
-      assert.equal(bseq, undefined, 'invalid bseq when using id');
-      assert.equal(name, undefined, 'invalid name when id');
+      assert.strictEqual(cfid, undefined, 'invalid cfid when using id');
+      assert.strictEqual(bseq, undefined, 'invalid bseq when using id');
+      assert.strictEqual(name, undefined, 'invalid name when id');
       let index = _this.index.get(id);
       if (!index)
         return iter;

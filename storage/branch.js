@@ -133,7 +133,7 @@ export default class Branch_table {
     // try to merge with prev bo
     bo = this.get_bo(seq-1);
     if (bo && bseq_branch_eq(bseq, bo.bseq)){
-      assert.equal(bo.seq+bo.size, seq, 'branch corruption');
+      assert.strictEqual(bo.seq+bo.size, seq, 'branch corruption');
       bo.size++;
       this._update_top(bseq, seq); // XXX: need test
       this._schedule_mod(bo.seq);
@@ -144,7 +144,7 @@ export default class Branch_table {
     // try to merge with next bo
     bo_next = this.get_bo(seq+1);
     if (bo_next && bseq_branch_eq(bseq, bo_next.bseq)){
-      assert.equal(bo_next.seq, seq+1, 'branch corruption');
+      assert.strictEqual(bo_next.seq, seq+1, 'branch corruption');
       this._remove(bo_next);
       this._schedule_rm(bo_next.seq);
       bo_next.seq = seq;
@@ -178,7 +178,7 @@ export default class Branch_table {
   _merge(bo, bo_next){
     if (!bo_next || !bseq_branch_eq(bo.bseq, bo_next.bseq))
       return;
-    assert.equal(bseq_inc(bo.bseq, bo.size), bo_next.bseq,
+    assert.strictEqual(bseq_inc(bo.bseq, bo.size), bo_next.bseq,
       'branch merge mismatch');
     bo.size += bo_next.size;
     this._remove(bo_next);
@@ -264,7 +264,7 @@ function bseq_diff(a, b){
   let mb = b.match(/^([\d.\-_]*\.)?([_]*[\d]+)$/);
   assert(ma[2], 'invalid br '+a);
   assert(mb[2], 'invalid br '+b);
-  assert.equal(ma[1], mb[1], 'bseq mismatch');
+  assert.strictEqual(ma[1], mb[1], 'bseq mismatch');
   let numa = bint2int(ma[2]), numb = bint2int(mb[2]);
   return numa-numb;
 }

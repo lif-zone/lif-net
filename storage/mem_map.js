@@ -13,14 +13,14 @@ export default class Mem_map {
     if (section) // already exists in map
       return;
     if (section = this.get_section(seq-1)){ // try merge with prev section
-      assert.equal(section.seq+section.size, seq, 'section corruption');
+      assert.strictEqual(section.seq+section.size, seq, 'section corruption');
       section.size++;
       section_next = this.get_section(seq+1);
       this._merge(section, section_next);
       return;
     }
     if (section_next = this.get_section(seq+1)){ // try merge with next section
-      assert.equal(section_next.seq, seq+1, 'section corruption');
+      assert.strictEqual(section_next.seq, seq+1, 'section corruption');
       this._remove(section_next);
       section_next.seq = seq;
       section_next.size++;

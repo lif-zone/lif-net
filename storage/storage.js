@@ -46,9 +46,10 @@ export default class Storage_handler {
       throw new Error('storage_handler already inited');
     _this.inited = true;
     let scroll = _this.scroll = opt.scroll;
-    assert.equal(scroll.top, null, 'scroll must be empty');
-    assert.equal(scroll.dmap.size, 0, 'scroll must be empty');
-    assert.equal(scroll.conflict.get(0).top, null, 'scroll must be empty');
+    assert.strictEqual(scroll.top, null, 'scroll must be empty');
+    assert.strictEqual(scroll.dmap.size, 0, 'scroll must be empty');
+    assert.strictEqual(scroll.conflict.get(0).top, null,
+      'scroll must be empty');
     assert(!scroll.is_locked(), 'scroll is locked');
     scroll.on('conflict-removed', _this.on_conflict_removed);
     scroll.on('decl', _this.on_decl);
@@ -263,8 +264,9 @@ export default class Storage_handler {
     this.on('uncaught', e=>xerr.xexit(e));
     let _this = this._, scroll = _this.scroll;
     assert(_this.inited, 'storage_handler not inited');
-    assert.equal(scroll.top, null, 'scroll must be empty');
-    assert.equal(scroll.conflict.get(0).top, null, 'scroll must be empty');
+    assert.strictEqual(scroll.top, null, 'scroll must be empty');
+    assert.strictEqual(scroll.conflict.get(0).top, null,
+      'scroll must be empty');
     let c = yield _this.load_conflict_static(M);
     if (!c)
       return;
@@ -289,7 +291,8 @@ export default class Storage_handler {
       for (let cursor = yield db.cursor(tx.store('branch').index('scfid'),
         db.only(scfid)); cursor; cursor = yield cursor.next())
       {
-        assert.equal(cfid, cursor.value.cfid, 'db branch corruption sc'+scfid);
+        assert.strictEqual(cfid, cursor.value.cfid,
+          'db branch corruption sc'+scfid);
         btable.row_from_static(cursor.value);
       }
     }
@@ -326,9 +329,10 @@ export default class Storage_handler {
     {
       let {id, cfid, bseqb, name, field, type, transform} = cur.value;
       let desc = index_table.get_desc(name);
-      assert.equal(field, desc.field, 'index field mismatch');
-      assert.equal(type, desc.type, 'index type mismatch');
-      assert.equal(transform, desc.transform, 'index transform mismatch');
+      assert.strictEqual(field, desc.field, 'index field mismatch');
+      assert.strictEqual(type, desc.type, 'index type mismatch');
+      assert.strictEqual(transform, desc.transform,
+        'index transform mismatch');
       index_table.new_index({id, cfid, bseqb, desc, from_db: true});
     }
   }); }
@@ -343,7 +347,7 @@ export default class Storage_handler {
   }
   load_cfid(decl, cfid, opt={}){
     assert(this.inited, 'storage_handler not inited');
-    assert.equal(decl.scroll, this.scroll, 'differnt decl scroll');
+    assert.strictEqual(decl.scroll, this.scroll, 'differnt decl scroll');
     assert(this.busy, 'load_cfid but not in begin_update');
     let scfid = this.scroll.conflict.get(cfid)?.db?.data.scfid;
     if (!Number.isInteger(scfid))
@@ -368,7 +372,7 @@ export default class Storage_handler {
       let data = yield db.store_get(tx.store('decl'), [scfid, decl.seq]);
       if (!data)
         return decl.db.cfid[cfid].busy = null;
-      assert.equal(scfid, _this.scroll.conflict.get(cfid).db?.data.scfid,
+      assert.strictEqual(scfid, _this.scroll.conflict.get(cfid).db?.data.scfid,
         'scfid was already deleted');
       data = db.fix_struct(data);
       decl.db.cfid[cfid].block_events = true;

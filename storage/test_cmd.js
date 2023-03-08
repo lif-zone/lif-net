@@ -107,7 +107,7 @@ const struct_from_db = (scroll, seq)=>etask(function*struct_from_db(){
     if (o)
       ret[cfid] = o;
     if (o){
-      assert.equal(o?.scfid, scfid, 'missing scfid seq'+seq);
+      assert.strictEqual(o?.scfid, scfid, 'missing scfid seq'+seq);
       delete o.scfid;
     }
   }
@@ -246,11 +246,11 @@ function assert_kb(s){
 
 function assert_buffer(a, b, desc){
   if (Buffer.isBuffer(a) && Buffer.isBuffer(b))
-    assert.equal(b2s(a), b2s(b), 'buffer not equal '+desc);
+    assert.strictEqual(b2s(a), b2s(b), 'buffer not equal '+desc);
   else if (a || b)
     assert.deepEqual(a, b, 'not equal '+desc);
   else
-    assert.equal(a, b, 'not equal '+desc);
+    assert.strictEqual(a, b, 'not equal '+desc);
 }
 
 function assert_b2s_obj(a, b, desc){
@@ -261,10 +261,10 @@ function assert_no_corruption(scroll){
     let curr = scroll.conflict.get(i);
     if (!i)
       continue;
-    assert.equal(scroll.conflict.get(curr.parent?.cfid).conflicts.
+    assert.strictEqual(scroll.conflict.get(curr.parent?.cfid).conflicts.
       get(curr.cfid), curr, 'conflict corruption c'+i);
     for (const [j] of curr.conflicts){
-      assert.equal(scroll.conflict.get(j).parent?.cfid, i,
+      assert.strictEqual(scroll.conflict.get(j).parent?.cfid, i,
         'conflict corruption c'+i);
     }
   }
@@ -753,7 +753,7 @@ function state_split_var(v, def){
   if (type=='index_find')
     return {name, type, key};
   assert(['mem', 'db'].includes(type), 'invalid type '+type);
-  assert.equal(cfid, '0', 'invalid conflict usage');
+  assert.strictEqual(cfid, 0, 'invalid conflict usage');
   return {name, type, seq};
 }
 
@@ -1253,14 +1253,14 @@ const cmd_c = t=>etask(function*cmd_c(){
   let tested = {}, i=0;
   for (let curr=t.r; curr = parse_get_next(curr); i++)
     tested[i] = parse_conflict(curr.exp);
-  assert.equal(scroll.conflict.size, i, 'conflict count mismatch '+t.r);
+  assert.strictEqual(scroll.conflict.size, i, 'conflict count mismatch '+t.r);
   for (const [i, o] of scroll.conflict){
     let ii = c_id2pos(scroll, i);
     assert.deepEqual(o.parent?.cfid!==undefined ?
       {seq: o.parent.seq, cfid: c_id2pos(scroll, o.parent.cfid),
       type: o.parent?.type} :
       undefined, tested[ii].parent, 'conflict '+i+' mismatch '+t.r);
-    assert.equal(o.top.seq, tested[ii].top.seq, 'top seq mismatch c'+i+
+    assert.strictEqual(o.top.seq, tested[ii].top.seq, 'top seq mismatch c'+i+
       ' '+t.r);
     assert_buffer(o.top.M, yield get_val(tested[ii].top.M),
       'top M mismatch c'+i+' '+t.r);
@@ -1284,7 +1284,7 @@ const get_db_data = exp=>etask(function*get_db_data(){
 const db_get_db_data = db=>etask(function*db_get_db_data(){
   let ret = {}, tx = db.transaction('data', 'readonly');
   for (let cur=yield db.cursor(tx.store('data')); cur; cur = yield cur.next()){
-    assert.equal(cur.key, b2s(cur.value.h));
+    assert.strictEqual(cur.key, b2s(cur.value.h));
     ret[cur.key] = b2s(Buffer.from(cur.value.buf));
   }
   return ret;
@@ -1385,7 +1385,7 @@ const db_get_scroll_decl = (db, scroll)=>etask(function*db_get_scroll_decl(){
       cursor = yield cursor.next())
     {
       let o = db.fix_struct(cursor.value);
-      assert.equal(o.scfid, scfid, 'missing scfid seq'+o.seq);
+      assert.strictEqual(o.scfid, scfid, 'missing scfid seq'+o.seq);
       delete o.scfid;
       ret[o.seq] = ret[o.seq]||{};
       ret[o.seq][cfid] = o;
@@ -1412,7 +1412,7 @@ const db_get_c = (db, M)=>etask(function*db_get_c(){
     // XXX: need assert to check rest of split array is correct
     if (o.split){
       ret[o.scfid].parent = o.split[0];
-      assert.equal(o.type, o.split[0].type, 'invalid type');
+      assert.strictEqual(o.type, o.split[0].type, 'invalid type');
     }
   }
   return ret;
@@ -1505,7 +1505,7 @@ const index_find = (scroll, filter)=>etask(function*index_find(){
   for (let i=0; i<filter.length; i++){
     let t = parse_exp_arg(filter[i]), id, key, min, max, dir, count=0, bseq;
     let cfid, name;
-    assert.equal(t.cmd, 'index_find', 'invalid index_find '+filter[i]);
+    assert.strictEqual(t.cmd, 'index_find', 'invalid index_find '+filter[i]);
     assert(!t.l, 'invalid index_find '+filter[i]);
     for (let curr=t.r; curr = parse_get_next(curr);){
       let tt = parse_exp_arg_pair(curr.exp);
@@ -1572,7 +1572,7 @@ const db_get_btable = scroll=>etask(function*db_get_btable(){
       cursor = yield cursor.next())
     {
       let {scfid, cfid} = cursor.value;
-      assert.equal(scfid, co.db.data.scfid, 'scfid mismatch');
+      assert.strictEqual(scfid, co.db.data.scfid, 'scfid mismatch');
       ret = ret||{};
       ret[cfid] = ret[cfid]||[];
       let o = {...cursor.value};

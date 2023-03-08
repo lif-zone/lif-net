@@ -30,7 +30,7 @@ describe('range', ()=>{
     t('10_100', [10, 100]);
   });
   it('r_eq', ()=>{
-    const t = (r, r2, exp)=>assert.equal(r_eq(r, r2), exp);
+    const t = (r, r2, exp)=>assert.strictEqual(r_eq(r, r2), exp);
     t([0, 0], [0, 0], true);
     t([0, 1], [0, 0], false);
     t([0, 1], [0, 1], true);
@@ -44,7 +44,7 @@ describe('range', ()=>{
     t([8, 15], [[8, 11], [12, 15]]);
   });
   it('r_includes', ()=>{
-    const t = (r, r2, exp)=>assert.equal(r_includes(r, r2), exp);
+    const t = (r, r2, exp)=>assert.strictEqual(r_includes(r, r2), exp);
     t([0, 0], [0, 0], true);
     t([0, 1], [0, 0], true);
     t([0, 0], [0, 1], false);
@@ -201,7 +201,7 @@ describe('parser', ()=>{
       let curr = s, ret = [];
       while (curr = parse_get_next(curr)){
         assert(exp.length, 'unexpected '+curr.exp);
-        assert.equal(curr.exp, exp[0]);
+        assert.strictEqual(curr.exp, exp[0]);
         ret.push(exp[0]);
         exp.shift();
       }
@@ -347,8 +347,8 @@ describe('scroll', function(){
   this.timeout(10000); // XXX: db tests are slow
   describe('util', ()=>{
     it('seq_merkel_array_size', ()=>{
-      const t = (seq, exp)=>assert.equal(Scroll.seq_merkel_array_size(seq),
-        exp, 'seq '+seq);
+      const t = (seq, exp)=>assert.strictEqual(
+        Scroll.seq_merkel_array_size(seq), exp, 'seq '+seq);
       t(0, 1);
       t(1, 2);
       t(2, 1);
@@ -382,7 +382,7 @@ describe('scroll', function(){
       t(7, '7 6_7 4_7 0_7');
     });
     it('merkel_array_pos', ()=>{
-      const t = (range, exp)=>assert.equal(
+      const t = (range, exp)=>assert.strictEqual(
         Scroll.merkel_array_pos(range), exp, 'range '+range);
       t(0, 0);
       t(1, 0);
@@ -404,7 +404,7 @@ describe('scroll', function(){
         let roots = Scroll.calc_roots(seq+1);
         let a = [];
         roots.forEach(r=>a.push(r_str(r)));
-        assert.equal(a.join(' '), exp);
+        assert.strictEqual(a.join(' '), exp);
       };
       t(0, '0');
       t(1, '0_1');
@@ -431,10 +431,10 @@ describe('scroll', function(){
         let ret = Scroll.calc_merge_info(seq);
         let a = [];
         ret.all.forEach(r=>a.push(r_str(r)));
-        assert.equal(a.join(' '), exp_all, 'all mismatch seq '+seq);
+        assert.strictEqual(a.join(' '), exp_all, 'all mismatch seq '+seq);
         a = [];
         ret.any.forEach(r=>a.push(r_str(r)));
-        assert.equal(a.join(' '), exp_any, 'any mismatch seq '+seq);
+        assert.strictEqual(a.join(' '), exp_any, 'any mismatch seq '+seq);
       };
       t(0, '0', '1');
       t(1, '0_1', '2 2_3');
@@ -457,8 +457,8 @@ describe('scroll', function(){
   describe('branch', ()=>{
     it('bint', ()=>{
       const t = (val, exp)=>{
-        assert.equal(bint(val), exp);
-        assert.equal(bint2int(exp), val);
+        assert.strictEqual(bint(val), exp);
+        assert.strictEqual(bint2int(exp), val);
       };
       t(0, '0');
       t(1, '1');
@@ -473,7 +473,8 @@ describe('scroll', function(){
       t(10000, '____10000');
     });
     it('bint_valid', ()=>{
-      const t = (val, exp)=>assert.equal(bint_valid(val), exp, 'exp '+val);
+      const t = (val, exp)=>assert.strictEqual(bint_valid(val), exp,
+        'exp '+val);
       t('', false);
       t('0', true);
       t('_0', false);
@@ -486,7 +487,8 @@ describe('scroll', function(){
       t('0-1.0', false);
     });
     it('bseq_valid', ()=>{
-      const t = (val, exp)=>assert.equal(bseq_valid(val), exp, 'exp '+val);
+      const t = (val, exp)=>assert.strictEqual(bseq_valid(val), exp,
+        'exp '+val);
       t('', false);
       t('0', true);
       t('_0', false);
@@ -508,9 +510,9 @@ describe('scroll', function(){
       const t = (val, n, exp)=>{
         if (exp==undefined){
           [n, exp] = [undefined, n];
-          assert.equal(bseq_inc(val), exp);
+          assert.strictEqual(bseq_inc(val), exp);
         } else
-          assert.equal(bseq_inc(val, n), exp);
+          assert.strictEqual(bseq_inc(val, n), exp);
       };
       t('0', '1');
       t('0', 2, '2');
@@ -532,7 +534,7 @@ describe('scroll', function(){
       t('1-1._10', '1-1._11');
     });
     it('bseq_diff', ()=>{
-      const t = (a, b, exp)=>assert.equal(bseq_diff(a, b), exp);
+      const t = (a, b, exp)=>assert.strictEqual(bseq_diff(a, b), exp);
       t('0', '0', 0);
       t('1', '0', 1);
       t('_10', '0', 10);
@@ -544,7 +546,8 @@ describe('scroll', function(){
       t('1.1.1', '1.1.3', -2);
     });
     it('bseq_cmp', ()=>{
-      const t = (a, b, exp)=>assert.equal(bseq_cmp(bint(a), bint(b)), exp);
+      const t = (a, b, exp)=>assert.strictEqual(bseq_cmp(bint(a), bint(b)),
+        exp);
       t(0, 0, 0);
       t(0, 1, -1);
       t(1, 0, 1);
@@ -555,7 +558,7 @@ describe('scroll', function(){
       t(99, 100, -1);
     });
     it('bseq_branch_new', ()=>{
-      const t = (val, exp)=>assert.equal(bseq_branch_new(val), exp);
+      const t = (val, exp)=>assert.strictEqual(bseq_branch_new(val), exp);
       t('0', '0-1.0');
       t('1', '1-1.0');
       t('_10', '_10-1.0');
@@ -565,7 +568,7 @@ describe('scroll', function(){
       t('1-2.3', '1-2.3-1.0');
     });
     it('bseq_branch_inc', ()=>{
-      const t = (val, exp)=>assert.equal(bseq_branch_inc(val), exp);
+      const t = (val, exp)=>assert.strictEqual(bseq_branch_inc(val), exp);
       t('0-0.0', '0-1.0');
       t('0-1.0', '0-2.0');
       t('0-2.0', '0-3.0');
@@ -579,7 +582,7 @@ describe('scroll', function(){
       t('1-2.3-9.0', '1-2.3-_10.0');
     });
     it('bseq_branch', ()=>{
-      const t = (a, exp)=>assert.equal(bseq_branch(a), exp);
+      const t = (a, exp)=>assert.strictEqual(bseq_branch(a), exp);
       t('0', null);
       t('1', null);
       t('_10', null);
@@ -592,7 +595,8 @@ describe('scroll', function(){
       t('_10-__100.___1000', '_10-__100');
     });
     it('bseq_branch_belongs', ()=>{
-      const t = (a, b, exp)=>assert.equal(bseq_branch_belongs(a, b), exp);
+      const t = (a, b, exp)=>assert.strictEqual(bseq_branch_belongs(a, b),
+        exp);
       t('0', '0', true);
       t('0', '1', true);
       t('1', '0', false);
@@ -618,16 +622,16 @@ describe('scroll', function(){
       t('1', '2-1.3-4.5', true);
     });
     it('bseq_parent', ()=>{
-      const t = (a, exp)=>assert.equal(bseq_parent(a), exp);
-      t('0', undefined);
-      t('_10', undefined);
+      const t = (a, exp)=>assert.strictEqual(bseq_parent(a), exp);
+      t('0', null);
+      t('_10', null);
       t('1-1.1', '1');
       t('1-1.2', '1');
       t('2-3.4', '2');
       t('2-3.4-5.6', '2-3.4');
     });
     it('bseq_branch_eq', ()=>{
-      const t = (a, b, exp)=>assert.equal(bseq_branch_eq(a, b), exp);
+      const t = (a, b, exp)=>assert.strictEqual(bseq_branch_eq(a, b), exp);
       t('0', '0', true);
       t('0', '1', true);
       t('0', '_10', true);
@@ -644,7 +648,7 @@ describe('scroll', function(){
   });
   describe('macro', ()=>{
     it('to_m', ()=>{
-      const t = (val, exp)=>assert.equal(macro_to_m(val, 's'), exp);
+      const t = (val, exp)=>assert.strictEqual(macro_to_m(val, 's'), exp);
       t('0', 's.sig0 s.D0');
       t('0 1', 's.sig0 s.D0 s.sig1 s.D1');
       t('0 1 2', 's.sig0 s.D0 s.m1 s.sig2 s.D2');

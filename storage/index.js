@@ -342,15 +342,17 @@ class Index_table {
     let _this = this._, {id, name, cfid, min, max, dir, bseq} = opt;
     let iter = {}, _max = max;
     if (id!==undefined){
-      assert(cfid===undefined && bseq===undefined && name===undefined,
-        'invalid id/bseq/cfid/name');
+      assert.equal(cfid, undefined, 'invalid cfid when using id');
+      assert.equal(bseq, undefined, 'invalid bseq when using id');
+      assert.equal(name, undefined, 'invalid name when id');
       let index = _this.index.get(id);
       if (!index)
         return iter;
       return index.find_iter(key, {min, max, dir});
     }
-    assert(cfid!==undefined && bseq!==undefined && name!==undefined,
-      'invalid id/bseq/cfid/name');
+    assert(cfid!==undefined, 'missing cfid');
+    assert(bseq!==undefined, 'missing bseq');
+    assert(name!==undefined, 'missing name');
     let scroll = _this.scroll, bt;
     let curr = bseq, bseqs = [], conflicts = [];
     if (dir=='up'){

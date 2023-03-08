@@ -329,6 +329,8 @@ class Index_table {
   });
   find(key, opt){ return etask({_: this}, function*find(){
     let _this = this._, {count} = opt, ret = [];
+    if (count===undefined)
+      count = 1;
     let iter = yield _this.find_iter(key, opt);
     while (iter.curr){
       ret.push(iter.curr.seq);

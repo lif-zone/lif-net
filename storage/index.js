@@ -327,6 +327,11 @@ class Index_table {
       yield _this.on_data({cfid, seq, bseq, data});
     }
   });
+  find_one(key, opt){ return etask({_: this}, function*find(){
+    let _this = this._;
+    assert.strictEqual(opt.count, undefined, 'count not allowed');
+    return (yield _this.find(key, {...opt, count: 1}))?.[0];
+  }); }
   find(key, opt){ return etask({_: this}, function*find(){
     let _this = this._, {count} = opt, ret = [];
     if (count===undefined)

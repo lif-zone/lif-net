@@ -2,31 +2,20 @@
 'use strict';
 import Scroll from '../storage/scroll.js';
 import etask from '../util/etask.js';
+import xerr from '../util/xerr.js';
 import assert from 'assert';
 import util from '../util/util.js';
 import buf_util from '../net/buf_util.js';
 import DiffMatchAndPath from 'diff-match-patch';
 import Branch_table from '../storage/branch.js';
-const {bseq_branch, bseq_branch_belongs} = Branch_table;
 const Diff = new DiffMatchAndPath();
 const b2s = buf_util.buf_to_str, s2b = buf_util.buf_from_str;
 
 export default class FS extends Scroll {
   constructor(opt){
     super(opt);
-    this.buf_hash_to_seq = new Map();
-    this.path_to_seq = new Map();
-    this.all = {}; // XXX: rm
-    this.on('data', this._on_data);
+    this.buf_hash_to_seq = new Map(); // XXX: do we need it?
   }
-  _on_data(e){ return etask({_: this}, function*_on_data(){
-    let _this = this._, {data, seq, cfid, bseq} = e;
-    let body = data.get_body(cfid);
-    if (!body?.dir && !body?.file)
-      return;
-    _this._set_seq(cfid, body.dir||body.file, seq, bseq, body.op=='rm');
-    // XXX: also handle buf_hash_to_seq
-  }); }
   // XXX: throw error on invalid file/dir
   // XXX: support cfid
   add_dir(dir, opt={}){ return etask({_: this}, function*add_dir(){
@@ -93,7 +82,8 @@ export default class FS extends Scroll {
     let decl_prev = _this.get_decl(prev>=0 ? prev :
       _this.conflict.get(cfid).top.seq);
     yield decl_prev.load(cfid);
-    link = _this._get_seq(file, decl_prev.bseq_get(cfid));
+    link = yield _this.find_one(file, {name: 'file', cfid,
+      bseq: decl_prev.bseq_get(cfid)});
     if (!link)
       throw new Error('file not found '+file);
     let _buf = yield _this.resolve_buf(0, link);
@@ -146,23 +136,6 @@ export default class FS extends Scroll {
     return Buffer.from(Diff.patch_apply(Diff.patch_fromText(buf.toString()),
       _buf.toString())[0]);
   }); }
-  _set_seq(cfid, path, seq, bseq, rm){
-    this.all[cfid] = this.all[cfid]||[];
-    this.all[cfid].push({path, seq, bseq, rm});
-    this.all[cfid].sort((a, b)=>b.seq-a.seq);
-    let bseqb = bseq_branch(bseq);
-    let map = this.path_to_seq.get(bseqb);
-    if (!map)
-      this.path_to_seq.set(bseqb, map = new Map());
-    map.set(path, seq);
-  }
-  _get_seq(path, bseq){
-    let bseqb = bseq_branch(bseq);
-    let map = this.path_to_seq.get(bseqb);
-    if (!map)
-      return;
-    return map.get(path);
-  }
   parse_opt(opt){ // XXX: need test
     let {cfid, prev, branch} = opt;
     cfid = cfid||0;
@@ -207,36 +180,23 @@ export default class FS extends Scroll {
     return this.find_one(file, {name: 'file', cfid, bseq: bseq_top, max: seq});
   }
   // XXX: need iterator
-  ls_foreach(cfid, bseq_top, seq, dir, cb){ // XXX: optimize
+  ls_foreach(cfid, bseq_top, seq, dir, cb){
     return etask({_: this}, function*ls_foreach()
   {
-    let _this = this._, done = {}, all = [..._this.all[cfid]];
-    for (let parent = _this.conflict.get(cfid)?.parent; parent;
-      parent = _this.conflict.get(parent.cfid)?.parent)
-    {
-      for (let i=0; i<_this.all[parent.cfid].length; i++){
-        let o = _this.all[parent.cfid][i];
-        if (o.seq > parent.seq)
-          continue;
-        all.push(o);
-      }
-    }
-    all.sort((a, b)=>b.seq-a.seq);
-    for (let i=0; i<all.length; i++){
-      let o = all[i];
-      if (o.seq>seq)
+    let _this = this._;
+    let iter = yield _this.find_iter(dir, {name: 'dir_list', cfid,
+      bseq: bseq_top, max: seq});
+    let done = {};
+    for (; iter.curr; yield iter.next()){
+      let decl = _this.get_decl(iter.curr.seq);
+      yield decl.load(cfid);
+      let body = decl.get_body(cfid);
+      let path = body.file||body.dir;
+      if (done[path])
         continue;
-      if (!bseq_branch_belongs(o.bseq, bseq_top))
-        continue;
-      if (done[o.path])
-        continue;
-      let opath = split(o.path);
-      if (opath.parent!=dir)
-        continue;
-      done[o.path] = true;
-      if (o.rm)
-        continue;
-      yield cb(opath);
+      done[path] = true;
+      if (body.op!='rm')
+        yield cb({parent: dir, path});
     }
   }); }
   test_ls(cfid, bseq_top, seq, dir){ return etask({_: this},
@@ -271,7 +231,8 @@ FS.create = (opt, d)=>etask(function*scroll_create(){
   let fs = new FS(opt);
   yield fs.init();
   yield fs.decl([{scroll: {crypt: Scroll.supported_crypt[0],
-    pub: b2s(opt.pub), ...d, index: ['file']}}]);
+    pub: b2s(opt.pub), ...d, index: ['file',
+      {name: 'dir_list', field: '*', transform: 'decl_get_dir'}]}}]);
   return fs;
 });
 

@@ -2,12 +2,10 @@
 'use strict';
 import Scroll from '../storage/scroll.js';
 import etask from '../util/etask.js';
-import xerr from '../util/xerr.js';
 import assert from 'assert';
 import util from '../util/util.js';
 import buf_util from '../net/buf_util.js';
 import DiffMatchAndPath from 'diff-match-patch';
-import Branch_table from '../storage/branch.js';
 const Diff = new DiffMatchAndPath();
 const b2s = buf_util.buf_to_str, s2b = buf_util.buf_from_str;
 
@@ -190,8 +188,7 @@ export default class FS extends Scroll {
     for (; iter.curr; yield iter.next()){
       let decl = _this.get_decl(iter.curr.seq);
       yield decl.load(cfid);
-      let body = decl.get_body(cfid);
-      let path = body.file||body.dir;
+      let body = decl.get_body(cfid), path = body.file||body.dir;
       if (done[path])
         continue;
       done[path] = true;
@@ -232,7 +229,7 @@ FS.create = (opt, d)=>etask(function*scroll_create(){
   yield fs.init();
   yield fs.decl([{scroll: {crypt: Scroll.supported_crypt[0],
     pub: b2s(opt.pub), ...d, index: ['file',
-      {name: 'dir_list', field: '*', transform: 'decl_get_dir'}]}}]);
+      {name: 'dir_list', transform: 'decl_get_dir'}]}}]);
   return fs;
 });
 

@@ -663,4 +663,10 @@ files index: {0, '/arik', 3}
 files index: {1, '/derry', 3}
 dirs index: {cfid, dir, seq}
 index branches: {cfid, bseq}
+
+
+XXX: rm field: '*';
+{index: ['file', {name: 'dir_list', transform: 'decl_get_dir',
+  filter: {op: ['add', 'rm']}}]}
+
 */

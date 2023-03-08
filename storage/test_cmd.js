@@ -884,7 +884,6 @@ function state_apply(state, o){
     return;
   }
   if (['seq', 'bseq'].includes(type)){
-    debugger;
     if (val!==null && val!==undefined){
       state[type][cfid] = state[type][cfid]||{};
       assert(state[type][cfid][seq] != val,

@@ -343,8 +343,10 @@ describe('util', ()=>{
   });
 });
 
+// XXX: add raw tests (test fs without using FS wrapper)
 describe('fs', ()=>{
   const t = (name, test)=>it(name, ()=>test_run(test));
+  // XXX: cleanup tests using macros
   describe('dir', ()=>{
     t('add', `s..#(seq fs)
       s..fs         #seq0={}

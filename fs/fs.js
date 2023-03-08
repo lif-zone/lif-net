@@ -16,7 +16,7 @@ export default class FS extends Scroll {
     super(opt);
     this.buf_hash_to_seq = new Map();
     this.path_to_seq = new Map();
-    this.all = {};
+    this.all = {}; // XXX: rm
     this.on('data', this._on_data);
   }
   _on_data(e){ return etask({_: this}, function*_on_data(){
@@ -203,32 +203,10 @@ export default class FS extends Scroll {
       ret.f2 = f2;
     return ret;
   }
-  get_file_seq(cfid, bseq_top, seq, file){ // XXX: optimize
-    return etask({_: this}, function*get_file_seq()
-  {
-    let _this = this._, all = [..._this.all[cfid]];
-    for (let parent = _this.conflict.get(cfid)?.parent; parent;
-      parent = _this.conflict.get(parent.cfid)?.parent)
-    {
-      for (let i=0; i<_this.all[parent.cfid].length; i++){
-        let o = _this.all[parent.cfid][i];
-        if (o.seq > parent.seq)
-          continue;
-        all.push(o);
-      }
-    }
-    all.sort((a, b)=>b.seq-a.seq);
-    for (let i=0; i<all.length; i++){
-      let o = all[i];
-      if (o.path!=file)
-        continue;
-      if (o.seq>seq)
-        continue;
-      if (!bseq_branch_belongs(o.bseq, bseq_top)) // XXX: bseq_le?
-        continue;
-      return o.seq;
-    }
-  }); }
+  get_file_seq(cfid, bseq_top, seq, file){
+    return this.find_one(file, {name: 'file', cfid, bseq: bseq_top, max: seq});
+  }
+  // XXX: need iterator
   ls_foreach(cfid, bseq_top, seq, dir, cb){ // XXX: optimize
     return etask({_: this}, function*ls_foreach()
   {
@@ -293,7 +271,7 @@ FS.create = (opt, d)=>etask(function*scroll_create(){
   let fs = new FS(opt);
   yield fs.init();
   yield fs.decl([{scroll: {crypt: Scroll.supported_crypt[0],
-    pub: b2s(opt.pub), ...d}}]);
+    pub: b2s(opt.pub), ...d, index: ['file']}}]);
   return fs;
 });
 
@@ -304,7 +282,7 @@ FS.open = opt=>etask(function*scroll_open(){
     [seq, h] = [0, s2b(opt.M)];
   else // XXX: support Uint8Array
     [seq, h] = Buffer.isBuffer(opt.M) ? [0, opt.M] : [opt.M.seq, opt.M.h];
-  assert.equal(seq, 0, 'must provide M0');
+  assert.strictEqual(seq, 0, 'must provide M0');
   assert(/^\d+$/.test(seq) && h, 'scroll.open missing M');
   let soul = opt.soul||Scroll.soul, fs = seq==0 && soul.get(h);
   if (fs)

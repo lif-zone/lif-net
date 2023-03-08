@@ -232,7 +232,7 @@ function state_apply(state, o){
     for (let i=0; i<add.length; i++){
       state.fs[cfid][branch] = state.fs[cfid][branch]||[];
       let path = add[i], path_i = state.fs[cfid][branch].indexOf(path);
-      assert.equal(path_i, -1, 'uneeded add '+path);
+      assert.strictEqual(path_i, -1, 'uneeded add '+path);
       state.fs[cfid][branch].push(path);
     }
     for (let i=0; i<rm.length; i++){
@@ -612,6 +612,7 @@ describe('fs', ()=>{
       ##file(/D1/f2 c:1)=d2`);
     // XXX: test temporary conflict, conflict+branches and files
   });
+  // XXX: add DB test
 });
 /* XXX indexes:
 scroll header:

@@ -12,7 +12,7 @@ const b2s = buf_util.buf_to_str, s2b = buf_util.buf_from_str;
 export default class FS extends Scroll {
   constructor(opt){
     super(opt);
-    this.buf_hash_to_seq = new Map(); // XXX: do we need it?
+    this.buf_hash_to_seq = new Map(); // XXX HACK: need index support
   }
   // XXX: throw error on invalid file/dir
   add_dir(dir, opt={}){ return etask({_: this}, function*add_dir(){
@@ -351,8 +351,3 @@ FS.valid_dir = valid_dir;
 FS.valid_file = valid_file;
 FS.split = split;
 FS.parse_buf_ref = parse_buf_ref;
-
-// XXX: change all branch api to be async
-// XXX: index for ls of directory
-// XXX: checkout by date
-// XXX: test fs+db

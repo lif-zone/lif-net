@@ -181,14 +181,14 @@ export default class FS extends Scroll {
   ls_foreach(cfid, bseq_top, seq, dir, cb){
     return etask({_: this}, function*ls_foreach()
   {
-    let _this = this._;
+    let _this = this._, done = {};
     let iter = yield _this.find_iter(dir, {name: 'dir_list', cfid,
       bseq: bseq_top, max: seq});
-    let done = {};
     for (; iter.curr; yield iter.next()){
       let decl = _this.get_decl(iter.curr.seq);
       yield decl.load(cfid);
       let body = decl.get_body(cfid), path = body.file||body.dir;
+      assert(['add', 'rm'].includes(body.op), 'invalid op '+body.op);
       if (done[path])
         continue;
       done[path] = true;
@@ -228,8 +228,8 @@ FS.create = (opt, d)=>etask(function*scroll_create(){
   let fs = new FS(opt);
   yield fs.init();
   yield fs.decl([{scroll: {crypt: Scroll.supported_crypt[0],
-    pub: b2s(opt.pub), ...d, index: ['file',
-      {name: 'dir_list', transform: 'decl_get_dir'}]}}]);
+    pub: b2s(opt.pub), ...d, index: ['file', {name: 'dir_list',
+      transform: 'decl_get_dir', filter: {op: ['add', 'rm']}}]}}]);
   return fs;
 });
 

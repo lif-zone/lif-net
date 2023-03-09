@@ -465,12 +465,13 @@ describe('fs', ()=>{
     t('mod_nodiff', `s..#seq buf(d1:${d1}) buf(d2:${d2}) s..fs #seq0={}
       add(/f1 buf:d1) #seq1={op:add file:/f1 content:1 f2:d1}
       mod(/f1 buf:d2) #seq2={op:mod file:/f1 content:1 f2:d2}`);
-    t('rm', `s..#(seq fs) buf(d:1)
+    t('rm', `s..#(seq fs) buf(d:1) buf(d2:2)
       s..fs          #(seq0={})
       add(/)         #(seq1={op:add dir:/} fs=/)
       add(/f buf:d)  #(seq2={op:add file:/f content:1 f2:d} fs=/f)
-      rm(/f)         #(seq3={op:rm file:/f} fs=!/f)
-      add(/f buf:d)  #(seq4={op:add file:/f link:2} fs=/f)`);
+      mod(/f buf:d2)  #seq3={op:mod file:/f content:1 f2:d2}
+      rm(/f)         #(seq4={op:rm file:/f} fs=!/f)
+      add(/f buf:d)  #(seq5={op:add file:/f link:2} fs=/f)`);
     [d1, d2] = [d+'x1', d+'x2'];
     t('rm_add_diff', `s..#(seq fs) buf(d1:${d1}) buf(d2:${d2})
       s..fs          #(seq0={})

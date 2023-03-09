@@ -30,13 +30,13 @@ export default class FS extends Scroll {
     let branch_prev = _this.bseq_to_branch(cfid, bseq_prev);
     let top_prev = _this.get_branch_top(cfid, branch_prev);
     let first = true;
-    const cb = opath=>etask(function*rm_dir_cb(){
+    const cb = path=>etask(function*rm_dir_cb(){
       if (first)
         first = false;
-      if (!valid_dir(opath.path))
-        return _this.rm_file(opath.path, first ? opt : {});
-      yield _this.ls_foreach(cfid, top_prev.bseq, seq_prev, opath.path, cb);
-      yield _this._rm_dir(opath.path, first ? opt : {});
+      if (!valid_dir(path))
+        return _this.rm_file(path, first ? opt : {});
+      yield _this.ls_foreach(cfid, top_prev.bseq, seq_prev, path, cb);
+      yield _this._rm_dir(path, first ? opt : {});
     });
     yield _this.ls_foreach(cfid, top_prev.bseq, seq_prev, dir, cb);
     yield _this._rm_dir(dir, first ? opt : {});
@@ -185,7 +185,7 @@ export default class FS extends Scroll {
         done[path] = true;
         if (body.op=='rm')
           continue;
-        iter.curr = {parent: dir, path}; // XXX: change to path only
+        iter.curr = path;
         break;
       }
       if (diter.curr)
@@ -211,10 +211,10 @@ export default class FS extends Scroll {
   {
     let _this = this._, ret = [];
     assert(dir=='' || valid_dir(dir), 'invalid dir '+dir);
-    let cb = opath=>{
-      ret.push(opath.path);
-      if (valid_dir(opath.path))
-        return _this.ls_foreach(cfid, bseq_top, seq, opath.path, cb);
+    let cb = path=>{
+      ret.push(path);
+      if (valid_dir(path))
+        return _this.ls_foreach(cfid, bseq_top, seq, path, cb);
     };
     yield _this.ls_foreach(cfid, bseq_top, seq, dir, cb);
     ret.sort((a, b)=>a<b ? -1 : a>b ? 1 : 0);

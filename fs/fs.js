@@ -80,11 +80,8 @@ export default class FS extends Scroll {
    if (!buf)
       return yield _this.decl({cfid, branch, prev}, [{op: 'mod', file}]);
     let _buf = yield _this.resolve_buf(0, link);
-    // XXX: need create_patch/apply_patch
     if (_buf){
-      let _s = Buffer.from(_buf).toString();
-      let s = Buffer.from(buf).toString();
-      let diff = Buffer.from(Diff.patch_toText(Diff.patch_make(_s, s)));
+      let diff = create_diff(_buf, buf);
       if (diff.length < 0.5*buf.length){
         return _this.decl({cfid, branch, prev, link},
           [{op: 'mod', file, diff: 1}, diff]);
@@ -107,7 +104,6 @@ export default class FS extends Scroll {
     yield decl.load(cfid, {data: true});
     let header = decl.get_header(cfid);
     let body = decl.get_body(cfid);
-    // XXX: wrap with resolve_buf_single
     let o = FS.parse_buf_ref(body.diff ? body.diff : body.content), buf;
     if (!o)
       throw new Error('missing conent seq'+decl.seq);
@@ -126,8 +122,7 @@ export default class FS extends Scroll {
       return buf;
     let _seq = Scroll.resolve_link(header.link, '_');
     let _buf = yield _this.resolve_buf(cfid, _seq);
-    return Buffer.from(Diff.patch_apply(Diff.patch_fromText(buf.toString()),
-      _buf.toString())[0]);
+    return apply_diff(buf, _buf);
   }); }
   parse_opt(opt){ // XXX: need test
     let {cfid, prev, branch} = opt;
@@ -269,6 +264,19 @@ function parse_buf_ref(ref){
   if (typeof ref.d=='string')
     return {l: ref.d};
   assert.fail('invalid ref %o', ref);
+}
+
+// XXX: need test
+function create_diff(src, dst){
+  let _s = Buffer.from(src).toString();
+  let s = Buffer.from(dst).toString();
+  return Buffer.from(Diff.patch_toText(Diff.patch_make(_s, s)));
+}
+
+// XXX: need test
+function apply_diff(diff, base){
+  return Buffer.from(Diff.patch_apply(Diff.patch_fromText(diff.toString()),
+    base.toString())[0]);
 }
 
 FS.valid_dir = valid_dir;

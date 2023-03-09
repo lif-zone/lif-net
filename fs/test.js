@@ -491,9 +491,6 @@ describe('fs', ()=>{
                           seq7={op:rm dir:/d/} fs=[!/d/ !/d/f1 !/d/f2])`);
   });
   describe('branch', ()=>{
-    // XXX: test branch deletion of file/dir
-    // XXX: add test with mutli-branch
-    // XXX: test prev
     let d1, d2, d3, d4, d5, d6, d = 'x'.repeat(68);
     t('file_add', `s..#(seq fs) buf(d1:1) buf(d2:2) buf(d3:3)
       buf(d4:4) buf(d5:5) buf(d6:6) buf(d7:7) s..fs #seq0={}
@@ -583,7 +580,6 @@ describe('fs', ()=>{
       #(seq8={bseq:2-2.0 branch:b3 op:add dir:/d2/}
         fs_b3=[/ /d1/ /d2/])`);
   });
-  // XXX: test tag
   describe('conflict', ()=>{
     t('no_conflict_asc', `s..fs add(/) add(/d1/) add(/d1/dd1/) S..#(seq fs)
       fs(s..M0)     #seq0={}
@@ -615,6 +611,7 @@ describe('fs', ()=>{
       ##file(/D1/f2 c:1)=d2`);
     // XXX: test temporary conflict, conflict+branches and files
   });
+  // XXX: test tag
   // XXX: add DB test
 });
 /* XXX indexes:

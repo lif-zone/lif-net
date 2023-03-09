@@ -7,23 +7,27 @@ import {Buffer} from 'buffer';
 import FS from './fs.js';
 import tparser from '../storage/test_parser.js';
 import DiffMatchAndPath from 'diff-match-patch';
+import DB from '../storage/db.js';
 const Diff = new DiffMatchAndPath();
 const {parse_get_next, parse_exp, parse_exp_arg, rm_parentesis,
   parse_exp_arg_pair} = tparser;
 import {test_run, new_scroll, get_scroll, get_def, test_register,
-  test_register_cmd, get_val} from '../storage/test_cmd.js';
+  test_register_cmd, get_val, parse_db_init} from '../storage/test_cmd.js';
 
 xtest.init();
-
+// XXX: use memoryDatabase: ':memory:'
+DB.init({shim_conf: {checkOrigin: false, databaseBasePath: '/tmp',
+  deleteDatabaseFiles: true, useSQLiteIndexes: true}});
 let t_buf;
 
 const cmd_fs = t=>etask(function*cmd_fs(){
-  let name = t.ctx||get_def('left'), M;
+  let name = t.ctx||get_def('left'), M, db_opt;
   assert(!t.l, 'invalid arg '+t.meta.s);
   assert(!get_scroll(name, true), 'scroll already exist '+name);
   for (let curr=t.r, i=0; curr = parse_get_next(curr); i++){
     let tt = parse_exp_arg(curr.exp), t2, a;
     switch (tt.cmd){
+    case 'db': db_opt = parse_db_init(tt); break;
     default:
       t2 = parse_exp_arg_pair(curr.exp);
       if (a = t2.l.match(/^M(\d+)$/)){
@@ -35,8 +39,7 @@ const cmd_fs = t=>etask(function*cmd_fs(){
       assert.fail('invalid arg '+tt.cmd+' in '+t.meta.s);
     }
   }
-  let db_opt;
-  new_scroll(name, M, null, t.prev?.ctx, db_opt, null,
+  yield new_scroll(name, M, null, t.prev?.ctx, db_opt, null,
     function create_func(opt, d){ return FS.create(opt); },
     function open_func(opt, d){ return FS.open(opt); });
 });
@@ -445,6 +448,9 @@ describe('fs', ()=>{
     t('add_two_diff', `s..#seq buf(d1:0) buf(d2:1) s..fs #seq0={}
       add(/f1 buf:d1) #seq1={op:add file:/f1 content:1 f2:d1}
       add(/f2 buf:d2) #seq2={op:add file:/f2 content:1 f2:d2}`);
+    // XXX: optional feature to use len, csum_sha256:
+    // if enabbled then add index on it
+    // {len, checksum:sha-256}
     t('add_two_same', `s..#seq buf(d1:0) s..fs #seq0={}
       add(/f1 buf:d1) #seq1={op:add file:/f1 content:1 f2:d1}
       add(/f2 buf:d1) #seq2={op:add file:/f2 link:1}`);
@@ -612,7 +618,43 @@ describe('fs', ()=>{
     // XXX: test temporary conflict, conflict+branches and files
   });
   // XXX: test tag
-  // XXX: add DB test
+  if (0) // XXX: WIP
+  describe('db', ()=>{
+    let d1, d2, d3, d4, d5, d6, d = 'x'.repeat(68);
+    t('file_add', `s..#(seq fs) buf(d1:1) buf(d2:2) buf(d3:3)
+      buf(d4:4) buf(d5:5) buf(d6:6) buf(d7:7) s..fs(db) #seq0={}
+      add(/)          #(seq1={op:add dir:/} fs=/)
+      add(/f1 buf:d1) #(seq2={op:add file:/f1 content:1 f2:d1} fs=/f1)
+      add(/f2 branch:b buf:d2)
+        #(seq3={bseq:2-1.0 branch:b op:add file:/f2 content:1 f2:d2}
+        fs_b=[/ /f1 /f2])
+      add(/f3 buf:d3) #(seq4={bseq:2-1.1 op:add file:/f3 content:1 f2:d3}
+        fs_b=/f3)
+      add(/f4 buf:d4) #(seq5={bseq:2-1.2 op:add file:/f4 content:1 f2:d4}
+        fs_b=/f4)
+      add(/f5 main buf:d5) #(seq6={bseq:3 op:add file:/f5 content:1 f2:d5}
+        fs=/f5)
+      add(/f6 buf:d6) #(seq7={bseq:4 op:add file:/f6 content:1 f2:d6}
+        fs=/f6)
+      add(/f7 branch:b buf:d7)
+        #(seq8={bseq:2-1.3 op:add file:/f7 content:1 f2:d7} fs_b=/f7)
+      ##fs1=[/]
+      ##fs2=[/ /f1]
+      ##fs3=([/ /f1]         b:[/ /f1 /f2])
+      ##fs4=([/ /f1]         b:[/ /f1 /f2 /f3])
+      ##fs5=([/ /f1]         b:[/ /f1 /f2 /f3 /f4])
+      ##fs6=([/ /f1 /f5]     b:[/ /f1 /f2 /f3 /f4])
+      ##fs7=([/ /f1 /f5 /f6] b:[/ /f1 /f2 /f3 /f4])
+      ##fs8=([/ /f1 /f5 /f6] b:[/ /f1 /f2 /f3 /f4 /f7])
+      ##fs=([/ /f1 /f5 /f6]  b([/ /f1 /f2 /f3 /f4 /f7]))
+      ##file(/f1)=d1 ##file(/f1 branch:b)=d1
+      ##file(/f2)=null ##file(/f2 branch:b)=d2
+      ##file(/f3)=null ##file(/f3 branch:b)=d3
+      ##file(/f4)=null ##file(/f4 branch:b)=d4
+      ##file(/f5)=d5 ##file(/f5 branch:b)=null
+      ##file(/f6)=d6 ##file(/f6 branch:b)=null
+      ##file(/f7)=null ##file(/f7 branch:b)=d7`);
+  });
 });
 /* XXX indexes:
 scroll header:

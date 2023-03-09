@@ -17,7 +17,6 @@ const {bint2int, bint, bseq_cmp, bseq_branch_new, bseq_branch_inc, bseq_inc,
   bseq_valid, bint_valid} = Branch_table;
 
 xtest.init();
-
 // XXX: use memoryDatabase: ':memory:'
 DB.init({shim_conf: {checkOrigin: false, databaseBasePath: '/tmp',
   deleteDatabaseFiles: true, useSQLiteIndexes: true}});

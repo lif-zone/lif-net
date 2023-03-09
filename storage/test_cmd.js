@@ -523,7 +523,7 @@ function cmd_conf(t){
     t_soul_mode = soul;
 }
 
-function parse_db_init(t){
+export function parse_db_init(t){
   let max_decl, max_frame;
   for (let curr=t.r, i=0; curr = parse_get_next(curr); i++){
     let tt = parse_exp_arg(curr.exp);

@@ -47,13 +47,15 @@ export default class FS extends Scroll {
     yield _this.decl({cfid, branch, prev}, {op: 'rm', dir});
   }); }
   rm_file(file, opt={}){ return etask({_: this}, function*rm_file(){
-    // XXX: throw error if file doesn't exist
     let _this = this._, {branch, prev, cfid} = _this.parse_opt(opt);
+    if (!(yield _this.file_exists(file, opt)))
+      throw new Error('file not found '+file);
     yield _this.decl({cfid, branch, prev}, {op: 'rm', file});
   }); }
   add_file(file, buf, opt={}){ return etask({_: this}, function*add_file(){
-    // XXX: throw error if trying to add the same file twice
     let _this = this._, {branch, prev, cfid} = _this.parse_opt(opt);
+    if (yield _this.file_exists(file, opt))
+      throw new Error('file exists '+file);
     if (!buf)
       return _this.decl({cfid, branch, prev}, {op: 'add', file});
     let h = _this.hash_str(buf);
@@ -68,6 +70,8 @@ export default class FS extends Scroll {
   // XXX: support cfid
   mod_file(file, buf, opt={}){ return etask({_: this}, function*mod_file(){
     let _this = this._, {branch, prev, cfid} = _this.parse_opt(opt);
+    if (!(yield _this.file_exists(file, opt)))
+      throw new Error('file not found '+file);
     let h = buf && _this.hash_str(buf);
     let link = _this.buf_hash_to_seq.get(h);
     if (link)
@@ -89,6 +93,25 @@ export default class FS extends Scroll {
     }
     return _this.decl({cfid, branch, prev}, [{op: 'mod', file, content: 1},
       buf]);
+  }); }
+  file_exists(file, opt){ return etask({_: this}, function*file_exists(){
+    let _this = this._, {branch, prev, cfid} = _this.parse_opt(opt), seq;
+    if (prev!==undefined)
+      seq = yield _this.get_file_seq(cfid, null, prev, file);
+    else {
+      let top = _this.get_branch_top(cfid, branch||null);
+      if (!top){
+        seq = yield _this.get_file_seq(cfid, null,
+          _this.conflict.get(cfid).top.seq, file);
+      } else
+        seq = yield _this.get_file_seq(cfid, top.bseq, top.seq, file);
+    }
+    if (!seq)
+      return false;
+    let decl = _this.get_decl(seq);
+    yield decl.load(cfid, {data: true});
+    let body = decl.get_body(cfid);
+    return ['add', 'mod'].includes(body.op);
   }); }
   get_file(cfid, file, branch){ return etask({_: this}, function*get_file(){
     let _this = this._, top = _this.get_branch_top(cfid, branch||null);
@@ -165,6 +188,8 @@ export default class FS extends Scroll {
     return ret;
   }
   get_file_seq(cfid, bseq_top, seq, file){
+    if (bseq_top===undefined || bseq_top===null)
+      bseq_top = this.bseq_get(cfid, seq);
     return this.find_one(file, {name: 'file', cfid, bseq: bseq_top, max: seq});
   }
    ls_foreach_iter(cfid, bseq_top, seq, dir){

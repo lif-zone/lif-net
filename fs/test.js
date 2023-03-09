@@ -341,7 +341,6 @@ describe('util', ()=>{
   });
 });
 
-// XXX: add raw tests (test fs without using FS wrapper)
 describe('fs', ()=>{
   const t = (name, test)=>it(name, ()=>test_run(test));
   // XXX: cleanup tests using macros
@@ -431,17 +430,13 @@ describe('fs', ()=>{
       seq9={op:rm dir:/d/dd2/ddd1/}
       seq10={op:rm dir:/d/dd2/}
       fs=[!/d/dd2/ !/d/dd2/ddd1/ !/d/dd2/ddd2/])`);
-    // XXX: test rm file + directories with multiple files
   });
   // XXX: add by date
   describe('file', ()=>{ // XXX: test fs in all
     let d1, d2, d3, d = 'x'.repeat(68);
     // XXX: create low-level scroll using decl to check all possible
     // combinations
-    // XXX: test empty file/binary file
-    // XXX: test conflict
-    // XXX: test seq0
-    // XXX: test mv/rm file/dir
+    // XXX: binary file
     // XXX: what if trying to add file without directory that exists
     // (create directory if it doesn't exist)
     t('add_buf', `s..#seq buf(d:0) s..fs #seq0={}

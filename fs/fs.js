@@ -167,24 +167,44 @@ export default class FS extends Scroll {
   get_file_seq(cfid, bseq_top, seq, file){
     return this.find_one(file, {name: 'file', cfid, bseq: bseq_top, max: seq});
   }
+   ls_foreach_iter(cfid, bseq_top, seq, dir){
+    return etask({_: this}, function*ls_foreach_iter()
+  {
+    let _this = this._, done = {}, iter = {};
+    let diter = yield _this.find_iter(dir, {name: 'dir_list', cfid,
+      bseq: bseq_top, max: seq});
+    iter.next = ()=> etask({_: this}, function*ls_foreach_iter(){
+      iter.curr = null;
+      for (; diter.curr; yield diter.next()){
+        let decl = _this.get_decl(diter.curr.seq);
+        yield decl.load(cfid);
+        let body = decl.get_body(cfid), path = body.file||body.dir;
+        assert(['add', 'rm'].includes(body.op), 'invalid op '+body.op);
+        if (done[path])
+          continue;
+        done[path] = true;
+        if (body.op=='rm')
+          continue;
+        iter.curr = {parent: dir, path}; // XXX: change to path only
+        break;
+      }
+      if (diter.curr)
+        yield diter.next();
+      return iter;
+    });
+    if (diter.curr)
+      yield iter.next();
+    return iter;
+  }); }
+
   // XXX: need iterator
   ls_foreach(cfid, bseq_top, seq, dir, cb){
     return etask({_: this}, function*ls_foreach()
   {
-    let _this = this._, done = {};
-    let iter = yield _this.find_iter(dir, {name: 'dir_list', cfid,
-      bseq: bseq_top, max: seq});
-    for (; iter.curr; yield iter.next()){
-      let decl = _this.get_decl(iter.curr.seq);
-      yield decl.load(cfid);
-      let body = decl.get_body(cfid), path = body.file||body.dir;
-      assert(['add', 'rm'].includes(body.op), 'invalid op '+body.op);
-      if (done[path])
-        continue;
-      done[path] = true;
-      if (body.op!='rm')
-        yield cb({parent: dir, path});
-    }
+    let _this = this._;
+    let iter = yield _this.ls_foreach_iter(cfid, bseq_top, seq, dir);
+    for (; iter.curr; yield iter.next())
+      yield cb(iter.curr);
   }); }
   test_ls(cfid, bseq_top, seq, dir){ return etask({_: this},
     function*test_ls()

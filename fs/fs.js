@@ -16,14 +16,17 @@ export default class FS extends Scroll {
   }
   // XXX: throw error on invalid file/dir
   add_dir(dir, opt={}){ return etask({_: this}, function*add_dir(){
-    // XXX: throw error if trying to add the dir twice
     let _this = this._, {branch, prev, cfid} = _this.parse_opt(opt);
+    if (yield _this.dir_exists(dir, opt))
+      throw new Error('dir exists '+dir);
     yield _this.decl({cfid, branch, prev}, {op: 'add', dir});
   }); }
   rm_dir(dir, opt={}){ return etask({_: this}, function*rm_dir(){
     // XXX: need to lock scroll
     // XXX: do we need to load something (see bseq_get)?
     let _this = this._, {prev, cfid} = _this.parse_opt(opt);
+    if (!(yield _this.dir_exists(dir, opt)))
+      throw new Error('dir not found '+dir);
     let top = _this.conflict.get(cfid).top;
     let seq_prev = prev>0 && prev!=top.seq ? prev : top.seq;
     let bseq_prev = _this.bseq_get(cfid, seq_prev);
@@ -113,6 +116,25 @@ export default class FS extends Scroll {
     let body = decl.get_body(cfid);
     return ['add', 'mod'].includes(body.op);
   }); }
+  dir_exists(dir, opt){ return etask({_: this}, function*dir_exists(){
+    let _this = this._, {branch, prev, cfid} = _this.parse_opt(opt), seq;
+    if (prev!==undefined)
+      seq = yield _this.get_dir_seq(cfid, null, prev, dir);
+    else {
+      let top = _this.get_branch_top(cfid, branch||null);
+      if (!top){
+        seq = yield _this.get_dir_seq(cfid, null,
+          _this.conflict.get(cfid).top.seq, dir);
+      } else
+        seq = yield _this.get_dir_seq(cfid, top.bseq, top.seq, dir);
+    }
+    if (!seq)
+      return false;
+    let decl = _this.get_decl(seq);
+    yield decl.load(cfid, {data: true});
+    let body = decl.get_body(cfid);
+    return ['add', 'mod'].includes(body.op);
+  }); }
   get_file(cfid, file, branch){ return etask({_: this}, function*get_file(){
     let _this = this._, top = _this.get_branch_top(cfid, branch||null);
     if (!top)
@@ -192,6 +214,11 @@ export default class FS extends Scroll {
       bseq_top = this.bseq_get(cfid, seq);
     return this.find_one(file, {name: 'file', cfid, bseq: bseq_top, max: seq});
   }
+  get_dir_seq(cfid, bseq_top, seq, dir){
+    if (bseq_top===undefined || bseq_top===null)
+      bseq_top = this.bseq_get(cfid, seq);
+    return this.find_one(dir, {name: 'dir', cfid, bseq: bseq_top, max: seq});
+  }
    ls_foreach_iter(cfid, bseq_top, seq, dir){
     return etask({_: this}, function*ls_foreach_iter()
   {
@@ -263,7 +290,7 @@ FS.create = (opt, d)=>etask(function*scroll_create(){
   let fs = new FS(opt);
   yield fs.init();
   yield fs.decl([{scroll: {crypt: Scroll.supported_crypt[0],
-    pub: b2s(opt.pub), ...d, index: ['file', {name: 'dir_list',
+    pub: b2s(opt.pub), ...d, index: ['file', 'dir', {name: 'dir_list',
       transform: 'decl_get_dir', filter: {op: ['add', 'rm']}}]}}]);
   return fs;
 });

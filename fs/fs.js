@@ -44,7 +44,6 @@ export default class FS extends Scroll {
     yield _this._rm_dir(dir, first ? opt : {});
   }); }
   _rm_dir(dir, opt={}){ return etask({_: this}, function*_rm_dir(){
-    // XXX: throw error if dir does not exist
     let _this = this._, {branch, prev, cfid} = _this.parse_opt(opt);
     yield _this.decl({cfid, branch, prev}, {op: 'rm', dir});
   }); }
@@ -69,13 +68,12 @@ export default class FS extends Scroll {
     _this.buf_hash_to_seq.set(h, decl.seq); // XXX: support cfid
     return decl;
   }); }
-  // XXX: support cfid
   mod_file(file, buf, opt={}){ return etask({_: this}, function*mod_file(){
     let _this = this._, {branch, prev, cfid} = _this.parse_opt(opt);
     if (!(yield _this.file_exists(file, opt)))
       throw new Error('file not found '+file);
     let h = buf && _this.hash_str(buf);
-    let link = _this.buf_hash_to_seq.get(h);
+    let link = _this.buf_hash_to_seq.get(h); // XXX: support cfid
     if (link)
       return yield _this.decl({cfid, branch, prev, link}, [{op: 'mod', file}]);
     let bseq_prev = _this.bseq_get(cfid, prev>=0 ? prev :
@@ -248,7 +246,6 @@ export default class FS extends Scroll {
     return iter;
   }); }
 
-  // XXX: need iterator
   ls_foreach(cfid, bseq_top, seq, dir, cb){
     return etask({_: this}, function*ls_foreach()
   {

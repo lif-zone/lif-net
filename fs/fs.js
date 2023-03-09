@@ -23,7 +23,6 @@ export default class FS extends Scroll {
   }); }
   rm_dir(dir, opt={}){ return etask({_: this}, function*rm_dir(){
     // XXX: need to lock scroll
-    // XXX: do we need to load something (see bseq_get)?
     let _this = this._, {prev, cfid} = _this.parse_opt(opt);
     if (!(yield _this.dir_exists(dir, opt)))
       throw new Error('dir not found '+dir);

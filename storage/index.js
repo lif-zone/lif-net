@@ -56,12 +56,26 @@ function decl_get_dir(body){
 }
 
 // XXX: need test
+function data_filter(data, cfid, desc){
+  let {filter} = desc;
+  if (!filter)
+    return true;
+  let body = data.get_body(cfid);
+  for (let f in filter){
+    let allowed = filter[f];
+    if (!Array.isArray(allowed)) // XXX: throw error?
+      return false;
+    if (!allowed.includes(body[f]))
+      return false;
+  }
+  return true;
+}
+
+// XXX: need test
 function key_from_data(data, cfid, desc){
   let body = data.get_body(cfid), {field, transform} = desc;
-  if (!transform){
-    assert(field!='*', 'cannot use * without transform');
+  if (!transform)
     return body?.[field];
-  }
   switch (transform){
   case 'decl_get_dir': return decl_get_dir(body);
   default: throw new Error('unknown transform function '+transform);
@@ -81,6 +95,8 @@ export default class Index {
   on_data(e){
     let {cfid, seq, data} = e;
     let scroll = this.scroll, decl = scroll.get_decl(seq, {create: false});
+    if (!data_filter(data, cfid, this.desc)) // XXX: need test
+      return;
     let key = key_from_data(data, cfid, this.desc);
     if (key===undefined || key===null)
       return;
@@ -474,6 +490,7 @@ function iter_ret(iter, val){
 }
 
 function normalize_desc(desc){
+  // XXX: noramlize filter to make sure it is valid format
   if (!desc)
     return;
   if (typeof desc=='string')

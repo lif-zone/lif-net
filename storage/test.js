@@ -1968,6 +1968,17 @@ describe('scroll', function(){
         $decl $$([/f3 7])
         ##index_find(index:0 key:$1)=$2
           $$([/f1 [3 1]] [/f2 [4 2]] [/f3 7] [/f4 []])`);
+      t('filter', `s..#(index index_table)
+        scroll(index:[{name:file field:file filter:{f1:[a b] f2:[c d]}}]) #
+        decl({file:/f1}) #index_table={id:0 cfid:0 bseqb:null name:file}
+        decl({file:/f2 f1:a f2:c}) #index={id:0 key:/f2 seq:2}
+        decl({file:/f3 f1:a f2:d}) #index={id:0 key:/f3 seq:3}
+        decl({file:/f4 f1:b f2:c}) #index={id:0 key:/f4 seq:4}
+        decl({file:/f5 f1:b f2:d}) #index={id:0 key:/f5 seq:5}
+        decl({file:/f6 f1:e f2:c}) #
+        decl({file:/f7 f1:e f2:d}) #
+        decl({file:/f8 f1:b f2:e}) #
+        decl({file:/f8 f1:c f2:e}) #`);
       t('two_index', `s..#(index index_table) scroll(index:[i1 i2]) #
         decl({i1:i1v1 i2:i2v1}) #(index={id:0 key:i1v1 seq:1}
           index={id:1 key:i2v1 seq:1}

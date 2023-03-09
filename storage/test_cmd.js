@@ -117,8 +117,28 @@ const struct_from_db = (scroll, seq)=>etask(function*struct_from_db(){
 function test_parse_index(str){
   let ret = [];
   str = rm_parentesis(str, '[');
-  for (let curr=str; curr = parse_get_next(curr);)
-    ret.push(curr.exp);
+  for (let curr=str; curr = parse_get_next(curr);){
+    let s = curr.exp;
+    if (s[0]!='{')
+      ret.push(s);
+    else {
+      let o = js_struct_from_str(curr.exp);
+      if (o.filter)
+        o.filter = test_parse_filter(rm_parentesis(o.filter, '{'));
+      ret.push(o);
+    }
+  }
+  return ret;
+}
+
+function test_parse_filter(str){
+  let ret;
+  for (let curr=str; curr = parse_get_next(curr);){
+    let t = parse_exp_arg(curr.exp);
+    let a = get_array_str(t.r);
+    ret = ret||{};
+    ret[t.cmd] = a;
+  }
   return ret;
 }
 

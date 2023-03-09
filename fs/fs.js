@@ -15,7 +15,6 @@ export default class FS extends Scroll {
     this.buf_hash_to_seq = new Map(); // XXX: do we need it?
   }
   // XXX: throw error on invalid file/dir
-  // XXX: support cfid
   add_dir(dir, opt={}){ return etask({_: this}, function*add_dir(){
     // XXX: throw error if trying to add the dir twice
     let _this = this._, {branch, prev, cfid} = _this.parse_opt(opt);
@@ -52,7 +51,6 @@ export default class FS extends Scroll {
     let _this = this._, {branch, prev, cfid} = _this.parse_opt(opt);
     yield _this.decl({cfid, branch, prev}, {op: 'rm', file});
   }); }
-  // XXX: support cfid
   add_file(file, buf, opt={}){ return etask({_: this}, function*add_file(){
     // XXX: throw error if trying to add the same file twice
     let _this = this._, {branch, prev, cfid} = _this.parse_opt(opt);
@@ -64,15 +62,13 @@ export default class FS extends Scroll {
       return yield _this.decl({cfid, branch, prev, link}, [{op: 'add', file}]);
     let decl = yield _this.decl({cfid, branch, prev},
       [{op: 'add', file, content: 1}, buf]);
-    _this.buf_hash_to_seq.set(h, decl.seq);
+    _this.buf_hash_to_seq.set(h, decl.seq); // XXX: support cfid
     return decl;
   }); }
   // XXX: support cfid
   mod_file(file, buf, opt={}){ return etask({_: this}, function*mod_file(){
-    // XXX: handle case of same buf
     let _this = this._, {branch, prev, cfid} = _this.parse_opt(opt);
-    assert(buf, 'XXX TODO empty file'); // XXX
-    let h = _this.hash_str(buf);
+    let h = buf && _this.hash_str(buf);
     let link = _this.buf_hash_to_seq.get(h);
     if (link)
       return yield _this.decl({cfid, branch, prev, link}, [{op: 'mod', file}]);
@@ -84,19 +80,21 @@ export default class FS extends Scroll {
       bseq: decl_prev.bseq_get(cfid)});
     if (!link)
       throw new Error('file not found '+file);
+   if (!buf)
+      return yield _this.decl({cfid, branch, prev}, [{op: 'mod', file}]);
     let _buf = yield _this.resolve_buf(0, link);
     // XXX: need create_patch/apply_patch
-    let _s = Buffer.from(_buf).toString();
-    let s = Buffer.from(buf).toString();
-    let diff = Buffer.from(Diff.patch_toText(Diff.patch_make(_s, s)));
-    if (diff.length < 0.5*buf.length){
-      yield _this.decl({cfid, branch, prev, link},
-        [{op: 'mod', file, diff: 1}, diff]);
+    if (_buf){
+      let _s = Buffer.from(_buf).toString();
+      let s = Buffer.from(buf).toString();
+      let diff = Buffer.from(Diff.patch_toText(Diff.patch_make(_s, s)));
+      if (diff.length < 0.5*buf.length){
+        return _this.decl({cfid, branch, prev, link},
+          [{op: 'mod', file, diff: 1}, diff]);
+      }
     }
-    else {
-      yield _this.decl({cfid, branch, prev},
-        [{op: 'mod', file, content: 1}, buf]);
-    }
+    return _this.decl({cfid, branch, prev}, [{op: 'mod', file, content: 1},
+      buf]);
   }); }
   get_file(cfid, file, branch){ return etask({_: this}, function*get_file(){
     let _this = this._, top = _this.get_branch_top(cfid, branch||null);
@@ -120,7 +118,7 @@ export default class FS extends Scroll {
       buf = o.buf;
     else if (o.d)
       buf = yield decl.get_buf({cfid, d: o.d+2});
-    else {
+    else if (header.link){
       if (!o.l)
         throw new Error('missing conent link seq'+decl.seq);
       let seq2 = Scroll.resolve_link(header.link, o.l);

@@ -446,6 +446,9 @@ describe('fs', ()=>{
     // XXX: test mv/rm file/dir
     // XXX: what if trying to add file without directory that exists
     // (create directory if it doesn't exist)
+    t('add_buf', `s..#seq buf(d:0) s..fs #seq0={}
+      add(/f1 buf:d) #seq1={op:add file:/f1 content:1 f2:d}`);
+    t('add_empty', `s..#seq s..fs #seq0={} add(/f1) #seq1={op:add file:/f1}`);
     t('add_two_diff', `s..#seq buf(d1:0) buf(d2:1) s..fs #seq0={}
       add(/f1 buf:d1) #seq1={op:add file:/f1 content:1 f2:d1}
       add(/f2 buf:d2) #seq2={op:add file:/f2 content:1 f2:d2}`);
@@ -465,6 +468,12 @@ describe('fs', ()=>{
     t('mod_nodiff', `s..#seq buf(d1:${d1}) buf(d2:${d2}) s..fs #seq0={}
       add(/f1 buf:d1) #seq1={op:add file:/f1 content:1 f2:d1}
       mod(/f1 buf:d2) #seq2={op:mod file:/f1 content:1 f2:d2}`);
+    t('mod_empty', `s..#seq buf(d:d) s..fs #seq0={}
+      add(/f) #seq1={op:add file:/f}
+      mod(/f buf:d) #seq2={op:mod file:/f content:1 f2:d}`);
+    t('mod_to_empty', `s..#seq buf(d:d) s..fs #seq0={}
+      add(/f buf:d) #seq1={op:add file:/f content:1 f2:d}
+      mod(/f) #seq2={op:mod file:/f}`);
     t('rm', `s..#(seq fs) buf(d:1) buf(d2:2)
       s..fs          #(seq0={})
       add(/)         #(seq1={op:add dir:/} fs=/)

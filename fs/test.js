@@ -152,7 +152,6 @@ const test_get_seq = s=>etask(function*get_seq(){
   s = rm_parentesis(s, '{');
   for (let curr=s; curr = parse_get_next(curr);){
     let o = parse_exp(curr.exp);
-    // XXX yield get_val(o.r);
     if (o.l=='f2'){
       let oo = parse_exp(o.r), a;
       switch (oo.cmd){
@@ -222,7 +221,6 @@ function state_split_var(v, def){
 }
 
 function state_apply(state, o){
-  // XXX TODO: cfd, type let fs = get_scroll(name);
   let {val, branch, cfid} = o;
   if (o.type=='fs'){
     let {add, rm} = val;

@@ -72,12 +72,9 @@ export default class FS extends Scroll {
     let link = _this.buf_hash_to_seq.get(h);
     if (link)
       return yield _this.decl({cfid, branch, prev, link}, [{op: 'mod', file}]);
-    // XXX: we can use branch table without loading decl
-    let decl_prev = _this.get_decl(prev>=0 ? prev :
+    let bseq_prev = _this.bseq_get(cfid, prev>=0 ? prev :
       _this.conflict.get(cfid).top.seq);
-    yield decl_prev.load(cfid);
-    link = yield _this.find_one(file, {name: 'file', cfid,
-      bseq: decl_prev.bseq_get(cfid)});
+    link = yield _this.find_one(file, {name: 'file', cfid, bseq: bseq_prev});
     if (!link)
       throw new Error('file not found '+file);
    if (!buf)

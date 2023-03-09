@@ -1129,10 +1129,7 @@ export default class Scroll extends EventEmitterAsync {
   seq_sig(cfid, seq){ return this.get_decl(seq)?.sig_get(cfid); }
   bseq_get(cfid, seq){
     let btable = this.get_branch_table(this.to_c(cfid, seq));
-    let bseq = this.get_decl(seq)?.bseq_get(cfid);
-    assert.strictEqual(bseq, btable.get_bseq(seq),
-      'bseq mismatch branch table');
-    return bseq;
+    return btable.get_bseq(seq);
   }
   seq_d(cfid, seq){ return this.get_decl(seq).d_hash(cfid); }
   seq_D(cfid, seq){

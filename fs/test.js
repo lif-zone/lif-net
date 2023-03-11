@@ -665,9 +665,7 @@ describe('fs', ()=>{
     // XXX: test temporary conflict, conflict+branches and files
   });
   // XXX: test tag
-  if (0) // XXX: WIP
   describe('db', ()=>{
-    let d1, d2, d3, d4, d5, d6, d = 'x'.repeat(68);
     t('file_add', `s..#(seq fs) buf(d1:1) buf(d2:2) buf(d3:3)
       buf(d4:4) buf(d5:5) buf(d6:6) buf(d7:7) s..fs(db) #seq0={}
       add(/)          #(seq1={op:add dir:/} fs=/)

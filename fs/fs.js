@@ -10,9 +10,6 @@ const Diff = new DiffMatchAndPath();
 const b2s = buf_util.buf_to_str, s2b = buf_util.buf_from_str;
 
 export default class FS extends Scroll {
-  constructor(opt){
-    super(opt);
-  }
   // XXX: throw error on invalid file/dir
   add_dir(dir, opt={}){ return etask({_: this}, function*add_dir(){
     let _this = this._, {branch, prev, cfid} = _this.parse_opt(opt);

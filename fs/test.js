@@ -4,10 +4,13 @@ import xtest from '../util/test_lib.js';
 import etask from '../util/etask.js';
 import xerr from '../util/xerr.js';
 import {Buffer} from 'buffer';
+import crypto from '../util/crypto.js';
 import FS from './fs.js';
+import buf_util from '../net/buf_util.js';
 import tparser from '../storage/test_parser.js';
 import DiffMatchAndPath from 'diff-match-patch';
 import DB from '../storage/db.js';
+const b2s = buf_util.buf_to_str;
 const Diff = new DiffMatchAndPath();
 const {parse_get_next, parse_exp, parse_exp_arg, rm_parentesis,
   parse_exp_arg_pair} = tparser;
@@ -21,13 +24,15 @@ DB.init({shim_conf: {checkOrigin: false, databaseBasePath: '/tmp',
 let t_buf;
 
 const cmd_fs = t=>etask(function*cmd_fs(){
-  let name = t.ctx||get_def('left'), M, db_opt;
+  let name = t.ctx||get_def('left'), M, db_opt, len, csum_sha256;
   assert(!t.l, 'invalid arg '+t.meta.s);
   assert(!get_scroll(name, true), 'scroll already exist '+name);
   for (let curr=t.r, i=0; curr = parse_get_next(curr); i++){
     let tt = parse_exp_arg(curr.exp), t2, a;
     switch (tt.cmd){
     case 'db': db_opt = parse_db_init(tt); break;
+    case 'len': len = true; break;
+    case 'csum_sha256': csum_sha256 = true; break;
     default:
       t2 = parse_exp_arg_pair(curr.exp);
       if (a = t2.l.match(/^M(\d+)$/)){
@@ -39,9 +44,14 @@ const cmd_fs = t=>etask(function*cmd_fs(){
       assert.fail('invalid arg '+tt.cmd+' in '+t.meta.s);
     }
   }
-  yield new_scroll(name, M, null, t.prev?.ctx, db_opt, null,
-    function create_func(opt, d){ return FS.create(opt); },
-    function open_func(opt, d){ return FS.open(opt); });
+  let scroll_decl = len||csum_sha256 ? {} : undefined;
+  if (len)
+    scroll_decl.len = len;
+  if (csum_sha256)
+    scroll_decl.csum_sha256 = csum_sha256;
+  yield new_scroll(name, M, null, t.prev?.ctx, db_opt, scroll_decl,
+    function create_func(opt, d){ return FS.create(opt, d); },
+    function open_func(opt){ return FS.open(opt); });
 });
 
 const cmd_add = t=>etask(function*cmd_add(){
@@ -155,9 +165,15 @@ const test_get_seq = s=>etask(function*get_seq(){
   s = rm_parentesis(s, '{');
   for (let curr=s; curr = parse_get_next(curr);){
     let o = parse_exp(curr.exp);
-    if (o.l=='f2'){
+    if (!o.r)
+      bo[o.l] = '';
+    else if (['f2', 'csum_sha256'].includes(o.l)){ // XXX: rm this if
       let oo = parse_exp(o.r), a;
       switch (oo.cmd){
+      case 'sha256':
+        assert(t_buf[oo.r], 'buf not found '+oo.r);
+        bo[o.l] = b2s(crypto.sha256(t_buf[oo.r]));
+        break;
       case 'diff':
         a = oo.r.split(' ');
         assert(a.length==2, 'invalid diff '+o.r);
@@ -444,6 +460,10 @@ describe('fs', ()=>{
     // (create directory if it doesn't exist)
     t('add_buf', `s..#seq buf(d:0) s..fs #seq0={}
       add(/f1 buf:d) #seq1={op:add file:/f1 content:1 f2:d}`);
+    t('add_buf_len_a', `s..#seq buf(d:a) s..fs(len) #seq0={}
+      add(/f1 buf:d) #seq1={op:add file:/f1 len:2 content:1 f2:d}`);
+    t('add_buf_len_ab', `s..#seq buf(d:ab) s..fs(len) #seq0={}
+      add(/f1 buf:d) #seq1={op:add file:/f1 len:3 content:1 f2:d}`);
     t('add_empty', `s..#seq s..fs #seq0={} add(/f1) #seq1={op:add file:/f1}`);
     t('add_two_diff', `s..#seq buf(d1:0) buf(d2:1) s..fs #seq0={}
       add(/f1 buf:d1) #seq1={op:add file:/f1 content:1 f2:d1}
@@ -451,12 +471,29 @@ describe('fs', ()=>{
     // XXX: optional feature to use len, csum_sha256:
     // if enabbled then add index on it
     // {len, checksum:sha-256}
-    t('add_two_same', `s..#seq buf(d1:0) s..fs #seq0={}
-      add(/f1 buf:d1) #seq1={op:add file:/f1 content:1 f2:d1}
-      add(/f2 buf:d1) #seq2={op:add file:/f2 link:1}`);
-    t('mod_same', `s..#seq buf(d:d) s..fs #seq0={}
+    t('add_two_same_def', `s..#seq buf(d:0) s..fs #seq0={}
+      add(/f1 buf:d) #seq1={op:add file:/f1 content:1 f2:d}
+      add(/f2 buf:d) #seq2={op:add file:/f2 content:1 f2:d}`);
+    t('add_two_same_csum', `s..#seq buf(d:0) s..fs(csum_sha256) #seq0={}
+      add(/f1 buf:d) #seq1={op:add file:/f1 content:1 f2:d
+        csum_sha256:sha256(d)}
+      add(/f2 buf:d) #seq2={op:add file:/f2 link:1 csum_sha256:sha256(d)}`);
+    t('mod_same_def', `s..#seq buf(d:d) s..fs #seq0={}
       add(/f buf:d) #seq1={op:add file:/f content:1 f2:d}
       mod(/f buf:d) #seq2={op:mod file:/f link:1}`);
+    t('mod_same_csum', `s..#seq buf(d:d) s..fs(csum_sha256) #seq0={}
+      add(/f buf:d) #seq1={op:add file:/f content:1 f2:d csum_sha256:sha256(d)}
+      mod(/f buf:d) #seq2={op:mod file:/f link:1 csum_sha256:sha256(d)}`);
+    t('mod_same_existing_same', `s..#seq buf(d:d) buf(d2:d2) s..fs #seq0={}
+      add(/f buf:d) #seq1={op:add file:/f content:1 f2:d}
+      add(/f2 buf:d2) #seq2={op:add file:/f2 content:1 f2:d2}
+      mod(/f buf:d2) #seq3={op:mod file:/f content:1 f2:d2}`);
+    t('mod_same_existing_csum', `s..#seq buf(d:d) buf(d2:d2)
+      s..fs(csum_sha256) #seq0={}
+      add(/f buf:d) #seq1={op:add file:/f content:1 f2:d csum_sha256:sha256(d)}
+      add(/f2 buf:d2) #seq2={op:add file:/f2 content:1 f2:d2
+        csum_sha256:sha256(d2)}
+      mod(/f buf:d2) #seq3={op:mod file:/f link:2 csum_sha256:sha256(d2)}`);
     [d1, d2, d3] = [d+'x1', d+'x2', d+'x3'];
     t('mod_diff', `s..#seq
       buf(d1:${d1}) buf(d2:${d2}) buf(d3:${d3}) s..fs #seq0={}
@@ -473,13 +510,23 @@ describe('fs', ()=>{
     t('mod_to_empty', `s..#seq buf(d:d) s..fs #seq0={}
       add(/f buf:d) #seq1={op:add file:/f content:1 f2:d}
       mod(/f) #seq2={op:mod file:/f}`);
-    t('rm', `s..#(seq fs) buf(d:1) buf(d2:2)
+    t('rm_same', `s..#(seq fs) buf(d:1) buf(d2:2)
       s..fs          #(seq0={})
       add(/)         #(seq1={op:add dir:/} fs=/)
       add(/f buf:d)  #(seq2={op:add file:/f content:1 f2:d} fs=/f)
       mod(/f buf:d2)  #seq3={op:mod file:/f content:1 f2:d2}
       rm(/f)         #(seq4={op:rm file:/f} fs=!/f)
-      add(/f buf:d)  #(seq5={op:add file:/f link:2} fs=/f)`);
+      add(/f buf:d)  #(seq5={op:add file:/f content:1 f2:d} fs=/f)`);
+     t('rm_csum', `s..#(seq fs) buf(d:1) buf(d2:2)
+      s..fs(csum_sha256) #(seq0={})
+      add(/)           #(seq1={op:add dir:/} fs=/)
+      add(/f buf:d)    #(seq2={op:add file:/f content:1 f2:d
+                       csum_sha256:sha256(d)} fs=/f)
+      mod(/f buf:d2)   #seq3={op:mod file:/f content:1 f2:d2
+                       csum_sha256:sha256(d2)}
+      rm(/f)           #(seq4={op:rm file:/f} fs=!/f)
+      add(/f buf:d)    #(seq5={op:add file:/f link:2
+                       csum_sha256:sha256(d)} fs=/f)`);
     [d1, d2] = [d+'x1', d+'x2'];
     t('rm_add_diff', `s..#(seq fs) buf(d1:${d1}) buf(d2:${d2})
       s..fs          #(seq0={})

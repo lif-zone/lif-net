@@ -699,6 +699,36 @@ describe('fs', ()=>{
       ##file(/f5)=d5 ##file(/f5 branch:b)=null
       ##file(/f6)=d6 ##file(/f6 branch:b)=null
       ##file(/f7)=null ##file(/f7 branch:b)=d7`);
+    t('multi_branch', `s..#(seq fs) s..fs(db) #seq0={}
+      add(/) #(seq1={op:add dir:/} fs=/)
+      add(/d1/) #(seq2={op:add dir:/d1/} fs=/d1/)
+      add(/d1/dd1/ branch:b1)
+        #(seq3={branch:b1 bseq:2-1.0 op:add dir:/d1/dd1/}
+        fs_b1=[/ /d1/ /d1/dd1/])
+      add(/d1/dd2/)
+        #(seq4={bseq:2-1.1 op:add dir:/d1/dd2/} fs_b1=/d1/dd2/)
+      add(/d1/dd3/)
+        #(seq5={bseq:2-1.2 op:add dir:/d1/dd3/} fs_b1=/d1/dd3/)
+      add(/d1/dd1/ddd1/ branch:b2 prev:4)
+        #(seq6={branch:b2 bseq:2-1.1-1.0 op:add dir:/d1/dd1/ddd1/}
+        fs_b2=[/ /d1/ /d1/dd1/ /d1/dd1/ddd1/ /d1/dd2/])
+      add(/d2/ main) #(seq7={bseq:3 op:add dir:/d2/} fs=/d2/)
+      add(/d2/ branch:b3 prev:2)
+      #(seq8={bseq:2-2.0 branch:b3 op:add dir:/d2/}
+        fs_b3=[/ /d1/ /d2/])`);
+    t('conflict_no_branch', `buf(d1:1) buf(d2:2)
+      s..fs(db) add(/) add(/d1/) add(/d1/f1 buf:d1)
+      s1..fs(s..M0) tput(0) tput(0 1) add(/D1/) add(/D1/f2 buf:d2) S..#(seq fs)
+      fs(M0)        #seq0={}
+      tput(0 1    ) #(seq1={op:add dir:/} fs=[/])
+      tput(0 1 2  ) #(seq2={op:add dir:/d1/} fs=[/d1/])
+      // XXX: missing buf f2
+      tput(0 1 2 3) #(seq3={op:add file:/d1/f1 content:1 f2:d1} fs=[/d1/f1])
+      tput(0 1 c  ) #(seq2c1={op:add dir:/D1/} seq3c1={} c1fs=[/ /D1/])
+      tput(0 1 c d) #(seq3c1={op:add file:/D1/f2 content:1 f2:d2}
+                      c1fs=[/D1/f2])
+      ##file(/d1/f1)=d1 ##file(/d1/f2)=null ##file(/d1/f1 c:1)=null
+      ##file(/D1/f2 c:1)=d2`);
   });
 });
 /* XXX indexes:

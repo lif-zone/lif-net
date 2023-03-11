@@ -1030,7 +1030,7 @@ const state_next = (name, curr_state, filter, steps)=>etask(
     curr_state[name] = state;
     return;
   }
-  t_hooks.state_curr?.(filter, state, scroll);
+  yield t_hooks.state_curr?.(filter, state, scroll);
   for (let curr=steps; curr = parse_get_next(curr);)
     state_apply(curr_state[name], yield state_split(curr.exp, name));
   if (filter.includes('db_query_index')){

@@ -2756,6 +2756,30 @@ describe('scroll', function(){
           ##index_find(index:0 dir:up key:/arik)=[1 3 5 7]
           #(db_query=${qup(3, 5, 2)} index=[{$a:1 dn:0 up:3}
             {$a:3 dn:1 up:5} {$a:5 dn:3 up:7} {$a:7 dn:5 up:8}])`);
+        t('mem_gap1_dn', `s..scroll(db index:path)
+          //  0 / 1 2 3 4
+          //  - / n a n a
+          //  --/-n-a-n-a find(a)
+          decl({path:$1}) $$(/ /n /a /n /a)
+          ##index_find(name:path cfid:0 bseq:5 key:/a)=[5 3]`);
+        t('mem_gap1_up', `s..scroll(db index:path)
+          //  0 1 2 3 4 5
+          //  - / n a n a
+          //  --/-n-a-n-a find(n)
+          decl({path:$1}) $$(/ /n /a /n /a)
+          ##index_find(name:path dir:up cfid:0 bseq:5 key:/a)=[3 5]`);
+         t('mem_gap2_dn', `s..scroll(db index:path)
+          //  0 / 1 2 3 4 5 6
+          //  - / n n a n n a
+          //  --/-n-n a-n-n-a find(a)
+          decl({path:$1}) $$(/ /n /n /a /n /n /a)
+          ##index_find(name:path cfid:0 bseq:7 key:/a)=[7 4]`);
+        t('mem_gap2_up', `s..scroll(db index:path)
+          //  0 1 2 3 4 5 6 7
+          //  - / n n a n n a
+          //  --/-n-n a-n-n-a find(n)
+          decl({path:$1}) $$(/ /n /n /a /n /n /a)
+          ##index_find(name:path dir:up cfid:0 bseq:7 key:/a)=[4 7]`);
         // XXX: rename zzz --> niko
         t('zzz1_dir_dn', `${t_init9}
           //  0 1 2 3 4 5 6 7 8 9

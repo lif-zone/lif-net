@@ -181,7 +181,8 @@ export default class Index {
       }
       if (curr){
         if (dir=='up'){
-          if (prev && prev.up < curr.dn-1);
+          if (prev && prev.up < curr.dn-1 &&
+            !scroll.is_mem_exists(cfid, prev.up+1, curr.dn));
           else if (!prev && curr.dn>min &&
             !scroll.is_mem_exists(cfid, min, curr.dn+1));
           else {
@@ -190,7 +191,8 @@ export default class Index {
             return iter.curr = prev = curr;
           }
         } else {
-          if (prev && prev.dn > curr.up+1);
+          if (prev && prev.dn > curr.up+1 &&
+            !scroll.is_mem_exists(cfid, curr.up, prev.dn-1));
           else if (!prev && curr.up<max &&
             !scroll.is_mem_exists(cfid, curr.up, max+1));
           else {

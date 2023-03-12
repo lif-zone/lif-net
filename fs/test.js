@@ -468,9 +468,6 @@ describe('fs', ()=>{
     t('add_two_diff', `s..#seq buf(d1:0) buf(d2:1) s..fs #seq0={}
       add(/f1 buf:d1) #seq1={op:add file:/f1 content:1 f2:d1}
       add(/f2 buf:d2) #seq2={op:add file:/f2 content:1 f2:d2}`);
-    // XXX: optional feature to use len, csum_sha256:
-    // if enabbled then add index on it
-    // {len, checksum:sha-256}
     t('add_two_same_def', `s..#seq buf(d:0) s..fs #seq0={}
       add(/f1 buf:d) #seq1={op:add file:/f1 content:1 f2:d}
       add(/f2 buf:d) #seq2={op:add file:/f2 content:1 f2:d}`);
@@ -655,7 +652,6 @@ describe('fs', ()=>{
       fs(M0)        #seq0={}
       tput(0 1    ) #(seq1={op:add dir:/} fs=[/])
       tput(0 1 2  ) #(seq2={op:add dir:/d1/} fs=[/d1/])
-      // XXX: missing buf f2
       tput(0 1 2 3) #(seq3={op:add file:/d1/f1 content:1 f2:d1} fs=[/d1/f1])
       tput(0 1 c  ) #(seq2c1={op:add dir:/D1/} seq3c1={} c1fs=[/ /D1/])
       tput(0 1 c d) #(seq3c1={op:add file:/D1/f2 content:1 f2:d2}
@@ -722,7 +718,6 @@ describe('fs', ()=>{
       fs(M0)        #seq0={}
       tput(0 1    ) #(seq1={op:add dir:/} fs=[/])
       tput(0 1 2  ) #(seq2={op:add dir:/d1/} fs=[/d1/])
-      // XXX: missing buf f2
       tput(0 1 2 3) #(seq3={op:add file:/d1/f1 content:1 f2:d1} fs=[/d1/f1])
       tput(0 1 c  ) #(seq2c1={op:add dir:/D1/} seq3c1={} c1fs=[/ /D1/])
       tput(0 1 c d) #(seq3c1={op:add file:/D1/f2 content:1 f2:d2}
@@ -731,59 +726,3 @@ describe('fs', ()=>{
       ##file(/D1/f2 c:1)=d2`);
   });
 });
-/* XXX indexes:
-scroll header:
-{scroll: {index: ['file', {...}]}}
-
-indexs table:
-{scfid, indexid, index details?}
-index_details: {key: 'file', index_name: 'file', type: 'string'}
-index name: default - key name
-
-{1, /file1, 10}
-{1, /file1, 9}
-
-{scroll+conflict_selection+branch_selection+specific_index_of_scroll_conflict,
-  file_name, seq, bseq}
-
-file: '/arik' --> simple key for index
-dir: file2path(file)
-file2path('/arik') = '/'
-file2path('/arik/') = '/arik/'
-file2path('/arik/x') = '/arik/'
-{index: ['file', {name: 'dir', field: 'dir', func: 'file2dir'}]}
-'file' == {field: 'file'} == {name: 'file', field: 'file'}
-//XXX {name: 'dir_files', field: 'file', transform: 'file2dir'}
-//XXX  file2dir(file){ var i = file.lastIndexOff('/'); return i<0 ? file :; }
-{name: 'dir_list', field: '*', transform: 'decl_get_dir'}
-  decl_get_dir(decl){ return file2dir(decl.dir?.slice(-1) : decl.file); }
-{op:add dir:/d/} --> /d --> /
-{op:add file:/d/file}
-
-
-scfid
-{indexid, val, seq, bseq}
-indexid - unique for all files and scrolls
-file_to_seq_
-{indexid, key, seq}
-{indexid, key, seq, val}
-{scroll+conflict_selection+branch_selection+specific_index_of_scroll_conflict,
-  file_name, seq, bseq}
-
-- support get a version of file
-- support ls of directory
-- support also by date
-
-old stuff we discussed long time ago:
-files index: {cfid, file, seq}
-files index: {0, '/arik', 3}
-files index: {1, '/derry', 3}
-dirs index: {cfid, dir, seq}
-index branches: {cfid, bseq}
-
-
-XXX: rm field: '*';
-{index: ['file', {name: 'dir_list', transform: 'decl_get_dir',
-  filter: {op: ['add', 'rm']}}]}
-
-*/

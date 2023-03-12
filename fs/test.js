@@ -6,6 +6,7 @@ import xerr from '../util/xerr.js';
 import {Buffer} from 'buffer';
 import crypto from '../util/crypto.js';
 import FS from './fs.js';
+import GIT from './git.js';
 import git_util from './git_util.js';
 import buf_util from '../net/buf_util.js';
 import tparser from '../storage/test_parser.js';
@@ -149,6 +150,33 @@ const cmd_buf = t=>etask(function*cmd_buf(){
   }
 });
 
+const cmd_git = t=>etask(function*cmd_git(){
+  let name = t.ctx||get_def('left'), M, db_opt, repo;
+  assert(!t.l, 'invalid arg '+t.meta.s);
+  assert(!get_scroll(name, true), 'scroll already exist '+name);
+  for (let curr=t.r, i=0; curr = parse_get_next(curr); i++){
+    let tt = parse_exp_arg(curr.exp), t2, a;
+    switch (tt.cmd){
+    case 'repo': repo = 'https://github.com/'+tt.r; break;
+    case 'db': db_opt = parse_db_init(tt); break;
+    default:
+      t2 = parse_exp_arg_pair(curr.exp);
+      if (a = t2.l.match(/^M(\d+)$/)){
+        let h = yield get_val(t2.r);
+        assert(h, 'missing '+t2.r);
+        M = +a[1] ? {seq: +a[1], h} : h;
+        break;
+      }
+      assert.fail('invalid arg '+tt.cmd+' in '+t.meta.s);
+    }
+  }
+  assert(repo, 'missing repo');
+  let scroll_decl = undefined;
+  yield new_scroll(name, M, null, t.prev?.ctx, db_opt, scroll_decl,
+    function create_func(opt, d){ return GIT.create(opt, d); },
+    function open_func(opt){ return GIT.open(opt); });
+});
+
 const test_run_single = (curr, o, step)=>etask(function*_test_run_single(){
   switch (o.cmd){
   case 'fs': yield cmd_fs(o); break;
@@ -156,6 +184,7 @@ const test_run_single = (curr, o, step)=>etask(function*_test_run_single(){
   case 'mod': yield cmd_mod(o); break;
   case 'rm': yield cmd_rm(o); break;
   case 'buf': yield cmd_buf(o); break;
+  case 'git': yield cmd_git(o); break;
   default: return false;
   }
   return true;
@@ -879,7 +908,20 @@ describe('git', ()=>{
         ' L/O964lnhIfRpRUuuN7Fq02PHWSgtcsav++OrzjM+75Tp8JMz5a8FUOTIqSpaZk=\n'+
         ' =dun1\n -----END PGP SIGNATURE-----\n \n');
     });
+    describe('git_to_scroll', ()=>{
+      const t = (name, test)=>it(name, ()=>test_run(test));
+      // XXX: verify seq0 has the correct haders
+      t('gpg', `s..#(seq fs) git(repo(lif-rnd/test_gpg)) #seq0={}
+//      pull #
+      `);
+      /*
+    t('lif-rnd/test_gpg', [
+    [{seq: 0}, {scroll: {crypt: [{sig: 'ed25519', hash: 'blake2b', lif: 'lif1'}], pub: '44659cb51dec397ea66085679442505345e159940762c15ef75ad279ecf05033', topic: 'git', src: 'https://github.com/lif-rnd/test_gpg', key_val: ['dir', 'file', 'git_branch', 'tag'], op_default: 'mod'}}, ''],
+    [{seq: 1}, {op: 'add', dir: '/', git: {oid: '1b130e91ce06ba813c9695da80eb58152fe32587', mode: 0}}, ''],
+    [{seq: 2}, {op: 'add', file: '/file_from_www', content: 1, git: {oid: '8b137891791fe96927ad78e64b0aad7bded08bdc', mode: '100644'}}, 1],
+    [{seq: 3, group: 2}, {op: 'commit', desc: 'Create file_from_www', author: 'lif-rnd', ts: 1663639296, git: {oid: '632392939fe3e3abcfd259ef24f2ff2a08d55f73', parent: [], tree: '1b130e91ce06ba813c9695da80eb58152fe32587', author: {email: '79463501+lif-rnd@users.noreply.github.com', timestamp: 1670839296, timezoneOffset: -120}, committer: {name: 'GitHub', email: 'noreply@github.com', timestamp: 1670839296, timezoneOffset: -120}, gpgsig: '-----BEGIN PGP SIGNATURE-----\n\nwsBcBAABCAAQBQJjlvwACRBK7hj4Ov3rIwAAAswIAFPmNEqZow/IUewkig8OnOot\nbrQTqOE9qb83naHpE6cGNOq+uOn0Twav6xsWI5B7/h7t0kOPMUPJcA8xmxduGN4+\n1Sw0ByvVoeO3x/UOpavv5SayuyOuxFNOasHFrHwne4ONyzM5J8EUkV4/oHYE+2jZ\nNWeJlvSSg85wA23YF1/7tAFV/wZrC3tFkFht3ZQraHDNBV2nG/vqUxtPxuvRAR8V\nFwIGDJ4uYW1gSxMdAP6MPFVkY+pzJmzEHKT22TC1InhZ5mklEPDNuSnuYAxRE2Cs\nL/O964lnhIfRpRUuuN7Fq02PHWSgtcsav++OrzjM+75Tp8JMz5a8FUOTIqSpaZk=\n=dun1\n-----END PGP SIGNATURE-----\n'}}, ''],
+    */
+    });
   });
 });
-
 

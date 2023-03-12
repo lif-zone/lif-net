@@ -5213,7 +5213,7 @@ describe('etask', function(){
                     'SPAWN? RUNNING ET2 Etask.etask1 line.0\n'+
                     'RUNNING ET1 Context.f line.0\n');
                 assert_ps_res(et3.down.stack({TIME: 0}),
-                    'sleep Function.E.sleep line.0 1ms\n'+
+                    'sleep E.sleep line.0 1ms\n'+
                     'SPAWN? Etask.etask2 line.0\n'+
                     'SPAWN? RUNNING ET2 Etask.etask1 line.0\n'+
                     'RUNNING ET1 Context.f line.0\n');

@@ -393,7 +393,6 @@ export default class Storage_handler {
         return;
       return etask({_: this}, function*load_cfid_data_wait(){
         this.on('uncaught', e=>xerr.xexit(e));
-        let _this = this._;
         return this.wait_ext(decl.db.cfid[cfid].data.busy);
       });
     }

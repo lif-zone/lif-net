@@ -9,30 +9,27 @@ export default E;
 E.rm_parentesis = rm_parentesis;
 function rm_parentesis(s, open='('){
   if (open==''){
-    open = s.charAt(0);
+    open = s.at(0);
     if (!['(', '[', '{'].includes(open))
       return s;
-  } else if (s.charAt(0)!=open)
+  } else if (s.at(0)!=open)
     return s;
   let close = open=='(' ? ')' : open=='{' ? '}' : open=='[' ? ']' : '';
   assert(close, 'invalid open parentesis '+open);
-  assert(s.charAt(s.length-1)==close, 'missing parentesis '+s);
+  assert(s.at(s.length-1)==close, 'missing parentesis '+s);
   return s.substr(1, s.length-2);
 }
 
 E.parse_get_next = function(curr){
-  let i=0, s=curr, state='pre', done=false, exp='', parentesis = [], vars = {};
-  let at, skip_macro;
-  if (typeof curr!='string'){
-    if (curr.at===undefined)
-      return;
-    i = curr.at;
-    s = curr.s;
-    vars = curr.vars||{};
-    skip_macro = curr.skip_macro;
-  }
+  if (typeof curr=='string')
+    curr = {s: curr, at: 0};
+  if (curr.at===undefined)
+    return;
+  let {s, vars, skip_macro} = curr, i = curr.at, at;
+  let state='pre', done=false, exp='', parentesis = [];
+  vars = vars||{};
   for (i; i<s.length && !done; i++){
-    let c = s.charAt(i);
+    let c = s.at(i);
     switch (state){
     case 'pre':
       if (string.is_ws(c))
@@ -127,7 +124,7 @@ E.parse_get_next = function(curr){
 function apply_macro_funcs(s){
   let func, body, start, parentesis, queue = [], _s = s;
   for (let i=0; i<s.length; i++){
-    let ch = s.charAt(i);
+    let ch = s.at(i);
     if (ch=='$'){
       assert(!func, 'invalid macro func usage i '+i+' '+s);
       func = '$';
@@ -217,7 +214,7 @@ E.parse_push = function(curr, s){
 function remove_comments(s){
   let ret = '', comment;
   for (let i=0; i<s.length; i++){
-    let ch = s.charAt(i);
+    let ch = s.at(i);
     if (s.substr(i, 2)=='//'){
       comment = true;
       continue;
@@ -239,15 +236,15 @@ E._parse_exp = function(s){
   // XXX: rm special handling for # and ##
   if ('##'==s.substr(0, 2))
     return {cmd: '##', l: '', r: rm_parentesis(s.substr(2).trim()), meta};
-  if ('#'==s.charAt(0))
+  if ('#'==s.at(0))
     return {cmd: '#', l: '', r: rm_parentesis(s.substr(1).trim()), meta};
   if ('//'==s.substr(0, 2))
     return {cmd: '//', l: '', r: s.substr(2).trim(), meta};
-  if ('!'==s.charAt(0))
+  if ('!'==s.at(0))
     return {cmd: '!', l: '', r: s.substr(1).trim(), meta};
   for (let i=0; i<s.length; i++){
-    c = s.charAt(i);
-    let cn = s.charAt(i+1), cnn= s.charAt(i+2);
+    c = s.at(i);
+    let cn = s.at(i+1), cnn= s.at(i+2);
     if (c=='('){
       first = first===undefined ? i : first;
       parentesis.push(c);
@@ -256,12 +253,12 @@ E._parse_exp = function(s){
       assert.strictEqual(parentesis.pop(), '(');
     else if (!parentesis.length && ['+', '-', ':', '=', '.'].includes(c)){
       if (cn==cnn && ['=', '.'].includes(cnn)){
-        assert.strictEqual(s.charAt(i), cn, 'invalid exp '+s);
-        assert.strictEqual(s.charAt(i), cnn, 'invalid exp '+s);
+        assert.strictEqual(s.at(i), cn, 'invalid exp '+s);
+        assert.strictEqual(s.at(i), cnn, 'invalid exp '+s);
         return {cmd: c+cn+cnn, l: s.substr(0, i), r: s.substr(i+3), meta};
       }
       if (['=', '.'].includes(cn)){
-        assert(s.charAt(i)==':' && cn=='=' || s.charAt(i)==cn,
+        assert(s.at(i)==':' && cn=='=' || s.at(i)==cn,
           'invalid exp '+s);
         return {cmd: c+cn, l: s.substr(0, i),
           r: rm_parentesis(s.substr(i+2)), meta};

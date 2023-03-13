@@ -76,8 +76,10 @@ E.keypair_from_str = keys_str=>{
 };
 
 E.sha1 = buf=>Buffer.from(crypto.createHash('sha1').update(buf).digest());
+E.sha1_str = buf=>b2s(E.sha1(buf));
 
 E.sha256 = buf=>Buffer.from(crypto.createHash('sha256').update(buf).digest());
+E.sha256_str = buf=>b2s(E.sha256(buf));
 
 E.blake2b = buf=>{
   const out = b4a.allocUnsafe(blake2b.BYTES);

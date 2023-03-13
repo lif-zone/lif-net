@@ -59,13 +59,27 @@ export default class GIT extends FS {
       n++;
     }
     let {tree} = yield git_api.readTree({...config, oid});
-    for (let i=0; i<tree.length; i++){
-      let e = tree[i], path = dir+e.path, body, top, prev_seq, blob, link;
+    let dir_list = {};
+    for (let i=0, e; e = tree[i]; i++)
+      dir_list[e.type=='blob' ? dir+e.path : dir+e.path+'/'] = true;
+    // XXX: need to get current branch
+    let top = _this.get_branch_top(cfid, null);
+    let iter = yield _this.ls_iter(cfid, top.bseq, top.seq, dir);
+    for (; iter.curr; yield iter.next()){
+      if (dir_list[iter.curr])
+        continue;
+      yield _this.rm(iter.curr, {cfid});
+      n++; // XXX bug: rm may generate multiple declarations
+    }
+    for (let i=0, e; e = tree[i]; i++){
+      let file, _dir, body, top, prev_seq, blob, link;
       switch (e.type){
       case 'blob':
+        file = dir+e.path;
+        dir_list[file] = true;
         // XXX: need to get current branch
         top = _this.get_branch_top(cfid, null);
-        prev_seq = yield _this.get_file_seq(cfid, top.bseq, top.seq, path);
+        prev_seq = yield _this.get_file_seq(cfid, top.bseq, top.seq, file);
         if (prev_seq){
           let prev_decl = _this.get_decl(prev_seq);
           yield prev_decl.load(cfid);
@@ -75,24 +89,24 @@ export default class GIT extends FS {
         body = {git: {oid: e.oid, mode: e.mode}};
         blob = (yield git_api.readBlob({...config, oid: e.oid})).blob;
         blob = blob ? Buffer.from(blob) : null;
-        xerr.notice('XXX blob %s %s', path, e.oid);
+        xerr.notice('XXX blob %s %s', file, e.oid);
         // XXX: rm bseq from find_one call
-        link = yield _this.find_one(e.oid, {name: 'git.oid', cfid,
+        link = yield _this.find_one(e.oid, {dir: 'up', name: 'git.oid', cfid,
           bseq: _this.bseq_get(cfid, _this.conflict.get(cfid).top.seq)});
-        if (yield _this.file_exists(path, {cfid}))
-          yield _this.mod_file(path, blob, {cfid, link, body});
+        if (yield _this.file_exists(file, {cfid}))
+          yield _this.mod_file(file, blob, {cfid, link, body});
         else
-          yield _this.add_file(path, blob, {cfid, link, body});
+          yield _this.add_file(file, blob, {cfid, link, body});
         n++;
-        // next = {path, oid: e.oid, mode: e.mode};
         break;
       case 'tree':
-        n += yield _this._sync_dir(config, cfid, path, e.oid, e.mode);
+        _dir = dir+e.path+'/',
+        dir_list[_dir] = true;
+        n += yield _this._sync_dir(config, cfid, _dir, e.oid, e.mode);
         break;
       default: throw new Error('unknown type '+e.type);
       }
     }
-    xerr.notice('XXX dir %s tree %O', dir, tree);
     return n;
   }); }
 }

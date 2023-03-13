@@ -11,14 +11,15 @@ const Diff = new DiffMatchAndPath();
 const b2s = buf_util.buf_to_str, s2b = buf_util.buf_from_str;
 
 export default class FS extends Scroll {
-  // XXX: throw error on invalid file/dir
   add_dir(dir, opt={}){ return etask({_: this}, function*add_dir(){
+    assert(valid_dir(dir), 'invalid dir '+dir);
     let _this = this._, {branch, prev, cfid, body} = _this.parse_opt(opt);
     if (yield _this.dir_exists(dir, opt))
       throw new Error('dir exists '+dir);
     yield _this.decl({cfid, branch, prev}, {op: 'add', dir, ...body});
   }); }
   rm_dir(dir, opt={}){ return etask({_: this}, function*rm_dir(){
+    assert(valid_dir(dir), 'invalid dir '+dir);
     // XXX: need to lock scroll
     // XXX: why branch is missing?
     let _this = this._, {prev, cfid} = _this.parse_opt(opt);
@@ -46,12 +47,18 @@ export default class FS extends Scroll {
     yield _this.decl({cfid, branch, prev}, {op: 'rm', dir, ...body});
   }); }
   rm_file(file, opt={}){ return etask({_: this}, function*rm_file(){
+    assert(valid_file(file), 'invalid file '+file);
     let _this = this._, {branch, prev, cfid, body} = _this.parse_opt(opt);
     if (!(yield _this.file_exists(file, opt)))
       throw new Error('file not found '+file);
     yield _this.decl({cfid, branch, prev}, {op: 'rm', file, ...body});
   }); }
+  rm(path, opt){
+    return valid_file(path) ? this.rm_file(path, opt) :
+      this.rm_dir(path, opt);
+  }
   add_file(file, buf, opt={}){ return etask({_: this}, function*add_file(){
+    assert(valid_file(file), 'invalid file '+file);
     let _this = this._;
     let {branch, prev, cfid, link, body} = _this.parse_opt(opt);
     if (yield _this.file_exists(file, opt))
@@ -65,7 +72,8 @@ export default class FS extends Scroll {
       body.csum_sha256 = crypto.sha256_str(buf);
     if (!link && body.csum_sha256){
     // XXX: rm bseq from find_one call
-      link = yield _this.find_one(body.csum_sha256, {name: 'csum_sha256', cfid,
+      link = yield _this.find_one(body.csum_sha256, {dir: 'up',
+        name: 'csum_sha256', cfid,
         bseq: _this.bseq_get(cfid, _this.conflict.get(cfid).top.seq)});
     }
     if (link)
@@ -74,6 +82,7 @@ export default class FS extends Scroll {
     return yield _this.decl({cfid, branch, prev}, [body, buf]);
   }); }
   mod_file(file, buf, opt={}){ return etask({_: this}, function*mod_file(){
+    assert(valid_file(file), 'invalid file '+file);
     let _this = this._;
     let {branch, prev, cfid, link, body} = _this.parse_opt(opt);
     if (!(yield _this.file_exists(file, opt)))
@@ -85,7 +94,8 @@ export default class FS extends Scroll {
       body.csum_sha256 = crypto.sha256_str(buf);
     if (!link && body.csum_sha256){
       // XXX: rm bseq from find_one call
-      link = yield _this.find_one(body.csum_sha256, {name: 'csum_sha256', cfid,
+      link = yield _this.find_one(body.csum_sha256, {dir: 'up',
+        name: 'csum_sha256', cfid,
         bseq: _this.bseq_get(cfid, _this.conflict.get(cfid).top.seq)});
     }
     if (link)
@@ -111,6 +121,7 @@ export default class FS extends Scroll {
     return _this.decl({cfid, branch, prev}, [body, buf]);
   }); }
   file_exists(file, opt){ return etask({_: this}, function*file_exists(){
+    assert(valid_file(file), 'invalid file '+file);
     let _this = this._, {branch, prev, cfid} = _this.parse_opt(opt), seq;
     if (prev!==undefined)
       seq = yield _this.get_file_seq(cfid, null, prev, file);
@@ -228,13 +239,13 @@ export default class FS extends Scroll {
       bseq_top = this.bseq_get(cfid, seq);
     return this.find_one(dir, {name: 'dir', cfid, bseq: bseq_top, max: seq});
   }
-   ls_foreach_iter(cfid, bseq_top, seq, dir){
-    return etask({_: this}, function*ls_foreach_iter()
+   ls_iter(cfid, bseq_top, seq, dir){
+    return etask({_: this}, function*ls_iter()
   {
     let _this = this._, done = {}, iter = {};
     let diter = yield _this.find_iter(dir, {name: 'dir_list', cfid,
       bseq: bseq_top, max: seq});
-    iter.next = ()=> etask({_: this}, function*ls_foreach_iter(){
+    iter.next = ()=> etask({_: this}, function*ls_iter(){
       iter.curr = null;
       for (; diter.curr; yield diter.next()){
         let decl = _this.get_decl(diter.curr.seq);
@@ -262,7 +273,7 @@ export default class FS extends Scroll {
     return etask({_: this}, function*ls_foreach()
   {
     let _this = this._;
-    let iter = yield _this.ls_foreach_iter(cfid, bseq_top, seq, dir);
+    let iter = yield _this.ls_iter(cfid, bseq_top, seq, dir);
     for (; iter.curr; yield iter.next())
       yield cb(iter.curr);
   }); }
@@ -337,7 +348,7 @@ FS.open = opt=>etask(function*scroll_open(){
 // XXX: need test + improve
 function valid_dir(dir){ return dir[0]=='/' && dir[dir.length-1]=='/'; }
 // XXX: need test + improve
-function valid_file(dir){ return dir[0]=='/' && dir[dir.length-1]!='/'; }
+function valid_file(file){ return file[0]=='/' && file[file.length-1]!='/'; }
 // XXX: need test + improve
 function split(path){
   if (path=='/')

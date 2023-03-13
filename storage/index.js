@@ -25,7 +25,7 @@ file2path('/arik/x') = '/arik/'
 {index: ['file', {name: 'dir', field: 'dir', func: 'file2dir'}]}
 'file' == {field: 'file'} == {name: 'file', field: 'file'}
 //XXX {name: 'dir_files', field: 'file', transform: 'file2dir'}
-//XXX  file2dir(file){ var i = file.lastIndexOff('/'); return i<0 ? file :; }
+//XXX  file2dir(file){ var i = file.lastIndexOf('/'); return i<0 ? file :; }
 {name: 'dir_list', field: '*', transform: 'decl_get_dir'}
   decl_get_dir(decl){ return file2dir(decl.dir?.slice(-1) : decl.file); }
 {op:add dir:/d/} --> /d --> /

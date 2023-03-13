@@ -1,6 +1,7 @@
 // author: derry. coder: arik.
 'use strict';
 import Scroll from '../storage/scroll.js';
+import crypto from '../util/crypto.js';
 import etask from '../util/etask.js';
 import assert from 'assert';
 import util from '../util/util.js';
@@ -12,13 +13,14 @@ const b2s = buf_util.buf_to_str, s2b = buf_util.buf_from_str;
 export default class FS extends Scroll {
   // XXX: throw error on invalid file/dir
   add_dir(dir, opt={}){ return etask({_: this}, function*add_dir(){
-    let _this = this._, {branch, prev, cfid} = _this.parse_opt(opt);
+    let _this = this._, {branch, prev, cfid, body} = _this.parse_opt(opt);
     if (yield _this.dir_exists(dir, opt))
       throw new Error('dir exists '+dir);
-    yield _this.decl({cfid, branch, prev}, {op: 'add', dir});
+    yield _this.decl({cfid, branch, prev}, {op: 'add', dir, ...body});
   }); }
   rm_dir(dir, opt={}){ return etask({_: this}, function*rm_dir(){
     // XXX: need to lock scroll
+    // XXX: why branch is missing?
     let _this = this._, {prev, cfid} = _this.parse_opt(opt);
     if (!(yield _this.dir_exists(dir, opt)))
       throw new Error('dir not found '+dir);
@@ -40,48 +42,52 @@ export default class FS extends Scroll {
     yield _this._rm_dir(dir, first ? opt : {});
   }); }
   _rm_dir(dir, opt={}){ return etask({_: this}, function*_rm_dir(){
-    let _this = this._, {branch, prev, cfid} = _this.parse_opt(opt);
-    yield _this.decl({cfid, branch, prev}, {op: 'rm', dir});
+    let _this = this._, {branch, prev, cfid, body} = _this.parse_opt(opt);
+    yield _this.decl({cfid, branch, prev}, {op: 'rm', dir, ...body});
   }); }
   rm_file(file, opt={}){ return etask({_: this}, function*rm_file(){
-    let _this = this._, {branch, prev, cfid} = _this.parse_opt(opt);
+    let _this = this._, {branch, prev, cfid, body} = _this.parse_opt(opt);
     if (!(yield _this.file_exists(file, opt)))
       throw new Error('file not found '+file);
-    yield _this.decl({cfid, branch, prev}, {op: 'rm', file});
+    yield _this.decl({cfid, branch, prev}, {op: 'rm', file, ...body});
   }); }
   add_file(file, buf, opt={}){ return etask({_: this}, function*add_file(){
-    let _this = this._, {branch, prev, cfid} = _this.parse_opt(opt);
+    let _this = this._;
+    let {branch, prev, cfid, link, body} = _this.parse_opt(opt);
     if (yield _this.file_exists(file, opt))
       throw new Error('file exists '+file);
-    let body = {op: 'add', file};
+    body = {op: 'add', file, ...body};
     if (_this.support_len())
       body.len = buf?.length||0;
     if (!buf)
       return _this.decl({cfid, branch, prev}, body);
-    let h = _this.hash_str(buf);
     if (_this.support_csum_sha256())
-      body.csum_sha256 = h;
+      body.csum_sha256 = crypto.sha256_str(buf);
+    if (!link && body.csum_sha256){
     // XXX: rm bseq from find_one call
-    let link = yield _this.find_one(h, {name: 'csum_sha256', cfid,
-      bseq: _this.bseq_get(cfid, _this.conflict.get(cfid).top.seq)});
+      link = yield _this.find_one(body.csum_sha256, {name: 'csum_sha256', cfid,
+        bseq: _this.bseq_get(cfid, _this.conflict.get(cfid).top.seq)});
+    }
     if (link)
       return yield _this.decl({cfid, branch, prev, link}, body);
     body.content = 1;
     return yield _this.decl({cfid, branch, prev}, [body, buf]);
   }); }
   mod_file(file, buf, opt={}){ return etask({_: this}, function*mod_file(){
-    let _this = this._, {branch, prev, cfid} = _this.parse_opt(opt);
+    let _this = this._;
+    let {branch, prev, cfid, link, body} = _this.parse_opt(opt);
     if (!(yield _this.file_exists(file, opt)))
       throw new Error('file not found '+file);
-    let h = buf && _this.hash_str(buf);
-    // XXX: rm bseq from find_one call
-    let link = yield _this.find_one(h, {name: 'csum_sha256', cfid,
-      bseq: _this.bseq_get(cfid, _this.conflict.get(cfid).top.seq)});
-    let body = {op: 'mod', file};
+    body = {op: 'mod', file, ...body};
     if (_this.support_len())
       body.len = buf?.length||0;
     if (buf && _this.support_csum_sha256())
-      body.csum_sha256 = h;
+      body.csum_sha256 = crypto.sha256_str(buf);
+    if (!link && body.csum_sha256){
+      // XXX: rm bseq from find_one call
+      link = yield _this.find_one(body.csum_sha256, {name: 'csum_sha256', cfid,
+        bseq: _this.bseq_get(cfid, _this.conflict.get(cfid).top.seq)});
+    }
     if (link)
       return yield _this.decl({cfid, branch, prev, link}, body);
     let bseq_prev = _this.bseq_get(cfid, prev>=0 ? prev :
@@ -177,16 +183,16 @@ export default class FS extends Scroll {
     return apply_diff(buf, _buf);
   }); }
   parse_opt(opt){ // XXX: need test
-    let {cfid, prev, branch} = opt;
+    let {cfid, prev, branch, link, body} = opt;
     cfid = cfid||0;
     if (branch===undefined)
-      return {cfid, branch, prev};
+      return {cfid, branch, prev, link, body};
     let top = this.get_branch_top(cfid, branch);
     if (!top || prev!==undefined)
-      return {cfid, branch, prev};
+      return {cfid, branch, prev, link, body};
     prev = top.seq;
     branch = undefined;
-    return {cfid, branch, prev};
+    return {cfid, branch, prev, link, body};
   }
   test_get_seq(cfid, seq){
     let decl = this.get_decl(seq);
@@ -200,20 +206,10 @@ export default class FS extends Scroll {
       ret.bseq = header.bseq;
     if (header.branch)
       ret.branch = header.branch;
-    if (body.op)
-      ret.op = body.op;
-    if (body.dir)
-      ret.dir = body.dir;
-    if (body.file)
-      ret.file = body.file;
-    if (body.diff)
-      ret.diff = body.diff;
-    if (body.len!==undefined)
-      ret.len = body.len;
-    if (body.csum_sha256!==undefined)
-      ret.csum_sha256 = body.csum_sha256;
-    if (body.content)
-      ret.content = body.content;
+    if (header.group && header.group!=1)
+      ret.group = header.group;
+    if (seq!=0) // XXX: rm special handling
+      ret = {...ret, ...body};
     if (header.link)
       ret.link = header.link;
     if (f2)
@@ -300,6 +296,9 @@ export default class FS extends Scroll {
   support_csum_sha256(){
     return !!this.get_decl(0).get_body(0)?.scroll?.csum_sha256;
   }
+  support_csum_sha1(){
+    return !!this.get_decl(0).get_body(0)?.scroll?.csum_sha1;
+  }
 }
 
 FS.create = (opt, d)=>etask(function*scroll_create(){
@@ -312,6 +311,8 @@ FS.create = (opt, d)=>etask(function*scroll_create(){
     transform: 'decl_get_dir', filter: {op: ['add', 'rm']}}]};
   if (d?.csum_sha256)
     s.index.push('csum_sha256');
+  if (d?.csum_sha1)
+    s.index.push('csum_sha1');
   yield fs.decl({scroll: s});
   return fs;
 });

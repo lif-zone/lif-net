@@ -12,18 +12,29 @@ import buf_util from '../net/buf_util.js';
 import tparser from '../storage/test_parser.js';
 import DiffMatchAndPath from 'diff-match-patch';
 import DB from '../storage/db.js';
-const b2s = buf_util.buf_to_str;
+const b2s = buf_util.buf_to_str, s2b = buf_util.buf_from_str;
 const Diff = new DiffMatchAndPath();
 const {parse_get_next, parse_exp, parse_exp_arg, rm_parentesis,
   parse_exp_arg_pair} = tparser;
 import {test_run, new_scroll, get_scroll, get_def, test_register,
-  test_register_cmd, get_val, parse_db_init} from '../storage/test_cmd.js';
+  test_register_cmd, get_val, parse_db_init, js_struct_from_str}
+  from '../storage/test_cmd.js';
 
 xtest.init();
 // XXX: use memoryDatabase: ':memory:'
 DB.init({shim_conf: {checkOrigin: false, databaseBasePath: '/tmp',
   deleteDatabaseFiles: true, useSQLiteIndexes: true}});
 let t_buf;
+
+// XXX: mv to generic place and review with derry
+function encode_str(s){ return '__enc__'+encodeURI(s); }
+
+function decode_str(s){
+  const prefix = '__enc__';
+  if (s.substr(0, prefix.length)==prefix)
+    return decodeURI(s.substr(prefix.length));
+  return s;
+}
 
 const cmd_fs = t=>etask(function*cmd_fs(){
   let name = t.ctx||get_def('left'), M, db_opt, len, csum_sha256;
@@ -151,13 +162,13 @@ const cmd_buf = t=>etask(function*cmd_buf(){
 });
 
 const cmd_git = t=>etask(function*cmd_git(){
-  let name = t.ctx||get_def('left'), M, db_opt, repo;
+  let name = t.ctx||get_def('left'), M, db_opt, src;
   assert(!t.l, 'invalid arg '+t.meta.s);
   assert(!get_scroll(name, true), 'scroll already exist '+name);
   for (let curr=t.r, i=0; curr = parse_get_next(curr); i++){
     let tt = parse_exp_arg(curr.exp), t2, a;
     switch (tt.cmd){
-    case 'repo': repo = 'https://github.com/'+tt.r; break;
+    case 'src': src = 'https://github.com/'+tt.r; break;
     case 'db': db_opt = parse_db_init(tt); break;
     default:
       t2 = parse_exp_arg_pair(curr.exp);
@@ -170,11 +181,17 @@ const cmd_git = t=>etask(function*cmd_git(){
       assert.fail('invalid arg '+tt.cmd+' in '+t.meta.s);
     }
   }
-  assert(repo, 'missing repo');
-  let scroll_decl = undefined;
+  assert(src, 'missing src');
+  let scroll_decl = src ? {src} : undefined;
   yield new_scroll(name, M, null, t.prev?.ctx, db_opt, scroll_decl,
     function create_func(opt, d){ return GIT.create(opt, d); },
     function open_func(opt){ return GIT.open(opt); });
+});
+
+const cmd_sync = t=>etask(function*cmd_sync(){
+  let name = t.ctx||get_def('left'), git = get_scroll(name);
+  assert(!t.r, 'invalid arg');
+  yield git.sync();
 });
 
 const test_run_single = (curr, o, step)=>etask(function*_test_run_single(){
@@ -185,6 +202,7 @@ const test_run_single = (curr, o, step)=>etask(function*_test_run_single(){
   case 'rm': yield cmd_rm(o); break;
   case 'buf': yield cmd_buf(o); break;
   case 'git': yield cmd_git(o); break;
+  case 'sync': yield cmd_sync(o); break;
   default: return false;
   }
   return true;
@@ -197,7 +215,7 @@ const test_get_seq = s=>etask(function*get_seq(){
     let o = parse_exp(curr.exp);
     if (!o.r)
       bo[o.l] = '';
-    else if (['f2', 'csum_sha256'].includes(o.l)){ // XXX: rm this if
+    else if (['f2', 'csum_sha256'].includes(o.l)){ // XXX: ugly
       let oo = parse_exp(o.r), a;
       switch (oo.cmd){
       case 'sha256':
@@ -213,11 +231,19 @@ const test_get_seq = s=>etask(function*get_seq(){
           Diff.patch_make(t_buf[a[0]].toString(), t_buf[a[1]].toString())));
         break;
       default:
-        assert(t_buf[o.r], 'buf not found '+o.r);
-        bo[o.l] = t_buf[o.r];
+        if ('0x'==o.r.substr(0, 2))
+          bo[o.l] = s2b(o.r.substr(2));
+        else {
+          assert(t_buf[o.r], 'buf not found '+o.r);
+          bo[o.l] = t_buf[o.r];
+        }
       }
-    } else
-      bo[o.l] = o.r;
+    } else if ('desc'==o.cmd){ // XXX: need better way to handle \n
+      bo[o.cmd] = decode_str(rm_parentesis(o.r, '('))+'\n';
+    } else if (['content', 'group', 'link'].includes(o.l) && /^\d+$/.test(o.r))
+      bo[o.l] = +o.r;
+    else
+      bo[o.l] = o.r.at(0)=='{' ? js_struct_from_str(o.r) : o.r;
   }
   return bo;
 });
@@ -501,21 +527,21 @@ describe('fs', ()=>{
     t('add_two_same_def', `s..#seq buf(d:0) s..fs #seq0={}
       add(/f1 buf:d) #seq1={op:add file:/f1 content:1 f2:d}
       add(/f2 buf:d) #seq2={op:add file:/f2 content:1 f2:d}`);
-    t('add_two_same_csum', `s..#seq buf(d:0) s..fs(csum_sha256) #seq0={}
+    t('add_two_same_sha256', `s..#seq buf(d:0) s..fs(csum_sha256) #seq0={}
       add(/f1 buf:d) #seq1={op:add file:/f1 content:1 f2:d
         csum_sha256:sha256(d)}
       add(/f2 buf:d) #seq2={op:add file:/f2 link:1 csum_sha256:sha256(d)}`);
     t('mod_same_def', `s..#seq buf(d:d) s..fs #seq0={}
       add(/f buf:d) #seq1={op:add file:/f content:1 f2:d}
       mod(/f buf:d) #seq2={op:mod file:/f link:1}`);
-    t('mod_same_csum', `s..#seq buf(d:d) s..fs(csum_sha256) #seq0={}
+    t('mod_same_sha256', `s..#seq buf(d:d) s..fs(csum_sha256) #seq0={}
       add(/f buf:d) #seq1={op:add file:/f content:1 f2:d csum_sha256:sha256(d)}
       mod(/f buf:d) #seq2={op:mod file:/f link:1 csum_sha256:sha256(d)}`);
     t('mod_same_existing_same', `s..#seq buf(d:d) buf(d2:d2) s..fs #seq0={}
       add(/f buf:d) #seq1={op:add file:/f content:1 f2:d}
       add(/f2 buf:d2) #seq2={op:add file:/f2 content:1 f2:d2}
       mod(/f buf:d2) #seq3={op:mod file:/f content:1 f2:d2}`);
-    t('mod_same_existing_csum', `s..#seq buf(d:d) buf(d2:d2)
+    t('mod_same_existing_sha256', `s..#seq buf(d:d) buf(d2:d2)
       s..fs(csum_sha256) #seq0={}
       add(/f buf:d) #seq1={op:add file:/f content:1 f2:d csum_sha256:sha256(d)}
       add(/f2 buf:d2) #seq2={op:add file:/f2 content:1 f2:d2
@@ -544,7 +570,7 @@ describe('fs', ()=>{
       mod(/f buf:d2)  #seq3={op:mod file:/f content:1 f2:d2}
       rm(/f)         #(seq4={op:rm file:/f} fs=!/f)
       add(/f buf:d)  #(seq5={op:add file:/f content:1 f2:d} fs=/f)`);
-     t('rm_csum', `s..#(seq fs) buf(d:1) buf(d2:2)
+     t('rm_sha256', `s..#(seq fs) buf(d:1) buf(d2:2)
       s..fs(csum_sha256) #(seq0={})
       add(/)           #(seq1={op:add dir:/} fs=/)
       add(/f buf:d)    #(seq2={op:add file:/f content:1 f2:d
@@ -908,19 +934,29 @@ describe('git', ()=>{
         ' L/O964lnhIfRpRUuuN7Fq02PHWSgtcsav++OrzjM+75Tp8JMz5a8FUOTIqSpaZk=\n'+
         ' =dun1\n -----END PGP SIGNATURE-----\n \n');
     });
-    describe('git_to_scroll', ()=>{
+    describe('git_to_scroll', function(){
+      this.timeout(10000); // XXX: git checkout/pull is slow
       const t = (name, test)=>it(name, ()=>test_run(test));
-      // XXX: verify seq0 has the correct haders
-      t('gpg', `s..#(seq fs) git(repo(lif-rnd/test_gpg)) #seq0={}
-//      pull #
+      // XXX: verify seq0 has the correct headers
+      // XXX: do we need author in scroll header
+      // XXX: derry: review encode_str/decode_str
+      let desc5 = encode_str('Commit from cli with pgp\n\n'+
+        'Signed-off-by: lif-rnd <lif.zone.main@gmail.com>');
+      t('gpg', `s..#seq git(src(lif-rnd/test_gpg)) #seq0={}
+        sync #(
+        seq1={op:add dir:/
+          git:{oid:1b130e91ce06ba813c9695da80eb58152fe32587 mode:0}}
+        seq2={op:add file:/file_from_www content:1 f2:0x0a
+          git:{oid:8b137891791fe96927ad78e64b0aad7bded08bdc mode:100644}}
+        // XXX: missing more stuff in commit (eg author, gpg, ts)
+        seq3={group:2 op:commit desc(Create file_from_www)}
+        seq4={link:2 op:add file:/file_from_cli
+          git:{oid:8b137891791fe96927ad78e64b0aad7bded08bdc mode:100644}}
+        seq5={op:commit desc(${desc5})}
+        seq6={op:mod file:/file_from_cli content:1 f2:0x76320a
+          git:{oid:8c1384d825dbbe41309b7dc18ee7991a9085c46e mode:100644}}
+        seq7={op:commit desc(test)})
       `);
-      /*
-    t('lif-rnd/test_gpg', [
-    [{seq: 0}, {scroll: {crypt: [{sig: 'ed25519', hash: 'blake2b', lif: 'lif1'}], pub: '44659cb51dec397ea66085679442505345e159940762c15ef75ad279ecf05033', topic: 'git', src: 'https://github.com/lif-rnd/test_gpg', key_val: ['dir', 'file', 'git_branch', 'tag'], op_default: 'mod'}}, ''],
-    [{seq: 1}, {op: 'add', dir: '/', git: {oid: '1b130e91ce06ba813c9695da80eb58152fe32587', mode: 0}}, ''],
-    [{seq: 2}, {op: 'add', file: '/file_from_www', content: 1, git: {oid: '8b137891791fe96927ad78e64b0aad7bded08bdc', mode: '100644'}}, 1],
-    [{seq: 3, group: 2}, {op: 'commit', desc: 'Create file_from_www', author: 'lif-rnd', ts: 1663639296, git: {oid: '632392939fe3e3abcfd259ef24f2ff2a08d55f73', parent: [], tree: '1b130e91ce06ba813c9695da80eb58152fe32587', author: {email: '79463501+lif-rnd@users.noreply.github.com', timestamp: 1670839296, timezoneOffset: -120}, committer: {name: 'GitHub', email: 'noreply@github.com', timestamp: 1670839296, timezoneOffset: -120}, gpgsig: '-----BEGIN PGP SIGNATURE-----\n\nwsBcBAABCAAQBQJjlvwACRBK7hj4Ov3rIwAAAswIAFPmNEqZow/IUewkig8OnOot\nbrQTqOE9qb83naHpE6cGNOq+uOn0Twav6xsWI5B7/h7t0kOPMUPJcA8xmxduGN4+\n1Sw0ByvVoeO3x/UOpavv5SayuyOuxFNOasHFrHwne4ONyzM5J8EUkV4/oHYE+2jZ\nNWeJlvSSg85wA23YF1/7tAFV/wZrC3tFkFht3ZQraHDNBV2nG/vqUxtPxuvRAR8V\nFwIGDJ4uYW1gSxMdAP6MPFVkY+pzJmzEHKT22TC1InhZ5mklEPDNuSnuYAxRE2Cs\nL/O964lnhIfRpRUuuN7Fq02PHWSgtcsav++OrzjM+75Tp8JMz5a8FUOTIqSpaZk=\n=dun1\n-----END PGP SIGNATURE-----\n'}}, ''],
-    */
     });
   });
 });

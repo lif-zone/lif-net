@@ -2,6 +2,7 @@
 'use strict';
 import assert from 'assert';
 import etask from '../util/etask.js';
+import util from '../util/util.js';
 import Branch_table from './branch.js';
 const {bseq_branch} = Branch_table;
 import Tree from 'avl';
@@ -75,7 +76,7 @@ function data_filter(data, cfid, desc){
 function key_from_data(data, cfid, desc){
   let body = data.get_body(cfid), {field, transform} = desc;
   if (!transform)
-    return body?.[field];
+    return util.get(body, field);
   switch (transform){
   case 'decl_get_dir': return decl_get_dir(body);
   default: throw new Error('unknown transform function '+transform);

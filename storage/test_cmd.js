@@ -142,7 +142,7 @@ function test_parse_filter(str){
   return ret;
 }
 
-function js_struct_from_str(str, opt={}){
+export function js_struct_from_str(str, opt={}){
   let ret = {};
   str = rm_parentesis(str, '{');
   for (let curr=str; curr = parse_get_next(curr);){

@@ -1077,39 +1077,38 @@ describe('git', ()=>{
       let desc7 = encode_str('Merge pull request #1 from lif-rnd/branch1'+
         '\n\nmerge branch1');
       t('branch', `s..#seq git(src(lif-rnd/test_branch)) #seq0={}
+        $$d1(35338222e6691c303d4bc6768450229d93e14c67)
+        $$f1(634568dfc1c5c07e337f2d99a472a8d9b03c3964)
+        $$f2(8b137891791fe96927ad78e64b0aad7bded08bdc)
+        $$c1(cb42290303d83a9254397228e586f45539bbe010)
+        $$c2(549f06c75c8818b582f552d110094a4b617196f9)
+        $$c3(ebfa9a6980f982ffef775895cbb5a6e48a3cfc3c)
+        $$c4(f748254314933c43f7992743c3ef8c04f7f0a70d)
+        $$c5(63f7e4a5ba325b71f00f32dc53d45a606c1b75eb)
+        $$c6(70327166e0bbc36da012739545f77e392f6557f5)
+        $$c7(9215645089772245e3583f257527e4ac40093607)
         sync #(
-        seq1={op:add dir:/
-          git:{oid:35338222e6691c303d4bc6768450229d93e14c67 mode:0}}
-        seq2={op:add file:/file1 content:1 f2:${d2}
-          git:{oid:634568dfc1c5c07e337f2d99a472a8d9b03c3964 mode:100644}}
-        seq3={group:2 op:commit desc(Create file1)
-          git:{oid:cb42290303d83a9254397228e586f45539bbe010}}
-        seq4={op:add file:/file3 content:1 f2:0x0a
-          git:{oid:8b137891791fe96927ad78e64b0aad7bded08bdc mode:100644}}
-        seq5={op:commit desc(Create file3)
-          git:{oid:549f06c75c8818b582f552d110094a4b617196f9}}
-        seq6={op:add file:/file1-branch1 link:4
-          git:{oid:8b137891791fe96927ad78e64b0aad7bded08bdc mode:100644}}
-        seq7={op:commit desc(${desc7})
-          git:{oid:ebfa9a6980f982ffef775895cbb5a6e48a3cfc3c}}
+        seq1={op:add dir:/ git:{oid:$d1 mode:0}}
+        seq2={op:add file:/file1 content:1 f2:${d2} git:{oid:$f1 mode:100644}}
+        seq3={group:2 op:commit desc(Create file1) git:{oid:$c1}}
+        seq4={op:add file:/file3 content:1 f2:0x0a git:{oid:$f2 mode:100644}}
+        seq5={op:commit desc(Create file3) git:{oid:$c2}}
+        seq6={op:add file:/file1-branch1 link:4 git:{oid:$f2 mode:100644}}
+        seq7={op:commit desc(${desc7}) git:{oid:$c3}}
         seq8={bseq:3-1.0 branch:branch1 op:add file:/file1-branch1 link:4
-          git:{oid:8b137891791fe96927ad78e64b0aad7bded08bdc mode:100644}}
-        seq9={bseq:3-1.1 op:commit desc(Create file1-branch1)
-          git:{oid:f748254314933c43f7992743c3ef8c04f7f0a70d}}
+          git:{oid:$f2 mode:100644}}
+        seq9={bseq:3-1.1 op:commit desc(Create file1-branch1) git:{oid:$c4}}
         seq10={bseq:3-2.0 branch:branch2 op:add file:/file1-branch2 link:4
-          git:{oid:8b137891791fe96927ad78e64b0aad7bded08bdc mode:100644}}
-        seq11={bseq:3-2.1 op:commit desc(Create file1-branch2)
-          git:{oid:63f7e4a5ba325b71f00f32dc53d45a606c1b75eb}}
+          git:{oid:$f2 mode:100644}}
+        seq11={bseq:3-2.1 op:commit desc(Create file1-branch2) git:{oid:$c5}}
         seq12={bseq:3-2.1-1.0 branch:branch2_b1 op:add file(/file1 branch2b1)
-          link:4
-          git:{oid:8b137891791fe96927ad78e64b0aad7bded08bdc mode:100644}}
+          link:4 git:{oid:$f2 mode:100644}}
         seq13={bseq:3-2.1-1.1 op:commit desc(Create file1 branch2b1)
-          git:{oid:70327166e0bbc36da012739545f77e392f6557f5}}
+          git:{oid:$c6}}
         seq14={bseq:3-3.0 branch:branch3 op:add file(/file2 branch3)
-          link:4
-          git:{oid:8b137891791fe96927ad78e64b0aad7bded08bdc mode:100644}}
+          link:4 git:{oid:$f2 mode:100644}}
         seq15={bseq:3-3.1 op:commit desc(Create file2 branch3)
-          git:{oid:9215645089772245e3583f257527e4ac40093607}})`);
+          git:{oid:$c7}})`);
     });
   });
 });

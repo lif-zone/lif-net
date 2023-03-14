@@ -905,6 +905,7 @@ function state_apply(state, o){
   }
   if (['seq', 'bseq'].includes(type)){
     if (val!==null && val!==undefined){
+      state[type] = state[type]||{};
       state[type][cfid] = state[type][cfid]||{};
       assert(state[type][cfid][seq] != val,
         'uneeded state_apply '+type+seq+(cfid ? 'c0' : '')+'='+val);
@@ -988,7 +989,9 @@ const state_next = (name, curr_state, filter, steps)=>etask(
       state.index_table = yield mem_get_index_table(scroll);
     if (filter.includes('db_index_table'))
       state.db_index_table = yield db_get_index_table(scroll);
-    if (filter.includes('bseq') ||filter.includes('seq')){
+    if (filter.includes('bseq') ||filter.includes('seq')||
+      filter.find(s=>/^seq\d/.test(s)))
+    {
       for (const [cfid] of scroll.conflict){
         for (let decl = scroll.get_decl(0, {create: false}); decl;
           decl = decl.next())
@@ -1098,6 +1101,13 @@ const state_next = (name, curr_state, filter, steps)=>etask(
   if (filter.includes('db_btable')){
     assert_b2s_obj(state.db_btable, curr_state[name].db_btable,
       'db_btable state mismach '+steps);
+  }
+  let f; // XXX ugly hack for ##seq1c2
+  if (f = filter.find(s=>/^seq\d/.test(s))){
+    let m = f.match(/^seq(\d+)(c(\d+))?$/);
+    assert_b2s_obj(state.seq[+m[3]||0][+m[1]||0]||{},
+      curr_state[name].seq[+m[3]||0][+m[1]||0], curr_state[name],
+      'seq state mismach '+steps);
   }
   if (t_hooks.state_assert)
     t_hooks.state_assert(filter, state, curr_state[name]);

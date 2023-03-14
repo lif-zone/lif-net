@@ -2,6 +2,7 @@
 import assert from 'assert';
 import fs from 'fs';
 import http from 'isomorphic-git/http/node/index.cjs';
+import array from '../util/array.js';
 import FS from './fs.js';
 import util from '../util/util.js';
 import etask from '../util/etask.js';
@@ -34,42 +35,82 @@ export default class GIT extends FS {
     // XXX HACK: decide how to get it
     config.author = {name: 'XXX', email: 'xxx@xxx.com'};
     yield git_api.clone({...config});
-    yield git_api.checkout({...config, ref: 'main', remote: 'origin'});
-    yield git_api.pull({...config});
-    let head = yield git_api.resolveRef({...config, ref: 'main'});
-    let commits = yield git_api.log({...config, ref: 'main'});
-    commits.reverse();
-    xerr.notice('XXX head %O', head);
-    let cfid = 0; // XXX: support conflict
-    for (let i=0; i<commits.length; i++){
-      let commit = commits[i].commit;
-      xerr.notice('XXX notice commit #%s %O', i, commit.tree);
-      let group = yield _this._sync_dir(config, cfid, '/', commit.tree, '0');
-      xerr.notice('XXX group %s', group);
-      yield _this.decl({cfid, group}, {op: 'commit', desc: commit.message});
+    let gbranches = yield git_api.listBranches({...config, remote: 'origin'});
+    if (gbranches.includes('HEAD'))
+      array.rm_elm(gbranches, 'HEAD');
+    if (gbranches.includes('main')){
+      array.rm_elm(gbranches, 'main'); // XXX: do it on HEAD gbranch
+      gbranches.unshift('main');
+    }
+    // XXX: we assume main is the main branch. need to get it from HEAD
+    for (let b=0; b<gbranches.length; b++){
+      let gbranch = gbranches[b];
+      yield git_api.checkout({...config, ref: gbranch, remote: 'origin'});
+      yield git_api.pull({...config});
+      let head = yield git_api.resolveRef({...config, ref: gbranch});
+      let log = yield git_api.log({...config, ref: gbranch});
+      let commits = [];
+      for (let i=0, parent; i<log.length; i++){
+        let curr = log[i];
+        if (parent && curr.oid!=parent)
+          continue;
+        commits.unshift(curr);
+        parent = curr.commit.parent[0];
+        // XXX: save parent[1] as merge info
+      }
+      let cfid = 0; // XXX: support conflict
+      for (let i=0; i<commits.length; i++){
+        let {oid, commit} = commits[i], prev;
+        // XXX: review find_one_all_branches with derry
+        let seq = yield _this.find_one_all_branches(oid,
+          {name: 'git.oid', cfid});
+        if (seq)
+          continue;
+        if (commit.parent[0]){
+          // XXX: need smarter logic, current logic depends on order of
+          // branches
+          prev = yield _this.find_one_all_branches(commit.parent[0],
+            {name: 'git.oid', cfid});
+        }
+        let branch = gbranch=='main' ? null : gbranch; // XXX HACK
+        let group = yield _this._sync_dir(config, cfid, branch, prev,
+          '/', commit.tree, '0');
+        yield _this.decl({cfid, group}, {op: 'commit', desc: commit.message,
+          git: {oid}});
+      }
     }
   }); }
-  _sync_dir(config, cfid, dir, oid, mode){
+  _sync_dir(config, cfid, branch, prev, dir, oid, mode){
     return etask({_: this}, function*_sync_dir()
   {
     let _this = this._, n = 0;
+    let top = _this.get_branch_top(cfid, branch);
+    if (top)
+      prev = undefined;
     // XXX: eraly return if if dir oid did not changed
-    if (!(yield _this.dir_exists(dir, {cfid}))){
-      yield _this.add_dir(dir, {body: {git: {oid, mode}}});
+    // XXX: if no top, use prev top bseq
+    if (!(yield _this.dir_exists(dir, {cfid, branch, prev}))){
+      yield _this.add_dir(dir, {cfid, branch, prev, body: {git: {oid, mode}}});
       n++;
+      prev = undefined;
     }
     let {tree} = yield git_api.readTree({...config, oid});
     let dir_list = {};
     for (let i=0, e; e = tree[i]; i++)
       dir_list[e.type=='blob' ? dir+e.path : dir+e.path+'/'] = true;
     // XXX: need to get current branch
-    let top = _this.get_branch_top(cfid, null);
-    let iter = yield _this.ls_iter(cfid, top.bseq, top.seq, dir);
-    for (; iter.curr; yield iter.next()){
-      if (dir_list[iter.curr])
-        continue;
-      yield _this.rm(iter.curr, {cfid});
-      n++; // XXX bug: rm may generate multiple declarations
+    top = _this.get_branch_top(cfid, branch);
+    if (!top && prev)
+      top = {seq: prev, bseq: _this.bseq_get(cfid, prev)};
+    if (top){
+      let iter = yield _this.ls_iter(cfid, top.bseq, top.seq, dir);
+      for (; iter.curr; yield iter.next()){
+        if (dir_list[iter.curr])
+          continue;
+        // XXX: fix rm so prev is used only once
+        n += yield _this.rm(iter.curr, {cfid, branch, prev});
+        prev = undefined;
+      }
     }
     for (let i=0, e; e = tree[i]; i++){
       let file, _dir, body, top, prev_seq, blob, link;
@@ -78,8 +119,13 @@ export default class GIT extends FS {
         file = dir+e.path;
         dir_list[file] = true;
         // XXX: need to get current branch
-        top = _this.get_branch_top(cfid, null);
-        prev_seq = yield _this.get_file_seq(cfid, top.bseq, top.seq, file);
+        top = _this.get_branch_top(cfid, branch);
+        if (top)
+          prev_seq = yield _this.get_file_seq(cfid, top.bseq, top.seq, file);
+        else if (prev){
+          prev_seq = yield _this.get_file_seq(cfid, _this.bseq_get(cfid, prev),
+            prev, file);
+        }
         if (prev_seq){
           let prev_decl = _this.get_decl(prev_seq);
           yield prev_decl.load(cfid);
@@ -89,20 +135,21 @@ export default class GIT extends FS {
         body = {git: {oid: e.oid, mode: e.mode}};
         blob = (yield git_api.readBlob({...config, oid: e.oid})).blob;
         blob = blob ? Buffer.from(blob) : null;
-        xerr.notice('XXX blob %s %s', file, e.oid);
-        // XXX: rm bseq from find_one call
-        link = yield _this.find_one(e.oid, {dir: 'up', name: 'git.oid', cfid,
-          bseq: _this.bseq_get(cfid, _this.conflict.get(cfid).top.seq)});
-        if (yield _this.file_exists(file, {cfid}))
-          yield _this.mod_file(file, blob, {cfid, link, body});
+        link = yield _this.find_one_all_branches(e.oid,
+          {dir: 'up', name: 'git.oid', cfid});
+        if (yield _this.file_exists(file, {cfid, branch, prev}))
+          yield _this.mod_file(file, blob, {cfid, branch, prev, link, body});
         else
-          yield _this.add_file(file, blob, {cfid, link, body});
+          yield _this.add_file(file, blob, {cfid, branch, prev, link, body});
         n++;
+        prev = undefined;
         break;
       case 'tree':
         _dir = dir+e.path+'/',
         dir_list[_dir] = true;
-        n += yield _this._sync_dir(config, cfid, _dir, e.oid, e.mode);
+        n += yield _this._sync_dir(config, cfid, branch, prev, _dir, e.oid,
+          e.mode);
+        prev = undefined;
         break;
       default: throw new Error('unknown type '+e.type);
       }

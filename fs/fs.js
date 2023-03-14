@@ -22,7 +22,7 @@ export default class FS extends Scroll {
     assert(valid_dir(dir), 'invalid dir '+dir);
     // XXX: need to lock scroll
     // XXX: why branch is missing?
-    let _this = this._, {prev, cfid} = _this.parse_opt(opt);
+    let _this = this._, {prev, cfid} = _this.parse_opt(opt), n=0;
     if (!(yield _this.dir_exists(dir, opt)))
       throw new Error('dir not found '+dir);
     let top = _this.conflict.get(cfid).top;
@@ -34,6 +34,7 @@ export default class FS extends Scroll {
     const cb = path=>etask(function*rm_dir_cb(){
       if (first)
         first = false;
+      n++;
       if (!valid_dir(path))
         return _this.rm_file(path, first ? opt : {});
       yield _this.ls_foreach(cfid, top_prev.bseq, seq_prev, path, cb);
@@ -41,10 +42,12 @@ export default class FS extends Scroll {
     });
     yield _this.ls_foreach(cfid, top_prev.bseq, seq_prev, dir, cb);
     yield _this._rm_dir(dir, first ? opt : {});
+    return n+1;
   }); }
   _rm_dir(dir, opt={}){ return etask({_: this}, function*_rm_dir(){
     let _this = this._, {branch, prev, cfid, body} = _this.parse_opt(opt);
     yield _this.decl({cfid, branch, prev}, {op: 'rm', dir, ...body});
+    return 1;
   }); }
   rm_file(file, opt={}){ return etask({_: this}, function*rm_file(){
     assert(valid_file(file), 'invalid file '+file);
@@ -52,6 +55,7 @@ export default class FS extends Scroll {
     if (!(yield _this.file_exists(file, opt)))
       throw new Error('file not found '+file);
     yield _this.decl({cfid, branch, prev}, {op: 'rm', file, ...body});
+    return 1;
   }); }
   rm(path, opt){
     return valid_file(path) ? this.rm_file(path, opt) :
@@ -71,7 +75,8 @@ export default class FS extends Scroll {
     if (_this.support_csum_sha256())
       body.csum_sha256 = crypto.sha256_str(buf);
     if (!link && body.csum_sha256){
-    // XXX: rm bseq from find_one call
+      // XXX: rm bseq from find_one call
+      // XXX: do we need to find in all branches?
       link = yield _this.find_one(body.csum_sha256, {dir: 'up',
         name: 'csum_sha256', cfid,
         bseq: _this.bseq_get(cfid, _this.conflict.get(cfid).top.seq)});
@@ -94,6 +99,7 @@ export default class FS extends Scroll {
       body.csum_sha256 = crypto.sha256_str(buf);
     if (!link && body.csum_sha256){
       // XXX: rm bseq from find_one call
+      // XXX: do we need to find in all branches?
       link = yield _this.find_one(body.csum_sha256, {dir: 'up',
         name: 'csum_sha256', cfid,
         bseq: _this.bseq_get(cfid, _this.conflict.get(cfid).top.seq)});

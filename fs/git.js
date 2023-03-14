@@ -6,7 +6,6 @@ import array from '../util/array.js';
 import FS from './fs.js';
 import util from '../util/util.js';
 import etask from '../util/etask.js';
-import xerr from '../util/xerr.js';
 import Scroll from '../storage/scroll.js';
 import buf_util from '../net/buf_util.js';
 import git_api from 'isomorphic-git';

@@ -1027,7 +1027,6 @@ describe('git', ()=>{
         '\n\nMerge from Branch1');
       let d19 = '0x6d61696e5f66696c65330a6d61696e5f66696c65330a6d61696e5f66696c65330a6d61696e5f66696c65330a6d61696e5f66696c65330a6d61696e5f66696c65330a6d61696e5f66696c65330a6d61696e5f66696c65330a6d61696e5f66696c65330a6d61696e5f66696c65330a6d61696e5f66696c65330a6d61696e5f66696c65330a6d61696e5f66696c65330a6d61696e5f66696c65330a6d61696e5f66696c65330a6d61696e5f66696c65330a6d61696e5f66696c65330a6d61696e5f66696c65330a6d61696e5f66696c65330a6d61696e5f66696c65330a6d61696e5f66696c65330a6d61696e5f66696c65330a6d61696e5f66696c65330a6d61696e5f66696c65330a6d61696e5f66696c65330a6d61696e5f66696c65330a';
       let d21 = '0x4040202d312c3238202b312c33322040400a2b5858582530410a206d61696e5f66696c65332530416d61696e5f66696c65332530416d61696e5f660a';
-      if (0) // XXX
       t('merge_simple', `s..#seq git(src(lif-zone/test_merge_simple)) #seq0={}
         sync #(
         seq1={op:add dir:/
@@ -1044,37 +1043,35 @@ describe('git', ()=>{
           git:{oid:6c493ff740f9380390d5c9ddef4af18697ac9375 mode:100644}}
         seq7={op:commit desc(Create main_file2)
           git:{oid:ab861bddf2f5674d199ac1d04aa420286c2b4de6}}
-        seq8={op:add file:/branch_file1
+        seq8={op:add file:/main_file3 content:1 f2:0x6d61696e5f66696c65330a
+          git:{oid:9df9148b245e84d4eefc7adfb9d747c2a3e6966a mode:100644}}
+        seq9={op:commit desc(Create main_file3)
+          git:{oid:0999c0da6a48c7fb3e12a2478af689abe84ccd36}}
+        seq10={op:add file:/branch_file1
           content:1 f2:0x6272616e63685f66696c65310a
           git:{oid:81feec21ec7e7b068f45ca64ca352e151331fcf2 mode:100644}}
-        seq9={op:commit desc(Create branch_file1)
-          git:{oid:8ed244dd4cf2cac485cfe0665e0450f0fbb7e71e}}
-        seq10={op:rm file:/branch_file1}
-        seq11={op:add file:/main_file3 content:1 f2:0x6d61696e5f66696c65330a
-          git:{oid:9df9148b245e84d4eefc7adfb9d747c2a3e6966a mode:100644}}
-        seq12={group:2 op:commit desc(Create main_file3)
-          git:{oid:0999c0da6a48c7fb3e12a2478af689abe84ccd36}}
-        seq13={op:rm file:/main_file3}
-        seq14={op:add file:/branch_file1 link:8
-          git:{oid:81feec21ec7e7b068f45ca64ca352e151331fcf2 mode:100644}}
-        seq15={op:add file:/branch_file2 content:1
+        seq11={op:add file:/branch_file2 content:1
           f2:0x6272616e63685f66696c65320a
           git:{oid:00cd2033b090d099f771e57f39f23c858c22f651 mode:100644}}
-        seq16={group:3 op:commit desc(Create branch_file2)
-          git:{oid:d4181b6ca66e54bb077feb44f6554d0c6236ba2b}}
-        seq17={op:add file:/main_file3 link:11
-          git:{oid:9df9148b245e84d4eefc7adfb9d747c2a3e6966a mode:100644}}
-        seq18={op:commit desc(${desc18})
+        seq12={group:2 op:commit desc(${desc18})
           git:{oid:529918326b683cebb869faa11ee487f70828fb31}}
-        seq19={op:mod file:/main_file3 content:1 f2:${d19}
+        seq13={op:mod file:/main_file3 content:1 f2:${d19}
           git:{oid:70350ee2b46550a16f7f3e4ab189620f89194ce3 mode:100644}}
-        seq20={op:commit desc(Update main_file3)
+        seq14={op:commit desc(Update main_file3)
           git:{oid:3c32b322655215d3723de7362a6880bb7ff20e4d}}
-        seq21={op:mod file:/main_file3 diff:1 link:19 f2=${d21}
+        seq15={op:mod file:/main_file3 diff:1 link:13 f2=${d21}
           git:{oid:c11256c184e585acd4bc63f86adc1b4cb512affa mode:100644}}
-        seq22={op:commit desc(Update main_file3)
+        seq16={op:commit desc(Update main_file3)
           git:{oid:e37d0cbddd4c351996dae2a01f04986dbab5b071}}
-        // XXX: missing branch1 + test_tag1
+        seq17={bseq:7-1.0 branch:branch1 op:add file:/branch_file1 link:10
+          git:{oid:81feec21ec7e7b068f45ca64ca352e151331fcf2 mode:100644}}
+        seq18={bseq:7-1.1 op:commit desc(Create branch_file1)
+          git:{oid:8ed244dd4cf2cac485cfe0665e0450f0fbb7e71e}}
+        seq19={bseq:7-1.2 op:add file:/branch_file2 link:11
+          git:{oid:00cd2033b090d099f771e57f39f23c858c22f651 mode:100644}}
+        seq20={bseq:7-1.3 op:commit desc(Create branch_file2)
+          git:{oid:d4181b6ca66e54bb077feb44f6554d0c6236ba2b}}
+        // XXX: missing test_tag1
         )`);
       d2='0x66696c65310a'+('58'.repeat(99)+'0a').repeat(8);
       let desc7 = encode_str('Merge pull request #1 from lif-rnd/branch1'+

@@ -485,6 +485,19 @@ class Index_table {
     });
     return iter.next();
   }); }
+  find_one_all_branches(key, opt){ return etask({_: this}, function*find(){
+    let _this = this._, {cfid} = opt, scroll = _this.scroll;
+    assert.strictEqual(opt.count, undefined, 'count not allowed');
+    assert.strictEqual(opt.bseq, undefined, 'bseq not allowed');
+    let branches = scroll.get_branches(cfid);
+    branches.unshift(null); // XXX: mv it to get_branches
+    for (let i=0; i<branches.length; i++){
+      let bseq = scroll.get_branch_top(cfid, branches[i]).bseq;
+      let seq = yield scroll.find_one(key, {...opt, bseq});
+      if (seq)
+        return seq;
+    }
+  }); }
 }
 
 function iter_ret(iter, val){

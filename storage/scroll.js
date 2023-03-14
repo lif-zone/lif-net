@@ -1253,6 +1253,9 @@ export default class Scroll extends EventEmitterAsync {
   find(key, opt){ return this.index_table?.find(key, opt); }
   find_one(key, opt){ return this.index_table?.find_one(key, opt); }
   find_iter(key, opt){ return this.index_table?.find_iter(key, opt); }
+  find_one_all_branches(key, opt){
+    return this.index_table?.find_one_all_branches(key, opt);
+  }
   get_section(cfid, seq){
     return this.conflict.get(cfid).mem_map.get_section(seq); }
   is_mem_exists(cfid, min, max){ // XXX: need test

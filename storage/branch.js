@@ -42,6 +42,7 @@ export default class Branch_table {
     return scroll.get_branch_table(parent.cfid).get_branch(branch);
   }
   get_branches(seq, ret){ // XXX: optimize + test
+    seq = seq===undefined ? Infinity : seq;
     ret = ret||[];
     this.avl.range({seq: 0}, {seq}, node=>{
       let bo = node.key;

@@ -58,13 +58,13 @@ export default class GIT extends FS {
           continue;
         commits.unshift(curr);
         parent = curr.commit.parent[0];
-        // XXX: save parent[1] as merge info
-        // autohr, ts, merge, tree, timestamp, timezoneOffset,
+        // XXX: save missing info
+        // autohr, ts, tree, timestamp, timezoneOffset,
         // commit, gpgsig
       }
       let cfid = 0; // XXX: support conflict
       for (let i=0; i<commits.length; i++){
-        let {oid, commit} = commits[i], prev, parent = commit.parent[0];
+        let {oid, commit} = commits[i], prev, [parent, merge] = commit.parent;
         // XXX: review find_one_all_branches with derry
         let seq = yield _this.find_one_all_branches(oid,
           {name: 'git.oid', cfid});
@@ -82,8 +82,10 @@ export default class GIT extends FS {
         // XXX: we might need to use new branch name in some cases (test it)
         let group = yield _this._sync_dir(config, cfid, branch, prev,
           '/', commit.tree, '0');
-        yield _this.decl({cfid, group}, {op: 'commit', desc: commit.message,
-          git: {oid}});
+        let body = {op: 'commit', desc: commit.message, git: {oid}};
+        if (merge)
+          body.git.merge = merge;
+        yield _this.decl({cfid, group}, body);
       }
     }
   }); }

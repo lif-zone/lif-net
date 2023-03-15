@@ -1058,7 +1058,8 @@ describe('git', ()=>{
           f2:0x6272616e63685f66696c65320a
           git:{oid:00cd2033b090d099f771e57f39f23c858c22f651 mode:100644}}
         seq12={group:2 op:commit desc(${desc18})
-          git:{oid:529918326b683cebb869faa11ee487f70828fb31}}
+          git:{oid:529918326b683cebb869faa11ee487f70828fb31
+          merge:d4181b6ca66e54bb077feb44f6554d0c6236ba2b}}
         seq13={op:mod file:/main_file3 content:1 f2:${d19}
           git:{oid:70350ee2b46550a16f7f3e4ab189620f89194ce3 mode:100644}}
         seq14={op:commit desc(Update main_file3)
@@ -1087,6 +1088,8 @@ describe('git', ()=>{
         $$c2(549f06c75c8818b582f552d110094a4b617196f9)
         $$c3(ebfa9a6980f982ffef775895cbb5a6e48a3cfc3c)
         $$c4(f748254314933c43f7992743c3ef8c04f7f0a70d)
+        $$M1(ebfa9a6980f982ffef775895cbb5a6e48a3cfc3c
+          merge:f748254314933c43f7992743c3ef8c04f7f0a70d)
         $$c5(63f7e4a5ba325b71f00f32dc53d45a606c1b75eb)
         $$c6(70327166e0bbc36da012739545f77e392f6557f5)
         $$c7(9215645089772245e3583f257527e4ac40093607)
@@ -1111,7 +1114,7 @@ describe('git', ()=>{
         (4  !         add    $f2  $mf (file:/file3 content:1 f2:0x0a))
         (5  !         commit $c2  !   (desc(Create file3)))
         (6  !         add    $f2  $mf (file:/file1-branch1 link:4))
-        (7  !         commit $c3  !   (desc(${desc7})))
+        (7  !         commit $M1  !   (desc(${desc7})))
         (8  !         add    $f2  $mf (file:/file4 link:4))
         (9  !         commit $c8  !   (desc(Create file4)))
         (10 !         add    $f2  $mf (file:/file5 link:4))
@@ -1145,7 +1148,7 @@ describe('git', ()=>{
         (4  !         add    $f2  $mf (file:/file3 content:1 f2:0x0a))
         (5  !         commit $c2  !   (desc(Create file3)))
         (6  !         add    $f2  $mf (file:/file1-branch1 link:4))
-        (7  !         commit $c3  !   (desc(${desc7})))
+        (7  !         commit $M1  !   (desc(${desc7})))
         (8  3-1.0     add    $f2  $mf ($br1 file:/file1-branch1 link:4))
         (9  3-1.1     commit $c4  !   (desc(Create file1-branch1)))
         (10 3-2.0     add    $f2  $mf ($br2 file:/file1-branch2 link:4))
@@ -1172,7 +1175,7 @@ describe('git', ()=>{
         ##seq30={}`);
     });
     // XXX TODO:
-    // 1. review find_one_all_branches
+    // 1. review find_one_all_branches+encode_str
     // 2. add missing commit info
     // 3. static tag support
     // 4. verify I can rebuilt all git oid (file/dir/commit sha)

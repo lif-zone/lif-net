@@ -77,7 +77,7 @@ E.parse_get_next = function(curr){
       assert(vars['$$last'], 'missing $$last');
       return {exp: vars['$$last'], s, at, vars, skip_macro};
     }
-    let m = exp.match(/^\$\$([a-zA-Z][a-zA-Z0-9]*)\((.*)\)$/);
+    let m = exp.match(/^\$\$([a-zA-Z][a-zA-Z0-9]*)\(([.\s\S]*)\)$/);
     if (m){
       vars[m[1]] = m[2];
       let l = s.substr(0, curr.at||0), r = s.substr(at);

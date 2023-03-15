@@ -19,7 +19,7 @@ export default class GIT extends FS {
     super(opt);
     this.cache = {};
   }
-  sync(){ return etask({_: this}, function*sync(){
+  sync(opt={}){ return etask({_: this}, function*sync(){
     // XXX: need lock
     let _this = this._;
     let body = _this.get_decl(0).get_body(0);
@@ -28,10 +28,14 @@ export default class GIT extends FS {
     let url = body.scroll?.src;
     if (!url)
       throw new Error('missing git src');
+    let config = {fs, http, cache: _this.cache, url};
     // XXX: decide how to create valid dir
-    let dir = '/tmp/lif_git_'+escape_fs(url);
-    let config = {dir, url, fs, http, cache: _this.cache};
-    yield git_api.clone({...config});
+    config.dir = opt.dir||'/tmp/lif_git_'+escape_fs(url);
+    config.gitdir = opt.gitdir;
+    if (config.gitdir)
+      yield git_api.init({...config});
+    else
+      yield git_api.clone({...config});
     let gbranches = yield git_api.listBranches({...config, remote: 'origin'});
     if (gbranches.includes('HEAD'))
       array.rm_elm(gbranches, 'HEAD');
@@ -45,6 +49,7 @@ export default class GIT extends FS {
       yield git_api.checkout({...config, ref: gbranch, remote: 'origin'});
       yield git_api.fetch({...config});
       let head = yield git_api.resolveRef({...config, ref: gbranch});
+      // XXX: use since from last sync
       let log = yield git_api.log({...config, ref: gbranch});
       let commits = [];
       for (let i=0, parent; i<log.length; i++){

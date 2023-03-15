@@ -25,16 +25,16 @@ export default class GIT extends FS {
     let body = _this.get_decl(0).get_body(0);
     if (!body)
       throw new Error('missing seq0 body');
-    let url = body.scroll?.src;
+    let url = opt.url||body.scroll?.src;
     if (!url)
       throw new Error('missing git src');
     let config = {fs, http, cache: _this.cache, url};
     // XXX: decide how to create valid dir
     config.dir = opt.dir||'/tmp/lif_git_'+escape_fs(url);
-    config.gitdir = opt.gitdir;
-    if (config.gitdir)
+    if (opt.gitdir){
+      config.gitdir = opt.gitdir;
       yield git_api.init({...config});
-    else
+    } else
       yield git_api.clone({...config});
     let gbranches = yield git_api.listBranches({...config, remote: 'origin'});
     if (gbranches.includes('HEAD'))

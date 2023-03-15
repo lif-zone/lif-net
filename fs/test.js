@@ -1171,6 +1171,15 @@ describe('git', ()=>{
         (29 3-2.3-1.1 commit $c14 !   (desc(Create file_b4))))
         ##seq30={}`);
     });
+    // XXX TODO:
+    // 1. review find_one_all_branches
+    // 2. add missing commit info
+    // 3. static tag support
+    // 4. verify I can rebuilt all git oid (file/dir/commit sha)
+    // 5. detect that scroll was changed without git?
+    // 6. db test
+    // 7. conflict test
+    // 8. XXX cleanup
   });
 });
 

@@ -59,17 +59,19 @@ export default class GIT extends FS {
       }
       let cfid = 0; // XXX: support conflict
       for (let i=0; i<commits.length; i++){
-        let {oid, commit} = commits[i], prev;
+        let {oid, commit} = commits[i], prev, parent = commit.parent[0];
         // XXX: review find_one_all_branches with derry
         let seq = yield _this.find_one_all_branches(oid,
           {name: 'git.oid', cfid});
         if (seq)
           continue;
-        if (commit.parent[0]){
+        if (parent){
           // XXX: need smarter logic, current logic depends on order of
           // branches
-          prev = yield _this.find_one_all_branches(commit.parent[0],
+          prev = yield _this.find_one_all_branches(parent,
             {name: 'git.oid', cfid});
+          if (!prev)
+            throw new Error('parent commit was not found '+parent);
         }
         let branch = gbranch=='main' ? null : gbranch; // XXX HACK
         let group = yield _this._sync_dir(config, cfid, branch, prev,

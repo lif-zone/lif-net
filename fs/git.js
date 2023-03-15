@@ -74,6 +74,7 @@ export default class GIT extends FS {
             throw new Error('parent commit was not found '+parent);
         }
         let branch = gbranch=='main' ? null : gbranch; // XXX HACK
+        // XXX: we might need to use new branch name in some cases (test it)
         let group = yield _this._sync_dir(config, cfid, branch, prev,
           '/', commit.tree, '0');
         yield _this.decl({cfid, group}, {op: 'commit', desc: commit.message,

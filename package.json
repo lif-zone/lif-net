@@ -16,7 +16,7 @@
     "yargs": "17.6.2",
     "diff": "5.1.0",
     "diff-match-patch": "1.0.5",
-    "isomorphic-git": "1.21.0",
+    "isomorphic-git": "1.22.0",
     "indexeddbshim": "10.0.0",
     "random-access-idb": "1.2.2",
     "@babel/preset-env": "7.16.5",

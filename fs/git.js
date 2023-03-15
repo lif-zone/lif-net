@@ -31,8 +31,6 @@ export default class GIT extends FS {
     // XXX: decide how to create valid dir
     let dir = '/tmp/lif_git_'+escape_fs(url);
     let config = {dir, url, fs, http, cache: _this.cache};
-    // XXX HACK: decide how to get it
-    config.author = {name: 'XXX', email: 'xxx@xxx.com'};
     yield git_api.clone({...config});
     let gbranches = yield git_api.listBranches({...config, remote: 'origin'});
     if (gbranches.includes('HEAD'))
@@ -45,7 +43,7 @@ export default class GIT extends FS {
     for (let b=0; b<gbranches.length; b++){
       let gbranch = gbranches[b];
       yield git_api.checkout({...config, ref: gbranch, remote: 'origin'});
-      yield git_api.pull({...config});
+      yield git_api.fetch({...config});
       let head = yield git_api.resolveRef({...config, ref: gbranch});
       let log = yield git_api.log({...config, ref: gbranch});
       let commits = [];

@@ -59,6 +59,8 @@ export default class GIT extends FS {
         commits.unshift(curr);
         parent = curr.commit.parent[0];
         // XXX: save parent[1] as merge info
+        // autohr, ts, merge, tree, timestamp, timezoneOffset,
+        // commit, gpgsig
       }
       let cfid = 0; // XXX: support conflict
       for (let i=0; i<commits.length; i++){
@@ -95,7 +97,7 @@ export default class GIT extends FS {
     // XXX: eraly return if if dir oid did not changed
     // XXX: if no top, use prev top bseq
     if (!(yield _this.dir_exists(dir, {cfid, branch, prev}))){
-      yield _this.add_dir(dir, {cfid, branch, prev, body: {git: {oid, mode}}});
+      yield _this.add_dir(dir, {cfid, branch, prev, body: {git: {mode}}});
       n++;
       prev = undefined;
     }

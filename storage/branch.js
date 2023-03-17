@@ -25,9 +25,9 @@ export default class Branch_table {
     this.reset_schedule();
   }
   reset_schedule(){ this.storage_queue = {mod: {}, rm: {}}; }
-  bseq_to_branch(bseq){
+  bseq_to_branch(bseq){ // XXX: need test
     let bseqb = bseq_branch(bseq);
-    if (!bseq)
+    if (!bseqb)
       return null;
     let bo = this.branch_bseq.get(bseqb+'.0');
     return bo?.branch;
@@ -78,11 +78,12 @@ export default class Branch_table {
     }
   }
   get_bo_bseq(bseq){ // XXX: need test
+    let min = bseq_0(bseq);
     for (let n = this.avl_bseq._root; n;
       n = bseq < n.key.bseq ? n.left : n.right)
     {
       let bo = n.key;
-      if (bo.bseq<=bseq && bseq<bseq_inc(bo.bseq, bo.size))
+      if (bo.bseq>=min && bo.bseq<=bseq && bseq<bseq_inc(bo.bseq, bo.size))
         return bo;
     }
   }
@@ -280,6 +281,11 @@ function bseq_branch_inc(a){
   return m[1]+'-'+bseq_inc(m[2])+'.0';
 }
 
+function bseq_0(bseq){
+  let bseqb = bseq_branch(bseq);
+  return bseqb ? bseqb+'.0' : '0';
+}
+
 function bseq_branch(bseq){
   assert(bseq_valid(bseq), 'invalid bseq '+bseq);
   return bseq.match(/^([\d.\-_]+)\.[_]*\d+$/)?.[1]||null;
@@ -324,6 +330,7 @@ Branch_table.bint_valid = bint_valid;
 Branch_table.bseq_inc = bseq_inc;
 Branch_table.bseq_diff = bseq_diff;
 Branch_table.bseq_cmp = bseq_cmp;
+Branch_table.bseq_0 = bseq_0;
 Branch_table.bseq_branch = bseq_branch;
 Branch_table.bseq_parent = bseq_parent;
 Branch_table.bseq_branch_belongs = bseq_branch_belongs;

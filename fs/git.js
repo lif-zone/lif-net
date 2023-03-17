@@ -7,9 +7,11 @@ import FS from './fs.js';
 import util from '../util/util.js';
 import etask from '../util/etask.js';
 import Scroll from '../storage/scroll.js';
+import Branch_table from '../storage/branch.js';
 import buf_util from '../net/buf_util.js';
 import git_api from 'isomorphic-git';
 const b2s = buf_util.buf_to_str, s2b = buf_util.buf_from_str;
+const {bseq_0} = Branch_table;
 
 // XXX: need test + mv to generic place + need proper escape
 function escape_fs(s){ return s.replaceAll('/', '_').replaceAll(':', '_'); }
@@ -36,21 +38,22 @@ export default class GIT extends FS {
       yield git_api.init({...config});
     } else
       yield git_api.clone({...config});
-    let gbranches = yield git_api.listBranches({...config, remote: 'origin'});
-    if (gbranches.includes('HEAD'))
-      array.rm_elm(gbranches, 'HEAD');
-    if (gbranches.includes('main')){
-      array.rm_elm(gbranches, 'main'); // XXX: do it on HEAD gbranch
-      gbranches.unshift('main');
+    let git_branches = yield git_api.listBranches({...config,
+      remote: 'origin'});
+    if (git_branches.includes('HEAD'))
+      array.rm_elm(git_branches, 'HEAD');
+    if (git_branches.includes('main')){
+      array.rm_elm(git_branches, 'main'); // XXX: do it on HEAD git_br
+      git_branches.unshift('main');
     }
     // XXX: we assume main is the main branch. need to get it from HEAD
-    for (let b=0; b<gbranches.length; b++){
-      let gbranch = gbranches[b];
-      yield git_api.checkout({...config, ref: gbranch, remote: 'origin'});
+    for (let b=0; b<git_branches.length; b++){
+      let git_br = git_branches[b];
+      yield git_api.checkout({...config, ref: git_br, remote: 'origin'});
       yield git_api.fetch({...config});
-      let head = yield git_api.resolveRef({...config, ref: gbranch});
+      let head = yield git_api.resolveRef({...config, ref: git_br});
       // XXX: use since from last sync
-      let log = yield git_api.log({...config, ref: gbranch});
+      let log = yield git_api.log({...config, ref: git_br});
       let commits = [];
       for (let i=0, parent; i<log.length; i++){
         let curr = log[i];
@@ -78,7 +81,7 @@ export default class GIT extends FS {
           if (!prev)
             throw new Error('parent commit was not found '+parent);
         }
-        let branch = gbranch=='main' ? null : gbranch; // XXX HACK
+        let branch = git_br=='main' ? null : git_br; // XXX HACK
         // XXX: we might need to use new branch name in some cases (test it)
         let group = yield _this._sync_dir(config, cfid, branch, prev,
           '/', commit.tree, '0');
@@ -164,6 +167,18 @@ export default class GIT extends FS {
       }
     }
     return n;
+  }); }
+  get_git_branch(cfid, seq){ return etask({_: this}, function*get_git_branch(){
+    let _this = this._;
+    let bseq = _this.bseq_get(cfid, seq), bseqb0 = bseq_0(bseq);
+    if (bseqb0=='0')
+      return null;
+    let seq_b = _this.bseq_to_seq(cfid, bseqb0);
+    let decl = _this.get_decl(seq_b);
+    yield decl.load(cfid);
+    let header = decl.get_header(cfid);
+    assert(header.branch, 'missing branch for '+bseqb0);
+    return header.branch;
   }); }
 }
 

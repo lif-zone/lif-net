@@ -1173,16 +1173,59 @@ describe('git', ()=>{
         (28 3-2.3-1.0 add    $f2  $mf ($br4 file:/file_b4 link:4))
         (29 3-2.3-1.1 commit $c14 !   (desc(Create file_b4))))
         ##seq30={}`);
+      t_branch_vars = `$$c1(79db66810d6c2af9181b97feed1b865bee3d2101)
+        $$c2(6e512652a3b6bd8a12adcd9a1f0086029a8199f8)
+        $$c3(0ca332fb7b3a3c6493abb6b28c4f340fcc1b2842)
+        $$c4(8e9a8ccc46bad9514abe70acac01c50c018b3f7e)
+        $$f1(8b137891791fe96927ad78e64b0aad7bded08bdc)
+        $$br1(branch:br1) $$br1b(branch:br1b) $$mf(mode:100644) $$m0(mode:0)`;
+      t('branch_no_rename', `s..git(src(lif-zone/test_branch_dup_rename)) sync
+        ${t_branch_vars}
+        ##seq$1={bseq:$2 op:$3 $rm_parentesis($6) git:{oid:$4 $5}} $$(
+        // seq-bseq   op     oid  mod extra
+        (1  !         add    !    $m0 (dir:/))
+        (2  !         add    $f1  $mf (file:/f1 content:1 f2:0x0a))
+        (3  !         commit $c1  !   (group:2 desc(f1)))
+        (4  !         add    $f1  $mf (file:/f2 link:2))
+        (5  !         commit $c2  !   (desc(f2)))
+        (6  3-1.0     add    $f1  $mf ($br1b file:/b1_f1 link:2))
+        (7  3-1.1     commit $c3  !   (desc(b1_f1)))
+        (8  3-1.2     add    $f1  $mf (file:/br1b_f2 link:2))
+        (9  3-1.3     commit $c4  !   (desc(br1b_f2))))
+        ##seq10={}`);
+      if (0) // XXX WIP
+      t('branch_rename', `s..git(src(lif-rnd/test_branch_dup)) sync
+        ${t_branch_vars}
+        ##seq$1={bseq:$2 op:$3 $rm_parentesis($6) git:{oid:$4 $5}} $$(
+        // seq-bseq   op     oid  mod extra
+        (1  !         add    !    $m0 (dir:/))
+        (2  !         add    $f1  $mf (file:/f1 content:1 f2:0x0a))
+        (3  !         commit $c1  !   (group:2 desc(f1)))
+        (4  !         add    $f1  $mf (file:/f2 link:2))
+        (5  !         commit $c2  !   (desc(f2)))
+        (6  3-1.0     add    $f1  $mf ($br1 file:/b1_f1 link:2))
+        (7  3-1.1     commit $c3  !   (desc(b1_f1))))
+        branch:new_name link:7
+        ##seq8={} sync(url:/lif-zone/test_branch_dup_rename) $last $$(
+        // rm old branch
+        (8  3-1.2 add    $f1  $mf ($br1b file:/br1b_f2 link:2))
+        (9  3-1.3 commit $c4  !   (desc(br1b_f2))))
+        ##seq10={}
+      `);
     });
     // XXX TODO:
     // 1. review find_one_all_branches+encode_str
-    // 2. add missing commit info
-    // 3. static tag support
-    // 4. verify I can rebuilt all git oid (file/dir/commit sha)
-    // 5. detect that scroll was changed without git?
-    // 6. db test
-    // 7. conflict test
-    // 8. XXX cleanup
+    // 2. add test for same git branch name, but different branches
+    // 3. add missing commit info
+    // 4. static tag support
+    // 5. verify I can rebuilt all git oid (file/dir/commit sha)
+    // 6. detect that scroll was changed without git?
+    // git git+a git+a+b git+a+b+c....
+    // git git+a git+A       git+a+b git+a+b+c...
+    //    git+a+A-(A & a)   git+a+A-(A&a)+b-(b&&a...)
+    // 7. db test
+    // 8. conflict test
+    // 9. XXX cleanup
   });
 });
 

@@ -1026,11 +1026,11 @@ describe('git', ()=>{
           git:{oid:632392939fe3e3abcfd259ef24f2ff2a08d55f73}}
         seq4={link:2 op:add file:/file_from_cli
           git:{oid:8b137891791fe96927ad78e64b0aad7bded08bdc mode:100644}}
-        seq5={op:commit desc(${desc5})
+        seq5={group:1 op:commit desc(${desc5})
           git:{oid:4ee9e2edc6655e077b2b01f379b7acc5e3c35d8f}}
         seq6={op:mod file:/file_from_cli content:1 f2:0x76320a
           git:{oid:8c1384d825dbbe41309b7dc18ee7991a9085c46e mode:100644}}
-        seq7={op:commit desc(test)
+        seq7={group:1 op:commit desc(test)
           git:{oid:ca6b21664600f971cdeadbd357b98fd37ee53d8f}})`);
       let d2 = '0x66696c6520613a0a'+('58'.repeat(104)+'0a').repeat(17);
       let d10 = '0x66696c6520630a'+('58'.repeat(104)+'0a').repeat(17);
@@ -1054,7 +1054,7 @@ describe('git', ()=>{
           git:{oid:05dfa3ebd084699425fe3ac202ec7cae7bbee89b}}
         seq10={op:add file:/dir1/c content:1 f2:${d10}
           git:{oid:bc9e3e7b4c0e05a8efb4942498c1afc86d431672 mode:100644}}
-        seq11={op:commit desc(add c)
+        seq11={group:1 op:commit desc(add c)
           git:{oid:3538536829ce7864fa53cdd85b78af1e8c5c8522}}
         // XXX derry: detect move /dir1/ -> /dir2/
         seq12={op:rm file:/dir1/c}
@@ -1065,7 +1065,7 @@ describe('git', ()=>{
           git:{oid:7780c82f7ec168abd6f2cd9f756058fcedad80f2 mode:100644}}
         seq17={op:add file:/dir2/c link:10
           git:{oid:bc9e3e7b4c0e05a8efb4942498c1afc86d431672 mode:100644}}
-        seq18={op:commit group:6 desc(/dir1 -> /dir2)
+        seq18={group:1 op:commit group:6 desc(/dir1 -> /dir2)
           git:{oid:a7dc61ad160e9e5d004f02b86e79bc289ad24af8}}
         seq19={op:rm file:/b}
         seq20={op:add dir:/b/ git={mode:040000}}
@@ -1093,15 +1093,15 @@ describe('git', ()=>{
           git:{oid:90d08c6fe5d7a766218f3db8355402d1e88030a9}}
         seq4={op:mod file:/main_file1 content:1 f2:0x66696c65310a
           git:{oid:e2129701f1a4d54dc44f03c93bca0a2aec7c5449 mode:100644}}
-        seq5={op:commit desc(Update main_file1)
+        seq5={op:commit group:1 desc(Update main_file1)
           git:{oid:ff1c84df1f072b79a8fe8cc0edb3ed24e33134c8}}
         seq6={op:add file:/main_file2 content:1 f2:0x66696c65320a
           git:{oid:6c493ff740f9380390d5c9ddef4af18697ac9375 mode:100644}}
-        seq7={op:commit desc(Create main_file2)
+        seq7={op:commit group:1 desc(Create main_file2)
           git:{oid:ab861bddf2f5674d199ac1d04aa420286c2b4de6}}
         seq8={op:add file:/main_file3 content:1 f2:0x6d61696e5f66696c65330a
           git:{oid:9df9148b245e84d4eefc7adfb9d747c2a3e6966a mode:100644}}
-        seq9={op:commit desc(Create main_file3)
+        seq9={op:commit group:1 desc(Create main_file3)
           git:{oid:0999c0da6a48c7fb3e12a2478af689abe84ccd36}}
         seq10={op:add file:/branch_file1
           content:1 f2:0x6272616e63685f66696c65310a
@@ -1114,19 +1114,19 @@ describe('git', ()=>{
           merge:d4181b6ca66e54bb077feb44f6554d0c6236ba2b}}
         seq13={op:mod file:/main_file3 content:1 f2:${d19}
           git:{oid:70350ee2b46550a16f7f3e4ab189620f89194ce3 mode:100644}}
-        seq14={op:commit desc(Update main_file3)
+        seq14={op:commit group:1 desc(Update main_file3)
           git:{oid:3c32b322655215d3723de7362a6880bb7ff20e4d}}
         seq15={op:mod file:/main_file3 diff:1 link:13 f2=${d21}
           git:{oid:c11256c184e585acd4bc63f86adc1b4cb512affa mode:100644}}
-        seq16={op:commit desc(Update main_file3)
+        seq16={op:commit group:1 desc(Update main_file3)
           git:{oid:e37d0cbddd4c351996dae2a01f04986dbab5b071}}
         seq17={bseq:7-1.0 branch:branch1 op:add file:/branch_file1 link:10
           git:{oid:81feec21ec7e7b068f45ca64ca352e151331fcf2 mode:100644}}
-        seq18={bseq:7-1.1 op:commit desc(Create branch_file1)
+        seq18={bseq:7-1.1 op:commit group:1 desc(Create branch_file1)
           git:{oid:8ed244dd4cf2cac485cfe0665e0450f0fbb7e71e}}
         seq19={bseq:7-1.2 op:add file:/branch_file2 link:11
           git:{oid:00cd2033b090d099f771e57f39f23c858c22f651 mode:100644}}
-        seq20={bseq:7-1.3 op:commit desc(Create branch_file2)
+        seq20={bseq:7-1.3 op:commit group:1 desc(Create branch_file2)
           git:{oid:d4181b6ca66e54bb077feb44f6554d0c6236ba2b}}
         // XXX: missing test_tag1
         )`);
@@ -1164,31 +1164,31 @@ describe('git', ()=>{
         (2  !         add    $f1  $mf (file:/file1 content:1 f2:${d2}))
         (3  !         commit $c1  !   (group:2 desc(Create file1)))
         (4  !         add    $f2  $mf (file:/file3 content:1 f2:0x0a))
-        (5  !         commit $c2  !   (desc(Create file3)))
+        (5  !         commit $c2  !   (group:1 desc(Create file3)))
         (6  !         add    $f2  $mf (file:/file1-branch1 link:4))
-        (7  !         commit $M1  !   (desc(${desc7})))
+        (7  !         commit $M1  !   (group:1 desc(${desc7})))
         (8  !         add    $f2  $mf (file:/file4 link:4))
-        (9  !         commit $c8  !   (desc(Create file4)))
+        (9  !         commit $c8  !   (group:1 desc(Create file4)))
         (10 !         add    $f2  $mf (file:/file5 link:4))
-        (11 !         commit $c9  !   (desc(Create file5)))
+        (11 !         commit $c9  !   (group:1 desc(Create file5)))
         (12 3-1.0     add    $f2  $mf ($br1 file:/file1-branch1 link:4))
-        (13 3-1.1     commit $c4  !   (desc(Create file1-branch1)))
+        (13 3-1.1     commit $c4  !   (group:1 desc(Create file1-branch1)))
         (14 3-1.2     add    $f2  $mf (file:/file4b1 link:4))
-        (15 3-1.3     commit $c10 !   (desc(Create file4b1)))
+        (15 3-1.3     commit $c10 !   (group:1 desc(Create file4b1)))
         (16 3-2.0     add    $f2  $mf ($br2 file:/file1-branch2 link:4))
-        (17 3-2.1     commit $c5  !   (desc(Create file1-branch2)))
+        (17 3-2.1     commit $c5  !   (group:1 desc(Create file1-branch2)))
         (18 3-2.2     add    $f2  $mf (file:/file_b2 link:4))
-        (19 3-2.3     commit $c11 !   (desc(Create file_b2)))
+        (19 3-2.3     commit $c11 !   (group:1 desc(Create file_b2)))
         (20 3-2.1-1.0 add    $f2  $mf ($br2b1 file($file2b1) link:4))
-        (21 3-2.1-1.1 commit $c6  !   (desc(Create file1 branch2b1)))
+        (21 3-2.1-1.1 commit $c6  !   (group:1 desc(Create file1 branch2b1)))
         (22 3-2.1-1.2 add    $f2  $mf (file:/file4b2b1 link:4))
-        (23 3-2.1-1.3 commit $c12 !   (desc(Create file4b2b1)))
+        (23 3-2.1-1.3 commit $c12 !   (group:1 desc(Create file4b2b1)))
         (24 3-3.0     add    $f2  $mf ($br3 file(/file2 branch3) link:4))
-        (25 3-3.1     commit $c7  !   (desc(Create file2 branch3)))
+        (25 3-3.1     commit $c7  !   (group:1 desc(Create file2 branch3)))
         (26 3-3.2     add    $f2  $mf (file:/file_b4 link:4))
-        (27 3-3.3     commit $c13 !   (desc(Create file_b4)))
+        (27 3-3.3     commit $c13 !   (group:1 desc(Create file_b4)))
         (28 3-2.3-1.0 add    $f2  $mf ($br4 file:/file_b4 link:4))
-        (29 3-2.3-1.1 commit $c14 !   (desc(Create file_b4))))
+        (29 3-2.3-1.1 commit $c14 !   (group:1 desc(Create file_b4))))
         ##seq30={}`);
       t('branch_inc', `s..git(src(lif-rnd/test_branch)) sync
         ${t_branch_vars}
@@ -1198,32 +1198,32 @@ describe('git', ()=>{
         (2  !         add    $f1  $mf (file:/file1 content:1 f2:${d2}))
         (3  !         commit $c1  !   (group:2 desc(Create file1)))
         (4  !         add    $f2  $mf (file:/file3 content:1 f2:0x0a))
-        (5  !         commit $c2  !   (desc(Create file3)))
+        (5  !         commit $c2  !   (group:1 desc(Create file3)))
         (6  !         add    $f2  $mf (file:/file1-branch1 link:4))
-        (7  !         commit $M1  !   (desc(${desc7})))
+        (7  !         commit $M1  !   (group:1 desc(${desc7})))
         (8  3-1.0     add    $f2  $mf ($br1 file:/file1-branch1 link:4))
-        (9  3-1.1     commit $c4  !   (desc(Create file1-branch1)))
+        (9  3-1.1     commit $c4  !   (group:1 desc(Create file1-branch1)))
         (10 3-2.0     add    $f2  $mf ($br2 file:/file1-branch2 link:4))
-        (11 3-2.1     commit $c5  !   (desc(Create file1-branch2)))
+        (11 3-2.1     commit $c5  !   (group:1 desc(Create file1-branch2)))
         (12 3-2.1-1.0 add    $f2  $mf ($br2b1 file($file2b1) link:4))
-        (13 3-2.1-1.1 commit $c6  !   (desc(Create file1 branch2b1)))
+        (13 3-2.1-1.1 commit $c6  !   (group:1 desc(Create file1 branch2b1)))
         (14 3-3.0     add    $f2  $mf ($br3 file(/file2 branch3) link:4))
-        (15 3-3.1     commit $c7  !   (desc(Create file2 branch3))))
+        (15 3-3.1     commit $c7  !   (group:1 desc(Create file2 branch3))))
         ##seq16={} sync(url(/lif-zone/test_branch_inc)) $last $$(
         (16 8         add    $f2  $mf (file:/file4 link:4))
-        (17 9         commit $c8  !   (desc(Create file4)))
+        (17 9         commit $c8  !   (group:1 desc(Create file4)))
         (18 _10       add    $f2  $mf (file:/file5 link:4))
-        (19 _11       commit $c9  !   (desc(Create file5)))
+        (19 _11       commit $c9  !   (group:1 desc(Create file5)))
         (20 3-1.2     add    $f2  $mf (file:/file4b1 link:4))
-        (21 3-1.3     commit $c10 !   (desc(Create file4b1)))
+        (21 3-1.3     commit $c10 !   (group:1 desc(Create file4b1)))
         (22 3-2.2     add    $f2  $mf (file:/file_b2 link:4))
-        (23 3-2.3     commit $c11 !   (desc(Create file_b2)))
+        (23 3-2.3     commit $c11 !   (group:1 desc(Create file_b2)))
         (24 3-2.1-1.2 add    $f2  $mf (file:/file4b2b1 link:4))
-        (25 3-2.1-1.3 commit $c12 !   (desc(Create file4b2b1)))
+        (25 3-2.1-1.3 commit $c12 !   (group:1 desc(Create file4b2b1)))
         (26 3-3.2     add    $f2  $mf (file:/file_b4 link:4))
-        (27 3-3.3     commit $c13 !   (desc(Create file_b4)))
+        (27 3-3.3     commit $c13 !   (group:1 desc(Create file_b4)))
         (28 3-2.3-1.0 add    $f2  $mf ($br4 file:/file_b4 link:4))
-        (29 3-2.3-1.1 commit $c14 !   (desc(Create file_b4))))
+        (29 3-2.3-1.1 commit $c14 !   (group:1 desc(Create file_b4))))
         ##seq30={}`);
       t_branch_vars = `$$c1(79db66810d6c2af9181b97feed1b865bee3d2101)
         $$c2(6e512652a3b6bd8a12adcd9a1f0086029a8199f8)
@@ -1239,11 +1239,11 @@ describe('git', ()=>{
         (2  !         add    $f1  $mf (file:/f1 content:1 f2:0x0a))
         (3  !         commit $c1  !   (group:2 desc(f1)))
         (4  !         add    $f1  $mf (file:/f2 link:2))
-        (5  !         commit $c2  !   (desc(f2)))
+        (5  !         commit $c2  !   (group:1 desc(f2)))
         (6  3-1.0     add    $f1  $mf ($br1b file:/b1_f1 link:2))
-        (7  3-1.1     commit $c3  !   (desc(b1_f1)))
+        (7  3-1.1     commit $c3  !   (group:1 desc(b1_f1)))
         (8  3-1.2     add    $f1  $mf (file:/br1b_f2 link:2))
-        (9  3-1.3     commit $c4  !   (desc(br1b_f2))))
+        (9  3-1.3     commit $c4  !   (group:1 desc(br1b_f2))))
         ##seq10={}`);
       if (0) // XXX WIP
       t('branch_rename', `s..git(src(lif-rnd/test_branch_dup)) sync
@@ -1254,31 +1254,41 @@ describe('git', ()=>{
         (2  !         add    $f1  $mf (file:/f1 content:1 f2:0x0a))
         (3  !         commit $c1  !   (group:2 desc(f1)))
         (4  !         add    $f1  $mf (file:/f2 link:2))
-        (5  !         commit $c2  !   (desc(f2)))
+        (5  !         commit $c2  !   (group:1 desc(f2)))
         (6  3-1.0     add    $f1  $mf ($br1 file:/b1_f1 link:2))
-        (7  3-1.1     commit $c3  !   (desc(b1_f1))))
+        (7  3-1.1     commit $c3  !   (group:1 desc(b1_f1))))
         branch:new_name link:7
         ##seq8={} sync(url:/lif-zone/test_branch_dup_rename) $last $$(
         // rm old branch
         (8  3-1.2 add    $f1  $mf ($br1b file:/br1b_f2 link:2))
-        (9  3-1.3 commit $c4  !   (desc(br1b_f2))))
+        (9  3-1.3 commit $c4  !   (group:1 desc(br1b_f2))))
         ##seq10={}
       `);
     });
     describe('git2', ()=>{
       let t_common = `$$mf(mode:100644) $$m0(mode:0) buf(d1:1)
-        $$f1(d00491fd7e5bb6fa28c517a0bb32b8b506539d4d)
+        $$d1(d00491fd7e5bb6fa28c517a0bb32b8b506539d4d)
         $$R(/tmp/__lif_test/git_test)
-        git_init($R)`;
+        git_init($R) s..git(src(git_test))
+        $$t(sync(gitdir($R/.git))
+          ##seq$1={bseq:$2 op:$3 $rm_parentesis($6) git:{oid:$4 $5}})`;
       const t = (name, test)=>it(name, ()=>test_run(test));
       t('commit_file', `${t_common}
-        fs_write($R/f1 d1) git_add(f1) git_commit(oid1 c_f1)
-        s..git(src(git_test)) sync(gitdir($R/.git))
-        ##seq$1={bseq:$2 op:$3 $rm_parentesis($6) git:{oid:$4 $5}} $$(
+        fs_write($R/f1 d1) git_add(f1) git_commit(oid1 c_f1) $t $$(
         (1  !         add    !     $m0 (dir:/))
-        (2  !         add    $f1   $mf (file:/f1 content:1 f2:d1))
-        (3  !         commit $oid1 !   (desc(c_f1) group:2)))
+        (2  !         add    $d1   $mf (file:/f1 content:1 f2:d1))
+        (3  !         commit $oid1 !   (group:1 desc(c_f1) group:2)))
         ##seq4={}`);
+      t('merge_two_parents', `${t_common}
+        fs_write($R/f1 d1) git_add(f1) git_commit(oid1 c_f1) $t $$(
+        (1  !         add    !     $m0 (dir:/))
+        (2  !         add    $d1   $mf (file:/f1 content:1 f2:d1))
+        (3  !         commit $oid1 !   (desc(c_f1) group:2)))
+        fs_write($R/f2 d1) git_add(f2) git_commit(oid2 c_f2) $t $$(
+        (4  !         add    $d1   $mf (file:/f2 link:2))
+        (5  !         commit $oid2 !   (desc(c_f2) group:1)))
+        ##seq6={}
+      `);
     });
     // XXX TODO:
     // 1. review find_one_all_branches+encode_str

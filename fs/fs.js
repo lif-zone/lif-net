@@ -223,7 +223,7 @@ export default class FS extends Scroll {
       ret.bseq = header.bseq;
     if (header.branch)
       ret.branch = header.branch;
-    if (header.group && header.group!=1)
+    if (header.group)
       ret.group = header.group;
     if (seq!=0) // XXX: rm special handling
       ret = {...ret, ...body};

@@ -343,6 +343,8 @@ const test_get_seq = s=>etask(function*get_seq(){
       bo[o.l] = o.r.at(0)=='{' ? js_struct_from_str(o.r) : o.r;
     if (o.l=='git' && !bo.git.oid)
       delete bo.git.oid;
+    if (o.l=='git' && !bo.git.merge)
+      delete bo.git.merge;
     if (o.l=='bseq' && !bo.bseq)
       delete bo.bseq;
   }
@@ -1308,33 +1310,33 @@ describe('git', ()=>{
         $$R2(/tmp/__lif_test/git_test/sync)
         git_init($R) s..git(src(git_test))
         $$t(fs_cp($R/.git $R2) sync(gitdir($R2))
-          ##seq$1={bseq:$2 op:$3 $rm_parentesis($6) git:{oid:$4 $5}})`;
+          ##seq$1={bseq:$2 $rm_parentesis($5) git:{oid:$3 merge:$4 $6}})`;
       const t = (name, test)=>it(name, ()=>test_run(test));
       t('commit_file', `${t_common}
         fs_write($R/f1 d1) git_add(f1) git_commit(oid1 c_f1) $t $$(
-        (1  !         add    !     $m0 (dir:/))
-        (2  !         add    $d1   $mf (file:/f1 content:1 f2:d1))
-        (3  !         commit $oid1 !   (group:1 desc(c_f1) group:2)))
+        (1  ! !     ! (op:add dir:/) $m0)
+        (2  ! $d1   ! (op:add file:/f1 content:1 f2:d1) $mf)
+        (3  ! $oid1 ! (op:commit group:2 desc(c_f1)) !))
         ##seq4={}`);
-      t('merge_two_parents', `${t_common}
+      t('merge_two_parents_inc', `${t_common}
         fs_write($R/f1 d1) git_add(f1) git_commit(oid1 c_f1) $t $$(
-        (1  !         add    !     $m0 (dir:/))
-        (2  !         add    $d1   $mf (file:/f1 content:1 f2:d1))
-        (3  !         commit $oid1 !   (desc(c_f1) group:2)))
+        (1  !     !     !     (op:add dir:/) $m0)
+        (2  !     $d1   !     (op:add file:/f1 content:1 f2:d1) $mf)
+        (3  !     $oid1 !     (op:commit group:2 desc(c_f1)) !))
         git_br_new(b1) $t $$() // XXX: missing branch creation
         fs_write($R/f2 d1) git_add(f2) git_commit(oid2 c_f2) $t $$(
-        (4  3-1.0     add    $d1   $mf (branch:b1 file:/f2 link:2))
-        (5  3-1.1     commit $oid2 !   (desc(c_f2) group:1)))
+        (4  3-1.0 $d1   !     (branch:b1 op:add file:/f2 link:2) $mf)
+        (5  3-1.1 $oid2 !     (op:commit group:1 desc(c_f2)) !))
         git_br(master) fs_write($R/f3 d1) git_add(f3) git_commit(oid3 c_f3)
         $t $$(
-        (6  4         add    $d1   $mf (file:/f3 link:2))
-        (7  5         commit $oid3 !   (desc(c_f3) group:1)))
-        git_merge(oid4 b1 c_merge)
-        $t $$(
-        (8  6         add    $d1   $mf (file:/f2 link:2))
-        (9  7         commit $oid4 merge:$oid2   (desc(c_merge) group:1)))
+        (6  4     $d1   !     (op:add file:/f3 link:2) $mf)
+        (7  5     $oid3 !     (op:commit group:1 desc(c_f3)) !))
+        git_merge(oid4 b1 c_merge) $t $$(
+        (8  6     $d1   !     (op:add file:/f2 link:2) $mf)
+        (9  7     $oid4 $oid2 (op:commit group:1 desc(c_merge)) !))
         ##seq10={}
       `);
+      // XXX flip/flop tests
     });
     // XXX TODO:
     // 1. review find_one_all_branches+encode_str

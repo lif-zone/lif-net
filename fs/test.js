@@ -1266,12 +1266,14 @@ describe('git', ()=>{
       `);
     });
     describe('git2', ()=>{
-      const t = (name, test)=>it(name, ()=>test_run(test));
-      t('commit_file', `$$mf(mode:100644) $$m0(mode:0) buf(d1:1)
+      let t_common = `$$mf(mode:100644) $$m0(mode:0) buf(d1:1)
         $$f1(d00491fd7e5bb6fa28c517a0bb32b8b506539d4d)
-        $$R(/tmp/__lif_test/xxx)
-        git_init($R) fs_write($R/f1 d1) git_add(f1) git_commit(oid1 c_f1)
-        s..git(src(lif-zone/xxx)) sync(gitdir($R/.git))
+        $$R(/tmp/__lif_test/git_test)
+        git_init($R)`;
+      const t = (name, test)=>it(name, ()=>test_run(test));
+      t('commit_file', `${t_common}
+        fs_write($R/f1 d1) git_add(f1) git_commit(oid1 c_f1)
+        s..git(src(git_test)) sync(gitdir($R/.git))
         ##seq$1={bseq:$2 op:$3 $rm_parentesis($6) git:{oid:$4 $5}} $$(
         (1  !         add    !     $m0 (dir:/))
         (2  !         add    $f1   $mf (file:/f1 content:1 f2:d1))

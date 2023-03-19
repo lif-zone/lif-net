@@ -218,6 +218,14 @@ const cmd_fs_write = t=>etask(function*cmd_fs_write(){
   fs.writeFileSync(file, buf);
 });
 
+const cmd_fs_cp = t=>etask(function*cmd_fs_cp(){
+  let a = t.r.split(' '), [src, dst] = a;
+  assert(src, 'missing src');
+  assert(dst, 'missing dst');
+  assert.equal(a.length, 2, 'too many args');
+  fs.cpSync(src, dst, {force: true, recursive: true});
+});
+
 const cmd_git_cleanup = t=>etask(function*cmd_git_cleanup(){
   fs.rmSync('/tmp/__lif_test', {recursive: true, force: true});
 });
@@ -246,6 +254,30 @@ const cmd_git_commit = (curr, t)=>etask(function*cmd_git_commit(){
   parse_push(curr, '$$'+oid+'('+m[1]+')');
 });
 
+const cmd_git_br_new = t=>etask(function*cmd_git_br_new(){
+  let br = t.r;
+  assert(t.r, 'missing branch');
+  execSync('git checkout -b'+br, {cwd: t_git_repo_dir, stdio: 'ignore'});
+});
+
+const cmd_git_br = t=>etask(function*cmd_git_br(){
+  let br = t.r;
+  assert(t.r, 'missing branch');
+  execSync('git checkout '+br, {cwd: t_git_repo_dir, stdio: 'ignore'});
+});
+
+const cmd_git_merge = (curr, t)=>etask(function*cmd_git_merge(){
+  let a = t.r.split(' '), [oid, br, msg] = a;
+  assert(oid, 'missing commit oid var');
+  assert(br, 'missing branch');
+  assert(msg, 'missing commit message');
+  assert.equal(a.length, 3, 'too many args');
+  execSync('git merge '+br+' -m "'+msg+'"', {cwd: t_git_repo_dir});
+  let log = execSync('git log', {cwd: t_git_repo_dir}).toString();
+  let m = log.match(/^commit ([0-9a-f]+)\n/);
+  parse_push(curr, '$$'+oid+'('+m[1]+')');
+});
+
 const test_run_single = (curr, o, step)=>etask(function*_test_run_single(){
   switch (o.cmd){
   case 'fs': yield cmd_fs(o); break;
@@ -259,7 +291,11 @@ const test_run_single = (curr, o, step)=>etask(function*_test_run_single(){
   case 'git_init': yield cmd_git_init(o); break;
   case 'git_add': yield cmd_git_add(o); break;
   case 'git_commit': yield cmd_git_commit(curr, o); break;
+  case 'git_br_new': yield cmd_git_br_new(o); break;
+  case 'git_br': yield cmd_git_br(o); break;
+  case 'git_merge': yield cmd_git_merge(curr, o); break;
   case 'fs_write': yield cmd_fs_write(o); break;
+  case 'fs_cp': yield cmd_fs_cp(o); break;
   default: return false;
   }
   return true;
@@ -1268,9 +1304,10 @@ describe('git', ()=>{
     describe('git2', ()=>{
       let t_common = `$$mf(mode:100644) $$m0(mode:0) buf(d1:1)
         $$d1(d00491fd7e5bb6fa28c517a0bb32b8b506539d4d)
-        $$R(/tmp/__lif_test/git_test)
+        $$R(/tmp/__lif_test/git_test/repo)
+        $$R2(/tmp/__lif_test/git_test/sync)
         git_init($R) s..git(src(git_test))
-        $$t(sync(gitdir($R/.git))
+        $$t(fs_cp($R/.git $R2) sync(gitdir($R2))
           ##seq$1={bseq:$2 op:$3 $rm_parentesis($6) git:{oid:$4 $5}})`;
       const t = (name, test)=>it(name, ()=>test_run(test));
       t('commit_file', `${t_common}
@@ -1284,10 +1321,19 @@ describe('git', ()=>{
         (1  !         add    !     $m0 (dir:/))
         (2  !         add    $d1   $mf (file:/f1 content:1 f2:d1))
         (3  !         commit $oid1 !   (desc(c_f1) group:2)))
+        git_br_new(b1) $t $$() // XXX: missing branch creation
         fs_write($R/f2 d1) git_add(f2) git_commit(oid2 c_f2) $t $$(
-        (4  !         add    $d1   $mf (file:/f2 link:2))
-        (5  !         commit $oid2 !   (desc(c_f2) group:1)))
-        ##seq6={}
+        (4  3-1.0     add    $d1   $mf (branch:b1 file:/f2 link:2))
+        (5  3-1.1     commit $oid2 !   (desc(c_f2) group:1)))
+        git_br(master) fs_write($R/f3 d1) git_add(f3) git_commit(oid3 c_f3)
+        $t $$(
+        (6  4         add    $d1   $mf (file:/f3 link:2))
+        (7  5         commit $oid3 !   (desc(c_f3) group:1)))
+        git_merge(oid4 b1 c_merge)
+        $t $$(
+        (8  6         add    $d1   $mf (file:/f2 link:2))
+        (9  7         commit $oid4 merge:$oid2   (desc(c_merge) group:1)))
+        ##seq10={}
       `);
     });
     // XXX TODO:

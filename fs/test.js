@@ -1308,27 +1308,28 @@ describe('git', ()=>{
         $$d1(d00491fd7e5bb6fa28c517a0bb32b8b506539d4d)
         $$R(/tmp/__lif_test/git_test/repo)
         $$R2(/tmp/__lif_test/git_test/sync)
+        $$add_f1(fs_write($R/f1 d1) git_add(f1) git_commit(oid1 c_f1))
+        $$add_f2(fs_write($R/f2 d1) git_add(f2) git_commit(oid2 c_f2))
+        $$add_f3(fs_write($R/f3 d1) git_add(f3) git_commit(oid3 c_f3))
         git_init($R) s..git(src(git_test))
         $$t(fs_cp($R/.git $R2) sync(gitdir($R2))
           ##seq$1={bseq:$2 $rm_parentesis($5) git:{oid:$3 merge:$4 $6}})`;
       const t = (name, test)=>it(name, ()=>test_run(test));
-      t('commit_file', `${t_common}
-        fs_write($R/f1 d1) git_add(f1) git_commit(oid1 c_f1) $t $$(
+      t('commit_file', `${t_common} $add_f1 $t $$(
         (1  ! !     ! (op:add dir:/) $m0)
         (2  ! $d1   ! (op:add file:/f1 content:1 f2:d1) $mf)
         (3  ! $oid1 ! (op:commit group:2 desc(c_f1)) !))
         ##seq4={}`);
       t('merge_two_parents_inc', `${t_common}
-        fs_write($R/f1 d1) git_add(f1) git_commit(oid1 c_f1) $t $$(
+        $add_f1 $t $$(
         (1  !     !     !     (op:add dir:/) $m0)
         (2  !     $d1   !     (op:add file:/f1 content:1 f2:d1) $mf)
         (3  !     $oid1 !     (op:commit group:2 desc(c_f1)) !))
         git_br_new(b1) $t $$() // XXX: missing branch creation
-        fs_write($R/f2 d1) git_add(f2) git_commit(oid2 c_f2) $t $$(
+        $add_f2 $t $$(
         (4  3-1.0 $d1   !     (branch:b1 op:add file:/f2 link:2) $mf)
         (5  3-1.1 $oid2 !     (op:commit group:1 desc(c_f2)) !))
-        git_br(master) fs_write($R/f3 d1) git_add(f3) git_commit(oid3 c_f3)
-        $t $$(
+        git_br(master) $add_f3 $t $$(
         (6  4     $d1   !     (op:add file:/f3 link:2) $mf)
         (7  5     $oid3 !     (op:commit group:1 desc(c_f3)) !))
         git_merge(oid4 b1 c_merge) $t $$(

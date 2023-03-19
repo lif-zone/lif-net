@@ -1,5 +1,7 @@
 'use strict'; /*eslint-env mocha*/
 import assert from 'assert';
+import {execSync} from 'node:child_process';
+import fs from 'fs';
 import xtest from '../util/test_lib.js';
 import etask from '../util/etask.js';
 import xerr from '../util/xerr.js';
@@ -15,7 +17,7 @@ import DB from '../storage/db.js';
 const b2s = buf_util.buf_to_str, s2b = buf_util.buf_from_str;
 const Diff = new DiffMatchAndPath();
 const {parse_get_next, parse_exp, parse_exp_arg, rm_parentesis,
-  parse_exp_arg_pair} = tparser;
+  parse_exp_arg_pair, parse_push} = tparser;
 import {test_run, new_scroll, get_scroll, get_def, test_register,
   test_register_cmd, get_val, parse_db_init, js_struct_from_str}
   from '../storage/test_cmd.js';
@@ -24,7 +26,7 @@ xtest.init();
 // XXX: use memoryDatabase: ':memory:'
 DB.init({shim_conf: {checkOrigin: false, databaseBasePath: '/tmp',
   deleteDatabaseFiles: true, useSQLiteIndexes: true}});
-let t_buf;
+let t_buf, t_git_repo_dir;
 
 // XXX: mv to generic place and review with derry
 function encode_str(s){ return '__enc__'+encodeURI(s); }
@@ -202,6 +204,48 @@ const cmd_sync = t=>etask(function*cmd_sync(){
   yield git.sync({gitdir, url});
 });
 
+const cmd_fs_write = t=>etask(function*cmd_fs_write(){
+  let file, buf;
+  for (let curr=t.r, i=0; curr = parse_get_next(curr); i++){
+    if (!file)
+      file = curr.exp;
+    else if (!buf){
+      assert(t_buf[curr.exp], 'buf not found '+curr.exp);
+      buf = t_buf[curr.exp];
+    } else
+      assert.fail('invalid fs_write '+t.r);
+  }
+  fs.writeFileSync(file, buf);
+});
+
+const cmd_git_cleanup = t=>etask(function*cmd_git_cleanup(){
+  fs.rmSync('/tmp/__lif_test', {recursive: true, force: true});
+});
+
+const cmd_git_init = t=>etask(function*cmd_git_init(){
+  let repo_dir = t.r;
+  assert(t.r, 'missing repo_dir');
+  t_git_repo_dir = repo_dir;
+  execSync('git init '+repo_dir);
+});
+
+const cmd_git_add = t=>etask(function*cmd_git_add(){
+  let file = t.r;
+  assert(t.r, 'missing file');
+  execSync('git add '+file, {cwd: t_git_repo_dir});
+});
+
+const cmd_git_commit = (curr, t)=>etask(function*cmd_git_commit(){
+  let a = t.r.split(' '), [oid, msg] = a;
+  assert(oid, 'missing commit oid var');
+  assert(msg, 'missing commit message');
+  assert.equal(a.length, 2, 'too many args');
+  execSync('git commit -m "'+msg+'"', {cwd: t_git_repo_dir});
+  let log = execSync('git log', {cwd: t_git_repo_dir}).toString();
+  let m = log.match(/^commit ([0-9a-f]+)\n/);
+  parse_push(curr, '$$'+oid+'('+m[1]+')');
+});
+
 const test_run_single = (curr, o, step)=>etask(function*_test_run_single(){
   switch (o.cmd){
   case 'fs': yield cmd_fs(o); break;
@@ -211,6 +255,11 @@ const test_run_single = (curr, o, step)=>etask(function*_test_run_single(){
   case 'buf': yield cmd_buf(o); break;
   case 'git': yield cmd_git(o); break;
   case 'sync': yield cmd_sync(o); break;
+  case 'git_cleanup': yield cmd_git_cleanup(o); break;
+  case 'git_init': yield cmd_git_init(o); break;
+  case 'git_add': yield cmd_git_add(o); break;
+  case 'git_commit': yield cmd_git_commit(curr, o); break;
+  case 'fs_write': yield cmd_fs_write(o); break;
   default: return false;
   }
   return true;
@@ -408,7 +457,10 @@ function state_get_steps(filter, name, s){
     return f+'='+s;
 }
 
-const test_start = ()=>etask(function*test_start(){ t_buf = {}; });
+const test_start = ()=>etask(function*test_start(){
+  t_buf = {};
+  yield cmd_git_cleanup();
+});
 
 test_register_cmd(test_run_single);
 test_register('get_seq', test_get_seq);
@@ -1212,6 +1264,19 @@ describe('git', ()=>{
         (9  3-1.3 commit $c4  !   (desc(br1b_f2))))
         ##seq10={}
       `);
+    });
+    describe('git2', ()=>{
+      const t = (name, test)=>it(name, ()=>test_run(test));
+      t('commit_file', `$$mf(mode:100644) $$m0(mode:0) buf(d1:1)
+        $$f1(d00491fd7e5bb6fa28c517a0bb32b8b506539d4d)
+        $$R(/tmp/__lif_test/xxx)
+        git_init($R) fs_write($R/f1 d1) git_add(f1) git_commit(oid1 c_f1)
+        s..git(src(lif-zone/xxx)) sync(gitdir($R/.git))
+        ##seq$1={bseq:$2 op:$3 $rm_parentesis($6) git:{oid:$4 $5}} $$(
+        (1  !         add    !     $m0 (dir:/))
+        (2  !         add    $f1   $mf (file:/f1 content:1 f2:d1))
+        (3  !         commit $oid1 !   (desc(c_f1) group:2)))
+        ##seq4={}`);
     });
     // XXX TODO:
     // 1. review find_one_all_branches+encode_str

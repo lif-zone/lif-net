@@ -30,28 +30,36 @@ export default class GIT extends FS {
     let url = opt.url||body.scroll?.src;
     if (!url)
       throw new Error('missing git src');
-    let config = {fs, http, cache: _this.cache, url};
+    let config = {fs, http, cache: _this.cache};
     // XXX: decide how to create valid dir
     config.dir = opt.dir||'/tmp/lif_git_'+escape_fs(url);
     if (opt.gitdir){
       config.gitdir = opt.gitdir;
       yield git_api.init({...config});
-    } else
+    } else {
+      config.url = url;
       yield git_api.clone({...config});
-    let git_branches = yield git_api.listBranches({...config,
-      remote: 'origin'});
+    }
+    let git_branches = yield git_api.listBranches(opt.gitdir ? config :
+      {...config, remote: 'origin'});
     if (git_branches.includes('HEAD'))
       array.rm_elm(git_branches, 'HEAD');
-    if (git_branches.includes('main')){
-      array.rm_elm(git_branches, 'main'); // XXX: do it on HEAD git_br
-      git_branches.unshift('main');
+    let main_br = yield _this._get_head_git_br(config);
+    if (!main_br){
+      main_br = git_branches.includes('main') ? 'main' :
+        git_branches.includes('master') ? 'master' : '';
+    }
+    if (git_branches.includes(main_br)){
+      array.rm_elm(git_branches, main_br);
+      git_branches.unshift(main_br);
     }
     // XXX: we assume main is the main branch. need to get it from HEAD
     for (let b=0; b<git_branches.length; b++){
       let git_br = git_branches[b];
-      yield git_api.checkout({...config, ref: git_br, remote: 'origin'});
-      yield git_api.fetch({...config});
-      let head = yield git_api.resolveRef({...config, ref: git_br});
+      yield git_api.checkout(opt.gitdir ? {...config, ref: git_br} :
+      {...config, ref: git_br, remote: 'origin'});
+      if (config.url)
+        yield git_api.fetch({...config});
       // XXX: use since from last sync
       let log = yield git_api.log({...config, ref: git_br});
       let commits = [];
@@ -81,7 +89,7 @@ export default class GIT extends FS {
           if (!prev)
             throw new Error('parent commit was not found '+parent);
         }
-        let branch = git_br=='main' ? null : git_br; // XXX HACK
+        let branch = git_br==main_br ? null : git_br; // XXX HACK
         // XXX: we might need to use new branch name in some cases (test it)
         let group = yield _this._sync_dir(config, cfid, branch, prev,
           '/', commit.tree, '0');
@@ -180,6 +188,19 @@ export default class GIT extends FS {
     assert(header.branch, 'missing branch for '+bseqb0);
     return header.branch;
   }); }
+  _get_head_git_br = config=>{ return etask(function*_get_head_git_br(){
+  // XXX: we call it to force getting origin refs into directory
+  if (!config.gitdir)
+    yield git_api.listServerRefs({...config, remote: 'origin'});
+  let s, m;
+  try {
+    let file = config.dir+'/.git/refs/remotes/origin/HEAD';
+    s = ''+(yield fs.promises.readFile(file));
+  } catch(err){ return ''; }
+  if (!s || !(m = s.match(/^ref: .*\/([^/]+)$/)))
+    return '';
+  return m[1].trim();
+  }); };
 }
 
 GIT.create = (opt, d)=>etask(function*scroll_create(){

@@ -42,13 +42,20 @@ export default class Branch_table {
     return scroll.get_branch_table(parent.cfid).get_branch(branch);
   }
   get_branches(seq, ret){ // XXX: optimize + test
-    seq = seq===undefined ? Infinity : seq;
     ret = ret||[];
-    this.avl.range({seq: 0}, {seq}, node=>{
-      let bo = node.key;
-      if (bo.branch)
-        ret.push(bo.branch);
-    });
+    if (seq===undefined || seq===Infinity){
+      for (const [branch, bo] of this.branch_name){
+        if (branch)
+          ret.push(branch);
+      }
+    } else {
+      seq = seq===undefined ? Infinity : seq;
+      this.avl.range({seq: 0}, {seq}, node=>{
+        let bo = node.key;
+        if (bo.branch)
+          ret.push(bo.branch);
+      });
+    }
     let {scroll, cfid} = this, {parent} = scroll.conflict.get(cfid);
     if (!parent)
       return ret;
@@ -160,13 +167,14 @@ export default class Branch_table {
     }
     // new entry
     bo = {...branch&&{branch}, seq, bseq, size: 1};
-    if ((branch || this.cfid==0) && !this.branch_name.get(branch))
-      this.branch_name.set(branch, bo);
     this._insert(bo);
     this._update_top(bseq, seq); // XXX: need test
     this._schedule_mod(bo.seq);
   }
   _insert(bo){
+  let branch = bo.branch||null;
+    if ((branch || this.cfid==0 && bo.seq==0) && !this.branch_name.get(branch))
+      this.branch_name.set(branch, bo);
     this.avl.insert(bo);
     this.avl_bseq.insert(bo);
     if (/.*\.0/.test(bo.bseq))
@@ -225,7 +233,7 @@ export default class Branch_table {
     branch = branch||null;
     let bo = branch ? {branch, seq, bseq, size} : {seq, bseq, size};
     this._insert(bo);
-    if (branch || this.cfid==0)
+    if (branch || (this.cfid==0&&bo.seq==0))
       this.branch_name.set(branch, bo);
   }
 }

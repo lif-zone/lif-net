@@ -55,24 +55,45 @@ export default class GIT extends FS {
       git_branches.unshift(main_br);
     }
     if (0){ // XXX: WIP
-    let cfid = 0; // XXX: support conflict
-    let tops = yield _this._xxx_sync_pre(config, git_branches);
-    for (let top in tops){
-      let {log} = tops[top];
-      for (let i=0; i<log.length; i++){
-        let {oid, commit} = log[i];
-        let branch, prev;
-        let group = yield _this._sync_dir(config, cfid, branch, prev,
-          '/', commit.tree, '0');
-        let body = {op: 'commit', desc: commit.message, git: {oid}};
-        yield _this.decl({cfid, group}, body);
+      let cfid = 0; // XXX: support conflict
+      let tops = yield _this._xxx_sync_pre(config, git_branches);
+      for (let top in tops){
+        let {log} = tops[top];
+        for (let i=0; i<log.length; i++){
+          let {oid, commit} = log[i];
+          let branch, prev;
+          let group = yield _this._sync_dir(config, cfid, branch, prev,
+            '/', commit.tree, '0');
+          let body = {op: 'commit', desc: commit.message, git: {oid}};
+          yield _this.decl({cfid, group}, body);
+        }
       }
+      return;
     }
-    return;
-    }
-    // XXX: we assume main is the main branch. need to get it from HEAD
+    let cfid = 0; // XXX: support conflict
+    let git_branches_map = {};
     for (let b=0; b<git_branches.length; b++){
       let git_br = git_branches[b];
+      git_branches_map[git_br] = true;
+    }
+    let git_branches_curr = yield _this.get_git_branches(cfid);
+    xerr.notice('XXX git_branches_curr %O', git_branches_curr);
+    xerr.notice('XXX git_branches %O', git_branches);
+    // delete branches
+    for (let i=0; i<git_branches_curr.length; i++){
+      let curr = git_branches_curr[i];
+      xerr.notice('XXX curr %s map %s', curr, git_branches_map[curr]);
+      if (git_branches_map[curr])
+        continue;
+      // XXX: need api to get git_br
+      let top = _this.get_branch_top(cfid, curr);
+      let prev = top.seq;
+      yield _this.decl({cfid, prev}, {op: 'branch_del', git: {branch: curr}});
+    }
+    // add new commits to scroll
+    for (let b=0; b<git_branches.length; b++){
+      let git_br = git_branches[b];
+      git_branches_map[git_br] = true;
       yield git_api.checkout(config.gitdir ? {...config, ref: git_br} :
       {...config, ref: git_br, remote: 'origin'});
       if (config.url)
@@ -90,7 +111,6 @@ export default class GIT extends FS {
         // autohr, ts, tree, timestamp, timezoneOffset,
         // commit, gpgsig
       }
-      let cfid = 0; // XXX: support conflict
       for (let i=0; i<commits.length; i++){
         let {oid, commit} = commits[i], prev, [parent, merge] = commit.parent;
         // XXX: review find_one_all_branches with derry
@@ -249,6 +269,12 @@ export default class GIT extends FS {
     let decl = _this.get_decl(top.seq);
     yield decl.load(cfid);
     return decl.get_body(cfid)?.git?.oid;
+  }); }
+  get_git_branches(cfid){ return etask({_: this}, function*get_git_branches(){
+    let _this = this._;
+    let branches = _this.get_branches(cfid);
+    // XXX HACK: use git_branches index
+    return branches;
   }); }
   _xxx_sync_pre(config, git_branches){ return etask({_: this}, // XXX: rename
     function*_xxx_sync_pre()

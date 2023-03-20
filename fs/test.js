@@ -223,6 +223,8 @@ const cmd_fs_cp = t=>etask(function*cmd_fs_cp(){
   assert(src, 'missing src');
   assert(dst, 'missing dst');
   assert.equal(a.length, 2, 'too many args');
+  // XXX: HACK
+  fs.rmSync('/tmp/__lif_test/git_test/sync', {recursive: true, force: true});
   fs.cpSync(src, dst, {force: true, recursive: true});
 });
 
@@ -260,6 +262,21 @@ const cmd_git_br_new = t=>etask(function*cmd_git_br_new(){
   execSync('git checkout -b'+br, {cwd: t_git_repo_dir, stdio: 'ignore'});
 });
 
+const cmd_git_br_del = t=>etask(function*cmd_git_br_del(){
+  let br = t.r;
+  assert(t.r, 'missing branch');
+  execSync('git branch -D '+br, {cwd: t_git_repo_dir, stdio: 'ignore'});
+});
+
+const cmd_git_br_rename = t=>etask(function*cmd_git_br_rename(){
+  let a = t.r.split(' '), [br_old, br_new] = a;
+  assert(br_old, 'missing branch');
+  assert(br_new, 'missing branch');
+  assert.equal(a.length, 2, 'too many args');
+  execSync('git branch -m '+br_old+' '+br_new,
+    {cwd: t_git_repo_dir, stdio: 'ignore'});
+});
+
 const cmd_git_br = t=>etask(function*cmd_git_br(){
   let br = t.r;
   assert(t.r, 'missing branch');
@@ -292,6 +309,8 @@ const test_run_single = (curr, o, step)=>etask(function*_test_run_single(){
   case 'git_add': yield cmd_git_add(o); break;
   case 'git_commit': yield cmd_git_commit(curr, o); break;
   case 'git_br_new': yield cmd_git_br_new(o); break;
+  case 'git_br_del': yield cmd_git_br_del(o); break;
+  case 'git_br_rename': yield cmd_git_br_rename(o); break;
   case 'git_br': yield cmd_git_br(o); break;
   case 'git_merge': yield cmd_git_merge(curr, o); break;
   case 'fs_write': yield cmd_fs_write(o); break;
@@ -1325,7 +1344,7 @@ describe('git', ()=>{
         (2  ! $d1   ! (op:add file:/f1 content:1 f2:d1) $mf)
         (3  ! $oid1 ! (op:commit group:2 desc(c_f1)) !))
         ##seq4={}`);
-      t('two_branch_inc', `${t_common}
+      t('one_branch_inc', `${t_common}
         $add_f1 $t $$(
         (1  !     !     !     (op:add dir:/) $m0)
         (2  !     $d1   !     (op:add file:/f1 content:1 f2:d1) $mf)
@@ -1339,7 +1358,7 @@ describe('git', ()=>{
         (7  4     $d1   !     (op:add file:/f3 link:2) $mf)
         (8  5     $oid3 !     (op:commit group:1 desc(c_f3)) !))
         ##seq9={}`);
-      t('two_branch_full', `${t_common}
+      t('one_branch_full', `${t_common}
         $add_f1
         git_br_new(b1)
         $add_f2
@@ -1353,7 +1372,53 @@ describe('git', ()=>{
         (7  3-1.1 $d1   !     (op:add file:/f2 link:2) $mf)
         (8  3-1.2 $oid2 !     (op:commit group:1 desc(c_f2)) !))
         ##seq9={}`);
-      t('four_branch_inc', `${t_common}
+      t('one_branch_del_branch_inc', `${t_common}
+        $add_f1 $t $$(
+        (1  !     !     !     (op:add dir:/) $m0)
+        (2  !     $d1   !     (op:add file:/f1 content:1 f2:d1) $mf)
+        (3  !     $oid1 !     (op:commit group:2 desc(c_f1)) !))
+        git_br_new(b1) $t $$(
+        (4  3-1.0 $oid1 !     (branch:b1 op:branch_new) !))
+        $add_f2 dbg $t $$(
+        (5  3-1.1 $d1   !     (op:add file:/f2 link:2) $mf)
+        (6  3-1.2 $oid2 !     (op:commit group:1 desc(c_f2)) !))
+        git_br(master) $add_f3 $t $$(
+        (7  4     $d1   !     (op:add file:/f3 link:2) $mf)
+        (8  5     $oid3 !     (op:commit group:1 desc(c_f3)) !))
+        git_br_del(b1) $t $$(
+        (9  3-1.3 !     !     (op:branch_del) branch:b1))
+        ##seq10={}`);
+      t('one_branch_del_branch_full', `${t_common}
+        $add_f1
+        git_br_new(b1)
+        $add_f2
+        git_br(master) $add_f3
+        git_br_del(b1) $t $$(
+        (1  !     !     !     (op:add dir:/) $m0)
+        (2  !     $d1   !     (op:add file:/f1 content:1 f2:d1) $mf)
+        (3  !     $oid1 !     (op:commit group:2 desc(c_f1)) !)
+        (4  !     $d1   !     (op:add file:/f3 link:2) $mf)
+        (5  !     $oid3 !     (op:commit group:1 desc(c_f3)) !))
+        ##seq9={}`);
+      if (0) // XXX WIP + need test
+      t('one_branch_rename_branch_inc', `${t_common}
+        $add_f1 $t $$(
+        (1  !     !     !     (op:add dir:/) $m0)
+        (2  !     $d1   !     (op:add file:/f1 content:1 f2:d1) $mf)
+        (3  !     $oid1 !     (op:commit group:2 desc(c_f1)) !))
+        git_br_new(b1) $t $$(
+        (4  3-1.0 $oid1 !     (branch:b1 op:branch_new) !))
+        $add_f2 $t $$(
+        (5  3-1.1 $d1   !     (op:add file:/f2 link:2) $mf)
+        (6  3-1.2 $oid2 !     (op:commit group:1 desc(c_f2)) !))
+        git_br(master) $add_f3 $t $$(
+        (7  4     $d1   !     (op:add file:/f3 link:2) $mf)
+        (8  5     $oid3 !     (op:commit group:1 desc(c_f3)) !))
+        git_br_rename(b1 b2) $t $$(
+        (9  3-1.3 !     !     (op:branch_del) branch:b1)
+        (10 3-1.4 !     !     (op:branch_set) branch:b2))
+        ##seq11={}`);
+      t('three_branch_inc', `${t_common}
         $add_f1 $t $$(
         (1  !         !     !     (op:add dir:/) $m0)
         (2  !         $d1   !     (op:add file:/f1 content:1 f2:d1) $mf)
@@ -1376,7 +1441,7 @@ describe('git', ()=>{
         (13 4         $d1   !     (op:add file:/f5 link:2) $mf)
         (14 5         $oid5 !     (op:commit group:1 desc(c_f5)) !))
         ##seq15={}`);
-      t('four_branch_full', `${t_common}
+      t('three_branch_full', `${t_common}
         $add_f1
         git_br_new(b1)
         git_br_new(b2)
@@ -1465,20 +1530,30 @@ describe('git', ()=>{
       // XXX flip/flop tests
       // XXX: test two roots
       // XXX: test 3 parents
+      // XXX: test change of head
     });
-    // XXX TODO:
-    // 1. review find_one_all_branches+encode_str
-    // 2. add test for same git branch name, but different branches
-    // 3. add missing commit info
-    // 4. static tag support
-    // 5. verify I can rebuilt all git oid (file/dir/commit sha)
-    // 6. detect that scroll was changed without git?
-    // git git+a git+a+b git+a+b+c....
-    // git git+a git+A       git+a+b git+a+b+c...
-    //    git+a+A-(A & a)   git+a+A-(A&a)+b-(b&&a...)
-    // 7. db test
-    // 8. conflict test
-    // 9. XXX cleanup
   });
+/* XXX derry:
+3-1.0>= bseq >3-2.0
+name,bseq,op
+b1,3-1.0,new
+b1,3-1.3,del
+git_banch=branch||git_branch
+key=[{name: git_branch field: git_branch all_branches: true,
+  val: [{field: op}], specific: 'git_br'}]
+*/
+// XXX TODO:
+// 1. review find_one_all_branches+encode_str
+// 2. add test for same git branch name, but different branches
+// 3. add missing commit info
+// 4. static tag support
+// 5. verify I can rebuilt all git oid (file/dir/commit sha)
+// 6. detect that scroll was changed without git?
+// git git+a git+a+b git+a+b+c....
+// git git+a git+A       git+a+b git+a+b+c...
+//    git+a+A-(A & a)   git+a+A-(A&a)+b-(b&&a...)
+// 7. db test
+// 8. conflict test
+// 9. XXX cleanup
 });
 

@@ -1241,6 +1241,7 @@ export default class Scroll extends EventEmitterAsync {
     this.branch.set(cfid, btable);
     return btable;
   }
+  branch_exists(cfid, branch){ return !!this.get_branch_top(cfid, branch); }
   get_branch_top(cfid, branch){
     return this.branch.get(cfid)?.get_branch_top(branch); }
   get_branch_bseq(cfid, branch){

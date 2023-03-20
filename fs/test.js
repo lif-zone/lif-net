@@ -1527,7 +1527,7 @@ describe('git', ()=>{
         (5  !     $oid2 !     (op:commit group:1 desc(c_f2)) !)
         (6  5-1.0 $oid2 !     (branch:b1 op:branch_new) !))
         ##seq7={}`);
-      // XXX flip/flop tests
+      // XXX: flip/flop tests
       // XXX: test two roots
       // XXX: test 3 parents
       // XXX: test change of head
@@ -1543,7 +1543,7 @@ key=[{name: git_branch field: git_branch all_branches: true,
   val: [{field: op}], specific: 'git_br'}]
 */
 // XXX TODO:
-// 1. review find_one_all_branches+encode_str
+// 1. review encode_str
 // 2. add test for same git branch name, but different branches
 // 3. add missing commit info
 // 4. static tag support

@@ -113,16 +113,15 @@ export default class GIT extends FS {
       }
       for (let i=0; i<commits.length; i++){
         let {oid, commit} = commits[i], prev, [parent, merge] = commit.parent;
-        // XXX: review find_one_all_branches with derry
-        let seq = yield _this.find_one_all_branches(oid,
-          {name: 'git.oid', cfid});
+        let seq = yield _this.find_one(oid, {dir: 'up', name: 'git_oid',
+          cfid});
         if (seq)
           continue;
         if (parent){
           // XXX: need smarter logic, current logic depends on order of
           // branches
-          prev = yield _this.find_one_all_branches(parent,
-            {name: 'git.oid', cfid});
+          prev = yield _this.find_one(parent, {dir: 'up',
+            name: 'git_oid', cfid});
           if (!prev)
             throw new Error('parent commit was not found '+parent);
         }
@@ -148,8 +147,8 @@ export default class GIT extends FS {
             throw new Error('XXX TODO'); // XXX TODO
           continue;
         }
-        let prev = yield _this.find_one_all_branches(oid,
-          {name: 'git.oid', cfid});
+        let prev = yield _this.find_one(oid, {dir: 'up', name: 'git_oid',
+          cfid});
         if (!prev)
           throw new Error('top commit not found '+oid);
         yield _this.decl({cfid, branch: git_br, prev}, {op: 'branch_new',
@@ -212,8 +211,8 @@ export default class GIT extends FS {
         body = {git: {oid: e.oid, mode: e.mode}};
         blob = (yield git_api.readBlob({...config, oid: e.oid})).blob;
         blob = blob ? Buffer.from(blob) : null;
-        link = yield _this.find_one_all_branches(e.oid,
-          {dir: 'up', name: 'git.oid', cfid});
+        link = yield _this.find_one(e.oid, {dir: 'up', name: 'git_oid',
+          cfid});
         if (yield _this.file_exists(file, {cfid, branch, prev}))
           yield _this.mod_file(file, blob, {cfid, branch, prev, link, body});
         else
@@ -326,7 +325,8 @@ GIT.create = (opt, d)=>etask(function*scroll_create(){
   // XXX: reuse code from FS.create and call FS.create
   let s = {crypt: Scroll.supported_crypt[0], pub: b2s(opt.pub), ...d,
     csum_sha1: true, index: ['file', 'dir', {name: 'dir_list',
-    transform: 'decl_get_dir', filter: {op: ['add', 'rm']}}, 'git.oid']};
+    transform: 'decl_get_dir', filter: {op: ['add', 'rm']}},
+    {name: 'git_oid', field: 'git.oid', all_branches: true}]};
   if (d?.csum_sha256) // XXX: needed?
     s.index.push('csum_sha256');
   yield git.decl({scroll: s});

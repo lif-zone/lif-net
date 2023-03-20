@@ -3,6 +3,7 @@ import assert from 'assert';
 import fs from 'fs';
 import http from 'isomorphic-git/http/node/index.cjs';
 import array from '../util/array.js';
+import xerr from '../util/xerr.js';
 import FS from './fs.js';
 import util from '../util/util.js';
 import etask from '../util/etask.js';
@@ -53,10 +54,26 @@ export default class GIT extends FS {
       array.rm_elm(git_branches, main_br);
       git_branches.unshift(main_br);
     }
+    if (0){ // XXX: WIP
+    let cfid = 0; // XXX: support conflict
+    let tops = yield _this._xxx_sync_pre(config, git_branches);
+    for (let top in tops){
+      let {log} = tops[top];
+      for (let i=0; i<log.length; i++){
+        let {oid, commit} = log[i];
+        let branch, prev;
+        let group = yield _this._sync_dir(config, cfid, branch, prev,
+          '/', commit.tree, '0');
+        let body = {op: 'commit', desc: commit.message, git: {oid}};
+        yield _this.decl({cfid, group}, body);
+      }
+    }
+    return;
+    }
     // XXX: we assume main is the main branch. need to get it from HEAD
     for (let b=0; b<git_branches.length; b++){
       let git_br = git_branches[b];
-      yield git_api.checkout(opt.gitdir ? {...config, ref: git_br} :
+      yield git_api.checkout(config.gitdir ? {...config, ref: git_br} :
       {...config, ref: git_br, remote: 'origin'});
       if (config.url)
         yield git_api.fetch({...config});
@@ -201,6 +218,47 @@ export default class GIT extends FS {
     return '';
   return m[1].trim();
   }); };
+  _xxx_sync_pre(config, git_branches){ return etask({_: this}, // XXX: rename
+    function*_xxx_sync_pre()
+  {
+    let all = {}, tops = {};
+    for (let b=0; b<git_branches.length; b++){
+      let git_br = git_branches[b];
+      yield git_api.checkout(config.gitdir ? {...config, ref: git_br} :
+      {...config, ref: git_br, remote: 'origin'});
+      if (config.url)
+        yield git_api.fetch({...config});
+      // XXX: use since from last sync
+      let log = yield git_api.log({...config, ref: git_br});
+      for (let i=0; i<log.length; i++){
+        let curr = log[i], oid = curr.oid;
+        if (all[oid])
+          continue;
+        if (i==0)
+          tops[oid] = {oid, git_br, log: []};
+        all[oid] = curr;
+      }
+    }
+    xerr.notice('XXX tops %O', tops);
+    let queue = Object.keys(tops);
+    while (queue.length){
+      let top = queue.shift(), top_o = tops[top];
+      let curr = all[top];
+      while (curr){
+        top_o.log.unshift(curr);
+        for (let i=1; i<curr.commit.parent.length; i++){
+          let oid = curr.commit.parent[i];
+          if (top[oid])
+            continue;
+          tops[oid] = {oid, git_br: null, log: []};
+          queue.push(oid);
+        }
+        curr = all[curr.commit.parent[0]];
+      }
+    }
+    xerr.notice('XXX tops %O', tops);
+    return tops;
+  }); }
 }
 
 GIT.create = (opt, d)=>etask(function*scroll_create(){

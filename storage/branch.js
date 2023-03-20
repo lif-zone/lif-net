@@ -44,7 +44,7 @@ export default class Branch_table {
   get_branches(seq, ret){ // XXX: optimize + test
     ret = ret||[];
     if (seq===undefined || seq===Infinity){
-      for (const [branch, bo] of this.branch_name){
+      for (const [branch] of this.branch_name){
         if (branch)
           ret.push(branch);
       }
@@ -233,7 +233,7 @@ export default class Branch_table {
     branch = branch||null;
     let bo = branch ? {branch, seq, bseq, size} : {seq, bseq, size};
     this._insert(bo);
-    if (branch || (this.cfid==0&&bo.seq==0))
+    if (branch || this.cfid==0&&bo.seq==0)
       this.branch_name.set(branch, bo);
   }
 }

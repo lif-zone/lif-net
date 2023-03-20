@@ -305,7 +305,10 @@ class Index_table {
     return map_name.get(name);
   }
   get_index(cfid, bseqb, name, opt){
-    let id = this.get_index_id(cfid, bseqb, name), desc = this.desc.get(name);
+    let desc = this.desc.get(name);
+    if (desc.all_branches)
+      bseqb = null;
+    let id = this.get_index_id(cfid, bseqb, name);
     let scroll = this.scroll, index;
     if (id===undefined){
       if (!opt.create)

@@ -1436,6 +1436,17 @@ describe('git', ()=>{
         (6  4     $d1   !     (op:add file:/f2 link:2) $mf)
         (7  5     $oid2 !     (op:commit group:1 desc(c_f2)) !))
         ##seq8={}`);
+      t('merge_one_parent_full', `${t_common}
+        $add_f1
+        git_br_new(b1)
+        $add_f2
+        git_br(master) git_merge(oid4 b1 c_merge) $t $$(
+        (1  !     !     !     (op:add dir:/) $m0)
+        (2  !     $d1   !     (op:add file:/f1 content:1 f2:d1) $mf)
+        (3  !     $oid1 !     (op:commit group:2 desc(c_f1)) !)
+        (4  !     $d1   !     (op:add file:/f2 link:2) $mf)
+        (5  !     $oid2 !     (op:commit group:1 desc(c_f2)) !))
+        ##seq6={}`);
       // XXX flip/flop tests
       // XXX: test two roots
     });

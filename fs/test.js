@@ -1351,7 +1351,7 @@ describe('git', ()=>{
         (3  !     $oid1 !     (op:commit group:2 desc(c_f1)) !))
         git_br_new(b1) $t $$(
         (4  3-1.0 $oid1 !     (branch:b1 op:branch_new) !))
-        $add_f2 dbg $t $$(
+        $add_f2 $t $$(
         (5  3-1.1 $d1   !     (op:add file:/f2 link:2) $mf)
         (6  3-1.2 $oid2 !     (op:commit group:1 desc(c_f2)) !))
         git_br(master) $add_f3 $t $$(
@@ -1379,7 +1379,7 @@ describe('git', ()=>{
         (3  !     $oid1 !     (op:commit group:2 desc(c_f1)) !))
         git_br_new(b1) $t $$(
         (4  3-1.0 $oid1 !     (branch:b1 op:branch_new) !))
-        $add_f2 dbg $t $$(
+        $add_f2 $t $$(
         (5  3-1.1 $d1   !     (op:add file:/f2 link:2) $mf)
         (6  3-1.2 $oid2 !     (op:commit group:1 desc(c_f2)) !))
         git_br(master) $add_f3 $t $$(
@@ -1414,7 +1414,7 @@ describe('git', ()=>{
         git_br(master) $add_f3 $t $$(
         (7  4     $d1   !     (op:add file:/f3 link:2) $mf)
         (8  5     $oid3 !     (op:commit group:1 desc(c_f3)) !))
-        git_br_rename(b1 b2) $t $$(
+        git_br_rename(b1 b2) dbg $t $$(
         (9  3-1.3 !     !     (op:branch_del) branch:b1)
         (10 3-1.4 !     !     (op:branch_set) branch:b2))
         ##seq11={}`);
@@ -1511,7 +1511,7 @@ describe('git', ()=>{
         (4  3-1.0 $oid1 !     (branch:b1 op:branch_new) !)
         (5  3-1.1 $d1   !     (op:add file:/f2 link:2) $mf)
         (6  3-1.2 $oid2 !     (op:commit group:1 desc(c_f2)) !))
-        git_br(master) git_merge(oid4 b1 c_merge) dbg $t $$(
+        git_br(master) git_merge(oid4 b1 c_merge) $t $$(
         (7  4     $d1   !     (op:add file:/f2 link:2) $mf)
         (8  5     $oid2 !     (op:commit group:1 desc(c_f2)) !))
         ##seq9={}`);

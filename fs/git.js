@@ -82,7 +82,6 @@ export default class GIT extends FS {
     // delete branches
     for (let i=0; i<git_branches_curr.length; i++){
       let curr = git_branches_curr[i];
-      xerr.notice('XXX curr %s map %s', curr, git_branches_map[curr]);
       if (git_branches_map[curr])
         continue;
       // XXX: need api to get git_br
@@ -139,6 +138,7 @@ export default class GIT extends FS {
           body.git.merge = merge;
         yield _this.decl({cfid, group}, body);
       }
+      // add branches that were not added before (no commit after branch oid)
       if (git_br!=main_br && commits.length){
         let top_oid = yield _this.get_git_br_top_oid(cfid, git_br);
         let oid = commits[commits.length-1].oid;
@@ -261,19 +261,41 @@ export default class GIT extends FS {
     function*get_git_br_top_oid()
   {
     let _this = this._;
-    // XXX: need to find branch of git_br!!!
-    let top = _this.get_branch_top(cfid, git_br);
-    if (!top)
+    let seq = yield _this.get_git_br_seq(cfid, git_br);
+    if (!seq)
       return;
-    let decl = _this.get_decl(top.seq);
-    yield decl.load(cfid);
+    let bseq_top = _this.get_bseq_top(cfid, _this.bseq_get(cfid, seq));
+    let decl = _this.get_decl(bseq_top.seq);
+    yield decl.load(cfid); // XXX: review all load, try to mv t index data
     return decl.get_body(cfid)?.git?.oid;
+  }); }
+  get_git_br_seq(cfid, git_br){ return etask({_: this},
+    function*get_git_br_seq()
+  {
+    let _this = this._;
+    let seq = yield _this.find_one(git_br, {cfid, name: 'git_branch'});
+    if (!seq)
+      return false;
+    let decl = _this.get_decl(seq);
+    yield decl.load(cfid); // XXX: avoid load and just use index extra data
+    let body = decl.get_body(cfid);
+    return body.op!='branch_del' ? seq : false;
   }); }
   get_git_branches(cfid){ return etask({_: this}, function*get_git_branches(){
     let _this = this._;
-    let branches = _this.get_branches(cfid);
-    // XXX HACK: use git_branches index
-    return branches;
+    let index = _this.index_table?.get_index(cfid, null, 'git_branch');
+    if (!index)
+      return [];
+    // XXX HACK: need to find a proper way to do it
+    let a = [...index.avl.keys()].reverse(), done = {}, ret = [];
+    for (let i=0; i<a.length; i++){
+      let git_br = a[i].key, seq = yield _this.get_git_br_seq(cfid, git_br);
+      done[git_br] = true;
+      if (!seq)
+        continue;
+      ret.push(git_br);
+    }
+    return ret;
   }); }
   _xxx_sync_pre(config, git_branches){ return etask({_: this}, // XXX: rename
     function*_xxx_sync_pre()
@@ -326,7 +348,8 @@ GIT.create = (opt, d)=>etask(function*scroll_create(){
   let s = {crypt: Scroll.supported_crypt[0], pub: b2s(opt.pub), ...d,
     csum_sha1: true, index: ['file', 'dir', {name: 'dir_list',
     transform: 'decl_get_dir', filter: {op: ['add', 'rm']}},
-    {name: 'git_oid', field: 'git.oid', all_branches: true}]};
+    {name: 'git_oid', field: 'git.oid', all_branches: true},
+    {name: 'git_branch', transform: 'git_br', all_branches: true}]};
   if (d?.csum_sha256) // XXX: needed?
     s.index.push('csum_sha256');
   yield git.decl({scroll: s});

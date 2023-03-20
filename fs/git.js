@@ -108,9 +108,7 @@ export default class GIT extends FS {
         }
         let branch = git_br==main_br ? null : git_br; // XXX HACK
         // XXX: we might need to use new branch name in some cases (test it)
-        let o = _this.parse_opt({cfid, branch});
-        if (o.branch){
-          branch = o.branch;
+        if (!_this.branch_exists(cfid, branch)){
           prev = (yield _this.decl({cfid, branch, prev},
             {op: 'branch_new', git: {oid: parent}})).seq;
         }

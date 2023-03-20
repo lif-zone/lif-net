@@ -108,12 +108,39 @@ export default class GIT extends FS {
         }
         let branch = git_br==main_br ? null : git_br; // XXX HACK
         // XXX: we might need to use new branch name in some cases (test it)
+        let o = _this.parse_opt({cfid, branch});
+        if (o.branch){
+          branch = o.branch;
+          prev = (yield _this.decl({cfid, branch, prev},
+            {op: 'branch_new', git: {oid: parent}})).seq;
+        }
         let group = yield _this._sync_dir(config, cfid, branch, prev,
           '/', commit.tree, '0');
         let body = {op: 'commit', desc: commit.message, git: {oid}};
         if (merge)
           body.git.merge = merge;
         yield _this.decl({cfid, group}, body);
+      }
+      if (git_br!=main_br && commits.length){
+        // XXX: need to find branch of git_br!!! + wrap with nice api
+        let top = _this.get_branch_top(cfid, git_br), top_oid;
+        if (top){
+          let decl = _this.get_decl(top.seq);
+          yield decl.load(cfid);
+          top_oid = decl.get_body(cfid)?.git?.oid;
+        }
+        let oid = commits[commits.length-1].oid;
+        if (top){
+          if (top_oid!=oid)
+            throw new Error('XXX TODO'); // XXX TODO
+        } else {
+          let prev = yield _this.find_one_all_branches(oid,
+            {name: 'git.oid', cfid});
+          if (!prev)
+            throw new Error('top commit not found '+oid);
+          yield _this.decl({cfid, branch: git_br, prev}, {op: 'branch_new',
+            git: {oid}});
+        }
       }
     }
   }); }

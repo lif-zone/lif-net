@@ -55,7 +55,7 @@ export default class GIT extends FS {
       let prev = yield _this.get_git_br_top_seq(cfid, curr);
       yield _this.decl({cfid, prev}, {op: 'branch_del', git: {branch: curr}});
     }
-    // add new commits to scroll
+    // add new commits
     for (let git_br in logs.branch){
       let commits = logs.branch[git_br].commits;
       for (let i=0; i<commits.length; i++){
@@ -317,11 +317,17 @@ export default class GIT extends FS {
         git: {oid, branch: git_br}});
     } else {
       // XXX: need to make sure banch is unique
-      decl = yield _this.decl({cfid, branch: git_br, prev}, {op: 'branch_new',
-        git: {oid}});
+      let branch = _this.get_avail_branch(cfid, git_br);
+      decl = yield _this.decl({cfid, branch, prev}, {op: 'branch_new',
+        git: branch==git_br ? {oid} : {oid, branch: git_br}});
     }
     return decl.seq;
   }); }
+  get_avail_branch(cfid, br){
+    let b=br;
+    for (let i=2; this.branch_exists(cfid, b); b = br+' '+i, i++);
+    return b;
+  }
 }
 
 GIT.create = (opt, d)=>etask(function*scroll_create(){

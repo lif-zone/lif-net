@@ -350,9 +350,11 @@ const test_get_seq = s=>etask(function*get_seq(){
           bo[o.l] = t_buf[o.r];
         }
       }
-    } else if ('desc'==o.cmd){ // XXX: need better way to handle \n
+    } else if ('desc'==o.cmd) // XXX: need better way to handle \n
       bo[o.cmd] = decode_str(rm_parentesis(o.r, '('))+'\n';
-    } else if ('file'==o.cmd)
+    else if ('branch'==o.cmd)
+      bo[o.cmd] = rm_parentesis(o.r, '(');
+    else if ('file'==o.cmd)
       bo[o.cmd] = rm_parentesis(o.r, '(');
     else if (['content', 'group', 'link', 'diff'].includes(o.l) &&
       /^\d+$/.test(o.r))
@@ -1433,6 +1435,24 @@ describe('git', ()=>{
         (7  3-1.1 $d1   !     (op:add file:/f2 link:2) $mf)
         (8  3-1.2 $oid2 !     (op:commit group:1 desc(c_f2)) !))
         ##seq9={}`);
+      t('one_branch_rename_same_inc', `${t_common}
+        $add_f1 $t $$(
+        (1  !     !     !     (op:add dir:/) $m0)
+        (2  !     $d1   !     (op:add file:/f1 content:1 f2:d1) $mf)
+        (3  !     $oid1 !     (op:commit group:2 desc(c_f1)) !))
+        git_br_new(b1) $t $$(
+        (4  3-1.0 $oid1 !     (branch:b1 op:branch_new) !))
+        $add_f2 $t $$(
+        (5  3-1.1 $d1   !     (op:add file:/f2 link:2) $mf)
+        (6  3-1.2 $oid2 !     (op:commit group:1 desc(c_f2)) !))
+        git_br(master) $add_f3 $t $$(
+        (7  4     $d1   !     (op:add file:/f3 link:2) $mf)
+        (8  5     $oid3 !     (op:commit group:1 desc(c_f3)) !))
+        git_br_del(b1) $t $$(
+        (9  3-1.3 !     !     (op:branch_del) branch:b1))
+        git_br(master) git_br_new(b1) $t $$(
+        (10 5-1.0 $oid3 !     (branch(b1 2) op:branch_new) branch:b1))
+        ##seq11={}`);
       t('two_branch_rename_new_branch_no_commit_inc', `${t_common}
         $add_f1 $t $$(
         (1  !     !     !     (op:add dir:/) $m0)

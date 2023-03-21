@@ -1673,9 +1673,11 @@ describe('git', ()=>{
         (5  !     $oid2 !     (op:commit group:1 desc(c_f2)) !)
         (6  5-1.0 $oid2 !     (branch:b1 op:branch_new) !))
         ##seq7={}`);
+      // XXX: add tag support
       // XXX: flip/flop tests
       // XXX: test two roots
-      // XXX: test 3 parents
+      // XXX: test merge 1 parent
+      // XXX: test merge 3 parents
       // XXX: test change of head
       // XXX: test empty commits
       // XXX: need to lock fs while doing sync

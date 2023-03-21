@@ -1570,9 +1570,9 @@ describe('git', ()=>{
         (1  !         !     !     (op:add dir:/) $m0)
         (2  !         $d1   !     (op:add file:/f1 content:1 f2:d1) $mf)
         (3  !         $oid1 !     (op:commit group:2 desc(c_f1)) !))
-        git_br_new(b1) $t $$() // XXX: missing branch creation
+        git_br_new(b1) $t $$(
+        (4  3-1.0     $oid1 !     (branch:b1 op:branch_new) !))
         git_br_new(b2) $t $$(
-        (4  3-1.0     $oid1 !     (branch:b1 op:branch_new) !)
         (5  3-2.0     $oid1 !     (branch:b2 op:branch_new) !))
         git_br(b1) $add_f2 $t $$(
         (6  3-1.1     $d1   !     (op:add file:/f2 link:2) $mf)
@@ -1616,9 +1616,9 @@ describe('git', ()=>{
         (1  !     !     !     (op:add dir:/) $m0)
         (2  !     $d1   !     (op:add file:/f1 content:1 f2:d1) $mf)
         (3  !     $oid1 !     (op:commit group:2 desc(c_f1)) !))
-        git_br_new(b1) $t $$() // XXX: missing branch creation
+        git_br_new(b1) $t $$(
+        (4  3-1.0 $oid1 !     (branch:b1 op:branch_new) !))
         $add_f2 $t $$(
-        (4  3-1.0 $oid1 !     (branch:b1 op:branch_new) !)
         (5  3-1.1 $d1   !     (op:add file:/f2 link:2) $mf)
         (6  3-1.2 $oid2 !     (op:commit group:1 desc(c_f2)) !))
         git_br(master) $add_f3 $t $$(
@@ -1652,12 +1652,12 @@ describe('git', ()=>{
         (1  !     !     !     (op:add dir:/) $m0)
         (2  !     $d1   !     (op:add file:/f1 content:1 f2:d1) $mf)
         (3  !     $oid1 !     (op:commit group:2 desc(c_f1)) !))
-        git_br_new(b1) $t $$() // XXX: missing branch creation
+        git_br_new(b1) $t $$(
+        (4  3-1.0 $oid1 !     (branch:b1 op:branch_new) !))
         $add_f2 $t $$(
-        (4  3-1.0 $oid1 !     (branch:b1 op:branch_new) !)
         (5  3-1.1 $d1   !     (op:add file:/f2 link:2) $mf)
         (6  3-1.2 $oid2 !     (op:commit group:1 desc(c_f2)) !))
-        git_br(master) git_merge(oid4 b1 c_merge) dbg $t $$(
+        git_br(master) git_merge(oid3 b1 c_merge) dbg $t $$(
         (7  4     $d1   !     (op:add file:/f2 link:2) $mf)
         (8  5     $oid2 !     (op:commit group:1 desc(c_f2)) !))
         ##seq9={}`);
@@ -1665,7 +1665,7 @@ describe('git', ()=>{
         $add_f1
         git_br_new(b1)
         $add_f2
-        git_br(master) git_merge(oid4 b1 c_merge) $t $$(
+        git_br(master) git_merge(oid3 b1 c_merge) $t $$(
         (1  !     !     !     (op:add dir:/) $m0)
         (2  !     $d1   !     (op:add file:/f1 content:1 f2:d1) $mf)
         (3  !     $oid1 !     (op:commit group:2 desc(c_f1)) !)
@@ -1673,7 +1673,25 @@ describe('git', ()=>{
         (5  !     $oid2 !     (op:commit group:1 desc(c_f2)) !)
         (6  5-1.0 $oid2 !     (branch:b1 op:branch_new) !))
         ##seq7={}`);
-      // XXX: test merge 1 parent on branch
+      t('merge_one_parent_on_branch_inc', `${t_common}
+        $add_f1 $t $$(
+        (1  !         !     !     (op:add dir:/) $m0)
+        (2  !         $d1   !     (op:add file:/f1 content:1 f2:d1) $mf)
+        (3  !         $oid1 !     (op:commit group:2 desc(c_f1)) !))
+        git_br_new(b1) $t $$(
+        (4  3-1.0     $oid1 !     (branch:b1 op:branch_new) !))
+        $add_f2 $t $$(
+        (5  3-1.1 $d1   !     (op:add file:/f2 link:2) $mf)
+        (6  3-1.2     $oid2 !     (op:commit group:1 desc(c_f2)) !))
+        git_br_new(b2) $t $$(
+        (7  3-1.2-1.0 $oid2 !     (branch:b2 op:branch_new) !))
+        $add_f3 $t $$(
+        (8  3-1.2-1.1 $d1   !     (op:add file:/f3 link:2) $mf)
+        (9  3-1.2-1.2 $oid3 !     (op:commit group:1 desc(c_f3)) !))
+        git_br(b1) git_merge(oid4 b2 c_merge) dbg $t $$(
+        (10 3-1.3   $d1   !     (op:add file:/f3 link:2) $mf)
+        (11 3-1.4   $oid3 !     (op:commit group:1 desc(c_f3)) !))
+        ##seq12={}`);
       // XXX: add support for unamed branches (merge branch that was deleted)
       // XXX: add tag support
       // XXX: flip/flop tests

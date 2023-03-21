@@ -68,9 +68,7 @@ export default class GIT extends FS {
       let curr = git_branches_curr[i];
       if (git_branches_map[curr])
         continue;
-      // XXX: need api to get git_br
-      let top = _this.get_branch_top(cfid, curr);
-      let prev = top.seq;
+      let prev = yield _this.get_git_br_top_seq(cfid, curr);
       yield _this.decl({cfid, prev}, {op: 'branch_del', git: {branch: curr}});
     }
     // add new commits to scroll

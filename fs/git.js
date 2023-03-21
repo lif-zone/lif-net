@@ -71,28 +71,15 @@ export default class GIT extends FS {
       let prev = yield _this.get_git_br_top_seq(cfid, curr);
       yield _this.decl({cfid, prev}, {op: 'branch_del', git: {branch: curr}});
     }
+    let logs = yield _this._get_git_log(config, git_branches);
     // add new commits to scroll
-    for (let b=0; b<git_branches.length; b++){
-      let git_br = git_branches[b];
-      git_branches_map[git_br] = true;
-      yield git_api.checkout(config.gitdir ? {...config, ref: git_br} :
-      {...config, ref: git_br, remote: 'origin'});
-      if (config.url)
-        yield git_api.fetch({...config});
-      // XXX: use since from last sync
-      let log = yield git_api.log({...config, ref: git_br});
-      let commits = [];
-      for (let i=0, parent; i<log.length; i++){
-        let curr = log[i];
-        if (parent && curr.oid!=parent)
-          continue;
-        commits.unshift(curr);
-        parent = curr.commit.parent[0];
+    for (let git_br in logs){
+      let commits = logs[git_br];
+      for (let i=0; i<commits.length; i++){
+        // XXX: support multiple merge info and test it
         // XXX: save missing info
         // autohr, ts, tree, timestamp, timezoneOffset,
         // commit, gpgsig
-      }
-      for (let i=0; i<commits.length; i++){
         let {oid, commit} = commits[i], prev, [parent, merge] = commit.parent;
         let seq = yield _this.find_one(oid, {dir: 'up', name: 'git_oid',
           cfid});
@@ -112,6 +99,9 @@ export default class GIT extends FS {
           prev = yield _this._new_set_branch(cfid, prev, git_br, parent);
         else if (git_br!=main_br) // XXX: check logic for main_br
           prev = yield _this.get_git_br_top_seq(cfid, git_br);
+        let prev_top_oid = yield _this.get_git_br_top_oid(cfid, git_br);
+        if (prev_top_oid && prev_top_oid!=parent)
+          throw new Error('git corruption '+git_br);
         let group = yield _this._sync_dir(config, cfid, prev,
           '/', commit.tree, '0'); // XXX: can root mode be different?
         // XXX: check behavir with empty commits (need to use prev)
@@ -136,6 +126,31 @@ export default class GIT extends FS {
         yield _this._new_set_branch(cfid, prev, git_br, oid);
       }
     }
+  }); }
+  _get_git_log(config, git_branches){
+    return etask({_: this}, function*_get_git_log()
+  {
+    let ret = {};
+    // add new commits to scroll
+    for (let b=0; b<git_branches.length; b++){
+      let git_br = git_branches[b];
+      yield git_api.checkout(config.gitdir ? {...config, ref: git_br} :
+        {...config, ref: git_br, remote: 'origin'});
+      if (config.url)
+        yield git_api.fetch({...config});
+      // XXX: use since from last sync
+      let log = yield git_api.log({...config, ref: git_br});
+      let commits = [];
+      for (let i=0, parent; i<log.length; i++){
+        let curr = log[i];
+        if (parent && curr.oid!=parent) // skip merge side branch
+          continue;
+        commits.unshift(curr);
+        parent = curr.commit.parent[0];
+      }
+      ret[git_br] = commits;
+    }
+    return ret;
   }); }
   _sync_dir(config, cfid, prev, dir, oid, mode){
     return etask({_: this}, function*_sync_dir()

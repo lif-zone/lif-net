@@ -1533,8 +1533,9 @@ describe('git', ()=>{
         git_br_rename(b1 tmp) git_br_rename(b2 b1) git_br_rename(tmp b2)
         git_br(b1) $add_f5 git_br(b2) $add_f6
         $t $$(
+        (12 3-1.3 !     !     (op:branch_del) branch:b1)
         )
-        ##seq12={}`);
+        ##seq13={}`);
       t('three_branch_inc', `${t_common}
         $add_f1 $t $$(
         (1  !         !     !     (op:add dir:/) $m0)

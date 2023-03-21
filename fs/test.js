@@ -1335,6 +1335,7 @@ describe('git', ()=>{
         $$add_f3(fs_write($R/f3 d1) git_add(f3) git_commit(oid3 c_f3))
         $$add_f4(fs_write($R/f4 d1) git_add(f4) git_commit(oid4 c_f4))
         $$add_f5(fs_write($R/f5 d1) git_add(f5) git_commit(oid5 c_f5))
+        $$add_f6(fs_write($R/f6 d1) git_add(f6) git_commit(oid6 c_f6))
         git_init($R) s..git(src(git_test))
         $$t(fs_cp($R/.git $R2) sync(gitdir($R2))
           ##seq$1={bseq:$2 $rm_parentesis($5) git:{oid:$3 merge:$4 $6}})`;
@@ -1432,6 +1433,108 @@ describe('git', ()=>{
         (7  3-1.1 $d1   !     (op:add file:/f2 link:2) $mf)
         (8  3-1.2 $oid2 !     (op:commit group:1 desc(c_f2)) !))
         ##seq9={}`);
+      t('two_branch_rename_new_branch_no_commit_inc', `${t_common}
+        $add_f1 $t $$(
+        (1  !     !     !     (op:add dir:/) $m0)
+        (2  !     $d1   !     (op:add file:/f1 content:1 f2:d1) $mf)
+        (3  !     $oid1 !     (op:commit group:2 desc(c_f1)) !))
+        git_br_new(b1) $t $$(
+        (4  3-1.0 $oid1 !     (branch:b1 op:branch_new) !))
+        $add_f2 $t $$(
+        (5  3-1.1 $d1   !     (op:add file:/f2 link:2) $mf)
+        (6  3-1.2 $oid2 !     (op:commit group:1 desc(c_f2)) !))
+        git_br(master) $add_f3 $t $$(
+        (7  4     $d1   !     (op:add file:/f3 link:2) $mf)
+        (8  5     $oid3 !     (op:commit group:1 desc(c_f3)) !))
+        git_br_new(b2) $t $$(
+        (9  5-1.0 $oid3 !     (branch:b2 op:branch_new) !))
+        $add_f4 $t $$(
+        (10 5-1.1 $d1   !     (op:add file:/f4 link:2) $mf)
+        (11 5-1.2 $oid4 !     (op:commit group:1 desc(c_f4)) !))
+        git_br_rename(b1 bb1) git_br_rename(b2 bb2)
+        $t $$(
+        (12 5-1.3 !     !     (op:branch_del) branch:b2)
+        (13 3-1.3 !     !     (op:branch_del) branch:b1)
+        (14 3-1.4 $oid2 !     (op:branch_set) branch:bb1)
+        (15 5-1.4 $oid4 !     (op:branch_set) branch:bb2))
+        ##seq16={}`);
+      t('two_branch_rename_new_branch_commit_after_inc', `${t_common}
+        $add_f1 $t $$(
+        (1  !     !     !     (op:add dir:/) $m0)
+        (2  !     $d1   !     (op:add file:/f1 content:1 f2:d1) $mf)
+        (3  !     $oid1 !     (op:commit group:2 desc(c_f1)) !))
+        git_br_new(b1) $t $$(
+        (4  3-1.0 $oid1 !     (branch:b1 op:branch_new) !))
+        $add_f2 $t $$(
+        (5  3-1.1 $d1   !     (op:add file:/f2 link:2) $mf)
+        (6  3-1.2 $oid2 !     (op:commit group:1 desc(c_f2)) !))
+        git_br(master) $add_f3 $t $$(
+        (7  4     $d1   !     (op:add file:/f3 link:2) $mf)
+        (8  5     $oid3 !     (op:commit group:1 desc(c_f3)) !))
+        git_br_new(b2) $t $$(
+        (9  5-1.0 $oid3 !     (branch:b2 op:branch_new) !))
+        $add_f4 $t $$(
+        (10 5-1.1 $d1   !     (op:add file:/f4 link:2) $mf)
+        (11 5-1.2 $oid4 !     (op:commit group:1 desc(c_f4)) !))
+        git_br_rename(b1 bb1) git_br_rename(b2 bb2)
+        git_br(bb1) $add_f5 git_br(bb2) $add_f6 $t $$(
+        (12 5-1.3 !     !     (op:branch_del) branch:b2)
+        (13 3-1.3 !     !     (op:branch_del) branch:b1)
+        (14 3-1.4 $oid2 !     (op:branch_set) branch:bb1)
+        (15 3-1.5 $d1   !     (op:add file:/f5 link:2) $mf)
+        (16 3-1.6 $oid5 !     (op:commit group:1 desc(c_f5)) !)
+        (17 5-1.4 $oid4 !     (op:branch_set) branch:bb2)
+        (18 5-1.5 $d1   !     (op:add file:/f6 link:2) $mf)
+        (19 5-1.6 $oid6 !     (op:commit group:1 desc(c_f6)) !))
+        ##seq20={}`);
+      // XXX: add existing branch test
+      if (0)
+      t('two_branch_rename_flip_branch_no_commit_inc', `${t_common}
+        $add_f1 $t $$(
+        (1  !     !     !     (op:add dir:/) $m0)
+        (2  !     $d1   !     (op:add file:/f1 content:1 f2:d1) $mf)
+        (3  !     $oid1 !     (op:commit group:2 desc(c_f1)) !))
+        git_br_new(b1) $t $$(
+        (4  3-1.0 $oid1 !     (branch:b1 op:branch_new) !))
+        $add_f2 $t $$(
+        (5  3-1.1 $d1   !     (op:add file:/f2 link:2) $mf)
+        (6  3-1.2 $oid2 !     (op:commit group:1 desc(c_f2)) !))
+        git_br(master) $add_f3 $t $$(
+        (7  4     $d1   !     (op:add file:/f3 link:2) $mf)
+        (8  5     $oid3 !     (op:commit group:1 desc(c_f3)) !))
+        git_br_new(b2) $t $$(
+        (9  5-1.0 $oid3 !     (branch:b2 op:branch_new) !))
+        $add_f4 $t $$(
+        (10 5-1.1 $d1   !     (op:add file:/f4 link:2) $mf)
+        (11 5-1.2 $oid4 !     (op:commit group:1 desc(c_f4)) !))
+        git_br_rename(b1 tmp) git_br_rename(b2 b1) git_br_rename(tmp b2)
+        $t $$(
+        )
+        ##seq12={}`);
+      if (0)
+      t('two_branch_rename_flip_branch_with_commit_inc', `${t_common}
+        $add_f1 $t $$(
+        (1  !     !     !     (op:add dir:/) $m0)
+        (2  !     $d1   !     (op:add file:/f1 content:1 f2:d1) $mf)
+        (3  !     $oid1 !     (op:commit group:2 desc(c_f1)) !))
+        git_br_new(b1) $t $$(
+        (4  3-1.0 $oid1 !     (branch:b1 op:branch_new) !))
+        $add_f2 $t $$(
+        (5  3-1.1 $d1   !     (op:add file:/f2 link:2) $mf)
+        (6  3-1.2 $oid2 !     (op:commit group:1 desc(c_f2)) !))
+        git_br(master) $add_f3 $t $$(
+        (7  4     $d1   !     (op:add file:/f3 link:2) $mf)
+        (8  5     $oid3 !     (op:commit group:1 desc(c_f3)) !))
+        git_br_new(b2) $t $$(
+        (9  5-1.0 $oid3 !     (branch:b2 op:branch_new) !))
+        $add_f4 $t $$(
+        (10 5-1.1 $d1   !     (op:add file:/f4 link:2) $mf)
+        (11 5-1.2 $oid4 !     (op:commit group:1 desc(c_f4)) !))
+        git_br_rename(b1 tmp) git_br_rename(b2 b1) git_br_rename(tmp b2)
+        git_br(b1) $add_f5 git_br(b2) $add_f6
+        $t $$(
+        )
+        ##seq12={}`);
       t('three_branch_inc', `${t_common}
         $add_f1 $t $$(
         (1  !         !     !     (op:add dir:/) $m0)
@@ -1545,6 +1648,8 @@ describe('git', ()=>{
       // XXX: test two roots
       // XXX: test 3 parents
       // XXX: test change of head
+      // XXX: test empty commits
+      // XXX: need to lock fs while doing sync
     });
   });
 /* XXX derry:

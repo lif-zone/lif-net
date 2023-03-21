@@ -50,11 +50,17 @@ function file2dir(file){
 }
 
 // XXX: need test
-function decl_get_dir(body){
+function decl_get_dir(h, body){
   let {dir, file} = body;
   return (file||dir) && file2dir(dir?.slice(-1)=='/' ?
     dir.substr(0, dir.length-1) : file);
 }
+
+// XXX: need test
+function decl_git_br(h, body){ return h.branch||body.git?.branch; }
+
+function decl_git_br_curr(h, body){
+  return h.branch||body.git?.branch ? 'git_br' : null; }
 
 // XXX: need test
 function data_filter(data, cfid, desc){
@@ -73,12 +79,16 @@ function data_filter(data, cfid, desc){
 }
 
 // XXX: need test
-function key_from_data(data, cfid, desc){
-  let body = data.get_body(cfid), {field, transform} = desc;
+function key_from_data(h, data, cfid, desc){
+  let body = data.get_body(cfid), {field, transform, specific} = desc;
+  if (specific)
+    throw new Error('XXX '+specific);
   if (!transform)
     return util.get(body, field);
   switch (transform){
-  case 'decl_get_dir': return decl_get_dir(body);
+  case 'decl_get_dir': return decl_get_dir(h, body);
+  case 'git_br': return decl_git_br(h, body);
+  case 'git_br_curr': return decl_git_br_curr(h, body);
   default: throw new Error('unknown transform function '+transform);
   }
 }
@@ -98,7 +108,8 @@ export default class Index {
     let scroll = this.scroll, decl = scroll.get_decl(seq, {create: false});
     if (!data_filter(data, cfid, this.desc)) // XXX: need test
       return;
-    let key = key_from_data(data, cfid, this.desc);
+    let h = decl.get_header(cfid);
+    let key = key_from_data(h, data, cfid, this.desc);
     if (key===undefined || key===null)
       return;
     let curr = this.find_mem_iter(key, {min: seq, max: seq})?.curr;
@@ -304,7 +315,7 @@ class Index_table {
       return;
     return map_name.get(name);
   }
-  get_index(cfid, bseqb, name, opt){
+  get_index(cfid, bseqb, name, opt={}){
     let desc = this.desc.get(name);
     if (desc.all_branches)
       bseqb = null;
@@ -403,9 +414,20 @@ class Index_table {
         return iter;
       return index.find_iter(key, {min, max, dir});
     }
-    assert(cfid!==undefined, 'missing cfid');
-    assert(bseq!==undefined, 'missing bseq');
     assert(name!==undefined, 'missing name');
+    assert(cfid!==undefined, 'missing cfid');
+    let desc = _this.get_desc(name);
+    if (!desc)
+      return iter;
+    if (desc.all_branches){
+      assert([null, undefined].includes(bseq),
+        'bseq not allowed for all_branches');
+      let index = _this.get_index(cfid, null, name);
+      if (!index)
+        return iter;
+      return index.find_iter(key, {min, max, dir});
+    }
+    assert(bseq!==undefined, 'missing bseq');
     let scroll = _this.scroll, bt;
     let curr = bseq, bseqs = [], conflicts = [];
     if (dir=='up'){
@@ -487,19 +509,6 @@ class Index_table {
       return iter.next();
     });
     return iter.next();
-  }); }
-  find_one_all_branches(key, opt){ return etask({_: this}, function*find(){
-    let _this = this._, {cfid} = opt, scroll = _this.scroll;
-    assert.strictEqual(opt.count, undefined, 'count not allowed');
-    assert.strictEqual(opt.bseq, undefined, 'bseq not allowed');
-    let branches = scroll.get_branches(cfid);
-    branches.unshift(null); // XXX: mv it to get_branches
-    for (let i=0; i<branches.length; i++){
-      let bseq = scroll.get_branch_top(cfid, branches[i]).bseq;
-      let seq = yield scroll.find_one(key, {...opt, bseq});
-      if (seq)
-        return seq;
-    }
   }); }
 }
 

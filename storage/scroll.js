@@ -1128,6 +1128,8 @@ export default class Scroll extends EventEmitterAsync {
   }
   seq_sig(cfid, seq){ return this.get_decl(seq)?.sig_get(cfid); }
   bseq_get(cfid, seq){
+    assert(cfid!==undefined, 'missing cfid');
+    assert(seq!==undefined, 'missing seq');
     let btable = this.get_branch_table(this.to_c(cfid, seq));
     return btable.get_bseq(seq);
   }
@@ -1244,6 +1246,8 @@ export default class Scroll extends EventEmitterAsync {
   branch_exists(cfid, branch){ return !!this.get_branch_top(cfid, branch); }
   get_branch_top(cfid, branch){
     return this.branch.get(cfid)?.get_branch_top(branch); }
+  get_bseq_top(cfid, bseq){
+    return this.branch.get(cfid)?.get_bseq_top(bseq); }
   get_branch_bseq(cfid, branch){
     return this.branch.get(cfid)?.get_branch(branch)?.bseq; }
   get_branches(cfid, seq){ return this.branch.get(cfid)?.get_branches(seq); }
@@ -1262,9 +1266,6 @@ export default class Scroll extends EventEmitterAsync {
   find(key, opt){ return this.index_table?.find(key, opt); }
   find_one(key, opt){ return this.index_table?.find_one(key, opt); }
   find_iter(key, opt){ return this.index_table?.find_iter(key, opt); }
-  find_one_all_branches(key, opt){
-    return this.index_table?.find_one_all_branches(key, opt);
-  }
   get_section(cfid, seq){
     return this.conflict.get(cfid).mem_map.get_section(seq); }
   is_mem_exists(cfid, min, max){ // XXX: need test

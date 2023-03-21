@@ -1400,7 +1400,6 @@ describe('git', ()=>{
         (4  !     $d1   !     (op:add file:/f3 link:2) $mf)
         (5  !     $oid3 !     (op:commit group:1 desc(c_f3)) !))
         ##seq9={}`);
-      if (0) // XXX WIP + need test
       t('one_branch_rename_branch_inc', `${t_common}
         $add_f1 $t $$(
         (1  !     !     !     (op:add dir:/) $m0)
@@ -1414,10 +1413,25 @@ describe('git', ()=>{
         git_br(master) $add_f3 $t $$(
         (7  4     $d1   !     (op:add file:/f3 link:2) $mf)
         (8  5     $oid3 !     (op:commit group:1 desc(c_f3)) !))
-        git_br_rename(b1 b2) dbg $t $$(
+        git_br_rename(b1 b2) $t $$(
         (9  3-1.3 !     !     (op:branch_del) branch:b1)
-        (10 3-1.4 !     !     (op:branch_set) branch:b2))
+        (10 3-1.4 $oid2 !     (op:branch_set) branch:b2))
         ##seq11={}`);
+      t('one_branch_rename_branch_full', `${t_common}
+        $add_f1
+        git_br_new(b1)
+        $add_f2
+        git_br(master) $add_f3
+        git_br_rename(b1 b2) $t $$(
+        (1  !     !     !     (op:add dir:/) $m0)
+        (2  !     $d1   !     (op:add file:/f1 content:1 f2:d1) $mf)
+        (3  !     $oid1 !     (op:commit group:2 desc(c_f1)) !)
+        (4  !     $d1   !     (op:add file:/f3 link:2) $mf)
+        (5  !     $oid3 !     (op:commit group:1 desc(c_f3)) !)
+        (6  3-1.0 $oid1 !     (branch:b2 op:branch_new) !)
+        (7  3-1.1 $d1   !     (op:add file:/f2 link:2) $mf)
+        (8  3-1.2 $oid2 !     (op:commit group:1 desc(c_f2)) !))
+        ##seq9={}`);
       t('three_branch_inc', `${t_common}
         $add_f1 $t $$(
         (1  !         !     !     (op:add dir:/) $m0)
@@ -1538,9 +1552,15 @@ describe('git', ()=>{
 name,bseq,op
 b1,3-1.0,new
 b1,3-1.3,del
-git_banch=branch||git_branch
+git_branch=branch||git_branch
 key=[{name: git_branch field: git_branch all_branches: true,
   val: [{field: op}], specific: 'git_br'}]
+
+b1,3,new
+b1,10,del
+b2,6,new
+b2,20,del
+
 */
 // XXX TODO:
 // 1. review encode_str

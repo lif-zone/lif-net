@@ -112,14 +112,8 @@ export default class GIT extends FS {
         // XXX: review logic for main_br
         if (git_br!=main_br && !(yield _this.git_br_exists(cfid, git_br)))
           prev = yield _this._new_set_branch(cfid, prev, git_br, parent);
-        if (git_br!=main_br){ // XXX: check logic for main_br
-          let br_seq = yield _this.get_git_br_seq(cfid, git_br);
-          if (!br_seq)
-            throw new Error('git branch not found '+git_br);
-          let bseq_top = _this.get_bseq_top(cfid,
-            _this.bseq_get(cfid, br_seq));
-          prev = bseq_top.seq;
-        }
+        else if (git_br!=main_br) // XXX: check logic for main_br
+          prev = yield _this.get_git_br_top_seq(cfid, git_br);
         let group = yield _this._sync_dir(config, cfid, prev,
           '/', commit.tree, '0'); // XXX: can root mode be different?
         // XXX: check behavir with empty commits (need to use prev)
@@ -149,12 +143,7 @@ export default class GIT extends FS {
     return etask({_: this}, function*_sync_dir()
   {
     let _this = this._, n = 0;
-    // XXX: rm branch
-//    let top = _this.get_branch_top(cfid, branch);
-//    if (top)
-//      prev = undefined;
     // XXX: eraly return if if dir oid did not changed
-    // XXX: if no top, use prev top bseq
     if (!(yield _this.dir_exists(dir, {cfid, prev}))){
       yield _this.add_dir(dir, {cfid, prev, body: {git: {mode}}});
       n++;
@@ -250,13 +239,21 @@ export default class GIT extends FS {
     function*get_git_br_top_oid()
   {
     let _this = this._;
-    let seq = yield _this.get_git_br_seq(cfid, git_br);
+    let top_seq = yield _this.get_git_br_top_seq(cfid, git_br);
+    if (!top_seq)
+      return;
+    let decl = _this.get_decl(top_seq);
+    yield decl.load(cfid); // XXX: review all load, try to mv t index data
+    return decl.get_body(cfid)?.git?.oid;
+  }); }
+  get_git_br_top_seq(cfid, git_br){ return etask({_: this},
+    function*get_git_br_top_seq()
+  {
+    let _this = this._, seq = yield _this.get_git_br_seq(cfid, git_br);
     if (!seq)
       return;
     let bseq_top = _this.get_bseq_top(cfid, _this.bseq_get(cfid, seq));
-    let decl = _this.get_decl(bseq_top.seq);
-    yield decl.load(cfid); // XXX: review all load, try to mv t index data
-    return decl.get_body(cfid)?.git?.oid;
+    return bseq_top.seq;
   }); }
   git_br_exists(cfid, git_br){ return etask({_: this}, function*git_br_exists()
   {

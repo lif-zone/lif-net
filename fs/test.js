@@ -1487,8 +1487,6 @@ describe('git', ()=>{
         (18 5-1.5 $d1   !     (op:add file:/f6 link:2) $mf)
         (19 5-1.6 $oid6 !     (op:commit group:1 desc(c_f6)) !))
         ##seq20={}`);
-      // XXX: add existing branch test
-      if (0)
       t('two_branch_rename_flip_branch_no_commit_inc', `${t_common}
         $add_f1 $t $$(
         (1  !     !     !     (op:add dir:/) $m0)
@@ -1507,11 +1505,13 @@ describe('git', ()=>{
         $add_f4 $t $$(
         (10 5-1.1 $d1   !     (op:add file:/f4 link:2) $mf)
         (11 5-1.2 $oid4 !     (op:commit group:1 desc(c_f4)) !))
-        git_br_rename(b1 tmp) git_br_rename(b2 b1) git_br_rename(tmp b2)
-        $t $$(
-        )
-        ##seq12={}`);
-      if (0)
+        // rename-flip b1<>b2
+        git_br_rename(b1 tmp) git_br_rename(b2 b1) git_br_rename(tmp b2) $t $$(
+        (12 5-1.3 !     !     (op:branch_del) branch:b2)
+        (13 3-1.3 !     !     (op:branch_del) branch:b1)
+        (14 5-1.4 $oid4 !     (op:branch_set) branch:b1)
+        (15 3-1.4 $oid2 !     (op:branch_set) branch:b2))
+        ##seq16={}`);
       t('two_branch_rename_flip_branch_with_commit_inc', `${t_common}
         $add_f1 $t $$(
         (1  !     !     !     (op:add dir:/) $m0)
@@ -1530,12 +1530,20 @@ describe('git', ()=>{
         $add_f4 $t $$(
         (10 5-1.1 $d1   !     (op:add file:/f4 link:2) $mf)
         (11 5-1.2 $oid4 !     (op:commit group:1 desc(c_f4)) !))
+        // rename-flip b1<>b2
         git_br_rename(b1 tmp) git_br_rename(b2 b1) git_br_rename(tmp b2)
+        // commit new files on b1 & b2
         git_br(b1) $add_f5 git_br(b2) $add_f6
         $t $$(
-        (12 3-1.3 !     !     (op:branch_del) branch:b1)
-        )
-        ##seq13={}`);
+        (12 5-1.3 !     !     (op:branch_del) branch:b2)
+        (13 3-1.3 !     !     (op:branch_del) branch:b1)
+        (14 5-1.4 $oid4 !     (op:branch_set) branch:b1)
+        (15 5-1.5 $d1   !     (op:add file:/f5 link:2) $mf)
+        (16 5-1.6 $oid5 !     (op:commit group:1 desc(c_f5)) !)
+        (17 3-1.4 $oid2 !     (op:branch_set) branch:b2)
+        (18 3-1.5 $d1   !     (op:add file:/f6 link:2) $mf)
+        (19 3-1.6 $oid6 !     (op:commit group:1 desc(c_f6)) !))
+        ##seq20={}`);
       t('three_branch_inc', `${t_common}
         $add_f1 $t $$(
         (1  !         !     !     (op:add dir:/) $m0)

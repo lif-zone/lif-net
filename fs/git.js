@@ -3,7 +3,6 @@ import assert from 'assert';
 import fs from 'fs';
 import http from 'isomorphic-git/http/node/index.cjs';
 import array from '../util/array.js';
-import xerr from '../util/xerr.js';
 import FS from './fs.js';
 import util from '../util/util.js';
 import etask from '../util/etask.js';
@@ -60,21 +59,22 @@ export default class GIT extends FS {
       let git_br = git_branches[b];
       git_branches_map[git_br] = true;
     }
+    let logs = yield _this._get_git_log(config, git_branches);
     let git_branches_curr = yield _this.get_git_branches(cfid);
-    xerr.notice('XXX git_branches_curr %O', git_branches_curr);
-    xerr.notice('XXX git_branches %O', git_branches);
     // delete branches
     for (let i=0; i<git_branches_curr.length; i++){
       let curr = git_branches_curr[i];
-      if (git_branches_map[curr])
-        continue;
+      if (git_branches_map[curr]){ // use logs[curr] instead
+        let prev_top_oid = yield _this.get_git_br_top_oid(cfid, curr);
+        if (!prev_top_oid || logs[curr].map[prev_top_oid])
+          continue;
+      }
       let prev = yield _this.get_git_br_top_seq(cfid, curr);
       yield _this.decl({cfid, prev}, {op: 'branch_del', git: {branch: curr}});
     }
-    let logs = yield _this._get_git_log(config, git_branches);
     // add new commits to scroll
     for (let git_br in logs){
-      let commits = logs[git_br];
+      let commits = logs[git_br].commits;
       for (let i=0; i<commits.length; i++){
         // XXX: support multiple merge info and test it
         // XXX: save missing info
@@ -140,15 +140,16 @@ export default class GIT extends FS {
         yield git_api.fetch({...config});
       // XXX: use since from last sync
       let log = yield git_api.log({...config, ref: git_br});
-      let commits = [];
+      let commits = [], map = {};
       for (let i=0, parent; i<log.length; i++){
         let curr = log[i];
         if (parent && curr.oid!=parent) // skip merge side branch
           continue;
         commits.unshift(curr);
+        map[curr.oid] = curr;
         parent = curr.commit.parent[0];
       }
-      ret[git_br] = commits;
+      ret[git_br] = {commits, map};
     }
     return ret;
   }); }

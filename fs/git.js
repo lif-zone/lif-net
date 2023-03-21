@@ -7,11 +7,9 @@ import FS from './fs.js';
 import util from '../util/util.js';
 import etask from '../util/etask.js';
 import Scroll from '../storage/scroll.js';
-import Branch_table from '../storage/branch.js';
 import buf_util from '../net/buf_util.js';
 import git_api from 'isomorphic-git';
 const b2s = buf_util.buf_to_str, s2b = buf_util.buf_from_str;
-const {bseq_0} = Branch_table;
 
 // XXX: need test + mv to generic place + need proper escape
 function escape_fs(s){ return s.replaceAll('/', '_').replaceAll(':', '_'); }
@@ -64,17 +62,43 @@ export default class GIT extends FS {
         // autohr, ts, tree, timestamp, timezoneOffset,
         // commit, gpgsig
         let {oid, commit} = commits[i], prev, [parent, merge] = commit.parent;
-        let seq = yield _this.find_one(oid, {dir: 'up', name: 'git_oid',
-          cfid});
-        if (seq)
-          continue;
-        if (parent){
-          // XXX: need smarter logic, current logic depends on order of
-          // branches
-          prev = yield _this.find_one(parent, {dir: 'up',
-            name: 'git_oid', cfid});
-          if (!prev)
-            throw new Error('parent commit was not found '+parent);
+        // XXX: check logic for main
+        if (git_br==main){
+          // XXX: support get_git_br_top_seq for main and fix all code
+          let br_seq = _this.get_branch_top(cfid, null).seq;
+          let seq = yield _this.find_one(oid, {cfid, name: 'git_oid',
+            bseq: _this.bseq_get(cfid, br_seq)});
+          if (seq)
+            continue;
+          if (parent){
+            prev = yield _this.find_one(parent, {cfid, name: 'git_oid',
+              bseq: _this.bseq_get(cfid, br_seq)});
+            if (!prev)
+              throw new Error('parent commit was not found '+parent);
+          }
+        } else if (yield _this.git_br_exists(cfid, git_br)){
+          let br_seq = yield _this.get_git_br_top_seq(cfid, git_br);
+          let seq = yield _this.find_one(oid, {cfid, name: 'git_oid',
+            bseq: _this.bseq_get(cfid, br_seq)});
+          if (seq)
+            continue;
+          if (parent){
+            prev = yield _this.find_one(parent, {cfid, name: 'git_oid',
+              bseq: _this.bseq_get(cfid, br_seq)});
+            if (!prev)
+              throw new Error('parent commit was not found '+parent);
+          }
+        } else {
+          let seq = yield _this.find_one(oid, {dir: 'up', name: 'git_oid_all',
+            cfid});
+          if (seq)
+            continue;
+          if (parent){
+            prev = yield _this.find_one(parent, {dir: 'up',
+              name: 'git_oid_all', cfid});
+            if (!prev)
+              throw new Error('parent commit was not found '+parent);
+          }
         }
         // XXX: we might need to use new branch name in some cases (test it)
         // XXX: review logic for main
@@ -91,7 +115,7 @@ export default class GIT extends FS {
         let body = {op: 'commit', desc: commit.message, git: {oid}};
         if (merge)
           body.git.merge = merge;
-        yield _this.decl({cfid, group}, body);
+        yield _this.decl(group ? {cfid, group} : {cfid, prev}, body);
       }
       // add branches that were not added before (no commit after branch oid)
       if (git_br!=main && commits.length){
@@ -102,7 +126,7 @@ export default class GIT extends FS {
             throw new Error('XXX TODO '+git_br); // XXX TODO
           continue;
         }
-        let prev = yield _this.find_one(oid, {dir: 'up', name: 'git_oid',
+        let prev = yield _this.find_one(oid, {dir: 'up', name: 'git_oid_all',
           cfid});
         if (!prev)
           throw new Error('top commit not found '+oid);
@@ -164,12 +188,8 @@ export default class GIT extends FS {
     let dir_list = {};
     for (let i=0, e; e = tree[i]; i++)
       dir_list[e.type=='blob' ? dir+e.path : dir+e.path+'/'] = true;
-    // XXX: need to get current branch
-    let top_seq = _this.conflict.get(cfid).top.seq;
-    let top_bseq = _this.bseq_get(cfid, top_seq);
-    if (prev)
-      [top_seq, top_bseq] = [prev, _this.bseq_get(cfid, prev)];
-    let iter = yield _this.ls_iter(cfid, top_bseq, top_seq, dir);
+    let top = prev ? prev : _this.conflict.get(cfid).top.seq;
+    let iter = yield _this.ls_iter(cfid, _this.bseq_get(cfid, top), top, dir);
     for (; iter.curr; yield iter.next()){
       if (dir_list[iter.curr])
         continue;
@@ -178,20 +198,14 @@ export default class GIT extends FS {
       prev = undefined;
     }
     for (let i=0, e; e = tree[i]; i++){
-      let file, _dir, body, top, prev_seq, blob, link;
+      let file, _dir, body, prev_seq, blob, link;
       switch (e.type){
       case 'blob':
         file = dir+e.path;
         dir_list[file] = true;
-        // XXX: need to get current branch
-        top = _this.conflict.get(cfid).top.seq;
-        if (top){
-          prev_seq = yield _this.get_file_seq(cfid,
-            _this.bseq_get(cfid, top), top, file);
-        } else if (prev){
-          prev_seq = yield _this.get_file_seq(cfid, _this.bseq_get(cfid, prev),
-            prev, file);
-        }
+        top = prev ? prev : _this.conflict.get(cfid).top.seq;
+        prev_seq = yield _this.get_file_seq(cfid, _this.bseq_get(cfid, top),
+          top, file);
         if (prev_seq){
           let prev_decl = _this.get_decl(prev_seq);
           yield prev_decl.load(cfid);
@@ -201,7 +215,7 @@ export default class GIT extends FS {
         body = {git: {oid: e.oid, mode: e.mode}};
         blob = (yield git_api.readBlob({...config, oid: e.oid})).blob;
         blob = blob ? Buffer.from(blob) : null;
-        link = yield _this.find_one(e.oid, {dir: 'up', name: 'git_oid',
+        link = yield _this.find_one(e.oid, {dir: 'up', name: 'git_oid_all',
           cfid});
         if (yield _this.file_exists(file, {cfid, prev}))
           yield _this.mod_file(file, blob, {cfid, prev, link, body});
@@ -220,18 +234,6 @@ export default class GIT extends FS {
       }
     }
     return n;
-  }); }
-  get_git_branch(cfid, seq){ return etask({_: this}, function*get_git_branch(){
-    let _this = this._;
-    let bseq = _this.bseq_get(cfid, seq), bseqb0 = bseq_0(bseq);
-    if (bseqb0=='0')
-      return null;
-    let seq_b = _this.bseq_to_seq(cfid, bseqb0);
-    let decl = _this.get_decl(seq_b);
-    yield decl.load(cfid);
-    let header = decl.get_header(cfid);
-    assert(header.branch, 'missing branch for '+bseqb0);
-    return header.branch;
   }); }
   _get_head_git_br(config){ return etask(function*_get_head_git_br(){
   // XXX: we call it to force getting origin refs into directory
@@ -338,7 +340,8 @@ GIT.create = (opt, d)=>etask(function*scroll_create(){
   let s = {crypt: Scroll.supported_crypt[0], pub: b2s(opt.pub), ...d,
     csum_sha1: true, index: ['file', 'dir', {name: 'dir_list',
     transform: 'decl_get_dir', filter: {op: ['add', 'rm']}},
-    {name: 'git_oid', field: 'git.oid', all_branches: true},
+    {name: 'git_oid', field: 'git.oid'},
+    {name: 'git_oid_all', field: 'git.oid', all_branches: true},
     // XXX: review git_br_curr with derry - better way?
     {name: 'git_br_curr', transform: 'git_br_curr'},
     {name: 'git_br_all', transform: 'git_br', all_branches: true}]};

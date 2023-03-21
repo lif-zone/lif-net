@@ -1354,6 +1354,7 @@ describe('git', ()=>{
         (3  !     $oid1 !     (op:commit group:2 desc(c_f1)) !))
         git_br_new(b1) $t $$(
         (4  3-1.0 $oid1 !     (branch:b1 op:branch_new) !))
+        dbg
         $add_f2 $t $$(
         (5  3-1.1 $d1   !     (op:add file:/f2 link:2) $mf)
         (6  3-1.2 $oid2 !     (op:commit group:1 desc(c_f2)) !))
@@ -1646,7 +1647,6 @@ describe('git', ()=>{
         (9  3-1.1 $d1   !     (op:add file:/f2 link:2) $mf)
         (10  3-1.2 $oid2 !     (op:commit group:1 desc(c_f2)) !))
         ##seq11={}`);
-      if (0) // XXX: WIP
       t('merge_one_parent_inc', `${t_common}
         $add_f1 $t $$(
         (1  !     !     !     (op:add dir:/) $m0)
@@ -1657,7 +1657,7 @@ describe('git', ()=>{
         (4  3-1.0 $oid1 !     (branch:b1 op:branch_new) !)
         (5  3-1.1 $d1   !     (op:add file:/f2 link:2) $mf)
         (6  3-1.2 $oid2 !     (op:commit group:1 desc(c_f2)) !))
-        git_br(master) git_merge(oid4 b1 c_merge) $t $$(
+        git_br(master) git_merge(oid4 b1 c_merge) dbg $t $$(
         (7  4     $d1   !     (op:add file:/f2 link:2) $mf)
         (8  5     $oid2 !     (op:commit group:1 desc(c_f2)) !))
         ##seq9={}`);
@@ -1673,14 +1673,16 @@ describe('git', ()=>{
         (5  !     $oid2 !     (op:commit group:1 desc(c_f2)) !)
         (6  5-1.0 $oid2 !     (branch:b1 op:branch_new) !))
         ##seq7={}`);
+      // XXX: test merge 1 parent
+      // XXX: add support for unamed branches (merge branch that was deleted)
       // XXX: add tag support
       // XXX: flip/flop tests
       // XXX: test two roots
-      // XXX: test merge 1 parent
       // XXX: test merge 3 parents
       // XXX: test change of head
       // XXX: test empty commits
       // XXX: need to lock fs while doing sync
+      // XXX: verify we can rebuild git sha (file, dir, commit)+branches/tags
     });
   });
 /* XXX derry:

@@ -54,57 +54,11 @@ export default class GIT extends FS {
       yield _this.decl({cfid, prev}, {op: 'branch_del', git: {branch: curr}});
     }
     // add new commits
+    let merge_queue = {};
     for (let git_br in logs.branch){
       let commits = logs.branch[git_br].commits;
-      for (let i=0; i<commits.length; i++){
-        // XXX: support multiple merge info and test it
-        // XXX: save missing info
-        // autohr, ts, tree, timestamp, timezoneOffset,
-        // commit, gpgsig
-        let {oid, commit} = commits[i], prev, [parent, merge] = commit.parent;
-        // XXX: check logic for main
-        if (git_br==main || (yield _this.git_br_exists(cfid, git_br))){
-          // XXX: support get_git_br_top_seq for main and fix all code
-          let br_seq = git_br==main ? _this.get_branch_top(cfid, null).seq :
-            yield _this.get_git_br_top_seq(cfid, git_br);
-          let seq = yield _this.find_one(oid, {cfid, name: 'git_oid',
-            bseq: _this.bseq_get(cfid, br_seq)});
-          if (seq)
-            continue;
-          if (parent){
-            prev = yield _this.find_one(parent, {cfid, name: 'git_oid',
-              bseq: _this.bseq_get(cfid, br_seq)});
-            if (!prev)
-              throw new Error('parent commit was not found '+parent);
-          }
-        } else {
-          let seq = yield _this.find_one(oid, {dir: 'up', name: 'git_oid_all',
-            cfid});
-          if (seq)
-            continue;
-          if (parent){
-            prev = yield _this.find_one(parent, {dir: 'up',
-              name: 'git_oid_all', cfid});
-            if (!prev)
-              throw new Error('parent commit was not found '+parent);
-          }
-        }
-        // XXX: review logic for main
-        if (git_br!=main && !(yield _this.git_br_exists(cfid, git_br)))
-          prev = yield _this._new_set_branch(cfid, prev, git_br, parent);
-        else if (git_br!=main) // XXX: check logic for main
-          prev = yield _this.get_git_br_top_seq(cfid, git_br);
-        let prev_top_oid = yield _this.get_git_br_top_oid(cfid, git_br);
-        if (prev_top_oid && prev_top_oid!=parent)
-          throw new Error('git corruption '+git_br);
-        let group = yield _this._sync_dir(config, cfid, prev,
-          '/', commit.tree, '0'); // XXX: can root mode be different?
-        // XXX: check behavir with empty commits (need to use prev)
-        let body = {op: 'commit', desc: commit.message, git: {oid}};
-        if (merge)
-          body.git.merge = merge;
-        yield _this.decl(group ? {cfid, group} : {cfid, prev}, body);
-      }
+      yield _this._sync_commits(config, cfid, main, git_br, commits,
+        merge_queue);
       // add branches that were not added before (no commit after branch oid)
       if (git_br!=main && commits.length){
         let top_oid = yield _this.get_git_br_top_oid(cfid, git_br);
@@ -121,10 +75,88 @@ export default class GIT extends FS {
         yield _this._new_set_branch(cfid, prev, git_br, oid);
       }
     }
+    // add oids that were merge but belong to a delete branch
+    for (let oid in merge_queue){
+      let git_br = merge_queue[oid];
+      let seq = yield _this.find_one(oid, {dir: 'up', name: 'git_oid_all',
+          cfid});
+      if (seq)
+        continue;
+      let commits = [];
+      while (oid){
+        let commit = logs.branch[git_br].map[oid];
+        if (!commit)
+          throw new Error('commit not found for '+oid);
+        commits.unshift(commit);
+        oid = commit.commit.parent[0];
+      }
+      // XXX TODO: support branch without name
+      let branch = _this.get_avail_branch(cfid, '_unknown');
+      yield _this._sync_commits(config, cfid, main, branch, commits,
+        merge_queue);
+    }
+  }); }
+  _sync_commits(config, cfid, main, git_br, commits, merge_queue){
+    return etask({_: this}, function*_sync_commits()
+  {
+    let _this = this._;
+    for (let i=0; i<commits.length; i++){
+      // XXX: support multiple merge info and test it
+      // XXX: save missing info
+      // autohr, ts, tree, timestamp, timezoneOffset,
+      // commit, gpgsig
+      let {oid, commit} = commits[i], prev, [parent, merge] = commit.parent;
+      // XXX: check logic for main
+      if (git_br==main || (yield _this.git_br_exists(cfid, git_br))){
+        // XXX: support get_git_br_top_seq for main and fix all code
+        let br_seq = git_br==main ? _this.get_branch_top(cfid, null).seq :
+          yield _this.get_git_br_top_seq(cfid, git_br);
+        let seq = yield _this.find_one(oid, {cfid, name: 'git_oid',
+          bseq: _this.bseq_get(cfid, br_seq)});
+        if (seq)
+          continue;
+        if (parent){
+          prev = yield _this.find_one(parent, {cfid, name: 'git_oid',
+            bseq: _this.bseq_get(cfid, br_seq)});
+          if (!prev)
+            throw new Error('parent commit was not found '+parent);
+        }
+      } else {
+        let seq = yield _this.find_one(oid, {dir: 'up', name: 'git_oid_all',
+          cfid});
+        if (seq)
+          continue;
+        if (parent){
+          prev = yield _this.find_one(parent, {dir: 'up',
+            name: 'git_oid_all', cfid});
+          if (!prev)
+            throw new Error('parent commit was not found '+parent);
+        }
+      }
+      // XXX: review logic for main
+      if (git_br!=main && !(yield _this.git_br_exists(cfid, git_br)))
+        prev = yield _this._new_set_branch(cfid, prev, git_br, parent);
+      else if (git_br!=main) // XXX: check logic for main
+        prev = yield _this.get_git_br_top_seq(cfid, git_br);
+      let prev_top_oid = yield _this.get_git_br_top_oid(cfid, git_br);
+      if (prev_top_oid && prev_top_oid!=parent)
+        throw new Error('git corruption '+git_br);
+      let group = yield _this._sync_dir(config, cfid, prev,
+        '/', commit.tree, '0'); // XXX: can root mode be different?
+      // XXX: check behavir with empty commits (need to use prev)
+      let body = {op: 'commit', desc: commit.message, git: {oid}};
+      if (merge){
+        merge_queue[merge] = git_br;
+        body.git.merge = merge;
+      }
+      delete merge_queue[oid];
+      yield _this.decl(group ? {cfid, group} : {cfid, prev}, body);
+    }
   }); }
   _get_git_log(config){
     return etask({_: this}, function*_get_git_log()
   {
+    // XXX: detect branch didn't change and make sure we don't work on it
     let _this = this._;
     let git_branches = yield git_api.listBranches(config.gitdir ? config :
       {...config, remote: 'origin'});
@@ -155,8 +187,11 @@ export default class GIT extends FS {
         if (parent && curr.oid!=parent) // skip merge side branch
           continue;
         commits.unshift(curr);
-        map[curr.oid] = curr;
         parent = curr.commit.parent[0];
+      }
+      for (let i=0; i<log.length; i++){
+        let curr = log[i];
+        map[curr.oid] = curr;
       }
       ret.branch[git_br] = {commits, map};
     }

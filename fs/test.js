@@ -1354,7 +1354,6 @@ describe('git', ()=>{
         (3  !     $oid1 !     (op:commit group:2 desc(c_f1)) !))
         git_br_new(b1) $t $$(
         (4  3-1.0 $oid1 !     (branch:b1 op:branch_new) !))
-        dbg
         $add_f2 $t $$(
         (5  3-1.1 $d1   !     (op:add file:/f2 link:2) $mf)
         (6  3-1.2 $oid2 !     (op:commit group:1 desc(c_f2)) !))
@@ -1647,6 +1646,45 @@ describe('git', ()=>{
         (9  3-1.1 $d1   !     (op:add file:/f2 link:2) $mf)
         (10  3-1.2 $oid2 !     (op:commit group:1 desc(c_f2)) !))
         ##seq11={}`);
+      t('merge_two_parents_del_branch_inc', `${t_common}
+        $add_f1 $t $$(
+        (1  !     !     !     (op:add dir:/) $m0)
+        (2  !     $d1   !     (op:add file:/f1 content:1 f2:d1) $mf)
+        (3  !     $oid1 !     (op:commit group:2 desc(c_f1)) !))
+        git_br_new(b1) $t $$(
+        (4  3-1.0 $oid1 !     (branch:b1 op:branch_new) !))
+        $add_f2 $t $$(
+        (5  3-1.1 $d1   !     (op:add file:/f2 link:2) $mf)
+        (6  3-1.2 $oid2 !     (op:commit group:1 desc(c_f2)) !))
+        git_br(master) $add_f3 $t $$(
+        (7  4     $d1   !     (op:add file:/f3 link:2) $mf)
+        (8  5     $oid3 !     (op:commit group:1 desc(c_f3)) !))
+        git_merge(oid4 b1 c_merge) $t $$(
+        (9  6     $d1   !     (op:add file:/f2 link:2) $mf)
+        (10  7     $oid4 $oid2 (op:commit group:1 desc(c_merge)) !))
+        git_br_del(b1) $t $$(
+        (11  3-1.3 !     !     (op:branch_del) branch:b1))
+        ##seq12={}`);
+      t('merge_two_parents_del_branch_full', `${t_common}
+        $add_f1
+        git_br_new(b1)
+        $add_f2
+        git_br(master)
+        $add_f3
+        git_merge(oid4 b1 c_merge)
+        // XXX: _unknown -> null
+        git_br_del(b1) $t $$(
+        (1  !     !     !     (op:add dir:/) $m0)
+        (2  !     $d1   !     (op:add file:/f1 content:1 f2:d1) $mf)
+        (3  !     $oid1 !     (op:commit group:2 desc(c_f1)) !)
+        (4  !     $d1   !     (op:add file:/f3 link:2) $mf)
+        (5  !     $oid3 !     (op:commit group:1 desc(c_f3)) !)
+        (6  !     $d1   !     (op:add file:/f2 link:2) $mf)
+        (7  !     $oid4 $oid2 (op:commit group:1 desc(c_merge)) !)
+        (8  3-1.0 $oid1 !     (branch:_unknown op:branch_new) !)
+        (9  3-1.1 $d1   !     (op:add file:/f2 link:2) $mf)
+        (10 3-1.2 $oid2 !     (op:commit group:1 desc(c_f2)) !))
+        ##seq11={}`);
       t('merge_one_parent_inc', `${t_common}
         $add_f1 $t $$(
         (1  !     !     !     (op:add dir:/) $m0)
@@ -1657,7 +1695,7 @@ describe('git', ()=>{
         $add_f2 $t $$(
         (5  3-1.1 $d1   !     (op:add file:/f2 link:2) $mf)
         (6  3-1.2 $oid2 !     (op:commit group:1 desc(c_f2)) !))
-        git_br(master) git_merge(oid3 b1 c_merge) dbg $t $$(
+        git_br(master) git_merge(oid3 b1 c_merge) $t $$(
         (7  4     $d1   !     (op:add file:/f2 link:2) $mf)
         (8  5     $oid2 !     (op:commit group:1 desc(c_f2)) !))
         ##seq9={}`);
@@ -1688,7 +1726,7 @@ describe('git', ()=>{
         $add_f3 $t $$(
         (8  3-1.2-1.1 $d1   !     (op:add file:/f3 link:2) $mf)
         (9  3-1.2-1.2 $oid3 !     (op:commit group:1 desc(c_f3)) !))
-        git_br(b1) git_merge(oid4 b2 c_merge) dbg $t $$(
+        git_br(b1) git_merge(oid4 b2 c_merge) $t $$(
         (10 3-1.3   $d1   !     (op:add file:/f3 link:2) $mf)
         (11 3-1.4   $oid3 !     (op:commit group:1 desc(c_f3)) !))
         ##seq12={}`);

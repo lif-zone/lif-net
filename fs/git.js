@@ -63,21 +63,10 @@ export default class GIT extends FS {
         // commit, gpgsig
         let {oid, commit} = commits[i], prev, [parent, merge] = commit.parent;
         // XXX: check logic for main
-        if (git_br==main){
+        if (git_br==main || (yield _this.git_br_exists(cfid, git_br))){
           // XXX: support get_git_br_top_seq for main and fix all code
-          let br_seq = _this.get_branch_top(cfid, null).seq;
-          let seq = yield _this.find_one(oid, {cfid, name: 'git_oid',
-            bseq: _this.bseq_get(cfid, br_seq)});
-          if (seq)
-            continue;
-          if (parent){
-            prev = yield _this.find_one(parent, {cfid, name: 'git_oid',
-              bseq: _this.bseq_get(cfid, br_seq)});
-            if (!prev)
-              throw new Error('parent commit was not found '+parent);
-          }
-        } else if (yield _this.git_br_exists(cfid, git_br)){
-          let br_seq = yield _this.get_git_br_top_seq(cfid, git_br);
+          let br_seq = git_br==main ? _this.get_branch_top(cfid, null).seq :
+            yield _this.get_git_br_top_seq(cfid, git_br);
           let seq = yield _this.find_one(oid, {cfid, name: 'git_oid',
             bseq: _this.bseq_get(cfid, br_seq)});
           if (seq)
@@ -100,7 +89,6 @@ export default class GIT extends FS {
               throw new Error('parent commit was not found '+parent);
           }
         }
-        // XXX: we might need to use new branch name in some cases (test it)
         // XXX: review logic for main
         if (git_br!=main && !(yield _this.git_br_exists(cfid, git_br)))
           prev = yield _this._new_set_branch(cfid, prev, git_br, parent);

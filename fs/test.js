@@ -1673,7 +1673,7 @@ describe('git', ()=>{
         (5  !     $oid2 !     (op:commit group:1 desc(c_f2)) !)
         (6  5-1.0 $oid2 !     (branch:b1 op:branch_new) !))
         ##seq7={}`);
-      // XXX: test merge 1 parent
+      // XXX: test merge 1 parent on branch
       // XXX: add support for unamed branches (merge branch that was deleted)
       // XXX: add tag support
       // XXX: flip/flop tests

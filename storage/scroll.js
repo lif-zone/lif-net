@@ -516,8 +516,10 @@ export default class Scroll extends EventEmitterAsync {
       header.group = group;
     if (link)
       header.link = link;
-    if (branch)
+    if (branch){
       header.branch = branch;
+      assert(!_this.branch_exists(cfid, branch), 'branch exists '+branch);
+    }
     if (seq==0){
       assert(bseq==bint(0) || !bseq, 'invalid bseq for seq'+seq);
       bseq = bint(0);

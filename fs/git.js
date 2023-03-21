@@ -40,41 +40,24 @@ export default class GIT extends FS {
       config.url = url;
       yield git_api.clone({...config});
     }
-    let git_branches = yield git_api.listBranches(opt.gitdir ? config :
-      {...config, remote: 'origin'});
-    if (git_branches.includes('HEAD'))
-      array.rm_elm(git_branches, 'HEAD');
-    let main_br = yield _this._get_head_git_br(config);
-    if (!main_br){
-      main_br = git_branches.includes('main') ? 'main' :
-        git_branches.includes('master') ? 'master' : '';
-    }
-    if (git_branches.includes(main_br)){
-      array.rm_elm(git_branches, main_br);
-      git_branches.unshift(main_br);
-    }
     let cfid = 0; // XXX: support conflict
-    let git_branches_map = {};
-    for (let b=0; b<git_branches.length; b++){
-      let git_br = git_branches[b];
-      git_branches_map[git_br] = true;
-    }
-    let logs = yield _this._get_git_log(config, git_branches);
+    let logs = yield _this._get_git_log(config);
+    let main = logs.main;
     let git_branches_curr = yield _this.get_git_branches(cfid);
     // delete branches
     for (let i=0; i<git_branches_curr.length; i++){
       let curr = git_branches_curr[i];
-      if (git_branches_map[curr]){ // use logs[curr] instead
+      if (logs.branch[curr]){
         let prev_top_oid = yield _this.get_git_br_top_oid(cfid, curr);
-        if (!prev_top_oid || logs[curr].map[prev_top_oid])
+        if (!prev_top_oid || logs.branch[curr].map[prev_top_oid])
           continue;
       }
       let prev = yield _this.get_git_br_top_seq(cfid, curr);
       yield _this.decl({cfid, prev}, {op: 'branch_del', git: {branch: curr}});
     }
     // add new commits to scroll
-    for (let git_br in logs){
-      let commits = logs[git_br].commits;
+    for (let git_br in logs.branch){
+      let commits = logs.branch[git_br].commits;
       for (let i=0; i<commits.length; i++){
         // XXX: support multiple merge info and test it
         // XXX: save missing info
@@ -94,10 +77,10 @@ export default class GIT extends FS {
             throw new Error('parent commit was not found '+parent);
         }
         // XXX: we might need to use new branch name in some cases (test it)
-        // XXX: review logic for main_br
-        if (git_br!=main_br && !(yield _this.git_br_exists(cfid, git_br)))
+        // XXX: review logic for main
+        if (git_br!=main && !(yield _this.git_br_exists(cfid, git_br)))
           prev = yield _this._new_set_branch(cfid, prev, git_br, parent);
-        else if (git_br!=main_br) // XXX: check logic for main_br
+        else if (git_br!=main) // XXX: check logic for main
           prev = yield _this.get_git_br_top_seq(cfid, git_br);
         let prev_top_oid = yield _this.get_git_br_top_oid(cfid, git_br);
         if (prev_top_oid && prev_top_oid!=parent)
@@ -111,7 +94,7 @@ export default class GIT extends FS {
         yield _this.decl({cfid, group}, body);
       }
       // add branches that were not added before (no commit after branch oid)
-      if (git_br!=main_br && commits.length){
+      if (git_br!=main && commits.length){
         let top_oid = yield _this.get_git_br_top_oid(cfid, git_br);
         let oid = commits[commits.length-1].oid;
         if (top_oid){
@@ -127,10 +110,24 @@ export default class GIT extends FS {
       }
     }
   }); }
-  _get_git_log(config, git_branches){
+  _get_git_log(config){
     return etask({_: this}, function*_get_git_log()
   {
-    let ret = {};
+    let _this = this._;
+    let git_branches = yield git_api.listBranches(config.gitdir ? config :
+      {...config, remote: 'origin'});
+    if (git_branches.includes('HEAD'))
+      array.rm_elm(git_branches, 'HEAD');
+    let main = yield _this._get_head_git_br(config);
+    if (!main){
+      main = git_branches.includes('main') ? 'main' :
+        git_branches.includes('master') ? 'master' : '';
+    }
+    if (git_branches.includes(main)){
+      array.rm_elm(git_branches, main);
+      git_branches.unshift(main);
+    }
+    let ret = {main: main, branch: {}};
     // add new commits to scroll
     for (let b=0; b<git_branches.length; b++){
       let git_br = git_branches[b];
@@ -149,7 +146,7 @@ export default class GIT extends FS {
         map[curr.oid] = curr;
         parent = curr.commit.parent[0];
       }
-      ret[git_br] = {commits, map};
+      ret.branch[git_br] = {commits, map};
     }
     return ret;
   }); }

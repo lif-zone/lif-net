@@ -93,7 +93,7 @@ export default class GIT extends FS {
         oid = commit.commit.parent[0];
       }
       // XXX TODO: support branch without name
-      let branch = _this.get_avail_branch(cfid, '_unknown');
+      let branch = _this.get_avail_branch(cfid, '_null');
       yield _this._sync_commits(config, cfid, main, branch, commits,
         merge_queue);
     }

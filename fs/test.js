@@ -1691,7 +1691,6 @@ describe('git', ()=>{
         git_br(master)
         $add_f3
         git_merge(oid4 b1 c_merge)
-        // XXX: _unknown -> null
         git_br_del(b1) $t $$(
         (1  !     !     !     (op:add dir:/) $m0)
         (2  !     $d1   !     (op:add file:/f1 content:1 f2:d1) $mf)
@@ -1700,8 +1699,7 @@ describe('git', ()=>{
         (5  !     $oid3 !     (op:commit group:1 desc(c_f3)) !)
         (6  !     $d1   !     (op:add file:/f2 link:2) $mf)
         (7  !     $oid4 $oid2 (op:commit group:1 desc(c_merge)) !)
-        // XXX: _unknown -> _null
-        (8  3-1.0 $oid1 !     (branch:_unknown op:branch_new) !)
+        (8  3-1.0 $oid1 !     (branch:_null op:branch_new) !)
         (9  3-1.1 $d1   !     (op:add file:/f2 link:2) $mf)
         (10 3-1.2 $oid2 !     (op:commit group:1 desc(c_f2)) !))
         ##seq11={}`);

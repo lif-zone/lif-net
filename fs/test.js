@@ -1700,6 +1700,7 @@ describe('git', ()=>{
         (5  !     $oid3 !     (op:commit group:1 desc(c_f3)) !)
         (6  !     $d1   !     (op:add file:/f2 link:2) $mf)
         (7  !     $oid4 $oid2 (op:commit group:1 desc(c_merge)) !)
+        // XXX: _unknown -> _null
         (8  3-1.0 $oid1 !     (branch:_unknown op:branch_new) !)
         (9  3-1.1 $d1   !     (op:add file:/f2 link:2) $mf)
         (10 3-1.2 $oid2 !     (op:commit group:1 desc(c_f2)) !))
@@ -1749,6 +1750,29 @@ describe('git', ()=>{
         (10 3-1.3   $d1   !     (op:add file:/f3 link:2) $mf)
         (11 3-1.4   $oid3 !     (op:commit group:1 desc(c_f3)) !))
         ##seq12={}`);
+        // XXX: support type:$1 op:$2 $3...
+        /* XX: support type/op
+        $add_f1 $t $$(
+        // (1  !         !     !    (fs add dir:/) $m0)
+        (1  !         !     !    (type:fs op:add dir:/) $m0)
+        (2  !         $d1   !    (type:fs op:add file:/f1 content:1 f2:d1) $mf)
+        (3  !         $oid1 !    (type:commit op:add group:2 desc(c_f1)) !))
+        $add_f2 $t $$(
+        (4  !         $d1   !    (type:fs op:add file:/f2 link:2) $mf)
+        (5  !         $oid2 !    (type:commit op:add group:1 desc(c_f2)) !))
+        $add_f3 $t $$(
+        (6  !         $d1   !    (type:fs op:add file:/f3 link:2) $mf)
+        (7  !         $oid3 !    (type:commit op:add group:1 desc(c_f3)) !))
+        git_tag(t1 $oid1) $t $$(
+        (8  !         $oid1 !    (type:tag op:add name:t1 link:3) !))
+        git_tag(t1 $oid2) $t $$(
+        (9  !         $oid2 !    (type:tag op:mod name:t1 link:5) !))
+        git_tag(t3 $oid3) $t $$(
+        (10 !         $oid3 !    (type:tag op:mod name:t3 link:7) !))
+        git_tag_del(t1) $t $$(
+        (11 !         !     !    (type:tag op:del name:t1) !))
+        ##seq12={}`);
+        */
       t('tag_inc', `${t_common}
         $add_f1 $t $$(
         (1  !         !     !     (op:add dir:/) $m0)
@@ -1786,8 +1810,8 @@ describe('git', ()=>{
         (7  !         $oid3 !     (op:commit group:1 desc(c_f3)) !)
         (8  !         $oid3 !     (op:tag_set name:t3 link:7) !))
         ##seq9={}`);
-      // XXX: derry: make tag generic to fs?
-      // XXX: add tag support (basic, annotated, pgp)
+      // XXX: add tag support (basic, annotated, gpg)
+      // XXX: fix body type/op format (type:fs op:add)
       // XXX: flip/flop tests
       // XXX: add support for unamed branches (merge branch that was deleted)
       // XXX: test two roots
@@ -1796,7 +1820,7 @@ describe('git', ()=>{
       // XXX: test change of head
       // XXX: test empty commits
       // XXX: need to lock fs while doing sync
-      // XXX: verify we can rebuild git sha (file, dir, commit)+branches/tags
+      // XXX: verify we can rebuild git sha (file, dir, commit, gpg)+branches/tags
     });
   });
 /* XXX derry:

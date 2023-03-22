@@ -88,6 +88,7 @@ export default class GIT extends FS {
         if (!commit)
           throw new Error('commit not found for '+oid);
         commits.unshift(commit);
+        // XXX: copy logic of parent from _get_git_log
         oid = commit.commit.parent[0];
       }
       // XXX TODO: support branch without name
@@ -182,7 +183,7 @@ export default class GIT extends FS {
       // XXX: use since from last sync
       let log = yield git_api.log({...config, ref: git_br});
       let commits = [], map = {};
-      for (let i=0, parent; i<log.length; i++){
+      for (let i=0, parent; i<log.length && (!i||parent); i++){
         let curr = log[i];
         if (parent && curr.oid!=parent) // skip merge side branch
           continue;
@@ -193,7 +194,7 @@ export default class GIT extends FS {
         let curr = log[i];
         map[curr.oid] = curr;
       }
-      ret.branch[git_br] = {commits, map};
+      ret.branch[git_br] = {commits, map, log};
     }
     return ret;
   }); }

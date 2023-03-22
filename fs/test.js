@@ -283,6 +283,21 @@ const cmd_git_br = t=>etask(function*cmd_git_br(){
   execSync('git checkout '+br, {cwd: t_git_repo_dir, stdio: 'ignore'});
 });
 
+const cmd_git_tag = t=>etask(function*cmd_git_tag(){
+  let a = t.r.split(' '), [tag, commit] = a;
+  commit = commit||'';
+  assert(tag, 'missing tag');
+  assert(commit, 'missing commit');
+  assert(a.length==2, 'too many args');
+  execSync('git tag -f '+tag+' '+commit, {cwd: t_git_repo_dir});
+});
+
+const cmd_git_tag_del = t=>etask(function*cmd_git_tag_del(){
+  let tag = t.r;
+  assert(tag, 'missing tag');
+  execSync('git tag -d '+tag, {cwd: t_git_repo_dir});
+});
+
 const cmd_git_merge = (curr, t)=>etask(function*cmd_git_merge(){
   let a = t.r.split(' '), [oid, br, msg] = a;
   assert(oid, 'missing commit oid var');
@@ -312,6 +327,8 @@ const test_run_single = (curr, o, step)=>etask(function*_test_run_single(){
   case 'git_br_del': yield cmd_git_br_del(o); break;
   case 'git_br_rename': yield cmd_git_br_rename(o); break;
   case 'git_br': yield cmd_git_br(o); break;
+  case 'git_tag': yield cmd_git_tag(o); break;
+  case 'git_tag_del': yield cmd_git_tag_del(o); break;
   case 'git_merge': yield cmd_git_merge(curr, o); break;
   case 'fs_write': yield cmd_fs_write(o); break;
   case 'fs_cp': yield cmd_fs_cp(o); break;
@@ -371,6 +388,7 @@ const test_get_seq = s=>etask(function*get_seq(){
   }
   if (bo.git && Object.keys(bo.git).length==0)
     delete bo.git;
+  xerr.notice('XXX s %s O %O', s, bo);
   return bo;
 });
 
@@ -1342,6 +1360,7 @@ describe('git', ()=>{
         $$t(fs_cp($R/.git $R2) sync(gitdir($R2))
           ##seq$1={bseq:$2 $rm_parentesis($5) git:{oid:$3 merge:$4 $6}})`;
       const t = (name, test)=>it(name, ()=>test_run(test));
+      t('sync_empty', `${t_common} $t $$() ##seq1={}`);
       t('commit_file', `${t_common} $add_f1 $t $$(
         (1  ! !     ! (op:add dir:/) $m0)
         (2  ! $d1   ! (op:add file:/f1 content:1 f2:d1) $mf)
@@ -1730,11 +1749,50 @@ describe('git', ()=>{
         (10 3-1.3   $d1   !     (op:add file:/f3 link:2) $mf)
         (11 3-1.4   $oid3 !     (op:commit group:1 desc(c_f3)) !))
         ##seq12={}`);
-      // XXX: add support for unamed branches (merge branch that was deleted)
-      // XXX: add tag support
+      t('tag_inc', `${t_common}
+        $add_f1 $t $$(
+        (1  !         !     !     (op:add dir:/) $m0)
+        (2  !         $d1   !     (op:add file:/f1 content:1 f2:d1) $mf)
+        (3  !         $oid1 !     (op:commit group:2 desc(c_f1)) !))
+        $add_f2 $t $$(
+        (4  !         $d1   !     (op:add file:/f2 link:2) $mf)
+        (5  !         $oid2 !     (op:commit group:1 desc(c_f2)) !))
+        $add_f3 $t $$(
+        (6  !         $d1   !     (op:add file:/f3 link:2) $mf)
+        (7  !         $oid3 !     (op:commit group:1 desc(c_f3)) !))
+        git_tag(t1 $oid1) $t $$(
+        (8  !         $oid1 !     (op:tag_set name:t1 link:3) !))
+        git_tag(t1 $oid2) $t $$(
+        (9  !         $oid2 !     (op:tag_set name:t1 link:5) !))
+        git_tag(t3 $oid3) $t $$(
+        (10 !         $oid3 !     (op:tag_set name:t3 link:7) !))
+        git_tag_del(t1) $t $$(
+        (11 !         !     !     (op:tag_del name:t1) !))
+        ##seq12={}`);
+      t('tag_full', `${t_common}
+        $add_f1
+        $add_f2
+        $add_f3
+        git_tag(t1 $oid1)
+        git_tag(t1 $oid2)
+        git_tag(t3 $oid3)
+        git_tag_del(t1) $t $$(
+        (1  !         !     !     (op:add dir:/) $m0)
+        (2  !         $d1   !     (op:add file:/f1 content:1 f2:d1) $mf)
+        (3  !         $oid1 !     (op:commit group:2 desc(c_f1)) !)
+        (4  !         $d1   !     (op:add file:/f2 link:2) $mf)
+        (5  !         $oid2 !     (op:commit group:1 desc(c_f2)) !)
+        (6  !         $d1   !     (op:add file:/f3 link:2) $mf)
+        (7  !         $oid3 !     (op:commit group:1 desc(c_f3)) !)
+        (8  !         $oid3 !     (op:tag_set name:t3 link:7) !))
+        ##seq9={}`);
+      // XXX: derry: make tag generic to fs?
+      // XXX: add tag support (basic, annotated, pgp)
       // XXX: flip/flop tests
+      // XXX: add support for unamed branches (merge branch that was deleted)
       // XXX: test two roots
       // XXX: test merge 3 parents
+      // XXX: test sync from multi repo
       // XXX: test change of head
       // XXX: test empty commits
       // XXX: need to lock fs while doing sync

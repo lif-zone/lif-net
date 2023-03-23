@@ -196,8 +196,10 @@ function replace_macro_vars(s, vars){
     else
       s = s.replace(new RegExp('\\$'+escape.regex(v)+'\\b', 'g'), vars[v]);
   }
-  if (s!=_s)
+  if (s!=_s){
     xerr.notice('macro_vars %s -> %s', _s, s);
+    return replace_macro_vars(s, vars);
+  }
   return s;
 }
 

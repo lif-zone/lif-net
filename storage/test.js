@@ -283,6 +283,8 @@ describe('parser', ()=>{
     t('cmd($1) $$(a1) cmd2 $last $$(a2)', ['cmd(a1)', 'cmd2', 'cmd(a2)']);
     t(`cmd($1) $$(// ignore
       a b)`, ['cmd(a)', 'cmd(b)']);
+    t('$$a(A) $$b($a) cmd($b)', ['cmd(A)']);
+    t('$$a(A) $$b($a) cmd($1) $$($b)', ['cmd(A)']);
   });
   it('parse_exp', ()=>{
     const t = (s, exp)=>assert.deepEqual(parse_exp(s),
@@ -1960,6 +1962,10 @@ describe('scroll', function(){
         t({name: 'dir_list', field: '*', transform: 'decl_get_dir',
           type: 'string'}, {name: 'dir_list', field: '*',
           transform: 'decl_get_dir', type: 'string'});
+        t({field: 'file', filter: {type: 'fs'}}, {name: 'file',
+          field: 'file', type: 'string', filter: {type: 'fs'}});
+        t({field: 'file', filter: {type: ['fs', 'commit']}}, {name: 'file',
+          field: 'file', type: 'string', filter: {type: ['fs', 'commit']}});
         // XXX: support number/buffer types
       });
     });

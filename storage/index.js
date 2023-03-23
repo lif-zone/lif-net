@@ -70,7 +70,7 @@ function data_filter(data, cfid, desc){
   let body = data.get_body(cfid);
   for (let f in filter){
     let allowed = filter[f];
-    if (!Array.isArray(allowed)) // XXX: throw error?
+    if (!Array.isArray(allowed) && body[f]!=allowed)
       return false;
     if (!allowed.includes(body[f]))
       return false;

@@ -284,12 +284,14 @@ const cmd_git_br = t=>etask(function*cmd_git_br(){
 });
 
 const cmd_git_tag = t=>etask(function*cmd_git_tag(){
-  let a = t.r.split(' '), [tag, commit] = a;
+  let a = t.r.split(' '), [tag, commit, msg] = a;
   commit = commit||'';
   assert(tag, 'missing tag');
   assert(commit, 'missing commit');
-  assert(a.length==2, 'too many args');
-  execSync('git tag -f '+tag+' '+commit, {cwd: t_git_repo_dir});
+  assert(a.length<=3, 'too many args');
+  if (!msg)
+    return execSync('git tag -f '+tag+' '+commit, {cwd: t_git_repo_dir});
+  execSync('git tag -m "'+msg+' "-f '+tag+' '+commit, {cwd: t_git_repo_dir});
 });
 
 const cmd_git_tag_del = t=>etask(function*cmd_git_tag_del(){
@@ -1807,6 +1809,21 @@ describe('git', ()=>{
         (6  !         $d1   !     (op:add file:/f3 link:2) $mf)
         (7  !         $oid3 !     (op:commit group:1 desc(c_f3)) !)
         (8  !         $oid3 !     (op:tag_set name:t3 link:7) !))
+        ##seq9={}`);
+      if (0) // XXX WIP
+      t('tag_annotate_inc', `${t_common}
+        $add_f1 $t $$(
+        (1  !         !     !     (op:add dir:/) $m0)
+        (2  !         $d1   !     (op:add file:/f1 content:1 f2:d1) $mf)
+        (3  !         $oid1 !     (op:commit group:2 desc(c_f1)) !))
+        $add_f2 $t $$(
+        (4  !         $d1   !     (op:add file:/f2 link:2) $mf)
+        (5  !         $oid2 !     (op:commit group:1 desc(c_f2)) !))
+        $add_f3 $t $$(
+        (6  !         $d1   !     (op:add file:/f3 link:2) $mf)
+        (7  !         $oid3 !     (op:commit group:1 desc(c_f3)) !))
+        git_tag(t1 $oid1 tag1) $t $$(
+        (8  !         $oid1 !     (op:tag_set name:t1 link:3) !))
         ##seq9={}`);
       // XXX: add tag support (basic, annotated, gpg)
       // XXX: fix body type/op format (type:fs op:add)

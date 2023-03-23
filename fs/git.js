@@ -168,13 +168,19 @@ export default class GIT extends FS {
       yield _this.decl({cfid, branch: null}, {op: 'tag_del', name: tag});
     }
     for (let tag in tags){
-      let oid = tags[tag], link;
+      let o = tags[tag], {oid} = o, link;
       let oid2 = yield _this.get_git_tag_oid(cfid, tag);
       if (oid2===oid)
         continue;
-      link = yield _this.find_one(oid, {dir: 'up', name: 'git_oid_all', cfid});
-      yield _this.decl({cfid, branch: null, link}, {op: 'tag_set', name: tag,
-        git: {oid}});
+      if (o.type=='commit'){
+        link = yield _this.find_one(oid, {dir: 'up', name: 'git_oid_all',
+          cfid});
+        yield _this.decl({cfid, branch: null, link}, {op: 'tag_set', name: tag,
+          git: {oid}});
+      } else if (o.type=='tag'){ // XXX: TODO
+        assert.fail('XXX TODO '+o.type);
+      } else
+        assert.fail('invalid tag type '+o.type);
     }
   }); }
   _get_git(config){ return etask({_: this}, function*_get_git()
@@ -221,9 +227,22 @@ export default class GIT extends FS {
     let tags = yield git_api.listTags(config.gitdir ? config :
       {...config, remote: 'origin'});
     for (let i=0; i<tags.length; i++){
-      let tag = tags[i];
+      let tag = tags[i], type, _tag;
       let oid = yield git_api.resolveRef({...config, ref: tag});
-      ret.tag[tag] = oid;
+      if (!oid){
+        xerr('failed to resolve ref %s', tag);
+        continue;
+      }
+      let o = yield git_api.readObject({...config, oid,
+        format: 'content'});
+      switch (type = o?.type){
+      case 'commit': break;
+      case 'tag': _tag = (yield git_api.readTag({...config, oid})).tag; break;
+      default: // XXX: TODO
+        xerr('XXX TODO: ignore unsupported ref type %s', type);
+        continue;
+      }
+      ret.tag[tag] = {type, oid, tag: _tag};
     }
     return ret;
   }); }
@@ -231,7 +250,7 @@ export default class GIT extends FS {
     return etask({_: this}, function*_sync_dir()
   {
     let _this = this._, n = 0;
-    // XXX: eraly return if if dir oid did not changed
+    // XXX: early return if if dir oid did not changed
     if (!(yield _this.dir_exists(dir, {cfid, prev}))){
       yield _this.add_dir(dir, {cfid, prev, body: {git: {mode}}});
       n++;

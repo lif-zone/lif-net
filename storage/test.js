@@ -261,6 +261,7 @@ describe('parser', ()=>{
     t('cmd0 cmd1($1) $$(a1 a2) cmd2',
       ['cmd0', 'cmd1(a1)', 'cmd1(a2)', 'cmd2']);
     t('cmd($1 $2) $$([5 [7 1]] [4 [7 1]])', ['cmd(5 [7 1])', 'cmd(4 [7 1])']);
+    t('cmd($1...) $$([5 [7 1]] [4 [7 1]])', ['cmd(5 [7 1])', 'cmd(4 [7 1])']);
     t('cmd($1) cmd2($1) $$(a)', ['cmd(a)', 'cmd2(a)']);
     t('cmd($1 $2) cmd2($1) cmd3($2) $$([a b] [c d])',
       ['cmd(a b)', 'cmd2(a)', 'cmd3(b)', 'cmd(c d)', 'cmd2(c)', 'cmd3(d)']);

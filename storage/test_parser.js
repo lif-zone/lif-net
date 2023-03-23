@@ -1,6 +1,7 @@
 'use strict';
 import assert from 'assert';
 import string from '../util/string.js';
+import escape from '../util/escape.js';
 import xerr from '../util/xerr.js';
 
 const E = {};
@@ -105,9 +106,13 @@ E.parse_get_next = function(curr){
     exp = s.substr(curr.at||0, i+at-(curr.at||0));
     vars.last = exp;
     get_array_str(o.r, null).forEach(els=>{
-      let args = {};
-      get_array_str(els, '').forEach((el, i)=>args[i+1]=el=='!' ? '' : el);
-      let _s = replace_macro_vars(exp, args);
+      let args = {}, args2 = {};
+      let a = get_array_str(els, '');
+      a.forEach((el, i)=>args[i+1]=el=='!' ? '' : el);
+      for (let i=a.length-1; i>=0; i--)
+        args2[i+1+'...'] = (args[i+1]+' '+(args2[i+2+'...']||'')).trim();
+      let _s = replace_macro_vars(exp, args2);
+      _s = replace_macro_vars(_s, args);
       _s = replace_macro_vars(_s, vars);
       _s = apply_macro_funcs(_s);
       ss += (_s ? ' ' : '')+_s;
@@ -185,8 +190,12 @@ function apply_macro_funcs(s){
 
 function replace_macro_vars(s, vars){
   let _s = s;
-  for (let v in vars)
-    s = s.replace(new RegExp('\\$'+v+'\\b', 'g'), vars[v]);
+  for (let v in vars){
+    if (v.slice(-3)=='...')
+      s = s.replace(new RegExp('\\$'+escape.regex(v), 'g'), vars[v]);
+    else
+      s = s.replace(new RegExp('\\$'+escape.regex(v)+'\\b', 'g'), vars[v]);
+  }
   if (s!=_s)
     xerr.notice('macro_vars %s -> %s', _s, s);
   return s;

@@ -52,7 +52,8 @@ export default class GIT extends FS {
           continue;
       }
       let prev = yield _this.get_git_br_top_seq(cfid, curr);
-      yield _this.decl({cfid, prev}, {op: 'branch_del', git: {branch: curr}});
+      yield _this.decl({cfid, prev}, {type: 'git_br', op: 'rm',
+        git: {branch: curr}});
     }
     // add new commits
     let merge_queue = {};
@@ -69,8 +70,8 @@ export default class GIT extends FS {
             throw new Error('XXX TODO '+git_br); // XXX TODO
           continue;
         }
-        let prev = yield _this.find_one(oid, {dir: 'up', name: 'git_oid_all',
-          cfid});
+        let prev = yield _this.find_one(oid, {dir: 'up',
+          name: 'commit_git_oid_all', cfid});
         if (!prev)
           throw new Error('top commit not found '+oid);
         yield _this._new_set_branch(cfid, prev, git_br, oid);
@@ -79,8 +80,8 @@ export default class GIT extends FS {
     // add oids that were merge but belong to a delete branch
     for (let oid in merge_queue){
       let git_br = merge_queue[oid];
-      let seq = yield _this.find_one(oid, {dir: 'up', name: 'git_oid_all',
-          cfid});
+      let seq = yield _this.find_one(oid, {dir: 'up',
+        name: 'commit_git_oid_all', cfid});
       if (seq)
         continue;
       let commits = [];
@@ -114,24 +115,24 @@ export default class GIT extends FS {
         // XXX: support get_git_br_top_seq for main and fix all code
         let br_seq = git_br==main ? _this.get_branch_top(cfid, null).seq :
           yield _this.get_git_br_top_seq(cfid, git_br);
-        let seq = yield _this.find_one(oid, {cfid, name: 'git_oid',
+        let seq = yield _this.find_one(oid, {cfid, name: 'commit_git_oid',
           bseq: _this.bseq_get(cfid, br_seq)});
         if (seq)
           continue;
         if (parent){
-          prev = yield _this.find_one(parent, {cfid, name: 'git_oid',
+          prev = yield _this.find_one(parent, {cfid, name: 'commit_git_oid',
             bseq: _this.bseq_get(cfid, br_seq)});
           if (!prev)
             throw new Error('parent commit was not found '+parent);
         }
       } else {
-        let seq = yield _this.find_one(oid, {dir: 'up', name: 'git_oid_all',
-          cfid});
+        let seq = yield _this.find_one(oid, {dir: 'up',
+          name: 'commit_git_oid_all', cfid});
         if (seq)
           continue;
         if (parent){
           prev = yield _this.find_one(parent, {dir: 'up',
-            name: 'git_oid_all', cfid});
+            name: 'commit_git_oid_all', cfid});
           if (!prev)
             throw new Error('parent commit was not found '+parent);
         }
@@ -147,7 +148,7 @@ export default class GIT extends FS {
       let group = yield _this._sync_dir(config, cfid, prev,
         '/', commit.tree, '0'); // XXX: can root mode be different?
       // XXX: check behavir with empty commits (need to use prev)
-      let body = {op: 'commit', desc: commit.message, git: {oid}};
+      let body = {type: 'commit', op: 'add', desc: commit.message, git: {oid}};
       if (merge){
         merge_queue[merge] = git_br;
         body.git.merge = merge;
@@ -165,7 +166,7 @@ export default class GIT extends FS {
       let tag = curr_tags[i];
       if (tags[tag])
         continue;
-      yield _this.decl({cfid, branch: null}, {op: 'tag_del', name: tag});
+      yield _this.decl({cfid, branch: null}, {type: 'tag', op: 'rm', tag});
     }
     for (let tag in tags){
       let o = tags[tag], {oid} = o, link;
@@ -173,10 +174,15 @@ export default class GIT extends FS {
       if (oid2===oid)
         continue;
       if (o.type=='commit'){
-        link = yield _this.find_one(oid, {dir: 'up', name: 'git_oid_all',
-          cfid});
-        yield _this.decl({cfid, branch: null, link}, {op: 'tag_set', name: tag,
-          git: {oid}});
+        link = yield _this.find_one(oid, {dir: 'up',
+          name: 'commit_git_oid_all', cfid});
+        if (yield _this.git_tag_exists(cfid, tag)){
+          yield _this.decl({cfid, branch: null, link}, {type: 'tag', op: 'mod',
+            tag, git: {oid}});
+        } else {
+          yield _this.decl({cfid, branch: null, link}, {type: 'tag', op: 'add',
+            tag, git: {oid}});
+        }
       } else if (o.type=='tag'){ // XXX: TODO
         assert.fail('XXX TODO '+o.type);
       } else
@@ -287,7 +293,7 @@ export default class GIT extends FS {
         body = {git: {oid: e.oid, mode: e.mode}};
         blob = (yield git_api.readBlob({...config, oid: e.oid})).blob;
         blob = blob ? Buffer.from(blob) : null;
-        link = yield _this.find_one(e.oid, {dir: 'up', name: 'git_oid_all',
+        link = yield _this.find_one(e.oid, {dir: 'up', name: 'fs_git_oid_all',
           cfid});
         if (yield _this.file_exists(file, {cfid, prev}))
           yield _this.mod_file(file, blob, {cfid, prev, link, body});
@@ -354,7 +360,9 @@ export default class GIT extends FS {
     let decl = _this.get_decl(seq);
     yield decl.load(cfid); // XXX: avoid load and just use index extra data
     let body = decl.get_body(cfid);
-    return body.op!='branch_del' ? seq : false;
+    if (body.type!='git_br')
+      throw new Error('scroll corruption');
+    return body.op!='rm' ? seq : false;
   }); }
   git_tag_exists(cfid, tag){ return etask({_: this}, function*git_tag_exists(){
     return !!(yield this._.get_git_tag_seq(cfid, tag));
@@ -369,7 +377,7 @@ export default class GIT extends FS {
     let decl = _this.get_decl(seq);
     yield decl.load(cfid); // XXX: avoid load and just use index extra data
     let body = decl.get_body(cfid);
-    return body.op!='tag_del' ? seq : undefined;
+    return body.op!='rm' ? seq : undefined;
   }); }
   get_git_tag_oid(cfid, tag){ return etask({_: this},
       function*get_git_tag_oid()
@@ -381,7 +389,7 @@ export default class GIT extends FS {
     let decl = _this.get_decl(seq);
     yield decl.load(cfid); // XXX: avoid load and just use index extra data
     let body = decl.get_body(cfid);
-    return body.op!='tag_del' ? body.git?.oid : undefined;
+    return body.op!='rm' ? body.git?.oid : undefined;
   }); }
   get_git_branches(cfid){ return etask({_: this}, function*get_git_branches(){
     let _this = this._;
@@ -432,17 +440,17 @@ export default class GIT extends FS {
       decl = _this.get_decl(br_seq);
       yield decl.load(cfid); // XXX: avoid load. get it from index data
       op = decl.get_body(cfid)?.op;
-      if (op=='branch_del')
+      if (op=='rm')
         prev = prev_bseq_top.seq;
     }
-    if (op=='branch_del'){
-      decl = yield _this.decl({cfid, prev}, {op: 'branch_set',
+    if (op=='rm'){
+      decl = yield _this.decl({cfid, prev}, {type: 'git_br', op: 'add',
         git: {oid, branch: git_br}});
     } else {
       // XXX: need to make sure banch is unique
       let branch = _this.get_avail_branch(cfid, git_br);
-      decl = yield _this.decl({cfid, branch, prev}, {op: 'branch_new',
-        git: branch==git_br ? {oid} : {oid, branch: git_br}});
+      decl = yield _this.decl({cfid, branch, prev}, {type: 'git_br',
+        op: 'add', git: branch==git_br ? {oid} : {oid, branch: git_br}});
     }
     return decl.seq;
   }); }
@@ -461,15 +469,18 @@ GIT.create = (opt, d)=>etask(function*scroll_create(){
   let s = {crypt: Scroll.supported_crypt[0], pub: b2s(opt.pub), ...d,
     csum_sha1: true, index: ['file', 'dir', {name: 'dir_list',
     transform: 'decl_get_dir', filter: {op: ['add', 'rm']}},
-    {name: 'git_oid', field: 'git.oid',
-      filter: {op: ['commit', 'add', 'mod']}},
-    {name: 'git_oid_all', field: 'git.oid', all_branches: true,
-      filter: {op: ['commit', 'add', 'mod']}},
+    {name: 'commit_git_oid', field: 'git.oid',
+      filter: {type: 'commit'}},
+    {name: 'commit_git_oid_all', field: 'git.oid', all_branches: true,
+      filter: {type: 'commit'}},
+    {name: 'fs_git_oid_all', field: 'git.oid', all_branches: true,
+      filter: {type: 'fs'}},
     // XXX: review git_br_curr with derry - better way?
-    {name: 'git_br_curr', transform: 'git_br_curr'},
-    {name: 'git_br_all', transform: 'git_br', all_branches: true},
-    {name: 'git_tag_all', field: 'name', all_branches: true,
-      filter: {op: ['tag_set', 'tag_del']}},
+    {name: 'git_br_curr', transform: 'git_br_curr', filter: {type: 'git_br'}},
+    {name: 'git_br_all', transform: 'git_br', all_branches: true,
+      filter: {type: 'git_br'}},
+    {name: 'git_tag_all', field: 'tag', all_branches: true,
+      filter: {type: 'tag'}},
     ]};
   if (d?.csum_sha256) // XXX: needed?
     s.index.push('csum_sha256');

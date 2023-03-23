@@ -16,7 +16,8 @@ export default class FS extends Scroll {
     let _this = this._, {branch, prev, cfid, body} = _this.parse_opt(opt);
     if (yield _this.dir_exists(dir, opt))
       throw new Error('dir exists '+dir);
-    yield _this.decl({cfid, branch, prev}, {op: 'add', dir, ...body});
+    yield _this.decl({cfid, branch, prev}, {type: 'fs', op: 'add',
+      dir, ...body});
   }); }
   rm_dir(dir, opt={}){ return etask({_: this}, function*rm_dir(){
     assert(valid_dir(dir), 'invalid dir '+dir);
@@ -46,7 +47,8 @@ export default class FS extends Scroll {
   }); }
   _rm_dir(dir, opt={}){ return etask({_: this}, function*_rm_dir(){
     let _this = this._, {branch, prev, cfid, body} = _this.parse_opt(opt);
-    yield _this.decl({cfid, branch, prev}, {op: 'rm', dir, ...body});
+    yield _this.decl({cfid, branch, prev}, {type: 'fs', op: 'rm',
+      dir, ...body});
     return 1;
   }); }
   rm_file(file, opt={}){ return etask({_: this}, function*rm_file(){
@@ -54,7 +56,8 @@ export default class FS extends Scroll {
     let _this = this._, {branch, prev, cfid, body} = _this.parse_opt(opt);
     if (!(yield _this.file_exists(file, opt)))
       throw new Error('file not found '+file);
-    yield _this.decl({cfid, branch, prev}, {op: 'rm', file, ...body});
+    yield _this.decl({cfid, branch, prev}, {type: 'fs', op: 'rm',
+      file, ...body});
     return 1;
   }); }
   rm(path, opt){
@@ -67,7 +70,7 @@ export default class FS extends Scroll {
     let {branch, prev, cfid, link, body} = _this.parse_opt(opt);
     if (yield _this.file_exists(file, opt))
       throw new Error('file exists '+file);
-    body = {op: 'add', file, ...body};
+    body = {type: 'fs', op: 'add', file, ...body};
     if (_this.support_len())
       body.len = buf?.length||0;
     if (!buf)
@@ -76,7 +79,7 @@ export default class FS extends Scroll {
       body.csum_sha256 = crypto.sha256_str(buf);
     if (!link && body.csum_sha256){
       // XXX: rm bseq from find_one call
-      // XXX: do we need to find in all branches?
+      // XXX: need to find in all branches
       link = yield _this.find_one(body.csum_sha256, {dir: 'up',
         name: 'csum_sha256', cfid,
         bseq: _this.bseq_get(cfid, _this.conflict.get(cfid).top.seq)});
@@ -92,7 +95,7 @@ export default class FS extends Scroll {
     let {branch, prev, cfid, link, body} = _this.parse_opt(opt);
     if (!(yield _this.file_exists(file, opt)))
       throw new Error('file not found '+file);
-    body = {op: 'mod', file, ...body};
+    body = {type: 'fs', op: 'mod', file, ...body};
     if (_this.support_len())
       body.len = buf?.length||0;
     if (buf && _this.support_csum_sha256())

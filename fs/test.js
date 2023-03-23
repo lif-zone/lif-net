@@ -344,9 +344,7 @@ const test_get_seq = s=>etask(function*get_seq(){
   s = rm_parentesis(s, '{');
   for (let curr=s; curr = parse_get_next(curr);){
     let o = parse_exp(curr.exp);
-    if (!o.r)
-      bo[o.l] = '';
-    else if (['f2', 'csum_sha256'].includes(o.l)){ // XXX: ugly
+    if (['f2', 'csum_sha256'].includes(o.l)){ // XXX: ugly
       let oo = parse_exp(o.r), a;
       switch (oo.cmd){
       case 'sha256':
@@ -369,7 +367,9 @@ const test_get_seq = s=>etask(function*get_seq(){
           bo[o.l] = t_buf[o.r];
         }
       }
-    } else if ('desc'==o.cmd) // XXX: need better way to handle \n
+    } else if ('desc'==o.l) // XXX: need better way to handle \n
+      bo[o.l] = o.r+'\n';
+    else if ('desc'==o.cmd) // XXX: need better way to handle \n
       bo[o.cmd] = decode_str(rm_parentesis(o.r, '('))+'\n';
     else if ('branch'==o.cmd)
       bo[o.cmd] = rm_parentesis(o.r, '(');
@@ -383,14 +383,17 @@ const test_get_seq = s=>etask(function*get_seq(){
       bo[o.l] = o.r.at(0)=='{' ? js_struct_from_str(o.r) : o.r;
     if (o.l=='git' && !bo.git.oid)
       delete bo.git.oid;
+    if (o.l=='git' && !bo.git.branch)
+      delete bo.git.branch;
     if (o.l=='git' && !bo.git.merge)
       delete bo.git.merge;
+    if (!bo.branch)
+      delete bo.branch;
     if (o.l=='bseq' && !bo.bseq)
       delete bo.bseq;
   }
   if (bo.git && Object.keys(bo.git).length==0)
     delete bo.git;
-  xerr.notice('XXX s %s O %O', s, bo);
   return bo;
 });
 
@@ -573,13 +576,13 @@ describe('fs', ()=>{
   describe('dir', ()=>{
     t('add', `s..#(seq fs)
       s..fs         #seq0={}
-      add(/)        #(seq1={op:add dir:/} fs=/)
-      add(/d1/)     #(seq2={op:add dir:/d1/} fs=/d1/)
-      add(/d1/dd1/) #(seq3={op:add dir:/d1/dd1/} fs=/d1/dd1/)
-      add(/d1/dd2/) #(seq4={op:add dir:/d1/dd2/} fs=/d1/dd2/)
-      add(/d2/)     #(seq5={op:add dir:/d2/} fs=/d2/)
-      add(/d2/dd1/) #(seq6={op:add dir:/d2/dd1/} fs=/d2/dd1/)
-      add(/d2/dd2/) #(seq7={op:add dir:/d2/dd2/} fs=/d2/dd2/)
+      add(/)        #(seq1={type:fs op:add dir:/} fs=/)
+      add(/d1/)     #(seq2={type:fs op:add dir:/d1/} fs=/d1/)
+      add(/d1/dd1/) #(seq3={type:fs op:add dir:/d1/dd1/} fs=/d1/dd1/)
+      add(/d1/dd2/) #(seq4={type:fs op:add dir:/d1/dd2/} fs=/d1/dd2/)
+      add(/d2/)     #(seq5={type:fs op:add dir:/d2/} fs=/d2/)
+      add(/d2/dd1/) #(seq6={type:fs op:add dir:/d2/dd1/} fs=/d2/dd1/)
+      add(/d2/dd2/) #(seq7={type:fs op:add dir:/d2/dd2/} fs=/d2/dd2/)
       ##fs1=[/]
       ##fs2=[/ /d1/]
       ##fs3=[/ /d1/ /d1/dd1/]
@@ -591,13 +594,13 @@ describe('fs', ()=>{
     `);
     t('rm_single', `s..#(seq fs)
       s..fs          #(seq0={})
-      add(/)         #(seq1={op:add dir:/} fs=/)
-      add(/d1/)      #(seq2={op:add dir:/d1/} fs=/d1/)
-      add(/d2/)      #(seq3={op:add dir:/d2/} fs=/d2/)
-      add(/d2/dd2/)  #(seq4={op:add dir:/d2/dd2/} fs=/d2/dd2/)
-      rm(/d1/)       #(seq5={op:rm dir:/d1/} fs=!/d1/)
-      rm(/d2/dd2/)   #(seq6={op:rm dir:/d2/dd2/} fs=!/d2/dd2/)
-      rm(/d2/)       #(seq7={op:rm dir:/d2/} fs=!/d2/)
+      add(/)         #(seq1={type:fs op:add dir:/} fs=/)
+      add(/d1/)      #(seq2={type:fs op:add dir:/d1/} fs=/d1/)
+      add(/d2/)      #(seq3={type:fs op:add dir:/d2/} fs=/d2/)
+      add(/d2/dd2/)  #(seq4={type:fs op:add dir:/d2/dd2/} fs=/d2/dd2/)
+      rm(/d1/)       #(seq5={type:fs op:rm dir:/d1/} fs=!/d1/)
+      rm(/d2/dd2/)   #(seq6={type:fs op:rm dir:/d2/dd2/} fs=!/d2/dd2/)
+      rm(/d2/)       #(seq7={type:fs op:rm dir:/d2/} fs=!/d2/)
       ##fs1=[/]
       ##fs2=[/ /d1/]
       ##fs3=[/ /d1/ /d2/]
@@ -607,12 +610,12 @@ describe('fs', ()=>{
       ##fs7=[/]
       ##fs=[/]`);
     t('rm_multi', `s..#(seq fs) s..fs #(seq0={})
-      add(/)         #(seq1={op:add dir:/} fs=/)
-      add(/d/)       #(seq2={op:add dir:/d/} fs=/d/)
-      add(/d/dd1/)   #(seq3={op:add dir:/d/dd1/} fs=/d/dd1/)
-      add(/d/dd2/)   #(seq4={op:add dir:/d/dd2/} fs=/d/dd2/)
-      rm(/d/)        #(seq5={op:rm dir:/d/dd2/} seq6={op:rm dir:/d/dd1/}
-                       seq7={op:rm dir:/d/} fs=[!/d/ !/d/dd1/ !/d/dd2/])
+      add(/)         #(seq1={type:fs op:add dir:/} fs=/)
+      add(/d/)       #(seq2={type:fs op:add dir:/d/} fs=/d/)
+      add(/d/dd1/)   #(seq3={type:fs op:add dir:/d/dd1/} fs=/d/dd1/)
+      add(/d/dd2/)   #(seq4={type:fs op:add dir:/d/dd2/} fs=/d/dd2/)
+      rm(/d/)        #(seq5={type:fs op:rm dir:/d/dd2/} seq6={type:fs op:rm dir:/d/dd1/}
+                       seq7={type:fs op:rm dir:/d/} fs=[!/d/ !/d/dd1/ !/d/dd2/])
       ##fs1=[/]
       ##fs2=[/ /d/]
       ##fs3=[/ /d/ /d/dd1/]
@@ -622,39 +625,39 @@ describe('fs', ()=>{
       ##fs7=[/]
       ##fs=[/]`);
     let stest = `s..#(seq fs) s..fs #(seq0={})
-      add(/)            #(seq1={op:add dir:/} fs=/)
-      add(/d/)          #(seq2={op:add dir:/d/} fs=/d/)
-      add(/d/dd1/)      #(seq3={op:add dir:/d/dd1/} fs=/d/dd1/)
-      add(/d/dd1/ddd1/) #(seq4={op:add dir:/d/dd1/ddd1/} fs=/d/dd1/ddd1/)
-      add(/d/dd2/)      #(seq5={op:add dir:/d/dd2/} fs=/d/dd2/)
-      add(/d/dd2/ddd1/) #(seq6={op:add dir:/d/dd2/ddd1/} fs=/d/dd2/ddd1/)
-      add(/d/dd2/ddd2/) #(seq7={op:add dir:/d/dd2/ddd2/} fs=/d/dd2/ddd2/)`;
+      add(/)            #(seq1={type:fs op:add dir:/} fs=/)
+      add(/d/)          #(seq2={type:fs op:add dir:/d/} fs=/d/)
+      add(/d/dd1/)      #(seq3={type:fs op:add dir:/d/dd1/} fs=/d/dd1/)
+      add(/d/dd1/ddd1/) #(seq4={type:fs op:add dir:/d/dd1/ddd1/} fs=/d/dd1/ddd1/)
+      add(/d/dd2/)      #(seq5={type:fs op:add dir:/d/dd2/} fs=/d/dd2/)
+      add(/d/dd2/ddd1/) #(seq6={type:fs op:add dir:/d/dd2/ddd1/} fs=/d/dd2/ddd1/)
+      add(/d/dd2/ddd2/) #(seq7={type:fs op:add dir:/d/dd2/ddd2/} fs=/d/dd2/ddd2/)`;
     t('rm_multi_deep_rm_/', stest+` rm(/) #(
-      seq8={op:rm dir:/d/dd2/ddd2/}
-      seq9={op:rm dir:/d/dd2/ddd1/}
-      seq10={op:rm dir:/d/dd2/}
-      seq11={op:rm dir:/d/dd1/ddd1/}
-      seq12={op:rm dir:/d/dd1/}
-      seq13={op:rm dir:/d/}
-      seq14={op:rm dir:/}
+      seq8={type:fs op:rm dir:/d/dd2/ddd2/}
+      seq9={type:fs op:rm dir:/d/dd2/ddd1/}
+      seq10={type:fs op:rm dir:/d/dd2/}
+      seq11={type:fs op:rm dir:/d/dd1/ddd1/}
+      seq12={type:fs op:rm dir:/d/dd1/}
+      seq13={type:fs op:rm dir:/d/}
+      seq14={type:fs op:rm dir:/}
       fs=[!/ !/d/ !/d/dd1/ !/d/dd1/ddd1/ !/d/dd2/ !/d/dd2/ddd1/ !/d/dd2/ddd2/]
     )`);
     t('rm_multi_deep_rm_/d/', stest+` rm(/d/) #(
-      seq8={op:rm dir:/d/dd2/ddd2/}
-      seq9={op:rm dir:/d/dd2/ddd1/}
-      seq10={op:rm dir:/d/dd2/}
-      seq11={op:rm dir:/d/dd1/ddd1/}
-      seq12={op:rm dir:/d/dd1/}
-      seq13={op:rm dir:/d/}
+      seq8={type:fs op:rm dir:/d/dd2/ddd2/}
+      seq9={type:fs op:rm dir:/d/dd2/ddd1/}
+      seq10={type:fs op:rm dir:/d/dd2/}
+      seq11={type:fs op:rm dir:/d/dd1/ddd1/}
+      seq12={type:fs op:rm dir:/d/dd1/}
+      seq13={type:fs op:rm dir:/d/}
       fs=[!/d/ !/d/dd1/ !/d/dd1/ddd1/ !/d/dd2/ !/d/dd2/ddd1/ !/d/dd2/ddd2/])`);
     t('rm_multi_deep_rm_/d/dd1/', stest+` rm(/d/dd1/) #(
-      seq8={op:rm dir:/d/dd1/ddd1/}
-      seq9={op:rm dir:/d/dd1/}
+      seq8={type:fs op:rm dir:/d/dd1/ddd1/}
+      seq9={type:fs op:rm dir:/d/dd1/}
       fs=[!/d/dd1/ !/d/dd1/ddd1/])`);
     t('rm_multi_deep_rm_/d/dd2', stest+` rm(/d/dd2/) #(
-      seq8={op:rm dir:/d/dd2/ddd2/}
-      seq9={op:rm dir:/d/dd2/ddd1/}
-      seq10={op:rm dir:/d/dd2/}
+      seq8={type:fs op:rm dir:/d/dd2/ddd2/}
+      seq9={type:fs op:rm dir:/d/dd2/ddd1/}
+      seq10={type:fs op:rm dir:/d/dd2/}
       fs=[!/d/dd2/ !/d/dd2/ddd1/ !/d/dd2/ddd2/])`);
   });
   // XXX: add by date
@@ -666,111 +669,111 @@ describe('fs', ()=>{
     // XXX: what if trying to add file without directory that exists
     // (create directory if it doesn't exist)
     t('add_buf', `s..#seq buf(d:0) s..fs #seq0={}
-      add(/f1 buf:d) #seq1={op:add file:/f1 content:1 f2:d}`);
+      add(/f1 buf:d) #seq1={type:fs op:add file:/f1 content:1 f2:d}`);
     t('add_buf_len_a', `s..#seq buf(d:a) s..fs(len) #seq0={}
-      add(/f1 buf:d) #seq1={op:add file:/f1 len:2 content:1 f2:d}`);
+      add(/f1 buf:d) #seq1={type:fs op:add file:/f1 len:2 content:1 f2:d}`);
     t('add_buf_len_ab', `s..#seq buf(d:ab) s..fs(len) #seq0={}
-      add(/f1 buf:d) #seq1={op:add file:/f1 len:3 content:1 f2:d}`);
-    t('add_empty', `s..#seq s..fs #seq0={} add(/f1) #seq1={op:add file:/f1}`);
+      add(/f1 buf:d) #seq1={type:fs op:add file:/f1 len:3 content:1 f2:d}`);
+    t('add_empty', `s..#seq s..fs #seq0={} add(/f1) #seq1={type:fs op:add file:/f1}`);
     t('add_two_diff', `s..#seq buf(d1:0) buf(d2:1) s..fs #seq0={}
-      add(/f1 buf:d1) #seq1={op:add file:/f1 content:1 f2:d1}
-      add(/f2 buf:d2) #seq2={op:add file:/f2 content:1 f2:d2}`);
+      add(/f1 buf:d1) #seq1={type:fs op:add file:/f1 content:1 f2:d1}
+      add(/f2 buf:d2) #seq2={type:fs op:add file:/f2 content:1 f2:d2}`);
     t('add_two_same_def', `s..#seq buf(d:0) s..fs #seq0={}
-      add(/f1 buf:d) #seq1={op:add file:/f1 content:1 f2:d}
-      add(/f2 buf:d) #seq2={op:add file:/f2 content:1 f2:d}`);
+      add(/f1 buf:d) #seq1={type:fs op:add file:/f1 content:1 f2:d}
+      add(/f2 buf:d) #seq2={type:fs op:add file:/f2 content:1 f2:d}`);
     t('add_two_same_sha256', `s..#seq buf(d:0) s..fs(csum_sha256) #seq0={}
-      add(/f1 buf:d) #seq1={op:add file:/f1 content:1 f2:d
+      add(/f1 buf:d) #seq1={type:fs op:add file:/f1 content:1 f2:d
         csum_sha256:sha256(d)}
-      add(/f2 buf:d) #seq2={op:add file:/f2 link:1 csum_sha256:sha256(d)}`);
+      add(/f2 buf:d) #seq2={type:fs op:add file:/f2 link:1 csum_sha256:sha256(d)}`);
     t('add_three_same_sha256', `s..#seq buf(d:0) s..fs(csum_sha256) #seq0={}
-      add(/f1 buf:d) #seq1={op:add file:/f1 content:1 f2:d
+      add(/f1 buf:d) #seq1={type:fs op:add file:/f1 content:1 f2:d
         csum_sha256:sha256(d)}
-      add(/f2 buf:d) #seq2={op:add file:/f2 link:1 csum_sha256:sha256(d)}
-      add(/f3 buf:d) #seq3={op:add file:/f3 link:1 csum_sha256:sha256(d)}`);
+      add(/f2 buf:d) #seq2={type:fs op:add file:/f2 link:1 csum_sha256:sha256(d)}
+      add(/f3 buf:d) #seq3={type:fs op:add file:/f3 link:1 csum_sha256:sha256(d)}`);
     t('mod_same_def', `s..#seq buf(d:d) s..fs #seq0={}
-      add(/f buf:d) #seq1={op:add file:/f content:1 f2:d}
-      mod(/f buf:d) #seq2={op:mod file:/f link:1}`);
+      add(/f buf:d) #seq1={type:fs op:add file:/f content:1 f2:d}
+      mod(/f buf:d) #seq2={type:fs op:mod file:/f link:1}`);
     t('mod_same_sha256', `s..#seq buf(d:d) s..fs(csum_sha256) #seq0={}
-      add(/f buf:d) #seq1={op:add file:/f content:1 f2:d csum_sha256:sha256(d)}
-      mod(/f buf:d) #seq2={op:mod file:/f link:1 csum_sha256:sha256(d)}`);
+      add(/f buf:d) #seq1={type:fs op:add file:/f content:1 f2:d csum_sha256:sha256(d)}
+      mod(/f buf:d) #seq2={type:fs op:mod file:/f link:1 csum_sha256:sha256(d)}`);
     t('mod_same_existing_same', `s..#seq buf(d:d) buf(d2:d2) s..fs #seq0={}
-      add(/f buf:d) #seq1={op:add file:/f content:1 f2:d}
-      add(/f2 buf:d2) #seq2={op:add file:/f2 content:1 f2:d2}
-      mod(/f buf:d2) #seq3={op:mod file:/f content:1 f2:d2}`);
+      add(/f buf:d) #seq1={type:fs op:add file:/f content:1 f2:d}
+      add(/f2 buf:d2) #seq2={type:fs op:add file:/f2 content:1 f2:d2}
+      mod(/f buf:d2) #seq3={type:fs op:mod file:/f content:1 f2:d2}`);
     t('mod_same_existing_sha256', `s..#seq buf(d:d) buf(d2:d2)
       s..fs(csum_sha256) #seq0={}
-      add(/f buf:d) #seq1={op:add file:/f content:1 f2:d csum_sha256:sha256(d)}
-      add(/f2 buf:d2) #seq2={op:add file:/f2 content:1 f2:d2
+      add(/f buf:d) #seq1={type:fs op:add file:/f content:1 f2:d csum_sha256:sha256(d)}
+      add(/f2 buf:d2) #seq2={type:fs op:add file:/f2 content:1 f2:d2
         csum_sha256:sha256(d2)}
-      mod(/f buf:d2) #seq3={op:mod file:/f link:2 csum_sha256:sha256(d2)}`);
+      mod(/f buf:d2) #seq3={type:fs op:mod file:/f link:2 csum_sha256:sha256(d2)}`);
     [d1, d2, d3] = [d+'x1', d+'x2', d+'x3'];
     t('mod_diff', `s..#seq
       buf(d1:${d1}) buf(d2:${d2}) buf(d3:${d3}) s..fs #seq0={}
-      add(/f1 buf:d1) #seq1={op:add file:/f1 content:1 f2:d1}
-      mod(/f1 buf:d2) #seq2={op:mod file:/f1 link:1 diff:1 f2:diff(d1 d2)}
-      mod(/f1 buf:d3) #seq3={op:mod file:/f1 link:2 diff:1 f2:diff(d2 d3)}`);
+      add(/f1 buf:d1) #seq1={type:fs op:add file:/f1 content:1 f2:d1}
+      mod(/f1 buf:d2) #seq2={type:fs op:mod file:/f1 link:1 diff:1 f2:diff(d1 d2)}
+      mod(/f1 buf:d3) #seq3={type:fs op:mod file:/f1 link:2 diff:1 f2:diff(d2 d3)}`);
     [d1, d2] = [d+'1', d+'2'];
     t('mod_nodiff', `s..#seq buf(d1:${d1}) buf(d2:${d2}) s..fs #seq0={}
-      add(/f1 buf:d1) #seq1={op:add file:/f1 content:1 f2:d1}
-      mod(/f1 buf:d2) #seq2={op:mod file:/f1 content:1 f2:d2}`);
+      add(/f1 buf:d1) #seq1={type:fs op:add file:/f1 content:1 f2:d1}
+      mod(/f1 buf:d2) #seq2={type:fs op:mod file:/f1 content:1 f2:d2}`);
     t('mod_empty', `s..#seq buf(d:d) s..fs #seq0={}
-      add(/f) #seq1={op:add file:/f}
-      mod(/f buf:d) #seq2={op:mod file:/f content:1 f2:d}`);
+      add(/f) #seq1={type:fs op:add file:/f}
+      mod(/f buf:d) #seq2={type:fs op:mod file:/f content:1 f2:d}`);
     t('mod_to_empty', `s..#seq buf(d:d) s..fs #seq0={}
-      add(/f buf:d) #seq1={op:add file:/f content:1 f2:d}
-      mod(/f) #seq2={op:mod file:/f}`);
+      add(/f buf:d) #seq1={type:fs op:add file:/f content:1 f2:d}
+      mod(/f) #seq2={type:fs op:mod file:/f}`);
     t('rm_same', `s..#(seq fs) buf(d:1) buf(d2:2)
       s..fs          #(seq0={})
-      add(/)         #(seq1={op:add dir:/} fs=/)
-      add(/f buf:d)  #(seq2={op:add file:/f content:1 f2:d} fs=/f)
-      mod(/f buf:d2)  #seq3={op:mod file:/f content:1 f2:d2}
-      rm(/f)         #(seq4={op:rm file:/f} fs=!/f)
-      add(/f buf:d)  #(seq5={op:add file:/f content:1 f2:d} fs=/f)`);
+      add(/)         #(seq1={type:fs op:add dir:/} fs=/)
+      add(/f buf:d)  #(seq2={type:fs op:add file:/f content:1 f2:d} fs=/f)
+      mod(/f buf:d2)  #seq3={type:fs op:mod file:/f content:1 f2:d2}
+      rm(/f)         #(seq4={type:fs op:rm file:/f} fs=!/f)
+      add(/f buf:d)  #(seq5={type:fs op:add file:/f content:1 f2:d} fs=/f)`);
      t('rm_sha256', `s..#(seq fs) buf(d:1) buf(d2:2)
       s..fs(csum_sha256) #(seq0={})
-      add(/)           #(seq1={op:add dir:/} fs=/)
-      add(/f buf:d)    #(seq2={op:add file:/f content:1 f2:d
+      add(/)           #(seq1={type:fs op:add dir:/} fs=/)
+      add(/f buf:d)    #(seq2={type:fs op:add file:/f content:1 f2:d
                        csum_sha256:sha256(d)} fs=/f)
-      mod(/f buf:d2)   #seq3={op:mod file:/f content:1 f2:d2
+      mod(/f buf:d2)   #seq3={type:fs op:mod file:/f content:1 f2:d2
                        csum_sha256:sha256(d2)}
-      rm(/f)           #(seq4={op:rm file:/f} fs=!/f)
-      add(/f buf:d)    #(seq5={op:add file:/f link:2
+      rm(/f)           #(seq4={type:fs op:rm file:/f} fs=!/f)
+      add(/f buf:d)    #(seq5={type:fs op:add file:/f link:2
                        csum_sha256:sha256(d)} fs=/f)`);
     [d1, d2] = [d+'x1', d+'x2'];
     t('rm_add_diff', `s..#(seq fs) buf(d1:${d1}) buf(d2:${d2})
       s..fs          #(seq0={})
-      add(/)         #(seq1={op:add dir:/} fs=/)
-      add(/f buf:d1)  #(seq2={op:add file:/f content:1 f2:d1} fs=/f)
-      rm(/f)         #(seq3={op:rm file:/f} fs=!/f)
-      add(/f buf:d2)  #(seq4={op:add file:/f content:1 f2:d2} fs=/f)`);
+      add(/)         #(seq1={type:fs op:add dir:/} fs=/)
+      add(/f buf:d1)  #(seq2={type:fs op:add file:/f content:1 f2:d1} fs=/f)
+      rm(/f)         #(seq3={type:fs op:rm file:/f} fs=!/f)
+      add(/f buf:d2)  #(seq4={type:fs op:add file:/f content:1 f2:d2} fs=/f)`);
     t('rm_multi', `s..#(seq fs) buf(d1:1) buf(d2:2)
       s..fs             #(seq0={})
-      add(/)            #(seq1={op:add dir:/} fs=/)
-      add(/d/)          #(seq2={op:add dir:/d/} fs=/d/)
-      add(/d/f1 buf:d1) #(seq3={op:add file:/d/f1 content:1 f2:d1} fs=/d/f1)
-      add(/d/f2 buf:d2) #(seq4={op:add file:/d/f2 content:1 f2:d2} fs=/d/f2)
-      rm(/d/)           #(seq5={op:rm file:/d/f2} seq6={op:rm file:/d/f1}
-                          seq7={op:rm dir:/d/} fs=[!/d/ !/d/f1 !/d/f2])`);
+      add(/)            #(seq1={type:fs op:add dir:/} fs=/)
+      add(/d/)          #(seq2={type:fs op:add dir:/d/} fs=/d/)
+      add(/d/f1 buf:d1) #(seq3={type:fs op:add file:/d/f1 content:1 f2:d1} fs=/d/f1)
+      add(/d/f2 buf:d2) #(seq4={type:fs op:add file:/d/f2 content:1 f2:d2} fs=/d/f2)
+      rm(/d/)           #(seq5={type:fs op:rm file:/d/f2} seq6={type:fs op:rm file:/d/f1}
+                          seq7={type:fs op:rm dir:/d/} fs=[!/d/ !/d/f1 !/d/f2])`);
   });
   describe('branch', ()=>{
     let d1, d2, d3, d4, d5, d6, d = 'x'.repeat(68);
     t('file_add', `s..#(seq fs) buf(d1:1) buf(d2:2) buf(d3:3)
       buf(d4:4) buf(d5:5) buf(d6:6) buf(d7:7) s..fs #seq0={}
-      add(/)          #(seq1={op:add dir:/} fs=/)
-      add(/f1 buf:d1) #(seq2={op:add file:/f1 content:1 f2:d1} fs=/f1)
+      add(/)          #(seq1={type:fs op:add dir:/} fs=/)
+      add(/f1 buf:d1) #(seq2={type:fs op:add file:/f1 content:1 f2:d1} fs=/f1)
       add(/f2 branch:b buf:d2)
-        #(seq3={bseq:2-1.0 branch:b op:add file:/f2 content:1 f2:d2}
+        #(seq3={bseq:2-1.0 branch:b type:fs op:add file:/f2 content:1 f2:d2}
         fs_b=[/ /f1 /f2])
-      add(/f3 buf:d3) #(seq4={bseq:2-1.1 op:add file:/f3 content:1 f2:d3}
+      add(/f3 buf:d3) #(seq4={bseq:2-1.1 type:fs op:add file:/f3 content:1 f2:d3}
         fs_b=/f3)
-      add(/f4 buf:d4) #(seq5={bseq:2-1.2 op:add file:/f4 content:1 f2:d4}
+      add(/f4 buf:d4) #(seq5={bseq:2-1.2 type:fs op:add file:/f4 content:1 f2:d4}
         fs_b=/f4)
-      add(/f5 main buf:d5) #(seq6={bseq:3 op:add file:/f5 content:1 f2:d5}
+      add(/f5 main buf:d5) #(seq6={bseq:3 type:fs op:add file:/f5 content:1 f2:d5}
         fs=/f5)
-      add(/f6 buf:d6) #(seq7={bseq:4 op:add file:/f6 content:1 f2:d6}
+      add(/f6 buf:d6) #(seq7={bseq:4 type:fs op:add file:/f6 content:1 f2:d6}
         fs=/f6)
       add(/f7 branch:b buf:d7)
-        #(seq8={bseq:2-1.3 op:add file:/f7 content:1 f2:d7} fs_b=/f7)
+        #(seq8={bseq:2-1.3 type:fs op:add file:/f7 content:1 f2:d7} fs_b=/f7)
       ##fs1=[/]
       ##fs2=[/ /f1]
       ##fs3=([/ /f1]         b:[/ /f1 /f2])
@@ -789,84 +792,86 @@ describe('fs', ()=>{
       ##file(/f7)=null ##file(/f7 branch:b)=d7`);
     t('file_mod_nodiff', `s..#seq buf(d1:1) buf(d2:2) buf(d3:3)
       buf(d4:4) buf(d5:5) buf(d6:6) buf(d7:7) s..fs #seq0={}
-      add(/f buf:d1) #seq1={op:add file:/f content:1 f2:d1}
+      add(/f buf:d1) #seq1={type:fs op:add file:/f content:1 f2:d1}
       mod(/f branch:b buf:d2)
-        #seq2={bseq:1-1.0 branch:b op:mod file:/f content:1 f2:d2}
-      mod(/f buf:d3) #seq3={bseq:1-1.1 op:mod file:/f content:1 f2:d3}
-      mod(/f buf:d4) #seq4={bseq:1-1.2 op:mod file:/f content:1 f2:d4}
-      mod(/f main buf:d5) #seq5={bseq:2 op:mod file:/f content:1 f2:d5}
-      mod(/f buf:d6) #seq6={bseq:3 op:mod file:/f content:1 f2:d6}
+        #seq2={bseq:1-1.0 branch:b type:fs op:mod file:/f content:1 f2:d2}
+      mod(/f buf:d3) #seq3={bseq:1-1.1 type:fs op:mod file:/f content:1 f2:d3}
+      mod(/f buf:d4) #seq4={bseq:1-1.2 type:fs op:mod file:/f content:1 f2:d4}
+      mod(/f main buf:d5) #seq5={bseq:2 type:fs op:mod file:/f content:1 f2:d5}
+      mod(/f buf:d6) #seq6={bseq:3 type:fs op:mod file:/f content:1 f2:d6}
       mod(/f branch:b buf:d7)
-        #seq7={bseq:1-1.3 op:mod file:/f content:1 f2:d7}
+        #seq7={bseq:1-1.3 type:fs op:mod file:/f content:1 f2:d7}
       ##file(/f)=d6 ##file(/f branch:b)=d7`);
     [d1, d2, d3, d4, d5, d6] = [d+'x1', d+'x2', d+'x3', d+'x4', d+'x5',
       d+'x6'];
     t('file_mod_diff', `s..#seq s..fs #seq0={} buf(d1:${d1})
       buf(d2:${d2}) buf(d3:${d3}) buf(d4:${d4}) buf(d5:${d5})
       buf(d6:${d6})
-      add(/f buf:d1) #seq1={op:add file:/f content:1 f2:d1}
+      add(/f buf:d1) #seq1={type:fs op:add file:/f content:1 f2:d1}
       mod(/f branch:b buf:d2)
-        #seq2={bseq:1-1.0 branch:b op:mod file:/f link:1 diff:1 f2:diff(d1 d2)}
+        #seq2={bseq:1-1.0 branch:b type:fs op:mod file:/f link:1 diff:1
+        f2:diff(d1 d2)}
       mod(/f buf:d3)
-        #seq3={bseq:1-1.1 op:mod file:/f link:2 diff:1 f2:diff(d2 d3)}
+        #seq3={bseq:1-1.1 type:fs op:mod file:/f link:2 diff:1 f2:diff(d2 d3)}
       mod(/f main buf:d4)
-        #seq4={bseq:2 op:mod file:/f link:1 diff:1 f2:diff(d1 d4)}
-      mod(/f buf:d5) #seq5={bseq:3 op:mod file:/f link:4 diff:1 f2:diff(d4 d5)}
+        #seq4={bseq:2 type:fs op:mod file:/f link:1 diff:1 f2:diff(d1 d4)}
+      mod(/f buf:d5) #seq5={bseq:3 type:fs op:mod file:/f link:4 diff:1
+        f2:diff(d4 d5)}
       mod(/f branch:b buf:d6)
-        #seq6={bseq:1-1.2 op:mod file:/f link:3 diff:1 f2:diff(d3 d6)}
+        #seq6={bseq:1-1.2 type:fs op:mod file:/f link:3 diff:1 f2:diff(d3 d6)}
       ##file(/f)=d5 ##file(/f branch:b)=d6`);
     t('dir', `s..#seq s..fs #seq0={}
-      add(/) #seq1={op:add dir:/}
-      add(/d1/) #seq2={op:add dir:/d1/}
-      add(/d2/ branch:b) #seq3={bseq:2-1.0 branch:b op:add dir:/d2/}
-      add(/d3/) #seq4={bseq:2-1.1 op:add dir:/d3/}
-      add(/d2/ main) #seq5={bseq:3 op:add dir:/d2/}
-      add(/d3/ main) #seq6={bseq:4 op:add dir:/d3/}
-      add(/d4/ branch:b) #seq7={bseq:2-1.2 op:add dir:/d4/}
+      add(/) #seq1={type:fs op:add dir:/}
+      add(/d1/) #seq2={type:fs op:add dir:/d1/}
+      add(/d2/ branch:b) #seq3={bseq:2-1.0 branch:b type:fs op:add dir:/d2/}
+      add(/d3/) #seq4={bseq:2-1.1 type:fs op:add dir:/d3/}
+      add(/d2/ main) #seq5={bseq:3 type:fs op:add dir:/d2/}
+      add(/d3/ main) #seq6={bseq:4 type:fs op:add dir:/d3/}
+      add(/d4/ branch:b) #seq7={bseq:2-1.2 type:fs op:add dir:/d4/}
     `);
     t('multi_branch', `s..#(seq fs) s..fs #seq0={}
-      add(/) #(seq1={op:add dir:/} fs=/)
-      add(/d1/) #(seq2={op:add dir:/d1/} fs=/d1/)
+      add(/) #(seq1={type:fs op:add dir:/} fs=/)
+      add(/d1/) #(seq2={type:fs op:add dir:/d1/} fs=/d1/)
       add(/d1/dd1/ branch:b1)
-        #(seq3={branch:b1 bseq:2-1.0 op:add dir:/d1/dd1/}
+        #(seq3={branch:b1 bseq:2-1.0 type:fs op:add dir:/d1/dd1/}
         fs_b1=[/ /d1/ /d1/dd1/])
       add(/d1/dd2/)
-        #(seq4={bseq:2-1.1 op:add dir:/d1/dd2/} fs_b1=/d1/dd2/)
+        #(seq4={bseq:2-1.1 type:fs op:add dir:/d1/dd2/} fs_b1=/d1/dd2/)
       add(/d1/dd3/)
-        #(seq5={bseq:2-1.2 op:add dir:/d1/dd3/} fs_b1=/d1/dd3/)
+        #(seq5={bseq:2-1.2 type:fs op:add dir:/d1/dd3/} fs_b1=/d1/dd3/)
       add(/d1/dd1/ddd1/ branch:b2 prev:4)
-        #(seq6={branch:b2 bseq:2-1.1-1.0 op:add dir:/d1/dd1/ddd1/}
+        #(seq6={branch:b2 bseq:2-1.1-1.0 type:fs op:add dir:/d1/dd1/ddd1/}
         fs_b2=[/ /d1/ /d1/dd1/ /d1/dd1/ddd1/ /d1/dd2/])
-      add(/d2/ main) #(seq7={bseq:3 op:add dir:/d2/} fs=/d2/)
+      add(/d2/ main) #(seq7={bseq:3 type:fs op:add dir:/d2/} fs=/d2/)
       add(/d2/ branch:b3 prev:2)
-      #(seq8={bseq:2-2.0 branch:b3 op:add dir:/d2/}
+      #(seq8={bseq:2-2.0 branch:b3 type:fs op:add dir:/d2/}
         fs_b3=[/ /d1/ /d2/])`);
   });
   describe('conflict', ()=>{
     t('no_conflict_asc', `s..fs add(/) add(/d1/) add(/d1/dd1/) S..#(seq fs)
       fs(s..M0)     #seq0={}
-      tput(0 1    ) #(seq1={op:add dir:/} fs=[/])
-      tput(0 1 2  ) #(seq2={op:add dir:/d1/} fs=[/d1/])
-      tput(0 1 2 3) #(seq3={op:add dir:/d1/dd1/} fs=[/d1/dd1/])`);
+      tput(0 1    ) #(seq1={type:fs op:add dir:/} fs=[/])
+      tput(0 1 2  ) #(seq2={type:fs op:add dir:/d1/} fs=[/d1/])
+      tput(0 1 2 3) #(seq3={type:fs op:add dir:/d1/dd1/} fs=[/d1/dd1/])`);
     t('no_conflict_dsc', `s..fs add(/) add(/d1/) add(/d1/dd1/) S..#(seq fs)
       fs(s..M0)     #seq0={}
-      tput(0 1 2 3) #(seq1={} seq2={} seq3={op:add dir:/d1/dd1/} fs=[])
-      tput(0 1 2  ) #(seq2={op:add dir:/d1/} fs=[])
-      tput(0 1    ) #(seq1={op:add dir:/} fs=[/ /d1/ /d1/dd1/])`);
+      tput(0 1 2 3) #(seq1={} seq2={} seq3={type:fs op:add dir:/d1/dd1/} fs=[])
+      tput(0 1 2  ) #(seq2={type:fs op:add dir:/d1/} fs=[])
+      tput(0 1    ) #(seq1={type:fs op:add dir:/} fs=[/ /d1/ /d1/dd1/])`);
     t('no_conflict_mid', `s..fs add(/) add(/d1/) add(/d1/dd1/) S..#(seq fs)
       fs(s..M0)     #seq0={}
-      tput(0 1 2 3) #(seq1={} seq2={} seq3={op:add dir:/d1/dd1/} fs=[])
-      tput(0 1    ) #(seq1={op:add dir:/} fs=[/])
-      tput(0 1 2  ) #(seq2={op:add dir:/d1/} fs=[/d1/ /d1/dd1/])`);
+      tput(0 1 2 3) #(seq1={} seq2={} seq3={type:fs op:add dir:/d1/dd1/} fs=[])
+      tput(0 1    ) #(seq1={type:fs op:add dir:/} fs=[/])
+      tput(0 1 2  ) #(seq2={type:fs op:add dir:/d1/} fs=[/d1/ /d1/dd1/])`);
     t('conflict_no_branch', `buf(d1:1) buf(d2:2)
       s..fs add(/) add(/d1/) add(/d1/f1 buf:d1)
       s1..fs(s..M0) tput(0) tput(0 1) add(/D1/) add(/D1/f2 buf:d2) S..#(seq fs)
       fs(M0)        #seq0={}
-      tput(0 1    ) #(seq1={op:add dir:/} fs=[/])
-      tput(0 1 2  ) #(seq2={op:add dir:/d1/} fs=[/d1/])
-      tput(0 1 2 3) #(seq3={op:add file:/d1/f1 content:1 f2:d1} fs=[/d1/f1])
-      tput(0 1 c  ) #(seq2c1={op:add dir:/D1/} seq3c1={} c1fs=[/ /D1/])
-      tput(0 1 c d) #(seq3c1={op:add file:/D1/f2 content:1 f2:d2}
+      tput(0 1    ) #(seq1={type:fs op:add dir:/} fs=[/])
+      tput(0 1 2  ) #(seq2={type:fs op:add dir:/d1/} fs=[/d1/])
+      tput(0 1 2 3) #(seq3={type:fs op:add file:/d1/f1 content:1 f2:d1} fs=[/d1/f1])
+      tput(0 1 c  ) #(seq2c1={type:fs op:add dir:/D1/} seq3c1={} c1fs=[/ /D1/])
+      tput(0 1 c d) #(seq3c1={type:fs op:add file:/D1/f2 content:1 f2:d2}
                       c1fs=[/D1/f2])
       ##file(/d1/f1)=d1 ##file(/d1/f2)=null ##file(/d1/f1 c:1)=null
       ##file(/D1/f2 c:1)=d2`);
@@ -876,21 +881,21 @@ describe('fs', ()=>{
   describe('db', ()=>{
     t('file_add', `s..#(seq fs) buf(d1:1) buf(d2:2) buf(d3:3)
       buf(d4:4) buf(d5:5) buf(d6:6) buf(d7:7) s..fs(db) #seq0={}
-      add(/)          #(seq1={op:add dir:/} fs=/)
-      add(/f1 buf:d1) #(seq2={op:add file:/f1 content:1 f2:d1} fs=/f1)
+      add(/)          #(seq1={type:fs op:add dir:/} fs=/)
+      add(/f1 buf:d1) #(seq2={type:fs op:add file:/f1 content:1 f2:d1} fs=/f1)
       add(/f2 branch:b buf:d2)
-        #(seq3={bseq:2-1.0 branch:b op:add file:/f2 content:1 f2:d2}
+        #(seq3={bseq:2-1.0 branch:b type:fs op:add file:/f2 content:1 f2:d2}
         fs_b=[/ /f1 /f2])
-      add(/f3 buf:d3) #(seq4={bseq:2-1.1 op:add file:/f3 content:1 f2:d3}
+      add(/f3 buf:d3) #(seq4={bseq:2-1.1 type:fs op:add file:/f3 content:1 f2:d3}
         fs_b=/f3)
-      add(/f4 buf:d4) #(seq5={bseq:2-1.2 op:add file:/f4 content:1 f2:d4}
+      add(/f4 buf:d4) #(seq5={bseq:2-1.2 type:fs op:add file:/f4 content:1 f2:d4}
         fs_b=/f4)
-      add(/f5 main buf:d5) #(seq6={bseq:3 op:add file:/f5 content:1 f2:d5}
+      add(/f5 main buf:d5) #(seq6={bseq:3 type:fs op:add file:/f5 content:1 f2:d5}
         fs=/f5)
-      add(/f6 buf:d6) #(seq7={bseq:4 op:add file:/f6 content:1 f2:d6}
+      add(/f6 buf:d6) #(seq7={bseq:4 type:fs op:add file:/f6 content:1 f2:d6}
         fs=/f6)
       add(/f7 branch:b buf:d7)
-        #(seq8={bseq:2-1.3 op:add file:/f7 content:1 f2:d7} fs_b=/f7)
+        #(seq8={bseq:2-1.3 type:fs op:add file:/f7 content:1 f2:d7} fs_b=/f7)
       ##fs1=[/]
       ##fs2=[/ /f1]
       ##fs3=([/ /f1]         b:[/ /f1 /f2])
@@ -908,31 +913,31 @@ describe('fs', ()=>{
       ##file(/f6)=d6 ##file(/f6 branch:b)=null
       ##file(/f7)=null ##file(/f7 branch:b)=d7`);
     t('multi_branch', `s..#(seq fs) s..fs(db) #seq0={}
-      add(/) #(seq1={op:add dir:/} fs=/)
-      add(/d1/) #(seq2={op:add dir:/d1/} fs=/d1/)
+      add(/) #(seq1={type:fs op:add dir:/} fs=/)
+      add(/d1/) #(seq2={type:fs op:add dir:/d1/} fs=/d1/)
       add(/d1/dd1/ branch:b1)
-        #(seq3={branch:b1 bseq:2-1.0 op:add dir:/d1/dd1/}
+        #(seq3={branch:b1 bseq:2-1.0 type:fs op:add dir:/d1/dd1/}
         fs_b1=[/ /d1/ /d1/dd1/])
       add(/d1/dd2/)
-        #(seq4={bseq:2-1.1 op:add dir:/d1/dd2/} fs_b1=/d1/dd2/)
+        #(seq4={bseq:2-1.1 type:fs op:add dir:/d1/dd2/} fs_b1=/d1/dd2/)
       add(/d1/dd3/)
-        #(seq5={bseq:2-1.2 op:add dir:/d1/dd3/} fs_b1=/d1/dd3/)
+        #(seq5={bseq:2-1.2 type:fs op:add dir:/d1/dd3/} fs_b1=/d1/dd3/)
       add(/d1/dd1/ddd1/ branch:b2 prev:4)
-        #(seq6={branch:b2 bseq:2-1.1-1.0 op:add dir:/d1/dd1/ddd1/}
+        #(seq6={branch:b2 bseq:2-1.1-1.0 type:fs op:add dir:/d1/dd1/ddd1/}
         fs_b2=[/ /d1/ /d1/dd1/ /d1/dd1/ddd1/ /d1/dd2/])
-      add(/d2/ main) #(seq7={bseq:3 op:add dir:/d2/} fs=/d2/)
+      add(/d2/ main) #(seq7={bseq:3 type:fs op:add dir:/d2/} fs=/d2/)
       add(/d2/ branch:b3 prev:2)
-      #(seq8={bseq:2-2.0 branch:b3 op:add dir:/d2/}
+      #(seq8={bseq:2-2.0 branch:b3 type:fs op:add dir:/d2/}
         fs_b3=[/ /d1/ /d2/])`);
     t('conflict_no_branch', `buf(d1:1) buf(d2:2)
       s..fs(db) add(/) add(/d1/) add(/d1/f1 buf:d1)
       s1..fs(s..M0) tput(0) tput(0 1) add(/D1/) add(/D1/f2 buf:d2) S..#(seq fs)
       fs(M0)        #seq0={}
-      tput(0 1    ) #(seq1={op:add dir:/} fs=[/])
-      tput(0 1 2  ) #(seq2={op:add dir:/d1/} fs=[/d1/])
-      tput(0 1 2 3) #(seq3={op:add file:/d1/f1 content:1 f2:d1} fs=[/d1/f1])
-      tput(0 1 c  ) #(seq2c1={op:add dir:/D1/} seq3c1={} c1fs=[/ /D1/])
-      tput(0 1 c d) #(seq3c1={op:add file:/D1/f2 content:1 f2:d2}
+      tput(0 1    ) #(seq1={type:fs op:add dir:/} fs=[/])
+      tput(0 1 2  ) #(seq2={type:fs op:add dir:/d1/} fs=[/d1/])
+      tput(0 1 2 3) #(seq3={type:fs op:add file:/d1/f1 content:1 f2:d1} fs=[/d1/f1])
+      tput(0 1 c  ) #(seq2c1={type:fs op:add dir:/D1/} seq3c1={} c1fs=[/ /D1/])
+      tput(0 1 c d) #(seq3c1={type:fs op:add file:/D1/f2 content:1 f2:d2}
                       c1fs=[/D1/f2])
       ##file(/d1/f1)=d1 ##file(/d1/f2)=null ##file(/d1/f1 c:1)=null
       ##file(/D1/f2 c:1)=d2`);
@@ -1092,6 +1097,7 @@ describe('git', function(){
         ' =dun1\n -----END PGP SIGNATURE-----\n \n');
     });
     describe('git_to_scroll', function(){
+      // XXX: rewrite using macros and using local git
       const t = (name, test)=>it(name, ()=>test_run(test));
       // XXX: verify seq0 has the correct headers
       // XXX: do we need author in scroll header
@@ -1099,66 +1105,66 @@ describe('git', function(){
       let desc5 = encode_str('Commit from cli with pgp\n\n'+
         'Signed-off-by: lif-rnd <lif.zone.main@gmail.com>');
       t('gpg', `s..#seq git(src(lif-rnd/test_gpg)) #seq0={} sync #(
-        seq1={op:add dir:/ git:{mode:0}}
-        seq2={op:add file:/file_from_www content:1 f2:0x0a
+        seq1={type:fs op:add dir:/ git:{mode:0}}
+        seq2={type:fs op:add file:/file_from_www content:1 f2:0x0a
           git:{oid:8b137891791fe96927ad78e64b0aad7bded08bdc mode:100644}}
         // XXX: missing more stuff in commit (eg author, gpg, ts)
-        seq3={group:2 op:commit desc(Create file_from_www)
+        seq3={group:2 type:commit op:add desc(Create file_from_www)
           git:{oid:632392939fe3e3abcfd259ef24f2ff2a08d55f73}}
-        seq4={link:2 op:add file:/file_from_cli
+        seq4={link:2 type:fs op:add file:/file_from_cli
           git:{oid:8b137891791fe96927ad78e64b0aad7bded08bdc mode:100644}}
-        seq5={group:1 op:commit desc(${desc5})
+        seq5={group:1 type:commit op:add desc(${desc5})
           git:{oid:4ee9e2edc6655e077b2b01f379b7acc5e3c35d8f}}
-        seq6={op:mod file:/file_from_cli content:1 f2:0x76320a
+        seq6={type:fs op:mod file:/file_from_cli content:1 f2:0x76320a
           git:{oid:8c1384d825dbbe41309b7dc18ee7991a9085c46e mode:100644}}
-        seq7={group:1 op:commit desc(test)
+        seq7={group:1 type:commit op:add desc(test)
           git:{oid:ca6b21664600f971cdeadbd357b98fd37ee53d8f}})`);
       let d2 = '0x66696c6520613a0a'+('58'.repeat(104)+'0a').repeat(17);
       let d10 = '0x66696c6520630a'+('58'.repeat(104)+'0a').repeat(17);
       // XXX: mv git to lif-rnd
       t('move', `s..#seq git(src(lif-zone/test_move)) #seq0={} sync #(
-        seq1={op:add dir:/ git:{mode:0}}
-        seq2={op:add file:/a content:1 f2:${d2}
+        seq1={type:fs op:add dir:/ git:{mode:0}}
+        seq2={type:fs op:add file:/a content:1 f2:${d2}
           git:{oid:7780c82f7ec168abd6f2cd9f756058fcedad80f2 mode:100644}}
-        seq3={group:2 op:commit desc(Create a)
+        seq3={group:2 type:commit op:add desc(Create a)
           git:{oid:4160553ff40409ebd42a5cf29c02b3e0d2cade54}}
         // XXX derry: detect move /a -> /b?
-        seq4={op:rm file:/a}
-        seq5={op:add file:/b link:2
+        seq4={type:fs op:rm file:/a}
+        seq5={type:fs op:add file:/b link:2
           git:{oid:7780c82f7ec168abd6f2cd9f756058fcedad80f2 mode:100644}}
-        seq6={group:2 op:commit desc(move a to b)
+        seq6={group:2 type:commit op:add desc(move a to b)
           git:{oid:d13f423f4853887bd7503f078b2887da6b64e43b}}
-        seq7={op:add dir:/dir1/ git:{mode:040000}}
-        seq8={op:add file:/dir1/b link:2
+        seq7={type:fs op:add dir:/dir1/ git:{mode:040000}}
+        seq8={type:fs op:add file:/dir1/b link:2
           git:{oid:7780c82f7ec168abd6f2cd9f756058fcedad80f2 mode:100644}}
-        seq9={group:2 op:commit desc(move /b -> /dir1/b)
+        seq9={group:2 type:commit op:add desc(move /b -> /dir1/b)
           git:{oid:05dfa3ebd084699425fe3ac202ec7cae7bbee89b}}
-        seq10={op:add file:/dir1/c content:1 f2:${d10}
+        seq10={type:fs op:add file:/dir1/c content:1 f2:${d10}
           git:{oid:bc9e3e7b4c0e05a8efb4942498c1afc86d431672 mode:100644}}
-        seq11={group:1 op:commit desc(add c)
+        seq11={group:1 type:commit op:add desc(add c)
           git:{oid:3538536829ce7864fa53cdd85b78af1e8c5c8522}}
         // XXX derry: detect move /dir1/ -> /dir2/
-        seq12={op:rm file:/dir1/c}
-        seq13={op:rm file:/dir1/b}
-        seq14={op:rm dir:/dir1/}
-        seq15={op:add dir:/dir2/ git:{mode:040000}}
-        seq16={op:add file:/dir2/b link:2
+        seq12={type:fs op:rm file:/dir1/c}
+        seq13={type:fs op:rm file:/dir1/b}
+        seq14={type:fs op:rm dir:/dir1/}
+        seq15={type:fs op:add dir:/dir2/ git:{mode:040000}}
+        seq16={type:fs op:add file:/dir2/b link:2
           git:{oid:7780c82f7ec168abd6f2cd9f756058fcedad80f2 mode:100644}}
-        seq17={op:add file:/dir2/c link:10
+        seq17={type:fs op:add file:/dir2/c link:10
           git:{oid:bc9e3e7b4c0e05a8efb4942498c1afc86d431672 mode:100644}}
-        seq18={group:1 op:commit group:6 desc(/dir1 -> /dir2)
+        seq18={group:1 type:commit op:add group:6 desc(/dir1 -> /dir2)
           git:{oid:a7dc61ad160e9e5d004f02b86e79bc289ad24af8}}
-        seq19={op:rm file:/b}
-        seq20={op:add dir:/b/ git={mode:040000}}
-        seq21={op:add file:/b/a content:1 f2:0x7878780a
+        seq19={type:fs op:rm file:/b}
+        seq20={type:fs op:add dir:/b/ git={mode:040000}}
+        seq21={type:fs op:add file:/b/a content:1 f2:0x7878780a
           git={oid:d6459e005434a49a66a3ddec92279a86160ad71f mode:100644}}
-        seq22={group:3 op:commit desc(change b from file to dir)
+        seq22={group:3 type:commit op:add desc(change b from file to dir)
           git:{oid:c0232fb014456ae8ee9b8060121a67016eda6512}}
-        seq23={op:rm file:/b/a}
-        seq24={op:rm dir:/b/}
-        seq25={op:add file:/b content:1 f2:0x5858585f626262620a
+        seq23={type:fs op:rm file:/b/a}
+        seq24={type:fs op:rm dir:/b/}
+        seq25={type:fs op:add file:/b content:1 f2:0x5858585f626262620a
           git:{oid:6d700c06af2977bb61a59cdefb4957ec3ef4f6ff mode:100644}}
-        seq26={group:3 op:commit desc(change b from dir to file)
+        seq26={group:3 type:commit op:add desc(change b from dir to file)
           git:{oid:aa18f16781702a407f879aca38902577418f7cb3}})`);
       return;
       let desc18 = encode_str('Merge pull request #1 from lif-zone/branch1'+
@@ -1359,456 +1365,401 @@ describe('git', function(){
         $$add_f5(fs_write($R/f5 d1) git_add(f5) git_commit(oid5 c_f5))
         $$add_f6(fs_write($R/f6 d1) git_add(f6) git_commit(oid6 c_f6))
         git_init($R) s..git(src(git_test))
-        $$t(fs_cp($R/.git $R2) sync(gitdir($R2))
-          ##seq$1={bseq:$2 $rm_parentesis($5) git:{oid:$3 merge:$4 $6}})`;
+        $$t(fs_cp($R/.git $R2) sync(gitdir($R2)) ##seq$1={bseq:$2 type:$4
+          op:$5 $7... git:{oid:$3 $6}})
+        $$tb(fs_cp($R/.git $R2) sync(gitdir($R2)) ##seq$1={bseq:$2 type:$4
+          op:$5 branch($rm_parentesis($6)) $9... git:{oid:$3 branch:$7 $8}})`;
       const t = (name, test)=>it(name, ()=>test_run(test));
       t('sync_empty', `${t_common} $t $$() ##seq1={}`);
       t('commit_file', `${t_common} $add_f1 $t $$(
-        (1  ! !     ! (op:add dir:/) $m0)
-        (2  ! $d1   ! (op:add file:/f1 content:1 f2:d1) $mf)
-        (3  ! $oid1 ! (op:commit group:2 desc(c_f1)) !))
+        (1  ! !     fs     add $m0 dir:/)
+        (2  ! $d1   fs     add $mf file:/f1 content:1 f2:d1)
+        (3  ! $oid1 commit add !   group:2 desc:c_f1))
         ##seq4={}`);
       t('one_branch_inc', `${t_common}
         $add_f1 $t $$(
-        (1  !     !     !     (op:add dir:/) $m0)
-        (2  !     $d1   !     (op:add file:/f1 content:1 f2:d1) $mf)
-        (3  !     $oid1 !     (op:commit group:2 desc(c_f1)) !))
+        (1  !     !     fs     add $m0 dir:/)
+        (2  !     $d1   fs     add $mf file:/f1 content:1 f2:d1)
+        (3  !     $oid1 commit add !   group:2 desc:c_f1))
         git_br_new(b1) $t $$(
-        (4  3-1.0 $oid1 !     (branch:b1 op:branch_new) !))
+        (4  3-1.0 $oid1 git_br add !   branch:b1))
         $add_f2 $t $$(
-        (5  3-1.1 $d1   !     (op:add file:/f2 link:2) $mf)
-        (6  3-1.2 $oid2 !     (op:commit group:1 desc(c_f2)) !))
+        (5  3-1.1 $d1   fs     add $mf file:/f2 link:2)
+        (6  3-1.2 $oid2 commit add !   group:1 desc:c_f2))
         git_br(master) $add_f3 $t $$(
-        (7  4     $d1   !     (op:add file:/f3 link:2) $mf)
-        (8  5     $oid3 !     (op:commit group:1 desc(c_f3)) !))
+        (7  4     $d1   fs     add $mf file:/f3 link:2)
+        (8  5     $oid3 commit add !   group:1 desc:c_f3))
         ##seq9={}`);
-      t('one_branch_full', `${t_common}
-        $add_f1
-        git_br_new(b1)
-        $add_f2
+      t('one_branch_full', `${t_common} $add_f1 git_br_new(b1) $add_f2
         git_br(master) $add_f3 $t $$(
-        (1  !     !     !     (op:add dir:/) $m0)
-        (2  !     $d1   !     (op:add file:/f1 content:1 f2:d1) $mf)
-        (3  !     $oid1 !     (op:commit group:2 desc(c_f1)) !)
-        (4  !     $d1   !     (op:add file:/f3 link:2) $mf)
-        (5  !     $oid3 !     (op:commit group:1 desc(c_f3)) !)
-        (6  3-1.0 $oid1 !     (branch:b1 op:branch_new) !)
-        (7  3-1.1 $d1   !     (op:add file:/f2 link:2) $mf)
-        (8  3-1.2 $oid2 !     (op:commit group:1 desc(c_f2)) !))
+        (1  !     !     fs     add $m0 dir:/)
+        (2  !     $d1   fs     add $mf file:/f1 content:1 f2:d1)
+        (3  !     $oid1 commit add !   group:2 desc:c_f1)
+        (4  !     $d1   fs     add $mf file:/f3 link:2)
+        (5  !     $oid3 commit add !   group:1 desc:c_f3)
+        (6  3-1.0 $oid1 git_br add !   branch:b1)
+        (7  3-1.1 $d1   fs     add $mf file:/f2 link:2)
+        (8  3-1.2 $oid2 commit add !   group:1 desc:c_f2))
         ##seq9={}`);
       t('one_branch_del_branch_inc', `${t_common}
         $add_f1 $t $$(
-        (1  !     !     !     (op:add dir:/) $m0)
-        (2  !     $d1   !     (op:add file:/f1 content:1 f2:d1) $mf)
-        (3  !     $oid1 !     (op:commit group:2 desc(c_f1)) !))
+        (1  !     !     fs     add $m0       dir:/)
+        (2  !     $d1   fs     add $mf       file:/f1 content:1 f2:d1)
+        (3  !     $oid1 commit add !         group:2 desc:c_f1))
         git_br_new(b1) $t $$(
-        (4  3-1.0 $oid1 !     (branch:b1 op:branch_new) !))
+        (4  3-1.0 $oid1 git_br add !         branch:b1))
         $add_f2 $t $$(
-        (5  3-1.1 $d1   !     (op:add file:/f2 link:2) $mf)
-        (6  3-1.2 $oid2 !     (op:commit group:1 desc(c_f2)) !))
+        (5  3-1.1 $d1   fs     add $mf       file:/f2 link:2)
+        (6  3-1.2 $oid2 commit add !         group:1 desc:c_f2))
         git_br(master) $add_f3 $t $$(
-        (7  4     $d1   !     (op:add file:/f3 link:2) $mf)
-        (8  5     $oid3 !     (op:commit group:1 desc(c_f3)) !))
+        (7  4     $d1   fs     add $mf       file:/f3 link:2)
+        (8  5     $oid3 commit add !         group:1 desc:c_f3))
         git_br_del(b1) $t $$(
-        (9  3-1.3 !     !     (op:branch_del) branch:b1))
+        (9  3-1.3 !     git_br rm  branch:b1 !))
         ##seq10={}`);
-      t('one_branch_del_branch_full', `${t_common}
-        $add_f1
-        git_br_new(b1)
-        $add_f2
-        git_br(master) $add_f3
-        git_br_del(b1) $t $$(
-        (1  !     !     !     (op:add dir:/) $m0)
-        (2  !     $d1   !     (op:add file:/f1 content:1 f2:d1) $mf)
-        (3  !     $oid1 !     (op:commit group:2 desc(c_f1)) !)
-        (4  !     $d1   !     (op:add file:/f3 link:2) $mf)
-        (5  !     $oid3 !     (op:commit group:1 desc(c_f3)) !))
+      t('one_branch_del_branch_full', `${t_common} $add_f1 git_br_new(b1)
+        $add_f2 git_br(master) $add_f3 git_br_del(b1) $t $$(
+        (1  !     !     fs     add $m0 dir:/)
+        (2  !     $d1   fs     add $mf file:/f1 content:1 f2:d1)
+        (3  !     $oid1 commit add !   group:2 desc:c_f1)
+        (4  !     $d1   fs     add $mf file:/f3 link:2)
+        (5  !     $oid3 commit add !   group:1 desc:c_f3))
         ##seq9={}`);
       t('one_branch_rename_branch_inc', `${t_common}
-        $add_f1 $t $$(
-        (1  !     !     !     (op:add dir:/) $m0)
-        (2  !     $d1   !     (op:add file:/f1 content:1 f2:d1) $mf)
-        (3  !     $oid1 !     (op:commit group:2 desc(c_f1)) !))
-        git_br_new(b1) $t $$(
-        (4  3-1.0 $oid1 !     (branch:b1 op:branch_new) !))
-        $add_f2 $t $$(
-        (5  3-1.1 $d1   !     (op:add file:/f2 link:2) $mf)
-        (6  3-1.2 $oid2 !     (op:commit group:1 desc(c_f2)) !))
-        git_br(master) $add_f3 $t $$(
-        (7  4     $d1   !     (op:add file:/f3 link:2) $mf)
-        (8  5     $oid3 !     (op:commit group:1 desc(c_f3)) !))
-        git_br_rename(b1 b2) $t $$(
-        (9  3-1.3 !     !     (op:branch_del) branch:b1)
-        (10 3-1.4 $oid2 !     (op:branch_set) branch:b2))
+        $add_f1 $tb $$(
+        (1  !     !     fs     add !  !  $m0 dir:/)
+        (2  !     $d1   fs     add !  !  $mf file:/f1 content:1 f2:d1)
+        (3  !     $oid1 commit add !  !  !   group:2 desc:c_f1))
+        git_br_new(b1) $tb $$(
+        (4  3-1.0 $oid1 git_br add b1 !  !   !))
+        $add_f2 $tb $$(
+        (5  3-1.1 $d1   fs     add !  !  $mf file:/f2 link:2)
+        (6  3-1.2 $oid2 commit add !  !  !   group:1 desc:c_f2))
+        git_br(master) $add_f3 $tb $$(
+        (7  4     $d1   fs     add !  !  $mf file:/f3 link:2)
+        (8  5     $oid3 commit add !  !  !   group:1 desc:c_f3))
+        git_br_rename(b1 b2) $tb $$(
+        (9  3-1.3 !     git_br rm  !  b1 !   !)
+        (10 3-1.4 $oid2 git_br add !  b2 !   !))
         ##seq11={}`);
-      t('one_branch_rename_branch_full', `${t_common}
-        $add_f1
-        git_br_new(b1)
-        $add_f2
-        git_br(master) $add_f3
-        git_br_rename(b1 b2) $t $$(
-        (1  !     !     !     (op:add dir:/) $m0)
-        (2  !     $d1   !     (op:add file:/f1 content:1 f2:d1) $mf)
-        (3  !     $oid1 !     (op:commit group:2 desc(c_f1)) !)
-        (4  !     $d1   !     (op:add file:/f3 link:2) $mf)
-        (5  !     $oid3 !     (op:commit group:1 desc(c_f3)) !)
-        (6  3-1.0 $oid1 !     (branch:b2 op:branch_new) !)
-        (7  3-1.1 $d1   !     (op:add file:/f2 link:2) $mf)
-        (8  3-1.2 $oid2 !     (op:commit group:1 desc(c_f2)) !))
+      t('one_branch_rename_branch_full', `${t_common} $add_f1 git_br_new(b1)
+        $add_f2 git_br(master) $add_f3 git_br_rename(b1 b2) $tb $$(
+        (1  !     !     fs     add !  !  $m0       dir:/)
+        (2  !     $d1   fs     add !  !  $mf       file:/f1 content:1 f2:d1)
+        (3  !     $oid1 commit add !  !  !         group:2 desc:c_f1)
+        (4  !     $d1   fs     add !  !  $mf       file:/f3 link:2)
+        (5  !     $oid3 commit add !  !  !         group:1 desc:c_f3)
+        (6  3-1.0 $oid1 git_br add b2 !  !         branch:b2)
+        (7  3-1.1 $d1   fs     add !  !  $mf       file:/f2 link:2)
+        (8  3-1.2 $oid2 commit add !  !  !         group:1 desc:c_f2))
         ##seq9={}`);
       t('one_branch_rename_same_inc', `${t_common}
-        $add_f1 $t $$(
-        (1  !     !     !     (op:add dir:/) $m0)
-        (2  !     $d1   !     (op:add file:/f1 content:1 f2:d1) $mf)
-        (3  !     $oid1 !     (op:commit group:2 desc(c_f1)) !))
-        git_br_new(b1) $t $$(
-        (4  3-1.0 $oid1 !     (branch:b1 op:branch_new) !))
-        $add_f2 $t $$(
-        (5  3-1.1 $d1   !     (op:add file:/f2 link:2) $mf)
-        (6  3-1.2 $oid2 !     (op:commit group:1 desc(c_f2)) !))
-        git_br(master) $add_f3 $t $$(
-        (7  4     $d1   !     (op:add file:/f3 link:2) $mf)
-        (8  5     $oid3 !     (op:commit group:1 desc(c_f3)) !))
-        git_br_del(b1) $t $$(
-        (9  3-1.3 !     !     (op:branch_del) branch:b1))
-        git_br(master) git_br_new(b1) $t $$(
-        (10 5-1.0 $oid3 !     (branch(b1 2) op:branch_new) branch:b1))
+        $add_f1 $tb $$(
+        (1  !     !     fs     add !      !  $m0 dir:/)
+        (2  !     $d1   fs     add !      !  $mf file:/f1 content:1 f2:d1)
+        (3  !     $oid1 commit add !      !  !   group:2 desc:c_f1))
+        git_br_new(b1) $tb $$(
+        (4  3-1.0 $oid1 git_br add b1     !  !   !))
+        $add_f2 $tb $$(
+        (5  3-1.1 $d1   fs     add !      !  $mf file:/f2 link:2)
+        (6  3-1.2 $oid2 commit add !      !  !   group:1 desc:c_f2))
+        git_br(master) $add_f3 $tb $$(
+        (7  4     $d1   fs     add !      !  $mf file:/f3 link:2)
+        (8  5     $oid3 commit add !      !  !   group:1 desc:c_f3))
+        git_br_del(b1) $tb $$(
+        (9  3-1.3 !     git_br rm  !      b1 !   !))
+        git_br(master) git_br_new(b1) $tb $$(
+        (10 5-1.0 $oid3 git_br add (b1 2) b1 !   !))
         ##seq11={}`);
       t('two_branch_rename_new_branch_no_commit_inc', `${t_common}
-        $add_f1 $t $$(
-        (1  !     !     !     (op:add dir:/) $m0)
-        (2  !     $d1   !     (op:add file:/f1 content:1 f2:d1) $mf)
-        (3  !     $oid1 !     (op:commit group:2 desc(c_f1)) !))
-        git_br_new(b1) $t $$(
-        (4  3-1.0 $oid1 !     (branch:b1 op:branch_new) !))
-        $add_f2 $t $$(
-        (5  3-1.1 $d1   !     (op:add file:/f2 link:2) $mf)
-        (6  3-1.2 $oid2 !     (op:commit group:1 desc(c_f2)) !))
-        git_br(master) $add_f3 $t $$(
-        (7  4     $d1   !     (op:add file:/f3 link:2) $mf)
-        (8  5     $oid3 !     (op:commit group:1 desc(c_f3)) !))
-        git_br_new(b2) $t $$(
-        (9  5-1.0 $oid3 !     (branch:b2 op:branch_new) !))
-        $add_f4 $t $$(
-        (10 5-1.1 $d1   !     (op:add file:/f4 link:2) $mf)
-        (11 5-1.2 $oid4 !     (op:commit group:1 desc(c_f4)) !))
+        $add_f1 $tb $$(
+        (1  !     !     fs     add !   !   $m0 dir:/)
+        (2  !     $d1   fs     add !   !   $mf file:/f1 content:1 f2:d1)
+        (3  !     $oid1 commit add !   !   !   group:2 desc:c_f1))
+        git_br_new(b1) $tb $$(
+        (4  3-1.0 $oid1 git_br add b1  !   !   !))
+        $add_f2 $tb $$(
+        (5  3-1.1 $d1   fs     add !   !   $mf file:/f2 link:2)
+        (6  3-1.2 $oid2 commit add !   !   !   group:1 desc:c_f2))
+        git_br(master) $add_f3 $tb $$(
+        (7  4     $d1   fs     add !   !   $mf file:/f3 link:2)
+        (8  5     $oid3 commit add !   !   !   group:1 desc:c_f3))
+        git_br_new(b2) $tb $$(
+        (9  5-1.0 $oid3 git_br add b2  !   !   !))
+        $add_f4 $tb $$(
+        (10 5-1.1 $d1   fs     add !   !   $mf file:/f4 link:2)
+        (11 5-1.2 $oid4 commit add !   !   !   group:1 desc:c_f4))
         git_br_rename(b1 bb1) git_br_rename(b2 bb2)
-        $t $$(
-        (12 5-1.3 !     !     (op:branch_del) branch:b2)
-        (13 3-1.3 !     !     (op:branch_del) branch:b1)
-        (14 3-1.4 $oid2 !     (op:branch_set) branch:bb1)
-        (15 5-1.4 $oid4 !     (op:branch_set) branch:bb2))
+        $tb $$(
+        (12 5-1.3 !     git_br rm  !   b2  !   !)
+        (13 3-1.3 !     git_br rm  !   b1  !   !)
+        (14 3-1.4 $oid2 git_br add !   bb1 !   !)
+        (15 5-1.4 $oid4 git_br add !   bb2 !   !))
         ##seq16={}`);
       t('two_branch_rename_new_branch_commit_after_inc', `${t_common}
-        $add_f1 $t $$(
-        (1  !     !     !     (op:add dir:/) $m0)
-        (2  !     $d1   !     (op:add file:/f1 content:1 f2:d1) $mf)
-        (3  !     $oid1 !     (op:commit group:2 desc(c_f1)) !))
-        git_br_new(b1) $t $$(
-        (4  3-1.0 $oid1 !     (branch:b1 op:branch_new) !))
-        $add_f2 $t $$(
-        (5  3-1.1 $d1   !     (op:add file:/f2 link:2) $mf)
-        (6  3-1.2 $oid2 !     (op:commit group:1 desc(c_f2)) !))
-        git_br(master) $add_f3 $t $$(
-        (7  4     $d1   !     (op:add file:/f3 link:2) $mf)
-        (8  5     $oid3 !     (op:commit group:1 desc(c_f3)) !))
-        git_br_new(b2) $t $$(
-        (9  5-1.0 $oid3 !     (branch:b2 op:branch_new) !))
-        $add_f4 $t $$(
-        (10 5-1.1 $d1   !     (op:add file:/f4 link:2) $mf)
-        (11 5-1.2 $oid4 !     (op:commit group:1 desc(c_f4)) !))
+        $add_f1 $tb $$(
+        (1  !     !     fs     add !   !   $m0 dir:/)
+        (2  !     $d1   fs     add !   !   $mf file:/f1 content:1 f2:d1)
+        (3  !     $oid1 commit add !   !   !   group:2 desc:c_f1))
+        git_br_new(b1) $tb $$(
+        (4  3-1.0 $oid1 git_br add b1  !   !   !))
+        $add_f2 $tb $$(
+        (5  3-1.1 $d1   fs     add !   !   $mf file:/f2 link:2)
+        (6  3-1.2 $oid2 commit add !   !   !   group:1 desc:c_f2))
+        git_br(master) $add_f3 $tb $$(
+        (7  4     $d1   fs     add !   !   $mf file:/f3 link:2)
+        (8  5     $oid3 commit add !   !   !   group:1 desc:c_f3))
+        git_br_new(b2) $tb $$(
+        (9  5-1.0 $oid3 git_br add b2  !   !   !))
+        $add_f4 $tb $$(
+        (10 5-1.1 $d1   fs     add !   !   $mf file:/f4 link:2)
+        (11 5-1.2 $oid4 commit add !   !   !   group:1 desc:c_f4))
         git_br_rename(b1 bb1) git_br_rename(b2 bb2)
-        git_br(bb1) $add_f5 git_br(bb2) $add_f6 $t $$(
-        (12 5-1.3 !     !     (op:branch_del) branch:b2)
-        (13 3-1.3 !     !     (op:branch_del) branch:b1)
-        (14 3-1.4 $oid2 !     (op:branch_set) branch:bb1)
-        (15 3-1.5 $d1   !     (op:add file:/f5 link:2) $mf)
-        (16 3-1.6 $oid5 !     (op:commit group:1 desc(c_f5)) !)
-        (17 5-1.4 $oid4 !     (op:branch_set) branch:bb2)
-        (18 5-1.5 $d1   !     (op:add file:/f6 link:2) $mf)
-        (19 5-1.6 $oid6 !     (op:commit group:1 desc(c_f6)) !))
+        git_br(bb1) $add_f5 git_br(bb2) $add_f6 $tb $$(
+        (12 5-1.3 !     git_br rm  !   b2  !   !)
+        (13 3-1.3 !     git_br rm  !   b1  !   !)
+        (14 3-1.4 $oid2 git_br add !   bb1 !   !)
+        (15 3-1.5 $d1   fs     add !   !   $mf file:/f5 link:2)
+        (16 3-1.6 $oid5 commit add !   !   !   group:1 desc:c_f5)
+        (17 5-1.4 $oid4 git_br add !   bb2 !   !)
+        (18 5-1.5 $d1   fs     add !   !   $mf file:/f6 link:2)
+        (19 5-1.6 $oid6 commit add !   !   !   group:1 desc:c_f6))
         ##seq20={}`);
       t('two_branch_rename_flip_branch_no_commit_inc', `${t_common}
-        $add_f1 $t $$(
-        (1  !     !     !     (op:add dir:/) $m0)
-        (2  !     $d1   !     (op:add file:/f1 content:1 f2:d1) $mf)
-        (3  !     $oid1 !     (op:commit group:2 desc(c_f1)) !))
-        git_br_new(b1) $t $$(
-        (4  3-1.0 $oid1 !     (branch:b1 op:branch_new) !))
-        $add_f2 $t $$(
-        (5  3-1.1 $d1   !     (op:add file:/f2 link:2) $mf)
-        (6  3-1.2 $oid2 !     (op:commit group:1 desc(c_f2)) !))
-        git_br(master) $add_f3 $t $$(
-        (7  4     $d1   !     (op:add file:/f3 link:2) $mf)
-        (8  5     $oid3 !     (op:commit group:1 desc(c_f3)) !))
-        git_br_new(b2) $t $$(
-        (9  5-1.0 $oid3 !     (branch:b2 op:branch_new) !))
-        $add_f4 $t $$(
-        (10 5-1.1 $d1   !     (op:add file:/f4 link:2) $mf)
-        (11 5-1.2 $oid4 !     (op:commit group:1 desc(c_f4)) !))
+        $add_f1 $tb $$(
+        (1  !     !     fs     add !   !   $m0 dir:/)
+        (2  !     $d1   fs     add !   !   $mf file:/f1 content:1 f2:d1)
+        (3  !     $oid1 commit add !   !   !   group:2 desc:c_f1))
+        git_br_new(b1) $tb $$(
+        (4  3-1.0 $oid1 git_br add b1  !   !   !))
+        $add_f2 $tb $$(
+        (5  3-1.1 $d1   fs     add !   !   $mf file:/f2 link:2)
+        (6  3-1.2 $oid2 commit add !   !   !   group:1 desc:c_f2))
+        git_br(master) $add_f3 $tb $$(
+        (7  4     $d1   fs     add !   !   $mf file:/f3 link:2)
+        (8  5     $oid3 commit add !   !   !   group:1 desc:c_f3))
+        git_br_new(b2) $tb $$(
+        (9  5-1.0 $oid3 git_br add b2  !   !   !))
+        $add_f4 $tb $$(
+        (10 5-1.1 $d1   fs     add !   !   $mf file:/f4 link:2)
+        (11 5-1.2 $oid4 commit add !   !   !   group:1 desc:c_f4))
         // rename-flip b1<>b2
-        git_br_rename(b1 tmp) git_br_rename(b2 b1) git_br_rename(tmp b2) $t $$(
-        (12 5-1.3 !     !     (op:branch_del) branch:b2)
-        (13 3-1.3 !     !     (op:branch_del) branch:b1)
-        (14 5-1.4 $oid4 !     (op:branch_set) branch:b1)
-        (15 3-1.4 $oid2 !     (op:branch_set) branch:b2))
+        git_br_rename(b1 tmp) git_br_rename(b2 b1) git_br_rename(tmp b2)
+        $tb $$(
+        (12 5-1.3 !     git_br rm  !   b2  !   !)
+        (13 3-1.3 !     git_br rm  !   b1  !   !)
+        (14 5-1.4 $oid4 git_br add !   b1  !   !)
+        (15 3-1.4 $oid2 git_br add !   b2  !   !))
         ##seq16={}`);
       t('two_branch_rename_flip_branch_with_commit_inc', `${t_common}
-        $add_f1 $t $$(
-        (1  !     !     !     (op:add dir:/) $m0)
-        (2  !     $d1   !     (op:add file:/f1 content:1 f2:d1) $mf)
-        (3  !     $oid1 !     (op:commit group:2 desc(c_f1)) !))
-        git_br_new(b1) $t $$(
-        (4  3-1.0 $oid1 !     (branch:b1 op:branch_new) !))
-        $add_f2 $t $$(
-        (5  3-1.1 $d1   !     (op:add file:/f2 link:2) $mf)
-        (6  3-1.2 $oid2 !     (op:commit group:1 desc(c_f2)) !))
-        git_br(master) $add_f3 $t $$(
-        (7  4     $d1   !     (op:add file:/f3 link:2) $mf)
-        (8  5     $oid3 !     (op:commit group:1 desc(c_f3)) !))
-        git_br_new(b2) $t $$(
-        (9  5-1.0 $oid3 !     (branch:b2 op:branch_new) !))
-        $add_f4 $t $$(
-        (10 5-1.1 $d1   !     (op:add file:/f4 link:2) $mf)
-        (11 5-1.2 $oid4 !     (op:commit group:1 desc(c_f4)) !))
+        $add_f1 $tb $$(
+        (1  !     !     fs     add !   !   $m0 dir:/)
+        (2  !     $d1   fs     add !   !   $mf file:/f1 content:1 f2:d1)
+        (3  !     $oid1 commit add !   !   !   group:2 desc:c_f1))
+        git_br_new(b1) $tb $$(
+        (4  3-1.0 $oid1 git_br add b1  !   !   !))
+        $add_f2 $tb $$(
+        (5  3-1.1 $d1   fs     add !   !   $mf file:/f2 link:2)
+        (6  3-1.2 $oid2 commit add !   !   !   group:1 desc:c_f2))
+        git_br(master) $add_f3 $tb $$(
+        (7  4     $d1   fs     add !   !   $mf file:/f3 link:2)
+        (8  5     $oid3 commit add !   !   !   group:1 desc:c_f3))
+        git_br_new(b2) $tb $$(
+        (9  5-1.0 $oid3 git_br add b2  !   !   !))
+        $add_f4 $tb $$(
+        (10 5-1.1 $d1   fs     add !   !   $mf file:/f4 link:2)
+        (11 5-1.2 $oid4 commit add !   !   !   group:1 desc:c_f4))
         // rename-flip b1<>b2
         git_br_rename(b1 tmp) git_br_rename(b2 b1) git_br_rename(tmp b2)
         // commit new files on b1 & b2
         git_br(b1) $add_f5 git_br(b2) $add_f6
-        $t $$(
-        (12 5-1.3 !     !     (op:branch_del) branch:b2)
-        (13 3-1.3 !     !     (op:branch_del) branch:b1)
-        (14 5-1.4 $oid4 !     (op:branch_set) branch:b1)
-        (15 5-1.5 $d1   !     (op:add file:/f5 link:2) $mf)
-        (16 5-1.6 $oid5 !     (op:commit group:1 desc(c_f5)) !)
-        (17 3-1.4 $oid2 !     (op:branch_set) branch:b2)
-        (18 3-1.5 $d1   !     (op:add file:/f6 link:2) $mf)
-        (19 3-1.6 $oid6 !     (op:commit group:1 desc(c_f6)) !))
+        $tb $$(
+        (12 5-1.3 !     git_br rm  !   b2  !   !)
+        (13 3-1.3 !     git_br rm  !   b1  !   !)
+        (14 5-1.4 $oid4 git_br add !   b1  !   !)
+        (15 5-1.5 $d1   fs     add !   !   $mf file:/f5 link:2)
+        (16 5-1.6 $oid5 commit add !   !   !   group:1 desc:c_f5)
+        (17 3-1.4 $oid2 git_br add !   b2  !   !)
+        (18 3-1.5 $d1   fs     add !   !   $mf file:/f6 link:2)
+        (19 3-1.6 $oid6 commit add !   !   !   group:1 desc:c_f6))
         ##seq20={}`);
       t('three_branch_inc', `${t_common}
-        $add_f1 $t $$(
-        (1  !         !     !     (op:add dir:/) $m0)
-        (2  !         $d1   !     (op:add file:/f1 content:1 f2:d1) $mf)
-        (3  !         $oid1 !     (op:commit group:2 desc(c_f1)) !))
-        git_br_new(b1) $t $$(
-        (4  3-1.0     $oid1 !     (branch:b1 op:branch_new) !))
-        git_br_new(b2) $t $$(
-        (5  3-2.0     $oid1 !     (branch:b2 op:branch_new) !))
-        git_br(b1) $add_f2 $t $$(
-        (6  3-1.1     $d1   !     (op:add file:/f2 link:2) $mf)
-        (7  3-1.2     $oid2 !     (op:commit group:1 desc(c_f2)) !))
-        git_br_new(b1_1) $add_f3 $t $$(
-        (8  3-1.2-1.0 $oid2 !     (branch:b1_1 op:branch_new) !)
-        (9  3-1.2-1.1 $d1   !     (op:add file:/f3 link:2) $mf)
-        (10 3-1.2-1.2 $oid3 !     (op:commit group:1 desc(c_f3)) !))
-        git_br(b2) $add_f4 $t $$(
-        (11  3-2.1     $d1   !     (op:add file:/f4 link:2) $mf)
-        (12  3-2.2     $oid4 !     (op:commit group:1 desc(c_f4)) !))
-        git_br(master) $add_f5 $t $$(
-        (13 4         $d1   !     (op:add file:/f5 link:2) $mf)
-        (14 5         $oid5 !     (op:commit group:1 desc(c_f5)) !))
+        $add_f1 $tb $$(
+        (1  !         !     fs     add !    ! $m0 dir:/)
+        (2  !         $d1   fs     add !    ! $mf file:/f1 content:1 f2:d1)
+        (3  !         $oid1 commit add !    ! !   group:2 desc:c_f1))
+        git_br_new(b1) $tb $$(
+        (4  3-1.0     $oid1 git_br add b1   ! !   !))
+        git_br_new(b2) $tb $$(
+        (5  3-2.0     $oid1 git_br add b2   ! !   !))
+        git_br(b1) $add_f2 $tb $$(
+        (6  3-1.1     $d1   fs     add !    ! $mf file:/f2 link:2)
+        (7  3-1.2     $oid2 commit add !    ! !   group:1 desc:c_f2))
+        git_br_new(b1_1) $add_f3 $tb $$(
+        (8  3-1.2-1.0 $oid2 git_br add b1_1 ! !   !)
+        (9  3-1.2-1.1 $d1   fs     add !    ! $mf file:/f3 link:2)
+        (10 3-1.2-1.2 $oid3 commit add !    ! !   group:1 desc:c_f3))
+        git_br(b2) $add_f4 $tb $$(
+        (11  3-2.1    $d1   fs     add !    ! $mf file:/f4 link:2)
+        (12  3-2.2    $oid4 commit add !    ! !   group:1 desc:c_f4))
+        git_br(master) $add_f5 $tb $$(
+        (13 4         $d1   fs     add !    ! $mf file:/f5 link:2)
+        (14 5         $oid5 commit add !    ! !   group:1 desc:c_f5))
         ##seq15={}`);
-      t('three_branch_full', `${t_common}
-        $add_f1
-        git_br_new(b1)
-        git_br_new(b2)
-        git_br(b1) $add_f2
-        git_br_new(b1_1) $add_f3
-        git_br(b2) $add_f4
-        git_br(master) $add_f5 $t $$(
-        (1  !         !     !     (op:add dir:/) $m0)
-        (2  !         $d1   !     (op:add file:/f1 content:1 f2:d1) $mf)
-        (3  !         $oid1 !     (op:commit group:2 desc(c_f1)) !)
-        (4  !         $d1   !     (op:add file:/f5 link:2) $mf)
-        (5  !         $oid5 !     (op:commit group:1 desc(c_f5)) !)
-        (6  3-1.0     $oid1 !     (branch:b1 op:branch_new) !)
-        (7  3-1.1     $d1   !     (op:add file:/f2 link:2) $mf)
-        (8  3-1.2     $oid2 !     (op:commit group:1 desc(c_f2)) !)
-        (9  3-1.2-1.0 $oid2 !     (branch:b1_1 op:branch_new) !)
-        (10 3-1.2-1.1 $d1   !     (op:add file:/f3 link:2) $mf)
-        (11 3-1.2-1.2 $oid3 !     (op:commit group:1 desc(c_f3)) !)
-        (12 3-2.0     $oid1 !     (branch:b2 op:branch_new) !)
-        (13 3-2.1     $d1   !     (op:add file:/f4 link:2) $mf)
-        (14 3-2.2     $oid4 !     (op:commit group:1 desc(c_f4)) !))
+      t('three_branch_full', `${t_common} $add_f1 git_br_new(b1) git_br_new(b2)
+        git_br(b1) $add_f2 git_br_new(b1_1) $add_f3 git_br(b2) $add_f4
+        git_br(master) $add_f5 $tb $$(
+        (1  !         !     fs     add !    ! $m0 dir:/)
+        (2  !         $d1   fs     add !    ! $mf file:/f1 content:1 f2:d1)
+        (3  !         $oid1 commit add !    ! !   group:2 desc:c_f1)
+        (4  !         $d1   fs     add !    ! $mf file:/f5 link:2)
+        (5  !         $oid5 commit add !    ! !   group:1 desc:c_f5)
+        (6  3-1.0     $oid1 git_br add b1   ! !   !)
+        (7  3-1.1     $d1   fs     add !    ! $mf file:/f2 link:2)
+        (8  3-1.2     $oid2 commit add !    ! !   group:1 desc:c_f2)
+        (9  3-1.2-1.0 $oid2 git_br add b1_1 ! !   !)
+        (10 3-1.2-1.1 $d1   fs     add !    ! $mf file:/f3 link:2)
+        (11 3-1.2-1.2 $oid3 commit add !    ! !   group:1 desc:c_f3)
+        (12 3-2.0     $oid1 git_br add b2   ! !   !)
+        (13 3-2.1     $d1   fs     add !    ! $mf file:/f4 link:2)
+        (14 3-2.2     $oid4 commit add !    ! !   group:1 desc:c_f4))
         ##seq15={}`);
       t('merge_two_parents_inc', `${t_common}
         $add_f1 $t $$(
-        (1  !     !     !     (op:add dir:/) $m0)
-        (2  !     $d1   !     (op:add file:/f1 content:1 f2:d1) $mf)
-        (3  !     $oid1 !     (op:commit group:2 desc(c_f1)) !))
+        (1  !     !     fs     add $m0 dir:/)
+        (2  !     $d1   fs     add $mf file:/f1 content:1 f2:d1)
+        (3  !     $oid1 commit add !   group:2 desc:c_f1))
         git_br_new(b1) $t $$(
-        (4  3-1.0 $oid1 !     (branch:b1 op:branch_new) !))
+        (4  3-1.0 $oid1 git_br add !   branch:b1))
         $add_f2 $t $$(
-        (5  3-1.1 $d1   !     (op:add file:/f2 link:2) $mf)
-        (6  3-1.2 $oid2 !     (op:commit group:1 desc(c_f2)) !))
+        (5  3-1.1 $d1   fs     add $mf file:/f2 link:2)
+        (6  3-1.2 $oid2 commit add !   group:1 desc:c_f2))
         git_br(master) $add_f3 $t $$(
-        (7  4     $d1   !     (op:add file:/f3 link:2) $mf)
-        (8  5     $oid3 !     (op:commit group:1 desc(c_f3)) !))
-        git_merge(oid4 b1 c_merge) $t $$(
-        (9  6     $d1   !     (op:add file:/f2 link:2) $mf)
-        (10  7     $oid4 $oid2 (op:commit group:1 desc(c_merge)) !))
+        (7  4     $d1   fs     add $mf file:/f3 link:2)
+        (8  5     $oid3 commit add !   group:1 desc:c_f3))
+        git_merge(oid4 b1 c_merge) $$M(merge:$oid2) $t $$(
+        (9  6     $d1   fs     add $mf file:/f2 link:2)
+        (10 7     $oid4 commit add $M  group:1 desc:c_merge))
         ##seq11={}`);
-      t('merge_two_parents_full', `${t_common}
-        $add_f1
-        git_br_new(b1)
-        $add_f2
-        git_br(master)
-        $add_f3
-        git_merge(oid4 b1 c_merge)
-        $t $$(
-        (1  !     !     !     (op:add dir:/) $m0)
-        (2  !     $d1   !     (op:add file:/f1 content:1 f2:d1) $mf)
-        (3  !     $oid1 !     (op:commit group:2 desc(c_f1)) !)
-        (4  !     $d1   !     (op:add file:/f3 link:2) $mf)
-        (5  !     $oid3 !     (op:commit group:1 desc(c_f3)) !)
-        (6  !     $d1   !     (op:add file:/f2 link:2) $mf)
-        (7  !     $oid4 $oid2 (op:commit group:1 desc(c_merge)) !)
-        (8  3-1.0 $oid1 !     (branch:b1 op:branch_new) !)
-        (9  3-1.1 $d1   !     (op:add file:/f2 link:2) $mf)
-        (10  3-1.2 $oid2 !     (op:commit group:1 desc(c_f2)) !))
+      t('merge_two_parents_full', `${t_common} $add_f1 git_br_new(b1)
+        $add_f2 git_br(master) $add_f3 git_merge(oid4 b1 c_merge)
+        $$M(merge:$oid2) $t $$(
+        (1  !     !     fs     add $m0 dir:/)
+        (2  !     $d1   fs     add $mf file:/f1 content:1 f2:d1)
+        (3  !     $oid1 commit add !   group:2 desc:c_f1)
+        (4  !     $d1   fs     add $mf file:/f3 link:2)
+        (5  !     $oid3 commit add !   group:1 desc:c_f3)
+        (6  !     $d1   fs     add $mf file:/f2 link:2)
+        (7  !     $oid4 commit add $M   group:1 desc:c_merge)
+        (8  3-1.0 $oid1 git_br add !   branch:b1)
+        (9  3-1.1 $d1   fs     add $mf file:/f2 link:2)
+        (10 3-1.2 $oid2 commit add !   group:1 desc:c_f2))
         ##seq11={}`);
       t('merge_two_parents_del_branch_inc', `${t_common}
         $add_f1 $t $$(
-        (1  !     !     !     (op:add dir:/) $m0)
-        (2  !     $d1   !     (op:add file:/f1 content:1 f2:d1) $mf)
-        (3  !     $oid1 !     (op:commit group:2 desc(c_f1)) !))
+        (1  !     !     fs     add $m0 dir:/)
+        (2  !     $d1   fs     add $mf file:/f1 content:1 f2:d1)
+        (3  !     $oid1 commit add !   group:2 desc:c_f1))
         git_br_new(b1) $t $$(
-        (4  3-1.0 $oid1 !     (branch:b1 op:branch_new) !))
+        (4  3-1.0 $oid1 git_br add !   branch:b1))
         $add_f2 $t $$(
-        (5  3-1.1 $d1   !     (op:add file:/f2 link:2) $mf)
-        (6  3-1.2 $oid2 !     (op:commit group:1 desc(c_f2)) !))
+        (5  3-1.1 $d1   fs     add $mf file:/f2 link:2)
+        (6  3-1.2 $oid2 commit add !   group:1 desc:c_f2))
         git_br(master) $add_f3 $t $$(
-        (7  4     $d1   !     (op:add file:/f3 link:2) $mf)
-        (8  5     $oid3 !     (op:commit group:1 desc(c_f3)) !))
-        git_merge(oid4 b1 c_merge) $t $$(
-        (9  6     $d1   !     (op:add file:/f2 link:2) $mf)
-        (10  7     $oid4 $oid2 (op:commit group:1 desc(c_merge)) !))
-        git_br_del(b1) $t $$(
-        (11  3-1.3 !     !     (op:branch_del) branch:b1))
+        (7  4     $d1   fs     add $mf file:/f3 link:2)
+        (8  5     $oid3 commit add !   group:1 desc:c_f3))
+        git_merge(oid4 b1 c_merge) $$M(merge:$oid2) $t $$(
+        (9  6     $d1   fs     add $mf file:/f2 link:2)
+        (10 7     $oid4 commit add $M   group:1 desc:c_merge))
+        git_br_del(b1) $$B(branch:b1) $t $$(
+        (11  3-1.3 !    git_br rm  $B   !))
         ##seq12={}`);
-      t('merge_two_parents_del_branch_full', `${t_common}
-        $add_f1
-        git_br_new(b1)
-        $add_f2
-        git_br(master)
-        $add_f3
-        git_merge(oid4 b1 c_merge)
-        git_br_del(b1) $t $$(
-        (1  !     !     !     (op:add dir:/) $m0)
-        (2  !     $d1   !     (op:add file:/f1 content:1 f2:d1) $mf)
-        (3  !     $oid1 !     (op:commit group:2 desc(c_f1)) !)
-        (4  !     $d1   !     (op:add file:/f3 link:2) $mf)
-        (5  !     $oid3 !     (op:commit group:1 desc(c_f3)) !)
-        (6  !     $d1   !     (op:add file:/f2 link:2) $mf)
-        (7  !     $oid4 $oid2 (op:commit group:1 desc(c_merge)) !)
-        (8  3-1.0 $oid1 !     (branch:_null op:branch_new) !)
-        (9  3-1.1 $d1   !     (op:add file:/f2 link:2) $mf)
-        (10 3-1.2 $oid2 !     (op:commit group:1 desc(c_f2)) !))
+      t('merge_two_parents_del_branch_full', `${t_common} $add_f1
+        git_br_new(b1) $add_f2 git_br(master) $add_f3
+        git_merge(oid4 b1 c_merge) git_br_del(b1) $$M(merge:$oid2) $t $$(
+        (1  !     !     fs     add $m0 dir:/)
+        (2  !     $d1   fs     add $mf file:/f1 content:1 f2:d1)
+        (3  !     $oid1 commit add !   group:2 desc:c_f1)
+        (4  !     $d1   fs     add $mf file:/f3 link:2)
+        (5  !     $oid3 commit add !   group:1 desc:c_f3)
+        (6  !     $d1   fs     add $mf file:/f2 link:2)
+        (7  !     $oid4 commit add $M  group:1 desc:c_merge)
+        (8  3-1.0 $oid1 git_br add !   branch:_null)
+        (9  3-1.1 $d1   fs     add $mf file:/f2 link:2)
+        (10 3-1.2 $oid2 commit add !   group:1 desc:c_f2))
         ##seq11={}`);
       t('merge_one_parent_inc', `${t_common}
         $add_f1 $t $$(
-        (1  !     !     !     (op:add dir:/) $m0)
-        (2  !     $d1   !     (op:add file:/f1 content:1 f2:d1) $mf)
-        (3  !     $oid1 !     (op:commit group:2 desc(c_f1)) !))
+        (1  !     !     fs     add $m0 dir:/)
+        (2  !     $d1   fs     add $mf file:/f1 content:1 f2:d1)
+        (3  !     $oid1 commit add !   group:2 desc:c_f1))
         git_br_new(b1) $t $$(
-        (4  3-1.0 $oid1 !     (branch:b1 op:branch_new) !))
+        (4  3-1.0 $oid1 git_br add !   branch:b1))
         $add_f2 $t $$(
-        (5  3-1.1 $d1   !     (op:add file:/f2 link:2) $mf)
-        (6  3-1.2 $oid2 !     (op:commit group:1 desc(c_f2)) !))
+        (5  3-1.1 $d1   fs     add $mf file:/f2 link:2)
+        (6  3-1.2 $oid2 commit add !   group:1 desc:c_f2))
         git_br(master) git_merge(oid3 b1 c_merge) $t $$(
-        (7  4     $d1   !     (op:add file:/f2 link:2) $mf)
-        (8  5     $oid2 !     (op:commit group:1 desc(c_f2)) !))
+        (7  4     $d1   fs     add $mf file:/f2 link:2)
+        (8  5     $oid2 commit add !   group:1 desc:c_f2))
         ##seq9={}`);
-      t('merge_one_parent_full', `${t_common}
-        $add_f1
-        git_br_new(b1)
-        $add_f2
-        git_br(master) git_merge(oid3 b1 c_merge) $t $$(
-        (1  !     !     !     (op:add dir:/) $m0)
-        (2  !     $d1   !     (op:add file:/f1 content:1 f2:d1) $mf)
-        (3  !     $oid1 !     (op:commit group:2 desc(c_f1)) !)
-        (4  !     $d1   !     (op:add file:/f2 link:2) $mf)
-        (5  !     $oid2 !     (op:commit group:1 desc(c_f2)) !)
-        (6  5-1.0 $oid2 !     (branch:b1 op:branch_new) !))
+      t('merge_one_parent_full', `${t_common} $add_f1 git_br_new(b1)
+        $add_f2 git_br(master) git_merge(oid3 b1 c_merge) $t $$(
+        (1  !     !     fs     add $m0 dir:/)
+        (2  !     $d1   fs     add $mf file:/f1 content:1 f2:d1)
+        (3  !     $oid1 commit add !   group:2 desc:c_f1)
+        (4  !     $d1   fs     add $mf file:/f2 link:2)
+        (5  !     $oid2 commit add !   group:1 desc:c_f2)
+        (6  5-1.0 $oid2 git_br add !   branch:b1))
         ##seq7={}`);
       t('merge_one_parent_on_branch_inc', `${t_common}
         $add_f1 $t $$(
-        (1  !         !     !     (op:add dir:/) $m0)
-        (2  !         $d1   !     (op:add file:/f1 content:1 f2:d1) $mf)
-        (3  !         $oid1 !     (op:commit group:2 desc(c_f1)) !))
+        (1  !         !     fs     add $m0 dir:/)
+        (2  !         $d1   fs     add $mf file:/f1 content:1 f2:d1)
+        (3  !         $oid1 commit add !   group:2 desc:c_f1))
         git_br_new(b1) $t $$(
-        (4  3-1.0     $oid1 !     (branch:b1 op:branch_new) !))
+        (4  3-1.0     $oid1 git_br add !   branch:b1))
         $add_f2 $t $$(
-        (5  3-1.1 $d1   !     (op:add file:/f2 link:2) $mf)
-        (6  3-1.2     $oid2 !     (op:commit group:1 desc(c_f2)) !))
+        (5  3-1.1     $d1   fs     add $mf file:/f2 link:2)
+        (6  3-1.2     $oid2 commit add !   group:1 desc:c_f2))
         git_br_new(b2) $t $$(
-        (7  3-1.2-1.0 $oid2 !     (branch:b2 op:branch_new) !))
+        (7  3-1.2-1.0 $oid2 git_br add !   branch:b2))
         $add_f3 $t $$(
-        (8  3-1.2-1.1 $d1   !     (op:add file:/f3 link:2) $mf)
-        (9  3-1.2-1.2 $oid3 !     (op:commit group:1 desc(c_f3)) !))
+        (8  3-1.2-1.1 $d1   fs     add $mf file:/f3 link:2)
+        (9  3-1.2-1.2 $oid3 commit add !   group:1 desc:c_f3))
         git_br(b1) git_merge(oid4 b2 c_merge) $t $$(
-        (10 3-1.3   $d1   !     (op:add file:/f3 link:2) $mf)
-        (11 3-1.4   $oid3 !     (op:commit group:1 desc(c_f3)) !))
+        (10 3-1.3   $d1     fs     add $mf file:/f3 link:2)
+        (11 3-1.4   $oid3   commit add !   group:1 desc:c_f3))
         ##seq12={}`);
-        // XXX: support type:$1 op:$2 $3...
-        /* XX: support type/op
-        $add_f1 $t $$(
-        // (1  !         !     !    (fs add dir:/) $m0)
-        (1  !         !     !    (type:fs op:add dir:/) $m0)
-        (2  !         $d1   !    (type:fs op:add file:/f1 content:1 f2:d1) $mf)
-        (3  !         $oid1 !    (type:commit op:add group:2 desc(c_f1)) !))
-        $add_f2 $t $$(
-        (4  !         $d1   !    (type:fs op:add file:/f2 link:2) $mf)
-        (5  !         $oid2 !    (type:commit op:add group:1 desc(c_f2)) !))
-        $add_f3 $t $$(
-        (6  !         $d1   !    (type:fs op:add file:/f3 link:2) $mf)
-        (7  !         $oid3 !    (type:commit op:add group:1 desc(c_f3)) !))
-        git_tag(t1 $oid1) $t $$(
-        (8  !         $oid1 !    (type:tag op:add name:t1 link:3) !))
-        git_tag(t1 $oid2) $t $$(
-        (9  !         $oid2 !    (type:tag op:mod name:t1 link:5) !))
-        git_tag(t3 $oid3) $t $$(
-        (10 !         $oid3 !    (type:tag op:mod name:t3 link:7) !))
-        git_tag_del(t1) $t $$(
-        (11 !         !     !    (type:tag op:del name:t1) !))
-        ##seq12={}`);
-        */
       t('tag_inc', `${t_common}
         $add_f1 $t $$(
-        (1  !         !     !     (op:add dir:/) $m0)
-        (2  !         $d1   !     (op:add file:/f1 content:1 f2:d1) $mf)
-        (3  !         $oid1 !     (op:commit group:2 desc(c_f1)) !))
+        (1  ! !     fs     add $m0 dir:/)
+        (2  ! $d1   fs     add $mf file:/f1 content:1 f2:d1)
+        (3  ! $oid1 commit add !   group:2 desc:c_f1))
         $add_f2 $t $$(
-        (4  !         $d1   !     (op:add file:/f2 link:2) $mf)
-        (5  !         $oid2 !     (op:commit group:1 desc(c_f2)) !))
+        (4  ! $d1   fs     add $mf file:/f2 link:2)
+        (5  ! $oid2 commit add !   group:1 desc:c_f2))
         $add_f3 $t $$(
-        (6  !         $d1   !     (op:add file:/f3 link:2) $mf)
-        (7  !         $oid3 !     (op:commit group:1 desc(c_f3)) !))
+        (6  ! $d1   fs     add $mf file:/f3 link:2)
+        (7  ! $oid3 commit add !   group:1 desc:c_f3))
         git_tag(t1 $oid1) $t $$(
-        (8  !         $oid1 !     (op:tag_set name:t1 link:3) !))
+        (8  ! $oid1 tag    add !   tag:t1 link:3))
         git_tag(t1 $oid2) $t $$(
-        (9  !         $oid2 !     (op:tag_set name:t1 link:5) !))
+        (9  ! $oid2 tag    mod !   tag:t1 link:5))
         git_tag(t3 $oid3) $t $$(
-        (10 !         $oid3 !     (op:tag_set name:t3 link:7) !))
+        (10 ! $oid3 tag    add !   tag:t3 link:7))
         git_tag_del(t1) $t $$(
-        (11 !         !     !     (op:tag_del name:t1) !))
+        (11 ! !     tag    rm  !   tag:t1))
         ##seq12={}`);
-      t('tag_full', `${t_common}
-        $add_f1
-        $add_f2
-        $add_f3
-        git_tag(t1 $oid1)
-        git_tag(t1 $oid2)
-        git_tag(t3 $oid3)
-        git_tag_del(t1) $t $$(
-        (1  !         !     !     (op:add dir:/) $m0)
-        (2  !         $d1   !     (op:add file:/f1 content:1 f2:d1) $mf)
-        (3  !         $oid1 !     (op:commit group:2 desc(c_f1)) !)
-        (4  !         $d1   !     (op:add file:/f2 link:2) $mf)
-        (5  !         $oid2 !     (op:commit group:1 desc(c_f2)) !)
-        (6  !         $d1   !     (op:add file:/f3 link:2) $mf)
-        (7  !         $oid3 !     (op:commit group:1 desc(c_f3)) !)
-        (8  !         $oid3 !     (op:tag_set name:t3 link:7) !))
+      t('tag_full', `${t_common} $add_f1 $add_f2 $add_f3 git_tag(t1 $oid1)
+        git_tag(t1 $oid2) git_tag(t3 $oid3) git_tag_del(t1) $t $$(
+        (1  ! !     fs     add $m0 dir:/)
+        (2  ! $d1   fs     add $mf file:/f1 content:1 f2:d1)
+        (3  ! $oid1 commit add !   group:2 desc:c_f1)
+        (4  ! $d1   fs     add $mf file:/f2 link:2)
+        (5  ! $oid2 commit add !   group:1 desc:c_f2)
+        (6  ! $d1   fs     add $mf file:/f3 link:2)
+        (7  ! $oid3 commit add !   group:1 desc:c_f3)
+        (8  ! $oid3 tag    add !   tag:t3 link:7))
         ##seq9={}`);
       if (0) // XXX WIP
       t('tag_annotate_inc', `${t_common}
@@ -1835,7 +1786,8 @@ describe('git', function(){
       // XXX: test change of head
       // XXX: test empty commits
       // XXX: need to lock fs while doing sync
-      // XXX: verify we can rebuild git sha (file, dir, commit, gpg)+branches/tags
+      // XXX: verify we can rebuild git sha (file, dir, commit, gpg)+
+      // branches/tags
     });
   });
 /* XXX derry:

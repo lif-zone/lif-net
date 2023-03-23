@@ -939,7 +939,8 @@ describe('fs', ()=>{
   });
 });
 
-describe('git', ()=>{
+describe('git', function(){
+  this.timeout(10000); // XXX: git checkout/pull is slow
   describe('util', function(){
     it('parse_commit', ()=>{
       const t = (val, exp)=>assert.deepEqual(git_util.parse_commit(val), exp);
@@ -1091,7 +1092,6 @@ describe('git', ()=>{
         ' =dun1\n -----END PGP SIGNATURE-----\n \n');
     });
     describe('git_to_scroll', function(){
-      this.timeout(10000); // XXX: git checkout/pull is slow
       const t = (name, test)=>it(name, ()=>test_run(test));
       // XXX: verify seq0 has the correct headers
       // XXX: do we need author in scroll header

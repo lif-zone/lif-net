@@ -284,15 +284,30 @@ const cmd_git_br = t=>etask(function*cmd_git_br(){
 });
 
 const cmd_git_tag = t=>etask(function*cmd_git_tag(){
-  let a = t.r.split(' '), [tag, commit, msg] = a;
+  let a = t.r.split(' '), [tag, commit] = a;
   commit = commit||'';
   assert(tag, 'missing tag');
   assert(commit, 'missing commit');
   assert(a.length<=3, 'too many args');
-  if (!msg)
-    return execSync('git tag -f '+tag+' '+commit, {cwd: t_git_repo_dir});
-  execSync('git tag -m "'+msg+' "-f '+tag+' '+commit, {cwd: t_git_repo_dir});
+  execSync('git tag -f '+tag+' '+commit, {cwd: t_git_repo_dir});
 });
+
+const cmd_git_tag_annotate = (curr, t)=>etask(function*cmd_git_tag_annotate(){
+  let a = t.r.split(' '), [toid, tag, commit, msg] = a;
+  commit = commit||'';
+  assert(toid, 'missing toid name');
+  assert(tag, 'missing tag');
+  assert(commit, 'missing commit');
+  assert(msg, 'missing msg');
+  assert(a.length==4, 'too many args');
+  execSync('git tag -m "'+msg+' " -f '+tag+' '+commit, {cwd: t_git_repo_dir});
+  let log = execSync('git show-ref --tags '+tag,
+    {cwd: t_git_repo_dir}).toString();
+  let m = log.match(/^([0-9a-f]+) .*/);
+  xerr.notice('XXX toid %s %s', toid, m[1]);
+  parse_push(curr, '$$'+toid+'('+m[1]+')');
+});
+
 
 const cmd_git_tag_del = t=>etask(function*cmd_git_tag_del(){
   let tag = t.r;
@@ -330,6 +345,7 @@ const test_run_single = (curr, o, step)=>etask(function*_test_run_single(){
   case 'git_br_rename': yield cmd_git_br_rename(o); break;
   case 'git_br': yield cmd_git_br(o); break;
   case 'git_tag': yield cmd_git_tag(o); break;
+  case 'git_tag_annotate': yield cmd_git_tag_annotate(curr, o); break;
   case 'git_tag_del': yield cmd_git_tag_del(o); break;
   case 'git_merge': yield cmd_git_merge(curr, o); break;
   case 'fs_write': yield cmd_fs_write(o); break;
@@ -1761,31 +1777,41 @@ describe('git', function(){
         (7  ! $oid3 commit add !   group:1 desc:c_f3)
         (8  ! $oid3 tag    add !   tag:t3 link:7))
         ##seq9={}`);
-      if (0) // XXX WIP
       t('tag_annotate_inc', `${t_common}
         $add_f1 $t $$(
-        (1  !         !     !     (op:add dir:/) $m0)
-        (2  !         $d1   !     (op:add file:/f1 content:1 f2:d1) $mf)
-        (3  !         $oid1 !     (op:commit group:2 desc(c_f1)) !))
+        (1  ! !      fs     add $m0 dir:/)
+        (2  ! $d1    fs     add $mf file:/f1 content:1 f2:d1)
+        (3  ! $oid1  commit add !   group:2 desc:c_f1))
         $add_f2 $t $$(
-        (4  !         $d1   !     (op:add file:/f2 link:2) $mf)
-        (5  !         $oid2 !     (op:commit group:1 desc(c_f2)) !))
+        (4  ! $d1    fs     add $mf file:/f2 link:2)
+        (5  ! $oid2  commit add !   group:1 desc:c_f2))
         $add_f3 $t $$(
-        (6  !         $d1   !     (op:add file:/f3 link:2) $mf)
-        (7  !         $oid3 !     (op:commit group:1 desc(c_f3)) !))
-        git_tag(t1 $oid1 tag1) $t $$(
-        (8  !         $oid1 !     (op:tag_set name:t1 link:3) !))
-        ##seq9={}`);
+        (6  ! $d1    fs     add $mf file:/f3 link:2)
+        (7  ! $oid3  commit add !   group:1 desc:c_f3))
+        git_tag_annotate(toid1 t1 $oid1 c_tag1) $$C(commit_oid:$oid1) $t $$(
+        (8  ! $toid1 tag_o  add $C  tag:t1 link:3 desc:c_tag1)
+        (9  ! $toid1 tag    add !   tag:t1 link:8))
+        ##seq10={}`);
+      t('tag_annotate_full', `${t_common} $add_f1 $add_f2 $add_f3
+        git_tag_annotate(toid1 t1 $oid1 c_tag1) $$C(commit_oid:$oid1) $t $$(
+        (1  ! !      fs     add $m0 dir:/)
+        (1  ! !      fs     add $m0 dir:/)
+        (2  ! $d1    fs     add $mf file:/f1 content:1 f2:d1)
+        (3  ! $oid1  commit add !   group:2 desc:c_f1)
+        (4  ! $d1    fs     add $mf file:/f2 link:2)
+        (5  ! $oid2  commit add !   group:1 desc:c_f2)
+        (6  ! $d1    fs     add $mf file:/f3 link:2)
+        (7  ! $oid3  commit add !   group:1 desc:c_f3)
+        (8  ! $toid1 tag_o  add $C  tag:t1 link:3 desc:c_tag1)
+        (9  ! $toid1 tag    add !   tag:t1 link:8))
+        ##seq10={}`);
       // XXX: add tag support (basic, annotated, gpg)
-      // XXX: fix body type/op format (type:fs op:add)
       // XXX: flip/flop tests
-      // XXX: add support for unamed branches (merge branch that was deleted)
       // XXX: test two roots
       // XXX: test merge 3 parents
       // XXX: test sync from multi repo
       // XXX: test change of head
       // XXX: test empty commits
-      // XXX: need to lock fs while doing sync
       // XXX: verify we can rebuild git sha (file, dir, commit, gpg)+
       // branches/tags
     });

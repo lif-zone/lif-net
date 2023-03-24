@@ -169,22 +169,24 @@ export default class GIT extends FS {
       yield _this.decl({cfid, branch: null}, {type: 'tag', op: 'rm', tag});
     }
     for (let tag in tags){
-      let o = tags[tag], {oid} = o, link;
+      let o = tags[tag], {oid} = o, link, op;
       let oid2 = yield _this.get_git_tag_oid(cfid, tag);
       if (oid2===oid)
         continue;
+      op = (yield _this.git_tag_exists(cfid, tag)) ? 'mod' : 'add';
       if (o.type=='commit'){
         link = yield _this.find_one(oid, {dir: 'up',
           name: 'commit_git_oid_all', cfid});
-        if (yield _this.git_tag_exists(cfid, tag)){
-          yield _this.decl({cfid, branch: null, link}, {type: 'tag', op: 'mod',
-            tag, git: {oid}});
-        } else {
-          yield _this.decl({cfid, branch: null, link}, {type: 'tag', op: 'add',
-            tag, git: {oid}});
-        }
+        yield _this.decl({cfid, branch: null, link}, {type: 'tag', op, tag,
+          git: {oid}});
       } else if (o.type=='tag'){ // XXX: TODO
-        assert.fail('XXX TODO '+o.type);
+        let commit_oid = o.tag.object;
+        link = yield _this.find_one(commit_oid, {dir: 'up',
+          name: 'commit_git_oid_all', cfid});
+        link = (yield _this.decl({cfid, branch: null, link}, {type: 'tag_o',
+          op: 'add', tag, desc: o.tag.message, git: {oid, commit_oid}})).seq;
+        yield _this.decl({cfid, branch: null, link}, {type: 'tag', op, tag,
+          git: {oid}});
       } else
         assert.fail('invalid tag type '+o.type);
     }

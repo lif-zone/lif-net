@@ -250,7 +250,7 @@ const cmd_git_commit = (curr, t)=>etask(function*cmd_git_commit(){
   assert(oid, 'missing commit oid var');
   assert(msg, 'missing commit message');
   assert.equal(a.length, 2, 'too many args');
-  execSync('git commit -m "'+msg+'"', {cwd: t_git_repo_dir});
+  execSync('git commit --allow-empty -m "'+msg+'"', {cwd: t_git_repo_dir});
   let log = execSync('git log', {cwd: t_git_repo_dir}).toString();
   let m = log.match(/^commit ([0-9a-f]+)\n/);
   parse_push(curr, '$$'+oid+'('+m[1]+')');
@@ -630,8 +630,9 @@ describe('fs', ()=>{
       add(/d/)       #(seq2={type:fs op:add dir:/d/} fs=/d/)
       add(/d/dd1/)   #(seq3={type:fs op:add dir:/d/dd1/} fs=/d/dd1/)
       add(/d/dd2/)   #(seq4={type:fs op:add dir:/d/dd2/} fs=/d/dd2/)
-      rm(/d/)        #(seq5={type:fs op:rm dir:/d/dd2/} seq6={type:fs op:rm dir:/d/dd1/}
-                       seq7={type:fs op:rm dir:/d/} fs=[!/d/ !/d/dd1/ !/d/dd2/])
+      rm(/d/)        #(seq5={type:fs op:rm dir:/d/dd2/} seq6={type:fs
+                     op:rm dir:/d/dd1/} seq7={type:fs op:rm dir:/d/}
+                     fs=[!/d/ !/d/dd1/ !/d/dd2/])
       ##fs1=[/]
       ##fs2=[/ /d/]
       ##fs3=[/ /d/ /d/dd1/]
@@ -644,10 +645,13 @@ describe('fs', ()=>{
       add(/)            #(seq1={type:fs op:add dir:/} fs=/)
       add(/d/)          #(seq2={type:fs op:add dir:/d/} fs=/d/)
       add(/d/dd1/)      #(seq3={type:fs op:add dir:/d/dd1/} fs=/d/dd1/)
-      add(/d/dd1/ddd1/) #(seq4={type:fs op:add dir:/d/dd1/ddd1/} fs=/d/dd1/ddd1/)
+      add(/d/dd1/ddd1/) #(seq4={type:fs op:add dir:/d/dd1/ddd1/}
+                        fs=/d/dd1/ddd1/)
       add(/d/dd2/)      #(seq5={type:fs op:add dir:/d/dd2/} fs=/d/dd2/)
-      add(/d/dd2/ddd1/) #(seq6={type:fs op:add dir:/d/dd2/ddd1/} fs=/d/dd2/ddd1/)
-      add(/d/dd2/ddd2/) #(seq7={type:fs op:add dir:/d/dd2/ddd2/} fs=/d/dd2/ddd2/)`;
+      add(/d/dd2/ddd1/) #(seq6={type:fs op:add dir:/d/dd2/ddd1/}
+                        fs=/d/dd2/ddd1/)
+      add(/d/dd2/ddd2/) #(seq7={type:fs op:add dir:/d/dd2/ddd2/}
+                        fs=/d/dd2/ddd2/)`;
     t('rm_multi_deep_rm_/', stest+` rm(/) #(
       seq8={type:fs op:rm dir:/d/dd2/ddd2/}
       seq9={type:fs op:rm dir:/d/dd2/ddd1/}
@@ -690,7 +694,8 @@ describe('fs', ()=>{
       add(/f1 buf:d) #seq1={type:fs op:add file:/f1 len:2 content:1 f2:d}`);
     t('add_buf_len_ab', `s..#seq buf(d:ab) s..fs(len) #seq0={}
       add(/f1 buf:d) #seq1={type:fs op:add file:/f1 len:3 content:1 f2:d}`);
-    t('add_empty', `s..#seq s..fs #seq0={} add(/f1) #seq1={type:fs op:add file:/f1}`);
+    t('add_empty', `s..#seq s..fs #seq0={} add(/f1)
+      #seq1={type:fs op:add file:/f1}`);
     t('add_two_diff', `s..#seq buf(d1:0) buf(d2:1) s..fs #seq0={}
       add(/f1 buf:d1) #seq1={type:fs op:add file:/f1 content:1 f2:d1}
       add(/f2 buf:d2) #seq2={type:fs op:add file:/f2 content:1 f2:d2}`);
@@ -700,34 +705,43 @@ describe('fs', ()=>{
     t('add_two_same_sha256', `s..#seq buf(d:0) s..fs(csum_sha256) #seq0={}
       add(/f1 buf:d) #seq1={type:fs op:add file:/f1 content:1 f2:d
         csum_sha256:sha256(d)}
-      add(/f2 buf:d) #seq2={type:fs op:add file:/f2 link:1 csum_sha256:sha256(d)}`);
+      add(/f2 buf:d) #seq2={type:fs op:add file:/f2 link:1
+        csum_sha256:sha256(d)}`);
     t('add_three_same_sha256', `s..#seq buf(d:0) s..fs(csum_sha256) #seq0={}
       add(/f1 buf:d) #seq1={type:fs op:add file:/f1 content:1 f2:d
         csum_sha256:sha256(d)}
-      add(/f2 buf:d) #seq2={type:fs op:add file:/f2 link:1 csum_sha256:sha256(d)}
-      add(/f3 buf:d) #seq3={type:fs op:add file:/f3 link:1 csum_sha256:sha256(d)}`);
+      add(/f2 buf:d) #seq2={type:fs op:add file:/f2 link:1
+        csum_sha256:sha256(d)}
+      add(/f3 buf:d) #seq3={type:fs op:add file:/f3 link:1
+        csum_sha256:sha256(d)}`);
     t('mod_same_def', `s..#seq buf(d:d) s..fs #seq0={}
       add(/f buf:d) #seq1={type:fs op:add file:/f content:1 f2:d}
       mod(/f buf:d) #seq2={type:fs op:mod file:/f link:1}`);
     t('mod_same_sha256', `s..#seq buf(d:d) s..fs(csum_sha256) #seq0={}
-      add(/f buf:d) #seq1={type:fs op:add file:/f content:1 f2:d csum_sha256:sha256(d)}
-      mod(/f buf:d) #seq2={type:fs op:mod file:/f link:1 csum_sha256:sha256(d)}`);
+      add(/f buf:d) #seq1={type:fs op:add file:/f content:1 f2:d
+        csum_sha256:sha256(d)}
+      mod(/f buf:d) #seq2={type:fs op:mod file:/f link:1
+        csum_sha256:sha256(d)}`);
     t('mod_same_existing_same', `s..#seq buf(d:d) buf(d2:d2) s..fs #seq0={}
       add(/f buf:d) #seq1={type:fs op:add file:/f content:1 f2:d}
       add(/f2 buf:d2) #seq2={type:fs op:add file:/f2 content:1 f2:d2}
       mod(/f buf:d2) #seq3={type:fs op:mod file:/f content:1 f2:d2}`);
     t('mod_same_existing_sha256', `s..#seq buf(d:d) buf(d2:d2)
       s..fs(csum_sha256) #seq0={}
-      add(/f buf:d) #seq1={type:fs op:add file:/f content:1 f2:d csum_sha256:sha256(d)}
+      add(/f buf:d) #seq1={type:fs op:add file:/f content:1
+        f2:d csum_sha256:sha256(d)}
       add(/f2 buf:d2) #seq2={type:fs op:add file:/f2 content:1 f2:d2
         csum_sha256:sha256(d2)}
-      mod(/f buf:d2) #seq3={type:fs op:mod file:/f link:2 csum_sha256:sha256(d2)}`);
+      mod(/f buf:d2) #seq3={type:fs op:mod file:/f link:2
+        csum_sha256:sha256(d2)}`);
     [d1, d2, d3] = [d+'x1', d+'x2', d+'x3'];
     t('mod_diff', `s..#seq
       buf(d1:${d1}) buf(d2:${d2}) buf(d3:${d3}) s..fs #seq0={}
       add(/f1 buf:d1) #seq1={type:fs op:add file:/f1 content:1 f2:d1}
-      mod(/f1 buf:d2) #seq2={type:fs op:mod file:/f1 link:1 diff:1 f2:diff(d1 d2)}
-      mod(/f1 buf:d3) #seq3={type:fs op:mod file:/f1 link:2 diff:1 f2:diff(d2 d3)}`);
+      mod(/f1 buf:d2) #seq2={type:fs op:mod file:/f1 link:1 diff:1
+        f2:diff(d1 d2)}
+      mod(/f1 buf:d3) #seq3={type:fs op:mod file:/f1 link:2 diff:1
+        f2:diff(d2 d3)}`);
     [d1, d2] = [d+'1', d+'2'];
     t('mod_nodiff', `s..#seq buf(d1:${d1}) buf(d2:${d2}) s..fs #seq0={}
       add(/f1 buf:d1) #seq1={type:fs op:add file:/f1 content:1 f2:d1}
@@ -766,10 +780,14 @@ describe('fs', ()=>{
       s..fs             #(seq0={})
       add(/)            #(seq1={type:fs op:add dir:/} fs=/)
       add(/d/)          #(seq2={type:fs op:add dir:/d/} fs=/d/)
-      add(/d/f1 buf:d1) #(seq3={type:fs op:add file:/d/f1 content:1 f2:d1} fs=/d/f1)
-      add(/d/f2 buf:d2) #(seq4={type:fs op:add file:/d/f2 content:1 f2:d2} fs=/d/f2)
-      rm(/d/)           #(seq5={type:fs op:rm file:/d/f2} seq6={type:fs op:rm file:/d/f1}
-                          seq7={type:fs op:rm dir:/d/} fs=[!/d/ !/d/f1 !/d/f2])`);
+      add(/d/f1 buf:d1) #(seq3={type:fs op:add file:/d/f1 content:1 f2:d1}
+                        fs=/d/f1)
+      add(/d/f2 buf:d2) #(seq4={type:fs op:add file:/d/f2 content:1 f2:d2}
+                        fs=/d/f2)
+      rm(/d/)           #(seq5={type:fs op:rm file:/d/f2}
+                        seq6={type:fs op:rm file:/d/f1}
+                        seq7={type:fs op:rm dir:/d/}
+                        fs=[!/d/ !/d/f1 !/d/f2])`);
   });
   describe('branch', ()=>{
     let d1, d2, d3, d4, d5, d6, d = 'x'.repeat(68);
@@ -780,12 +798,12 @@ describe('fs', ()=>{
       add(/f2 branch:b buf:d2)
         #(seq3={bseq:2-1.0 branch:b type:fs op:add file:/f2 content:1 f2:d2}
         fs_b=[/ /f1 /f2])
-      add(/f3 buf:d3) #(seq4={bseq:2-1.1 type:fs op:add file:/f3 content:1 f2:d3}
-        fs_b=/f3)
-      add(/f4 buf:d4) #(seq5={bseq:2-1.2 type:fs op:add file:/f4 content:1 f2:d4}
-        fs_b=/f4)
-      add(/f5 main buf:d5) #(seq6={bseq:3 type:fs op:add file:/f5 content:1 f2:d5}
-        fs=/f5)
+      add(/f3 buf:d3) #(seq4={bseq:2-1.1 type:fs op:add file:/f3 content:1
+        f2:d3} fs_b=/f3)
+      add(/f4 buf:d4) #(seq5={bseq:2-1.2 type:fs op:add file:/f4 content:1
+        f2:d4} fs_b=/f4)
+      add(/f5 main buf:d5) #(seq6={bseq:3 type:fs op:add file:/f5 content:1
+        f2:d5} fs=/f5)
       add(/f6 buf:d6) #(seq7={bseq:4 type:fs op:add file:/f6 content:1 f2:d6}
         fs=/f6)
       add(/f7 branch:b buf:d7)
@@ -885,7 +903,8 @@ describe('fs', ()=>{
       fs(M0)        #seq0={}
       tput(0 1    ) #(seq1={type:fs op:add dir:/} fs=[/])
       tput(0 1 2  ) #(seq2={type:fs op:add dir:/d1/} fs=[/d1/])
-      tput(0 1 2 3) #(seq3={type:fs op:add file:/d1/f1 content:1 f2:d1} fs=[/d1/f1])
+      tput(0 1 2 3) #(seq3={type:fs op:add file:/d1/f1 content:1 f2:d1}
+                    fs=[/d1/f1])
       tput(0 1 c  ) #(seq2c1={type:fs op:add dir:/D1/} seq3c1={} c1fs=[/ /D1/])
       tput(0 1 c d) #(seq3c1={type:fs op:add file:/D1/f2 content:1 f2:d2}
                       c1fs=[/D1/f2])
@@ -902,12 +921,12 @@ describe('fs', ()=>{
       add(/f2 branch:b buf:d2)
         #(seq3={bseq:2-1.0 branch:b type:fs op:add file:/f2 content:1 f2:d2}
         fs_b=[/ /f1 /f2])
-      add(/f3 buf:d3) #(seq4={bseq:2-1.1 type:fs op:add file:/f3 content:1 f2:d3}
-        fs_b=/f3)
-      add(/f4 buf:d4) #(seq5={bseq:2-1.2 type:fs op:add file:/f4 content:1 f2:d4}
-        fs_b=/f4)
-      add(/f5 main buf:d5) #(seq6={bseq:3 type:fs op:add file:/f5 content:1 f2:d5}
-        fs=/f5)
+      add(/f3 buf:d3) #(seq4={bseq:2-1.1 type:fs op:add file:/f3 content:1
+        f2:d3} fs_b=/f3)
+      add(/f4 buf:d4) #(seq5={bseq:2-1.2 type:fs op:add file:/f4 content:1
+        f2:d4} fs_b=/f4)
+      add(/f5 main buf:d5) #(seq6={bseq:3 type:fs op:add file:/f5 content:1
+        f2:d5} fs=/f5)
       add(/f6 buf:d6) #(seq7={bseq:4 type:fs op:add file:/f6 content:1 f2:d6}
         fs=/f6)
       add(/f7 branch:b buf:d7)
@@ -951,7 +970,8 @@ describe('fs', ()=>{
       fs(M0)        #seq0={}
       tput(0 1    ) #(seq1={type:fs op:add dir:/} fs=[/])
       tput(0 1 2  ) #(seq2={type:fs op:add dir:/d1/} fs=[/d1/])
-      tput(0 1 2 3) #(seq3={type:fs op:add file:/d1/f1 content:1 f2:d1} fs=[/d1/f1])
+      tput(0 1 2 3) #(seq3={type:fs op:add file:/d1/f1 content:1 f2:d1}
+                    fs=[/d1/f1])
       tput(0 1 c  ) #(seq2c1={type:fs op:add dir:/D1/} seq3c1={} c1fs=[/ /D1/])
       tput(0 1 c d) #(seq3c1={type:fs op:add file:/D1/f2 content:1 f2:d2}
                       c1fs=[/D1/f2])
@@ -1387,11 +1407,21 @@ describe('git', function(){
           op:$5 branch($rm_parentesis($6)) $9... git:{oid:$3 branch:$7 $8}})`;
       const t = (name, test)=>it(name, ()=>test_run(test));
       t('sync_empty', `${t_common} $t $$() ##seq1={}`);
+      t('commit_empty', `${t_common}
+        git_commit(oid1 c_f1) $t $$(
+        (1  ! !     fs     add $m0 dir:/)
+        (2  ! $oid1 commit add !   group:1 desc:c_f1))
+        git_commit(oid2 c_f2) $t $$(
+        (3  ! $oid2 commit add !   desc:c_f2))
+        ##seq4={}`);
       t('commit_file', `${t_common} $add_f1 $t $$(
         (1  ! !     fs     add $m0 dir:/)
         (2  ! $d1   fs     add $mf file:/f1 content:1 f2:d1)
         (3  ! $oid1 commit add !   group:2 desc:c_f1))
-        ##seq4={}`);
+        $add_f2 $t $$(
+        (4  ! $d1   fs     add $mf file:/f2 link:2)
+        (5  ! $oid2 commit add !   group:1 desc:c_f2))
+        ##seq6={}`);
       t('one_branch_inc', `${t_common}
         $add_f1 $t $$(
         (1  !     !     fs     add $m0 dir:/)
@@ -1805,15 +1835,16 @@ describe('git', function(){
         (8  ! $toid1 tag_o  add $C  tag:t1 link:3 desc:c_tag1)
         (9  ! $toid1 tag    add !   tag:t1 link:8))
         ##seq10={}`);
-      // XXX: add tag support (basic, annotated, gpg)
+      // XXX: test merge 3 parents
       // XXX: flip/flop tests
       // XXX: test two roots
-      // XXX: test merge 3 parents
       // XXX: test sync from multi repo
       // XXX: test change of head
-      // XXX: test empty commits
+      // XXX: add gpg annotated tag support
       // XXX: verify we can rebuild git sha (file, dir, commit, gpg)+
       // branches/tags
+      // XXX fix # (to be per filter) and replace tests of ## with #
+      // (rm empty ##seq at the end
     });
   });
 /* XXX derry:

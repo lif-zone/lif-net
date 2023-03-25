@@ -192,16 +192,22 @@ const cmd_git = t=>etask(function*cmd_git(){
 
 const cmd_sync = t=>etask(function*cmd_sync(){
   let name = t.ctx||get_def('left'), git = get_scroll(name);
-  let gitdir, url;
+  let gitdir, url, err;
   for (let curr=t.r, i=0; curr = parse_get_next(curr); i++){
     let tt = parse_exp_arg(curr.exp);
     switch (tt.cmd){
     case 'gitdir': gitdir = tt.r; break;
     case 'url': url = 'https://github.com'+tt.r; break;
+    case 'err': err = tt.r||undefined; break;
     default: assert.fail('invalid sync arg '+tt.cmd);
     }
   }
-  yield git.sync({gitdir, url});
+  try {
+    yield git.sync({gitdir, url});
+    assert.equal(undefined, err, 'did not get expected error');
+  } catch(e){
+    assert.equal(''+e, err);
+  }
 });
 
 const cmd_fs_write = t=>etask(function*cmd_fs_write(){
@@ -283,6 +289,13 @@ const cmd_git_br = t=>etask(function*cmd_git_br(){
   execSync('git checkout '+br, {cwd: t_git_repo_dir, stdio: 'ignore'});
 });
 
+const cmd_git_br_orphan = t=>etask(function*cmd_git_br_orphan(){
+  let br = t.r;
+  assert(t.r, 'missing branch');
+  execSync('git checkout --orphan '+br,
+    {cwd: t_git_repo_dir, stdio: 'ignore'});
+});
+
 const cmd_git_tag = t=>etask(function*cmd_git_tag(){
   let a = t.r.split(' '), [tag, commit] = a;
   commit = commit||'';
@@ -322,7 +335,8 @@ const cmd_git_merge = (curr, t)=>etask(function*cmd_git_merge(){
   assert(oid, 'missing commit oid var');
   assert(msg, 'missing commit message');
   assert(a.length, 'missing branch merge list');
-  execSync('git merge '+a.join(' ')+' -m "'+msg+'"', {cwd: t_git_repo_dir});
+  execSync('git merge --allow-unrelated-histories '+a.join(' ')+
+    ' -m "'+msg+'"', {cwd: t_git_repo_dir});
   let log = execSync('git log', {cwd: t_git_repo_dir}).toString();
   let m = log.match(/^commit ([0-9a-f]+)\n/);
   parse_push(curr, '$$'+oid+'('+m[1]+')');
@@ -345,6 +359,7 @@ const test_run_single = (curr, o, step)=>etask(function*_test_run_single(){
   case 'git_br_del': yield cmd_git_br_del(o); break;
   case 'git_br_rename': yield cmd_git_br_rename(o); break;
   case 'git_br': yield cmd_git_br(o); break;
+  case 'git_br_orphan': yield cmd_git_br_orphan(o); break;
   case 'git_tag': yield cmd_git_tag(o); break;
   case 'git_tag_annotate': yield cmd_git_tag_annotate(curr, o); break;
   case 'git_tag_del': yield cmd_git_tag_del(o); break;
@@ -1406,9 +1421,11 @@ describe('git', function(){
         $$add_f5(fs_write($R/f5 d1) git_add(f5) git_commit(oid5 c_f5))
         $$add_f6(fs_write($R/f6 d1) git_add(f6) git_commit(oid6 c_f6))
         git_init($R) s..git(src(git_test))
-        $$t(fs_cp($R/.git $R2) sync(gitdir($R2)) ##seq$1={bseq:$2 type:$4
-          op:$5 $7... git:{oid:$3 $6}})
-        $$tb(fs_cp($R/.git $R2) sync(gitdir($R2)) ##seq$1={bseq:$2 type:$4
+        $$sync_err()
+        $$t(fs_cp($R/.git $R2) sync(err($sync_err) gitdir($R2))
+          ##seq$1={bseq:$2 type:$4 op:$5 $7... git:{oid:$3 $6}})
+        $$tb(fs_cp($R/.git $R2) sync(err($sync_err) gitdir($R2))
+          ##seq$1={bseq:$2 type:$4
           op:$5 branch($rm_parentesis($6)) $9... git:{oid:$3 branch:$7 $8}})`;
       const t = (name, test)=>it(name, ()=>test_run(test));
       t('sync_empty', `${t_common} $t $$() ##seq1={}`);
@@ -1861,6 +1878,25 @@ describe('git', function(){
         git_tag_del(t1) $t $$(
         (11 ! !     tag    rm  !   tag:t1))
         ##seq12={}`);
+      t('commit_two_roots_inc', `${t_common}
+        $add_f1 $t $$(
+        (1  ! !     fs     add $m0 dir:/)
+        (2  ! $d1   fs     add $mf file:/f1 content:1 f2:d1)
+        (3  ! $oid1 commit add !   group:2 desc:c_f1))
+        $add_f2 $t $$(
+        (4  ! $d1   fs     add $mf file:/f2 link:2)
+        (5  ! $oid2 commit add !   group:1 desc:c_f2))
+        git_br_orphan(b1) $t $$()
+        $add_f3 $$sync_err(Error: adding 2nd git root $oid3) $t $$()
+        ##seq6={}`);
+      t('commit_two_roots_full', `${t_common} $add_f1 $add_f2 git_br_orphan(b1)
+        $add_f3 $$sync_err(Error: adding 2nd git root $oid3) $t $$(
+        (1  ! !     fs     add $m0 dir:/)
+        (2  ! $d1   fs     add $mf file:/f1 content:1 f2:d1)
+        (3  ! $oid1 commit add !   group:2 desc:c_f1)
+        (4  ! $d1   fs     add $mf file:/f2 link:2)
+        (5  ! $oid2 commit add !   group:1 desc:c_f2))
+        ##seq6={}`);
       t('tag_full', `${t_common} $add_f1 $add_f2 $add_f3 git_tag(t1 $oid1)
         git_tag(t1 $oid2) git_tag(t3 $oid3) git_tag_del(t1) $t $$(
         (1  ! !     fs     add $m0 dir:/)
@@ -1901,10 +1937,11 @@ describe('git', function(){
         (9  ! $toid1 tag    add !   tag:t1 link:8))
         ##seq10={}`);
       // XXX: flip/flop tests
-      // XXX: test two roots
       // XXX: test sync from multi repo
       // XXX: test change of head
       // XXX: add gpg annotated tag support
+      // XXX: rewrite old git tests to new format + add one http fetch example
+      // XXX: fix index hacks
       // XXX: verify we can rebuild git sha (file, dir, commit, gpg)+
       // branches/tags
       // XXX fix # (to be per filter) and replace tests of ## with #

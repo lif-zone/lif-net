@@ -138,6 +138,8 @@ export default class GIT extends FS {
             throw new Error('parent commit was not found '+parent);
         }
       }
+      if (!parent && (yield _this.get_root_seq(cfid)))
+        throw new Error('adding 2nd git root '+oid);
       // XXX: review logic for main
       if (git_br!=main && !(yield _this.git_br_exists(cfid, git_br)))
         prev = yield _this._new_set_branch(cfid, prev, git_br, parent);
@@ -393,6 +395,18 @@ export default class GIT extends FS {
     yield decl.load(cfid); // XXX: avoid load and just use index extra data
     let body = decl.get_body(cfid);
     return body.op!='rm' ? body.git?.oid : undefined;
+  }); }
+  get_root_seq(cfid){ return etask({_: this}, function*get_root_seq(){
+    let _this = this._;
+    let index = _this.index_table?.get_index(cfid, null, 'commit_git_oid');
+    if (!index)
+      return;
+    // XXX HACK: need to find a proper way to do it
+    let min;
+    let a = [...index.avl.keys()].reverse();
+    for (let i=0; i<a.length; i++)
+      min = min ? Math.min(min, a[i].seq) : a[i].seq;
+    return min;
   }); }
   get_git_branches(cfid){ return etask({_: this}, function*get_git_branches(){
     let _this = this._;

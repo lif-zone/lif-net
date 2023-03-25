@@ -17,7 +17,7 @@ import DB from '../storage/db.js';
 const b2s = buf_util.buf_to_str, s2b = buf_util.buf_from_str;
 const Diff = new DiffMatchAndPath();
 const {parse_get_next, parse_exp, parse_exp_arg, rm_parentesis,
-  parse_exp_arg_pair, parse_push} = tparser;
+  parse_exp_arg_pair, parse_push, get_array_str} = tparser;
 import {test_run, new_scroll, get_scroll, get_def, test_register,
   test_register_cmd, get_val, parse_db_init, js_struct_from_str}
   from '../storage/test_cmd.js';
@@ -316,12 +316,13 @@ const cmd_git_tag_del = t=>etask(function*cmd_git_tag_del(){
 });
 
 const cmd_git_merge = (curr, t)=>etask(function*cmd_git_merge(){
-  let a = t.r.split(' '), [oid, br, msg] = a;
+  let a = t.r.split(' '), oid = a[0], msg = a[a.length-1];
+  a.shift();
+  a.pop();
   assert(oid, 'missing commit oid var');
-  assert(br, 'missing branch');
   assert(msg, 'missing commit message');
-  assert.equal(a.length, 3, 'too many args');
-  execSync('git merge '+br+' -m "'+msg+'"', {cwd: t_git_repo_dir});
+  assert(a.length, 'missing branch merge list');
+  execSync('git merge '+a.join(' ')+' -m "'+msg+'"', {cwd: t_git_repo_dir});
   let log = execSync('git log', {cwd: t_git_repo_dir}).toString();
   let m = log.match(/^commit ([0-9a-f]+)\n/);
   parse_push(curr, '$$'+oid+'('+m[1]+')');
@@ -401,8 +402,12 @@ const test_get_seq = s=>etask(function*get_seq(){
       delete bo.git.oid;
     if (o.l=='git' && !bo.git.branch)
       delete bo.git.branch;
-    if (o.l=='git' && !bo.git.merge)
-      delete bo.git.merge;
+    if (o.l=='git'){
+      if (!bo.git.merge)
+        delete bo.git.merge;
+      else if (bo.git.merge[0]=='[')
+        bo.git.merge = get_array_str(bo.git.merge);
+    }
     if (!bo.branch)
       delete bo.branch;
     if (o.l=='bseq' && !bo.bseq)
@@ -1734,6 +1739,66 @@ describe('git', function(){
         (9  3-1.1 $d1   fs     add $mf file:/f2 link:2)
         (10 3-1.2 $oid2 commit add !   group:1 desc:c_f2))
         ##seq11={}`);
+      t('merge_three_parents_inc', `${t_common}
+        $add_f1 $t $$(
+        (1  !     !     fs     add $m0 dir:/)
+        (2  !     $d1   fs     add $mf file:/f1 content:1 f2:d1)
+        (3  !     $oid1 commit add !   group:2 desc:c_f1))
+        git_br_new(b1) $t $$(
+        (4  3-1.0 $oid1 git_br add !   branch:b1))
+        $add_f2 $t $$(
+        (5  3-1.1 $d1   fs     add $mf file:/f2 link:2)
+        (6  3-1.2 $oid2 commit add !   group:1 desc:c_f2))
+        git_br(master) git_br_new(b2) $t $$(
+        (7  3-2.0 $oid1 git_br add !   branch:b2))
+        $add_f3 $t $$(
+        (8  3-2.1 $d1   fs     add $mf file:/f3 link:2)
+        (9  3-2.2 $oid3 commit add !   group:1 desc:c_f3))
+        git_br(master) $add_f4 $t $$(
+        (10 4     $d1   fs     add $mf file:/f4 link:2)
+        (11 5     $oid4 commit add !   group:1 desc:c_f4))
+        git_merge(oid5 b1 b2 c_merge) $$M(merge:[$oid2 $oid3]) $t $$(
+        (12 6     $d1   fs     add $mf file:/f2 link:2)
+        (13 7     $d1   fs     add $mf file:/f3 link:2)
+        (14 8     $oid5 commit add $M  group:2 desc:c_merge))
+        ##seq15={}`);
+      t('merge_three_parents_full', `${t_common} $add_f1 git_br_new(b1)
+        $add_f2 git_br(master) git_br_new(b2) $add_f3 git_br(master) $add_f4
+        git_merge(oid5 b1 b2 c_merge) $$M(merge:[$oid2 $oid3]) $t $$(
+        (1  !     !     fs     add $m0 dir:/)
+        (2  !     $d1   fs     add $mf file:/f1 content:1 f2:d1)
+        (3  !     $oid1 commit add !   group:2 desc:c_f1)
+        (4  !     $d1   fs     add $mf file:/f4 link:2)
+        (5  !     $oid4 commit add !   group:1 desc:c_f4)
+        (6  !     $d1   fs     add $mf file:/f2 link:2)
+        (7  !     $d1   fs     add $mf file:/f3 link:2)
+        (8  !     $oid5 commit add $M  group:2 desc:c_merge)
+        (9  3-1.0 $oid1 git_br add !   branch:b1)
+        (10 3-1.1 $d1   fs     add $mf file:/f2 link:2)
+        (11 3-1.2 $oid2 commit add !   group:1 desc:c_f2)
+        (12 3-2.0 $oid1 git_br add !   branch:b2)
+        (13 3-2.1 $d1   fs     add $mf file:/f3 link:2)
+        (14 3-2.2 $oid3 commit add !   group:1 desc:c_f3))
+        ##seq15={}`);
+      t('merge_three_parents_de_br_full', `${t_common} $add_f1 git_br_new(b1)
+        $add_f2 git_br(master) git_br_new(b2) $add_f3 git_br(master) $add_f4
+        git_merge(oid5 b1 b2 c_merge) $$M(merge:[$oid2 $oid3])
+        git_br_del(b1) git_br_del(b2) $t $$(
+        (1  !     !     fs     add $m0 dir:/)
+        (2  !     $d1   fs     add $mf file:/f1 content:1 f2:d1)
+        (3  !     $oid1 commit add !   group:2 desc:c_f1)
+        (4  !     $d1   fs     add $mf file:/f4 link:2)
+        (5  !     $oid4 commit add !   group:1 desc:c_f4)
+        (6  !     $d1   fs     add $mf file:/f2 link:2)
+        (7  !     $d1   fs     add $mf file:/f3 link:2)
+        (8  !     $oid5 commit add $M  group:2 desc:c_merge)
+        (9  3-1.0 $oid1 git_br add !   branch:_null)
+        (10 3-1.1 $d1   fs     add $mf file:/f2 link:2)
+        (11 3-1.2 $oid2 commit add !   group:1 desc:c_f2)
+        (12 3-2.0 $oid1 git_br add !   branch(_null 2))
+        (13 3-2.1 $d1   fs     add $mf file:/f3 link:2)
+        (14 3-2.2 $oid3 commit add !   group:1 desc:c_f3))
+        ##seq15={}`);
       t('merge_one_parent_inc', `${t_common}
         $add_f1 $t $$(
         (1  !     !     fs     add $m0 dir:/)
@@ -1835,7 +1900,6 @@ describe('git', function(){
         (8  ! $toid1 tag_o  add $C  tag:t1 link:3 desc:c_tag1)
         (9  ! $toid1 tag    add !   tag:t1 link:8))
         ##seq10={}`);
-      // XXX: test merge 3 parents
       // XXX: flip/flop tests
       // XXX: test two roots
       // XXX: test sync from multi repo

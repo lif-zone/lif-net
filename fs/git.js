@@ -109,7 +109,8 @@ export default class GIT extends FS {
       // XXX: save missing info
       // autohr, ts, tree, timestamp, timezoneOffset,
       // commit, gpgsig
-      let {oid, commit} = commits[i], prev, [parent, merge] = commit.parent;
+      let {oid, commit} = commits[i], prev, parent = commit.parent[0];
+      let merge = commit.parent.slice(1);
       // XXX: check logic for main
       if (git_br==main || (yield _this.git_br_exists(cfid, git_br))){
         // XXX: support get_git_br_top_seq for main and fix all code
@@ -149,9 +150,9 @@ export default class GIT extends FS {
         '/', commit.tree, '0'); // XXX: can root mode be different?
       // XXX: check behavir with empty commits (need to use prev)
       let body = {type: 'commit', op: 'add', desc: commit.message, git: {oid}};
-      if (merge){
-        merge_queue[merge] = git_br;
-        body.git.merge = merge;
+      if (merge.length){
+        body.git.merge = merge.length==1 ? merge[0] : merge;
+        merge.forEach(moid=>merge_queue[moid] = git_br);
       }
       delete merge_queue[oid];
       yield _this.decl(group ? {cfid, group} : {cfid, prev}, body);

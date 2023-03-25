@@ -244,7 +244,8 @@ function fix_buf(o){
       ret.push(fix_buf(o[i]));
     return ret;
   }
-  ret;
+  if (!(o instanceof Object))
+    return o;
   for (let name in o){
     ret = ret||{};
     let v = o[name];

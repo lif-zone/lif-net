@@ -198,7 +198,9 @@ const cmd_sync = t=>etask(function*cmd_sync(){
     switch (tt.cmd){
     case 'gitdir': gitdir = tt.r; break;
     case 'url': url = 'https://github.com'+tt.r; break;
-    case 'flip_protect': flip_protect = true; break;
+    case 'flip_protect':
+      flip_protect = tt.r=='false' ? false : tt.r||true;
+      break;
     case 'err': err = tt.r||undefined; break;
     default: assert.fail('invalid sync arg '+tt.cmd);
     }
@@ -1937,7 +1939,8 @@ describe('git', function(){
         (8  ! $toid1 tag_o  add $C  tag:t1 link:3 desc:c_tag1)
         (9  ! $toid1 tag    add !   tag:t1 link:8))
         ##seq10={}`);
-      t('flip_protect_off_tag', `${t_common} $add_f1 $add_f2 $add_f3 $t $$(
+      t('flip_protect_off_tag', `${t_common} $$flip(flip_protect:false)
+        $add_f1 $add_f2 $add_f3 $t $$(
         (1  ! !      fs     add $m0 dir:/)
         (1  ! !      fs     add $m0 dir:/)
         (2  ! $d1    fs     add $mf file:/f1 content:1 f2:d1)
@@ -1952,16 +1955,32 @@ describe('git', function(){
         (9  ! $oid2  tag    mod !   tag:t1 link:5))
         git_tag(t1 $oid1) $t $$(
         (10 ! $oid1  tag    mod !   tag:t1 link:3))
-        ##seq11={}
-      `);
-      // XXX: 1. default flip_protect:warn (true|false|warn)
+        ##seq11={}`);
+      t('flip_protect_warn_tag', `${t_common} $add_f1 $add_f2 $add_f3 $t $$(
+        (1  ! !      fs     add $m0 dir:/)
+        (1  ! !      fs     add $m0 dir:/)
+        (2  ! $d1    fs     add $mf file:/f1 content:1 f2:d1)
+        (3  ! $oid1  commit add !   group:2 desc:c_f1)
+        (4  ! $d1    fs     add $mf file:/f2 link:2)
+        (5  ! $oid2  commit add !   group:1 desc:c_f2)
+        (6  ! $d1    fs     add $mf file:/f3 link:2)
+        (7  ! $oid3  commit add !   group:1 desc:c_f3))
+        git_tag(t1 $oid1) $t $$(
+        (8  ! $oid1  tag    add !   tag:t1 link:3))
+        git_tag(t1 $oid2) $t $$(
+        (9  ! $oid2  tag    mod !   tag:t1 link:5))
+        xerr(git: adding tag t1 with a previous oid $oid1)
+        git_tag(t1 $oid1)
+        $t xerr $$(
+        (10 ! $oid1  tag    mod !   tag:t1 link:3))
+        ##seq11={}`);
       // 2. save sync_event/sync_url (always, only if different than src)
       // sync({seal: true|false}) --> {type: 'seal', git: {src}}
       // XXX derry: support $t(flip_protect) // pass vars to macro
       // XXX: test flip_protect rm/readd
       // XXX: test flip_protect branch, flip_protect annotated tag
       // $$ -> $_ (activate last macro)
-      t('flip_protect_on_tag', `${t_common} $$flip(flip_protect)
+      t('flip_protect_true_tag', `${t_common} $$flip(flip_protect)
         $add_f1 $add_f2 $add_f3 $t $$(
         (1  ! !      fs     add $m0 dir:/)
         (1  ! !      fs     add $m0 dir:/)

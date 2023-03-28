@@ -13,6 +13,7 @@ import Scroll from './scroll.js';
 import Soul from './soul.js';
 import buf_util from '../net/buf_util.js';
 import tparser from './test_parser.js';
+import test_lib from '../util/test_lib.js';
 import {r_str, r_from_str} from './range.js';
 import Branch_table from './branch.js';
 const {bseq_valid} = Branch_table;
@@ -437,6 +438,7 @@ const test_end = ()=>etask(function*test_end(){
     if (scroll.soul?.db.inited)
       yield scroll.soul.db.uninit({delete: true});
   }
+  cmd_xerr();
   Scroll.soul.clear();
   DB.t.cursor_hook = null;
   DB.t.cursor_continue_hook = null;
@@ -460,6 +462,7 @@ const test_run_single = (curr, o, step)=>etask(function*_test_run_single(){
     xerr.notice('cmd %s %s', step, o.meta.s);
   let o2;
   switch (o.cmd){
+  case 'xerr': yield cmd_xerr(o); break;
   case 'conf': yield cmd_conf(o); break;
   case 'db_init': yield cmd_db_init(o); break;
   case 'db_copy': yield cmd_db_copy(o); break;
@@ -506,6 +509,16 @@ const test_run_single = (curr, o, step)=>etask(function*_test_run_single(){
       assert.fail('invalid cmd "'+o.cmd+'" in '+o.meta.s);
   }
 });
+
+function cmd_xerr(t){
+  if (!t?.r){
+    assert(!test_lib.t.expect_err?.length, 'pending error '+
+      test_lib.t.expect_err);
+    return;
+  }
+  test_lib.t.expect_err = test_lib.t.expect_err||[];
+  test_lib.t.expect_err.push(t.r);
+}
 
 function cmd_conf(t){
   let soul;

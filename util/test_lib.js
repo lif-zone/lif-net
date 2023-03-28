@@ -755,6 +755,13 @@ E.arg_to_obj_multi = function(arg){
 };
 
 function xerr_cb(level, args, msg, output){
+  if (level>xerr.L.ERR)
+    return;
+  if (E.t.expect_err?.length){
+    let expect_err = E.t.expect_err.pop();
+    assert.equal(msg, expect_err);
+    return;
+  }
   assert(level>xerr.L.ERR, 'xerr L.'+xerr.LINV[level]+' in mocha: '+msg); }
 
 E.xerr_level = function(level){
@@ -790,3 +797,5 @@ E.init = function(){
     xerr.set_buffered(false);
   });
 };
+
+E.t = {};

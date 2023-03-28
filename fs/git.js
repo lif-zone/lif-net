@@ -23,6 +23,8 @@ export default class GIT extends FS {
   sync(opt={}){ return etask({_: this}, function*sync(){
     // XXX: need lock
     let _this = this._, {flip_protect} = opt;
+    if (flip_protect===undefined)
+      flip_protect = 'warn';
     let body = _this.get_decl(0).get_body(0);
     if (!body)
       throw new Error('missing seq0 body');
@@ -179,8 +181,11 @@ export default class GIT extends FS {
       let oid2 = yield _this.get_git_tag_oid(cfid, tag);
       if (oid2===oid)
         continue;
-      if (flip_protect && (yield _this.git_tag_had_value(cfid, tag, oid)))
-        continue;
+      if (flip_protect && (yield _this.git_tag_had_value(cfid, tag, oid))){
+        if (flip_protect===true)
+          continue;
+        xerr('git: adding tag %s with a previous oid %s', tag, oid);
+      }
       op = (yield _this.git_tag_exists(cfid, tag)) ? 'mod' : 'add';
       if (o.type=='commit'){
         link = yield _this.find_one(oid, {dir: 'up',

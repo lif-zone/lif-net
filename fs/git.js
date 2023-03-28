@@ -22,7 +22,7 @@ export default class GIT extends FS {
   }
   sync(opt={}){ return etask({_: this}, function*sync(){
     // XXX: need lock
-    let _this = this._;
+    let _this = this._, {flip_protect} = opt;
     let body = _this.get_decl(0).get_body(0);
     if (!body)
       throw new Error('missing seq0 body');
@@ -98,7 +98,7 @@ export default class GIT extends FS {
       yield _this._sync_commits(config, cfid, main, branch, commits,
         merge_queue);
     }
-    yield _this._sync_tags(config, cfid, git_data.tag);
+    yield _this._sync_tags(config, cfid, git_data.tag, flip_protect);
   }); }
   _sync_commits(config, cfid, main, git_br, commits, merge_queue){
     return etask({_: this}, function*_sync_commits()
@@ -160,7 +160,8 @@ export default class GIT extends FS {
       yield _this.decl(group ? {cfid, group} : {cfid, prev}, body);
     }
   }); }
-  _sync_tags(config, cfid, tags){ return etask({_: this}, function*_sync_tags()
+  _sync_tags(config, cfid, tags, flip_protect){
+    return etask({_: this}, function*_sync_tags()
   {
     let _this = this._;
     let curr_tags = yield _this.get_git_tags(cfid);
@@ -175,6 +176,8 @@ export default class GIT extends FS {
       let o = tags[tag], {oid} = o, link, op;
       let oid2 = yield _this.get_git_tag_oid(cfid, tag);
       if (oid2===oid)
+        continue;
+      if (flip_protect && (yield _this.git_tag_had_value(cfid, tag, oid)))
         continue;
       op = (yield _this.git_tag_exists(cfid, tag)) ? 'mod' : 'add';
       if (o.type=='commit'){
@@ -395,6 +398,20 @@ export default class GIT extends FS {
     yield decl.load(cfid); // XXX: avoid load and just use index extra data
     let body = decl.get_body(cfid);
     return body.op!='rm' ? body.git?.oid : undefined;
+  }); }
+  git_tag_had_value(cfid, tag, oid){ return etask({_: this},
+    function*git_tag_had_value()
+  {
+    let _this = this._;
+    let iter = yield _this.find_iter(tag, {cfid, name: 'git_tag_all'});
+    for (; iter.curr; yield iter.next()){
+      let seq = iter.curr.seq;
+      let decl = _this.get_decl(seq);
+      yield decl.load(cfid); // XXX: avoid load and just use index extra data
+      let body = decl.get_body(cfid);
+      if (body.git?.oid==oid)
+        return true;
+    }
   }); }
   get_root_seq(cfid){ return etask({_: this}, function*get_root_seq(){
     let _this = this._;

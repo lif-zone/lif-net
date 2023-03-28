@@ -192,18 +192,19 @@ const cmd_git = t=>etask(function*cmd_git(){
 
 const cmd_sync = t=>etask(function*cmd_sync(){
   let name = t.ctx||get_def('left'), git = get_scroll(name);
-  let gitdir, url, err;
+  let gitdir, url, err, flip_protect;
   for (let curr=t.r, i=0; curr = parse_get_next(curr); i++){
     let tt = parse_exp_arg(curr.exp);
     switch (tt.cmd){
     case 'gitdir': gitdir = tt.r; break;
     case 'url': url = 'https://github.com'+tt.r; break;
+    case 'flip_protect': flip_protect = true; break;
     case 'err': err = tt.r||undefined; break;
     default: assert.fail('invalid sync arg '+tt.cmd);
     }
   }
   try {
-    yield git.sync({gitdir, url});
+    yield git.sync({gitdir, url, flip_protect});
     assert.equal(undefined, err, 'did not get expected error');
   } catch(e){
     assert.equal(''+e, err);
@@ -1421,8 +1422,8 @@ describe('git', function(){
         $$add_f5(fs_write($R/f5 d1) git_add(f5) git_commit(oid5 c_f5))
         $$add_f6(fs_write($R/f6 d1) git_add(f6) git_commit(oid6 c_f6))
         git_init($R) s..git(src(git_test))
-        $$sync_err()
-        $$t(fs_cp($R/.git $R2) sync(err($sync_err) gitdir($R2))
+        $$sync_err() $$flip()
+        $$t(fs_cp($R/.git $R2) sync($flip err($sync_err) gitdir($R2))
           ##seq$1={bseq:$2 type:$4 op:$5 $7... git:{oid:$3 $6}})
         $$tb(fs_cp($R/.git $R2) sync(err($sync_err) gitdir($R2))
           ##seq$1={bseq:$2 type:$4
@@ -1936,6 +1937,53 @@ describe('git', function(){
         (8  ! $toid1 tag_o  add $C  tag:t1 link:3 desc:c_tag1)
         (9  ! $toid1 tag    add !   tag:t1 link:8))
         ##seq10={}`);
+      // XXX: 1. is flip_protect the default
+      // 2. save sync_event/sync_url (always, only if different than src)
+      // XXX: test flip_protect branch, flip_protect annotated tag
+      t('flip_protect_off_tag', `${t_common} $add_f1 $add_f2 $add_f3 $t $$(
+        (1  ! !      fs     add $m0 dir:/)
+        (1  ! !      fs     add $m0 dir:/)
+        (2  ! $d1    fs     add $mf file:/f1 content:1 f2:d1)
+        (3  ! $oid1  commit add !   group:2 desc:c_f1)
+        (4  ! $d1    fs     add $mf file:/f2 link:2)
+        (5  ! $oid2  commit add !   group:1 desc:c_f2)
+        (6  ! $d1    fs     add $mf file:/f3 link:2)
+        (7  ! $oid3  commit add !   group:1 desc:c_f3))
+        git_tag(t1 $oid1) $t $$(
+        (8  ! $oid1  tag    add !   tag:t1 link:3))
+        git_tag(t1 $oid2) $t $$(
+        (9  ! $oid2  tag    mod !   tag:t1 link:5))
+        git_tag(t1 $oid1) $t $$(
+        (10 ! $oid1  tag    mod !   tag:t1 link:3))
+        ##seq11={}
+      `);
+      // XXX derry: support $t(flip_protect) // pass vars to macro
+      // XXX: test flip_protect rm/readd
+      t('flip_protect_on_tag', `${t_common} $$flip(flip_protect)
+        $add_f1 $add_f2 $add_f3 $t $$(
+        (1  ! !      fs     add $m0 dir:/)
+        (1  ! !      fs     add $m0 dir:/)
+        (2  ! $d1    fs     add $mf file:/f1 content:1 f2:d1)
+        (3  ! $oid1  commit add !   group:2 desc:c_f1)
+        (4  ! $d1    fs     add $mf file:/f2 link:2)
+        (5  ! $oid2  commit add !   group:1 desc:c_f2)
+        (6  ! $d1    fs     add $mf file:/f3 link:2)
+        (7  ! $oid3  commit add !   group:1 desc:c_f3))
+        git_tag(t1 $oid1) $t $$(
+        (8  ! $oid1  tag    add !   tag:t1 link:3))
+        git_tag(t1 $oid2) $t $$(
+        (9  ! $oid2  tag    mod !   tag:t1 link:5))
+        git_tag(t1 $oid1) $t $$()
+        git_tag(t2 $oid2) $t $$(
+        (10 ! $oid2  tag    add !   tag:t2 link:5))
+        git_tag_del(t1) $t $$(
+        (11 ! !     tag    rm  !   tag:t1))
+        git_tag(t1 $oid1) $t $$()
+        git_tag(t1 $oid2) $t $$()
+        git_tag(t1 $oid3) $t $$(
+        (12 ! $oid3  tag    add !   tag:t1 link:7))
+        ##seq13={}
+      `);
       // XXX: flip/flop tests
       // XXX: test sync from multi repo
       // XXX: test change of head

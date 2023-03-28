@@ -1877,7 +1877,7 @@ describe('git', function(){
         git_tag(t3 $oid3) $t $$(
         (10 ! $oid3 tag    add !   tag:t3 link:7))
         git_tag_del(t1) $t $$(
-        (11 ! !     tag    rm  !   tag:t1))
+        (11 ! $oid2 tag    rm  !   tag:t1))
         ##seq12={}`);
       t('commit_two_roots_inc', `${t_common}
         $add_f1 $t $$(
@@ -1937,9 +1937,6 @@ describe('git', function(){
         (8  ! $toid1 tag_o  add $C  tag:t1 link:3 desc:c_tag1)
         (9  ! $toid1 tag    add !   tag:t1 link:8))
         ##seq10={}`);
-      // XXX: 1. is flip_protect the default
-      // 2. save sync_event/sync_url (always, only if different than src)
-      // XXX: test flip_protect branch, flip_protect annotated tag
       t('flip_protect_off_tag', `${t_common} $add_f1 $add_f2 $add_f3 $t $$(
         (1  ! !      fs     add $m0 dir:/)
         (1  ! !      fs     add $m0 dir:/)
@@ -1957,8 +1954,13 @@ describe('git', function(){
         (10 ! $oid1  tag    mod !   tag:t1 link:3))
         ##seq11={}
       `);
+      // XXX: 1. default flip_protect:warn (true|false|warn)
+      // 2. save sync_event/sync_url (always, only if different than src)
+      // sync({seal: true|false}) --> {type: 'seal', git: {src}}
       // XXX derry: support $t(flip_protect) // pass vars to macro
       // XXX: test flip_protect rm/readd
+      // XXX: test flip_protect branch, flip_protect annotated tag
+      // $$ -> $_ (activate last macro)
       t('flip_protect_on_tag', `${t_common} $$flip(flip_protect)
         $add_f1 $add_f2 $add_f3 $t $$(
         (1  ! !      fs     add $m0 dir:/)
@@ -1973,25 +1975,26 @@ describe('git', function(){
         (8  ! $oid1  tag    add !   tag:t1 link:3))
         git_tag(t1 $oid2) $t $$(
         (9  ! $oid2  tag    mod !   tag:t1 link:5))
-        git_tag(t1 $oid1) $t $$()
+        git_tag(t1 $oid1) $t $$() ##seq10={}
         git_tag(t2 $oid2) $t $$(
         (10 ! $oid2  tag    add !   tag:t2 link:5))
         git_tag_del(t1) $t $$(
-        (11 ! !     tag    rm  !   tag:t1))
-        git_tag(t1 $oid1) $t $$()
-        git_tag(t1 $oid2) $t $$()
+        (11 ! $oid2  tag    rm  !   tag:t1))
+        git_tag(t1 $oid1) $t $$() ##seq12={}
+        git_tag(t1 $oid2) $t $$() ##seq12={}
         git_tag(t1 $oid3) $t $$(
         (12 ! $oid3  tag    add !   tag:t1 link:7))
-        ##seq13={}
-      `);
+        git_tag(t1 $oid2) $t $$() ##seq13={}`);
       // XXX: flip/flop tests
       // XXX: test sync from multi repo
       // XXX: test change of head
       // XXX: add gpg annotated tag support
       // XXX: rewrite old git tests to new format + add one http fetch example
-      // XXX: fix index hacks
       // XXX: verify we can rebuild git sha (file, dir, commit, gpg)+
       // branches/tags
+      // XXX: fix index hacks
+      // XXX: fix macro $$ -> $_ (activate last macro) and support args to
+      // macro
       // XXX fix # (to be per filter) and replace tests of ## with #
       // (rm empty ##seq at the end
     });

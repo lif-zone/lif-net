@@ -167,10 +167,12 @@ export default class GIT extends FS {
     let curr_tags = yield _this.get_git_tags(cfid);
     // delete tag
     for (let i=0; i<curr_tags.length; i++){
-      let tag = curr_tags[i];
+      let curr = curr_tags[i];
+      let {tag, oid} = curr;
       if (tags[tag])
         continue;
-      yield _this.decl({cfid, branch: null}, {type: 'tag', op: 'rm', tag});
+      yield _this.decl({cfid, branch: null}, {type: 'tag', op: 'rm', tag,
+        git: {oid}});
     }
     for (let tag in tags){
       let o = tags[tag], {oid} = o, link, op;
@@ -459,7 +461,9 @@ export default class GIT extends FS {
       done[tag] = true;
       if (!seq)
         continue;
-      ret.push(tag);
+      let decl = _this.get_decl(seq);
+      yield decl.load(cfid); // XXX: avoid load. get it from index data
+      ret.push({tag, oid: decl.get_body(cfid).git?.oid});
     }
     return ret;
   }); }

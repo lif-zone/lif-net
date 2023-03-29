@@ -2085,6 +2085,17 @@ describe('git', function(){
         (13  5-1.1 !     git_br rm  $B  !))
         git_br_new(b1 $oid2) $t $$()
         ##seq14={}`);
+      t('head', `${t_common}
+        $add_f1 $add_f2 $add_f3 $t $$(
+        (1  !     !      fs     add $m0 dir:/)
+        (1  !     !      fs     add $m0 dir:/)
+        (2  !     $d1    fs     add $mf file:/f1 content:1 f2:d1)
+        (3  !     $oid1  commit add !   group:2 desc:c_f1)
+        (4  !     $d1    fs     add $mf file:/f2 link:2)
+        (5  !     $oid2  commit add !   group:1 desc:c_f2)
+        (6  !     $d1    fs     add $mf file:/f3 link:2)
+        (7  !     $oid3  commit add !   group:1 desc:c_f3))
+      `);
       // save sync_event/sync_url (always, only if different than src)
       // sync({seal: true|false}) --> {type: 'seal', git: {src}}
       // XXX: flip/flop tests for annotated tag
@@ -2100,6 +2111,7 @@ describe('git', function(){
       // XXX fix # (to be per filter) and replace tests of ## with #
       // (rm empty ##seq at the end
     });
+
   });
 /* XXX derry:
 3-1.0>= bseq >3-2.0

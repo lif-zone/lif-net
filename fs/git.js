@@ -42,8 +42,8 @@ export default class GIT extends FS {
       yield git_api.clone({...config});
     }
     let cfid = 0; // XXX: support conflict
-    let git_data = yield _this._get_git(config, {head: opt.head});
-    let head = git_data.head;
+    let git_data = yield _this._get_git(config, {main: opt.main});
+    let main = git_data.main;
     let curr_git_branches = yield _this.get_git_branches(cfid);
     // delete branches
     for (let i=0; i<curr_git_branches.length; i++){
@@ -72,10 +72,10 @@ export default class GIT extends FS {
       let {ignore, commits} = git_data.branch[git_br];
       if (ignore)
         continue;
-      yield _this._sync_commits(config, cfid, head, git_br, commits,
+      yield _this._sync_commits(config, cfid, main, git_br, commits,
         merge_queue);
       // add branches that were not added before (no commit after branch oid)
-      if (git_br!=head && commits.length){
+      if (git_br!=main && commits.length){
         let top_oid = yield _this.get_git_br_top_oid(cfid, git_br);
         let oid = commits[commits.length-1].oid;
         if (top_oid){
@@ -113,12 +113,12 @@ export default class GIT extends FS {
       }
       // XXX TODO: support branch without name
       let branch = _this.get_avail_branch(cfid, '_null');
-      yield _this._sync_commits(config, cfid, head, branch, commits,
+      yield _this._sync_commits(config, cfid, main, branch, commits,
         merge_queue);
     }
     yield _this._sync_tags(config, cfid, git_data.tag, flip_protect);
   }); }
-  _sync_commits(config, cfid, head, git_br, commits, merge_queue){
+  _sync_commits(config, cfid, main, git_br, commits, merge_queue){
     return etask({_: this}, function*_sync_commits()
   {
     let _this = this._;
@@ -129,10 +129,10 @@ export default class GIT extends FS {
       // commit, gpgsig
       let {oid, commit} = commits[i], prev, parent = commit.parent[0];
       let merge = commit.parent.slice(1);
-      // XXX: check logic for head
-      if (git_br==head || (yield _this.git_br_exists(cfid, git_br))){
-        // XXX: support get_git_br_top_seq for head and fix all code
-        let br_seq = git_br==head ? _this.get_branch_top(cfid, null).seq :
+      // XXX: check logic for main
+      if (git_br==main || (yield _this.git_br_exists(cfid, git_br))){
+        // XXX: support get_git_br_top_seq for main and fix all code
+        let br_seq = git_br==main ? _this.get_branch_top(cfid, null).seq :
           yield _this.get_git_br_top_seq(cfid, git_br);
         let seq = yield _this.find_one(oid, {cfid, name: 'commit_git_oid',
           bseq: _this.bseq_get(cfid, br_seq)});
@@ -158,10 +158,10 @@ export default class GIT extends FS {
       }
       if (!parent && (yield _this.get_root_seq(cfid)))
         throw new Error('adding 2nd git root '+oid);
-      // XXX: review logic for head
-      if (git_br!=head && !(yield _this.git_br_exists(cfid, git_br)))
+      // XXX: review logic for main
+      if (git_br!=main && !(yield _this.git_br_exists(cfid, git_br)))
         prev = yield _this._new_set_branch(cfid, prev, git_br, parent);
-      else if (git_br!=head) // XXX: check logic for head
+      else if (git_br!=main) // XXX: check logic for main
         prev = yield _this.get_git_br_top_seq(cfid, git_br);
       let prev_top_oid = yield _this.get_git_br_top_oid(cfid, git_br);
       if (prev_top_oid && prev_top_oid!=parent)
@@ -223,21 +223,21 @@ export default class GIT extends FS {
   _get_git(config){ return etask({_: this}, function*_get_git()
   {
     // XXX: detect branch didn't change and make sure we don't work on it
-    let _this = this._, head;
+    let _this = this._, main;
     let git_branches = yield git_api.listBranches(config.gitdir ? config :
       {...config, remote: 'origin'});
     if (git_branches.includes('HEAD'))
       array.rm_elm(git_branches, 'HEAD');
-    head = yield _this._get_head_git_br(config);
-    if (!head){
-      head = git_branches.includes('main') ? 'main' :
+    main = yield _this._get_main_git_br(config);
+    if (!main){
+      main = git_branches.includes('main') ? 'main' :
         git_branches.includes('master') ? 'master' : '';
     }
-    if (git_branches.includes(head)){ // XXX: only if not first
-      array.rm_elm(git_branches, head);
-      git_branches.unshift(head);
+    if (git_branches.includes(main)){ // XXX: only if not first
+      array.rm_elm(git_branches, main);
+      git_branches.unshift(main);
     }
-    let ret = {head: head, branch: {}, tag: {}};
+    let ret = {main: main, branch: {}, tag: {}};
     // add new commits to scroll
     for (let b=0; b<git_branches.length; b++){
       let git_br = git_branches[b];
@@ -344,7 +344,7 @@ export default class GIT extends FS {
     }
     return n;
   }); }
-  _get_head_git_br(config){ return etask(function*_get_head_git_br(){
+  _get_main_git_br(config){ return etask(function*_get_main_git_br(){
   // XXX: we call it to force getting origin refs into directory
   if (!config.gitdir)
     yield git_api.listServerRefs({...config, remote: 'origin'});

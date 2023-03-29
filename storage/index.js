@@ -57,10 +57,10 @@ function decl_get_dir(h, body){
 }
 
 // XXX: need test
-function decl_git_br(h, body){ return h.branch||body.git?.branch; }
+function decl_git_br(h, body){ return body.git?.branch||h.branch; }
 
 function decl_git_br_curr(h, body){
-  return h.branch||body.git?.branch ? 'git_br' : null; }
+  return body.git?.branch||h.branch ? 'git_br' : null; }
 
 // XXX: need test
 function data_filter(data, cfid, desc){

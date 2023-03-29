@@ -1974,10 +1974,6 @@ describe('git', function(){
         $t xerr $$(
         (10 ! $oid1  tag    mod !   tag:t1 link:3))
         ##seq11={}`);
-      // 2. save sync_event/sync_url (always, only if different than src)
-      // sync({seal: true|false}) --> {type: 'seal', git: {src}}
-      // XXX derry: support $t(flip_protect) // pass vars to macro
-      // XXX: test flip_protect rm/readd
       // XXX: test flip_protect branch, flip_protect annotated tag
       // $$ -> $_ (activate last macro)
       t('flip_protect_true_tag', `${t_common} $$flip(flip_protect)
@@ -2004,7 +2000,94 @@ describe('git', function(){
         git_tag(t1 $oid3) $t $$(
         (12 ! $oid3  tag    add !   tag:t1 link:7))
         git_tag(t1 $oid2) $t $$() ##seq13={}`);
-      // XXX: flip/flop tests
+      t('flip_protect_off_branch', `${t_common} $$flip(flip_protect:false)
+        $add_f1 $add_f2 $add_f3 $t $$(
+        (1  !     !      fs     add $m0 dir:/)
+        (1  !     !      fs     add $m0 dir:/)
+        (2  !     $d1    fs     add $mf file:/f1 content:1 f2:d1)
+        (3  !     $oid1  commit add !   group:2 desc:c_f1)
+        (4  !     $d1    fs     add $mf file:/f2 link:2)
+        (5  !     $oid2  commit add !   group:1 desc:c_f2)
+        (6  !     $d1    fs     add $mf file:/f3 link:2)
+        (7  !     $oid3  commit add !   group:1 desc:c_f3))
+        git_br_new(b1 $oid1) $t $$(
+        (8  3-1.0 $oid1  git_br add !   branch:b1))
+        git_br(master) git_br_del(b1) git_br_new(b1 $oid2) $t $$(
+        (9  3-1.1 $d1    fs     add $mf file:/f2 link:2)
+        (10 3-1.2 $oid2  commit add !  group:1 desc:c_f2))
+        git_br(master) git_br_del(b1) git_br_new(b1 $oid1) $$B(branch:b1)
+        $t $$(
+        (11  3-1.3 !     git_br rm  $B  !)
+        (12  3-2.0 $oid1 git_br add $B  branch(b1 2)))
+        git_br(master) git_br_del(b1) $t $$(
+        (13  3-2.1 !     git_br rm  $B  !))
+        git_br_new(b1 $oid2) $t $$(
+        (14  5-1.0 $oid2 git_br add $B  branch(b1 3)))
+        ##seq15={}
+        git_br(master) git_br_del(b1) $t $$(
+        (15  5-1.1 !     git_br rm  $B  !))
+        git_br_new(b1 $oid2) $t $$(
+        (16  5-2.0 $oid2 git_br add $B  branch(b1 4)))
+        ##seq17={}`);
+      t('flip_protect_warn_branch', `${t_common} $add_f1 $add_f2 $add_f3 $t $$(
+        (1  !     !      fs     add $m0 dir:/)
+        (1  !     !      fs     add $m0 dir:/)
+        (2  !     $d1    fs     add $mf file:/f1 content:1 f2:d1)
+        (3  !     $oid1  commit add !   group:2 desc:c_f1)
+        (4  !     $d1    fs     add $mf file:/f2 link:2)
+        (5  !     $oid2  commit add !   group:1 desc:c_f2)
+        (6  !     $d1    fs     add $mf file:/f3 link:2)
+        (7  !     $oid3  commit add !   group:1 desc:c_f3))
+        git_br_new(b1 $oid1) $t $$(
+        (8  3-1.0 $oid1  git_br add !   branch:b1))
+        git_br(master) git_br_del(b1) git_br_new(b1 $oid2) $t $$(
+        (9  3-1.1 $d1    fs     add $mf file:/f2 link:2)
+        (10 3-1.2 $oid2  commit add !  group:1 desc:c_f2))
+        git_br(master) git_br_del(b1) git_br_new(b1 $oid1) $$B(branch:b1)
+        xerr(git: adding branch b1 with a previous oid $oid1) $t $$(
+        (11  3-1.3 !     git_br rm  $B  !)
+        (12  3-2.0 $oid1 git_br add $B  branch(b1 2)))
+        xerr ##seq13={}
+        git_br(master) git_br_del(b1) $t $$(
+        (13  3-2.1 !     git_br rm  $B  !))
+        git_br_new(b1 $oid2) $t $$(
+        (14  5-1.0 $oid2 git_br add $B  branch(b1 3)))
+        ##seq15={}
+        git_br(master) git_br_del(b1) $t $$(
+        (15  5-1.1 !     git_br rm  $B  !))
+        git_br_new(b1 $oid2)
+        xerr(git: adding branch b1 with a previous oid $oid2) $t $$(
+        (16  5-2.0 $oid2 git_br add $B  branch(b1 4)))
+        xerr ##seq17={}`);
+      t('flip_protect_on_branch', `${t_common} $$flip(flip_protect)
+        $add_f1 $add_f2 $add_f3 $t $$(
+        (1  !     !      fs     add $m0 dir:/)
+        (1  !     !      fs     add $m0 dir:/)
+        (2  !     $d1    fs     add $mf file:/f1 content:1 f2:d1)
+        (3  !     $oid1  commit add !   group:2 desc:c_f1)
+        (4  !     $d1    fs     add $mf file:/f2 link:2)
+        (5  !     $oid2  commit add !   group:1 desc:c_f2)
+        (6  !     $d1    fs     add $mf file:/f3 link:2)
+        (7  !     $oid3  commit add !   group:1 desc:c_f3))
+        git_br_new(b1 $oid1) $t $$(
+        (8  3-1.0 $oid1  git_br add !   branch:b1))
+        git_br(master) git_br_del(b1) git_br_new(b1 $oid2) $t $$(
+        (9  3-1.1 $d1    fs     add $mf file:/f2 link:2)
+        (10 3-1.2 $oid2  commit add !  group:1 desc:c_f2))
+        git_br(master) git_br_del(b1) git_br_new(b1 $oid1) $$B(branch:b1)
+        ##seq11={}
+        git_br(master) git_br_del(b1) $t $$()
+        ##seq12={}
+        git_br_new(b1 $oid2) $t $$(
+        (12  5-1.0 $oid2 git_br add $B  branch(b1 2)))
+        ##seq13={}
+        git_br(master) git_br_del(b1) $t $$(
+        (13  5-1.1 !     git_br rm  $B  !))
+        git_br_new(b1 $oid2) $t $$()
+        ##seq14={}`);
+      // save sync_event/sync_url (always, only if different than src)
+      // sync({seal: true|false}) --> {type: 'seal', git: {src}}
+      // XXX: flip/flop tests for annotated tag
       // XXX: test sync from multi repo
       // XXX: test change of head
       // XXX: add gpg annotated tag support

@@ -47,11 +47,20 @@ export default class GIT extends FS {
     let curr_git_branches = yield _this.get_git_branches(cfid);
     // delete branches
     for (let i=0; i<curr_git_branches.length; i++){
-      let curr = curr_git_branches[i];
+      let curr = curr_git_branches[i], top;
       if (git_data.branch[curr]){
         let prev_top_oid = yield _this.get_git_br_top_oid(cfid, curr);
         if (!prev_top_oid || git_data.branch[curr].map[prev_top_oid])
           continue;
+        top = git_data.branch[curr].top;
+      }
+      if (top && flip_protect &&
+        (yield _this.git_br_had_value(cfid, curr, top)))
+      {
+        if (flip_protect===true){
+          git_data.branch[curr].ignore = true;
+          continue;
+        }
       }
       let prev = yield _this.get_git_br_top_seq(cfid, curr);
       yield _this.decl({cfid, prev}, {type: 'git_br', op: 'rm',
@@ -60,7 +69,9 @@ export default class GIT extends FS {
     // add new commits
     let merge_queue = {};
     for (let git_br in git_data.branch){
-      let commits = git_data.branch[git_br].commits;
+      let {ignore, commits} = git_data.branch[git_br];
+      if (ignore)
+        continue;
       yield _this._sync_commits(config, cfid, main, git_br, commits,
         merge_queue);
       // add branches that were not added before (no commit after branch oid)
@@ -76,6 +87,11 @@ export default class GIT extends FS {
           name: 'commit_git_oid_all', cfid});
         if (!prev)
           throw new Error('top commit not found '+oid);
+        if (flip_protect && (yield _this.git_br_had_value(cfid, git_br, oid))){
+          if (flip_protect===true)
+            continue;
+          xerr('git: adding branch %s with a previous oid %s', git_br, oid);
+        }
         yield _this._new_set_branch(cfid, prev, git_br, oid);
       }
     }
@@ -231,7 +247,7 @@ export default class GIT extends FS {
         yield git_api.fetch({...config});
       // XXX: use since from last sync
       let log = yield git_api.log({...config, ref: git_br});
-      let commits = [], map = {};
+      let commits = [], map = {}, top = log[0].oid;
       for (let i=0, parent; i<log.length && (!i||parent); i++){
         let curr = log[i];
         if (parent && curr.oid!=parent) // skip merge side branch
@@ -243,7 +259,7 @@ export default class GIT extends FS {
         let curr = log[i];
         map[curr.oid] = curr;
       }
-      ret.branch[git_br] = {commits, map, log};
+      ret.branch[git_br] = {commits, map, log, top};
     }
     let tags = yield git_api.listTags(config.gitdir ? config :
       {...config, remote: 'origin'});
@@ -431,6 +447,20 @@ export default class GIT extends FS {
     for (let i=0; i<a.length; i++)
       min = min ? Math.min(min, a[i].seq) : a[i].seq;
     return min;
+  }); }
+  git_br_had_value(cfid, br, oid){ return etask({_: this},
+    function*git_tag_had_value()
+  {
+    let _this = this._;
+    let iter = yield _this.find_iter(br, {cfid, name: 'git_br_all'});
+    for (; iter.curr; yield iter.next()){
+      let seq = iter.curr.seq;
+      let decl = _this.get_decl(seq);
+      yield decl.load(cfid); // XXX: avoid load and just use index extra data
+      let body = decl.get_body(cfid);
+      if (body.git?.oid==oid)
+        return true;
+    }
   }); }
   get_git_branches(cfid){ return etask({_: this}, function*get_git_branches(){
     let _this = this._;

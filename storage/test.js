@@ -4,6 +4,7 @@ import tparser from './test_parser.js';
 import {test_run, parse_var, parse_cfid_seq, parse_conflict, macro_to_m}
   from './test_cmd.js';
 import xtest from '../util/test_lib.js';
+import util from '../util/util.js';
 import Scroll from './scroll.js';
 import Branch_table from './branch.js';
 import Index from './index.js';
@@ -349,7 +350,8 @@ describe('parser', ()=>{
 });
 
 describe('scroll', function(){
-  this.timeout(10000); // XXX: db tests are slow
+  // XXX: db tests are slow
+  this.timeout(util.is_inspect() ? 99999999999 : 10000);
   describe('util', ()=>{
     it('seq_merkel_array_size', ()=>{
       const t = (seq, exp)=>assert.strictEqual(
@@ -1971,17 +1973,18 @@ describe('scroll', function(){
     });
     const t = (name, test)=>it(name, ()=>test_run(test));
     describe('mem', ()=>{
-      t('one_index', `s..#(index index_table) scroll(index:file) #
-        decl({file:/f1}) #(index={id:0 key:/f1 seq:1}
-          index_table={id:0 cfid:0 bseqb:null name:file})
+      t('one_index', `s..#(index index_table) scroll(index:file)
+        #index_table={id:0 cfid:0 bseqb:null name:file}
+        decl({file:/f1}) #index={id:0 key:/f1 seq:1}
         $$decl(decl({file:$1}) #index={id:0 key:$1 seq:$2})
         $decl $$([/f2 2] [/f1 3] [/f2 4]) decl({}) # decl({file:null}) #
         $decl $$([/f3 7])
         ##index_find(index:0 key:$1)=$2
           $$([/f1 [3 1]] [/f2 [4 2]] [/f3 7] [/f4 []])`);
       t('filter', `s..#(index index_table)
-        scroll(index:[{name:file field:file filter:{f1:[a b] f2:[c d]}}]) #
-        decl({file:/f1}) #index_table={id:0 cfid:0 bseqb:null name:file}
+        scroll(index:[{name:file field:file filter:{f1:[a b] f2:[c d]}}])
+        #index_table={id:0 cfid:0 bseqb:null name:file}
+        decl({file:/f1}) #
         decl({file:/f2 f1:a f2:c}) #index={id:0 key:/f2 seq:2}
         decl({file:/f3 f1:a f2:d}) #index={id:0 key:/f3 seq:3}
         decl({file:/f4 f1:b f2:c}) #index={id:0 key:/f4 seq:4}
@@ -1990,11 +1993,11 @@ describe('scroll', function(){
         decl({file:/f7 f1:e f2:d}) #
         decl({file:/f8 f1:b f2:e}) #
         decl({file:/f8 f1:c f2:e}) #`);
-      t('two_index', `s..#(index index_table) scroll(index:[i1 i2]) #
+      t('two_index', `s..#(index index_table) scroll(index:[i1 i2])
+        #index_table=[{id:0 cfid:0 bseqb:null name:i1}
+          {id:1 cfid:0 bseqb:null name:i2}]
         decl({i1:i1v1 i2:i2v1}) #(index={id:0 key:i1v1 seq:1}
-          index={id:1 key:i2v1 seq:1}
-          index_table=[{id:0 cfid:0 bseqb:null name:i1}
-          {id:1 cfid:0 bseqb:null name:i2}])
+          index={id:1 key:i2v1 seq:1})
         decl({i1:i1v2 i2:i2v2}) #(index={id:0 key:i1v2 seq:2}
           index={id:1 key:i2v2 seq:2})
         decl({i1:i1v3}) #(index={id:0 key:i1v3 seq:3})
@@ -2007,21 +2010,21 @@ describe('scroll', function(){
           (0 i1v1 1) (0 i1v2 2) (0 i1v3 [7 3]) (0 i2v1 [])
           (1 i2v1 1) (1 i2v2 2) (1 i2v3 [7 4]) (1 i1v1 []))`);
       t('two_scroll', `conf(soul:same)
-        s.#(index index_table) s.scroll(index:i) s.#
-        S.#(index index_table) S.scroll(index:i) S.#
-        s.decl({i:v0}) s.#(index={id:0 key:v0 seq:1}
-          index_table={id:0 cfid:0 bseqb:null name:i}) S.#
-        S.decl({i:V0}) s.# S.#(index={id:1 key:V0 seq:1}
-          index_table={id:1 cfid:0 bseqb:null name:i})
+        s.#(index index_table) s.scroll(index:i)
+        s.#index_table={id:0 cfid:0 bseqb:null name:i}
+        S.#(index index_table) S.scroll(index:i)
+        S.#index_table={id:1 cfid:0 bseqb:null name:i}
+        s.decl({i:v0}) s.#index={id:0 key:v0 seq:1} S.#
+        S.decl({i:V0}) s.# S.#index={id:1 key:V0 seq:1}
         s.decl({i:v1}) s.#index={id:0 key:v1 seq:2} S.#
         S.decl({i:V1}) s.# S.#index={id:1 key:V1 seq:2}
         s.##index_find(index:0 key:v1)=2
         S.##!index_find(index:1 key:v1)
         s.##!index_find(index:0 key:V1)
         S.##index_find(index:1 key:V1)=2`);
-      t('branch', `s..#(index index_table) scroll(index:i) #
-        decl({i:v0}) #(index={id:0 key:v0 seq:1}
-          index_table={id:0 cfid:0 bseqb:null name:i})
+      t('branch', `s..#(index index_table) scroll(index:i)
+        #index_table={id:0 cfid:0 bseqb:null name:i}
+        decl({i:v0}) #index={id:0 key:v0 seq:1}
         decl({i:v1} branch:b) #(index={id:1 key:v1 seq:2}
           index_table=[{id:0 cfid:0 bseqb:null name:i}
           {id:1 cfid:0 bseqb:1-1 name:i}])
@@ -2031,10 +2034,10 @@ describe('scroll', function(){
         ##index_find(index:$1 key:$2)=$3 $$(
           (0 v0 1) (0 v1 4) (0 v2 5) (1 v0 []) (1 v1 2) (1 v2 3))`);
       t('branch_all_branches', `s..#(index index_table)
-        scroll(index:[i {name:i2 field:i all_branches:true}]) #
-        decl({i:v0}) #(index=[{id:0 key:v0 seq:1} {id:1 key:v0 seq:1}]
-          index_table=[{id:0 cfid:0 bseqb:null name:i}
-          {id:1 cfid:0 bseqb:null name:i2}])
+        scroll(index:[i {name:i2 field:i all_branches:true}])
+          #index_table=[{id:0 cfid:0 bseqb:null name:i}
+          {id:1 cfid:0 bseqb:null name:i2}]
+        decl({i:v0}) #index=[{id:0 key:v0 seq:1} {id:1 key:v0 seq:1}]
         decl({i:v1} branch:b) #(index=[{id:1 key:v1 seq:2} {id:2 key:v1 seq:2}]
           index_table=[{id:0 cfid:0 bseqb:null name:i}
           {id:1 cfid:0 bseqb:null name:i2} {id:2 cfid:0 bseqb:1-1 name:i}])
@@ -2045,7 +2048,9 @@ describe('scroll', function(){
           (0 v0 1) (0 v1 4) (0 v2 5) (1 v0 1) (1 v1 [4 2]) (1 v2 [5 3])
           (2 v0 []) (2 v1 2) (2 v2 3))`);
       t('conflict', `s.scroll(index:i) s.decl({i:v1}) s.decl({i:v2})
+        dbg
         s1.clone(s.M1) s1.decl({i:V2}) S..#(index index_table) scroll(s..M0) #
+        dbg
         tput(0 1  ) #(index={id:0 key:v1 seq:1}
                       index_table={id:0 cfid:0 bseqb:null name:i})
         tput(0 1 2) #index={id:0 key:v2 seq:2}
@@ -2073,10 +2078,10 @@ describe('scroll', function(){
     });
     describe('db', ()=>{
       t('one_index', `// test write
-        s..#(index index_table db_index db_index_table) scroll(db index:file) #
+        s..#(index index_table db_index db_index_table) scroll(db index:file)
+          flush #index_table={id:0 cfid:0 bseqb:null name:file}
         decl({file:/f1}) flush #(index={id:0 key:/f1 seq:1}
           db_index={id:0 key:/f1 seq:1}
-          index_table={id:0 cfid:0 bseqb:null name:file}
           db_index_table={id:0 cfid:0 bseqb:null name:file})
         decl({file:/f2}) flush #(index={id:0 key:/f2 seq:2}
           db_index={id:0 key:/f2 seq:2})
@@ -2105,8 +2110,9 @@ describe('scroll', function(){
           db_index_table={id:1 cfid:0 bseqb:7-1 name:file}
           db_index={id:1 key:/f3 seq:8})`);
       t('branch', `// test write
-        s..#(index index_table db_index db_index_table) scroll(index:i db) #
-        decl({i:v0}) flush #(index_table={id:0 cfid:0 bseqb:null name:i}
+        s..#(index index_table db_index db_index_table) scroll(index:i db)
+          #index_table={id:0 cfid:0 bseqb:null name:i}
+        decl({i:v0}) flush #(
           db_index_table={id:0 cfid:0 bseqb:null name:i}
           index={id:0 key:v0 seq:1} db_index={id:0 key:v0 seq:1})
         decl({i:v1} branch:b) flush #(
@@ -2171,10 +2177,9 @@ describe('scroll', function(){
     });
     describe('find', ()=>{
       describe('mem', ()=>{
-        t('basic_dir_dn', `s..#(db_query_index index index_table)
+        t('basic_dir_dn', `s..#(db_query_index index)
           scroll(index:path) #
-          decl({path:/derry}) #(index={id:0 key:/derry seq:1}
-            index_table={id:0 cfid:0 bseqb:null name:path})
+          decl({path:/derry}) #index={id:0 key:/derry seq:1}
           decl({path:$1}) #index={id:0 key:$1 seq:$2} $$(
             (/arik 2) (/derry 3) (/derry 4) (/arik 5) (/arik 6) (/derry 7)
             (/derry 8) (/derry 9) (/arik 10) (/arik 11) (/arik 12))
@@ -2204,10 +2209,9 @@ describe('scroll', function(){
             (/derry 9 5 [9 8 7 4 3]) (/derry 9 4 [9 8 7 4])
             (/derry 9 3 [9 8 7]) (/derry 9 2 [9 8]) (/derry 9 1 [9])
             (/derry 9 0 [9 8 7 4 3 1]))`);
-        t('basic_dir_up', `s..#(db_query_index index index_table)
+        t('basic_dir_up', `s..#(db_query_index index)
           scroll(index:path) #
-          decl({path:/derry}) #(index={id:0 key:/derry seq:1}
-            index_table={id:0 cfid:0 bseqb:null name:path})
+          decl({path:/derry}) #index={id:0 key:/derry seq:1}
           decl({path:$1}) #index={id:0 key:$1 seq:$2} $$(
             (/arik 2) (/derry 3) (/derry 4) (/arik 5) (/arik 6) (/derry 7)
             (/derry 8) (/derry 9) (/arik 10) (/arik 11) (/arik 12))
@@ -2239,12 +2243,9 @@ describe('scroll', function(){
             (/derry 8 5 [1 3 4 7 8]) (/derry 8 4 [1 3 4 7])
             (/derry 8 3 [1 3 4]) (/derry 8 2 [1 3]) (/derry 8 1 [1])
             (/derry 8 0 [1 3 4 7 8]))`);
-        t('tag_basic', `s..#(index index_table) scroll(index:i) #
-          decl({i:v1}) #(index={id:0 key:v1 seq:1}
-            index_table={id:0 cfid:0 bseqb:null name:i})
-          decl({i:v1} branch:b) #(index={id:1 key:v1 seq:2}
-            index_table=[{id:0 cfid:0 bseqb:null name:i}
-            {id:1 cfid:0 bseqb:1-1 name:i}])
+        t('tag_basic', `s..#index scroll(index:i) #
+          decl({i:v1}) #index={id:0 key:v1 seq:1}
+          decl({i:v1} branch:b) #index={id:1 key:v1 seq:2}
           decl({i:v2}) #index={id:1 key:v2 seq:3}
           decl({i:v2}) #index={id:1 key:v2 seq:4}
           decl({i:v3}) #index={id:1 key:v3 seq:5}
@@ -2276,13 +2277,13 @@ describe('scroll', function(){
             (v1 1 1) (v1 0 []) (v2 1-1.3 [3 4]) (v2 1-1.2 [3 4]) (v2 1-1.1 [3])
             (v2 1-1.0 []) (v2 1 []) (v2 0 []))`);
         t('tag_multi', `s..#(index index_table bseq)
-          scroll(index:path) #bseq0=0
           $$index0(index_table={id:0 cfid:0 bseqb:null name:path})
           $$index1(index_table={id:1 cfid:0 bseqb:4-1 name:path})
           $$index2(index_table={id:2 cfid:0 bseqb:4-1.3-1 name:path})
           $$index3(index_table={id:3 cfid:0 bseqb:8-1 name:path})
+          scroll(index:path) #(bseq0=0 $index0)
           decl({path:$3} $5) #(bseq$1=$2 index={id:$4 key:$3 seq:$1} $6) $$(
-            ( 1   1         /arik  0 !         $index0)
+            ( 1   1         /arik  0 !         !      )
             ( 2   2         /derry 0 !         !      )
             ( 3   3         /arik  0 !         !      )
             ( 4   4         /derry 0 !         !      )

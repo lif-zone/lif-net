@@ -5,8 +5,6 @@ import string from '../util/string.js';
 import Tree from 'avl';
 
 function bo_cmp(a, b){ return a.seq - b.seq; }
-function bo_cmp_bseq(a, b){ return bseq_cmp(a.bseq, b.bseq); }
-
 export default class Branch_table {
   constructor(opt){
     let scroll = this.scroll = opt.scroll;
@@ -18,7 +16,7 @@ export default class Branch_table {
   }
   reset(){
     this.avl = new Tree(bo_cmp, true);
-    this.avl_bseq = new Tree(bo_cmp_bseq, true);
+    this.bseqb_map = new Map();
     this.branch_name = new Map();
     this.branch_bseq = new Map();
     this.bseqb_top = new Map();
@@ -85,12 +83,12 @@ export default class Branch_table {
     }
   }
   get_bo_bseq(bseq){ // XXX: need test
-    let min = bseq_0(bseq);
-    for (let n = this.avl_bseq._root; n;
-      n = bseq < n.key.bseq ? n.left : n.right)
-    {
+    let bseqb = bseq_branch(bseq), avl = this.bseqb_map[bseqb];
+    if (!avl)
+      return;
+    for (let n = avl._root; n; n = bseq < n.key.bseq ? n.left : n.right){
       let bo = n.key;
-      if (bo.bseq>=min && bo.bseq<=bseq && bseq<bseq_inc(bo.bseq, bo.size))
+      if (bo.bseq<=bseq && bseq<bseq_inc(bo.bseq, bo.size))
         return bo;
     }
   }
@@ -104,14 +102,17 @@ export default class Branch_table {
     let bo = this.get_bo_bseq(bseq);
     if (!bo)
       return;
+    assert.equal(bseq_branch(bo.bseq), bseq_branch(bseq), 'invalid bo');
     return bo.seq+bseq_diff(bseq, bo.bseq);
   }
   bseq_get_max_seq(bseq){ // XXX: need test
-    let bseqb = bseq_branch(bseq), max;
-    let bseq_high = {bseq: bseq}, bseq_low = {bseq: !bseqb ? '0' : bseqb+'.0'};
-    // XXX: need range_rev version and stop on highest
-    this.avl_bseq.range(bseq_low, bseq_high, node=>{
+    let bseqb = bseq_branch(bseq), avl = this.bseqb_map[bseqb], max;
+    if (!avl)
+      return;
+    avl.range({seq: 0}, {seq: Infinity}, node=>{
       let bo = node.key;
+      if (bseq<bo.bseq)
+        return true;
       if (bseq <= bseq_inc(bo.bseq, bo.size-1))
         max = bo.seq+bseq_diff(bseq, bo.bseq);
       else
@@ -176,13 +177,17 @@ export default class Branch_table {
     if ((branch || this.cfid==0 && bo.seq==0) && !this.branch_name.get(branch))
       this.branch_name.set(branch, bo);
     this.avl.insert(bo);
-    this.avl_bseq.insert(bo);
+    let bseqb = bseq_branch(bo.bseq);
+    this.bseqb_map[bseqb] = this.bseqb_map[bseqb]||new Tree(bo_cmp, true);
+    this.bseqb_map[bseqb].insert(bo);
     if (/.*\.0/.test(bo.bseq))
       this.branch_bseq.set(bo.bseq, bo);
   }
   _remove(bo){
     this.avl.remove(bo);
-    this.avl_bseq.remove(bo);
+    let bseqb = bseq_branch(bo.bseq);
+    if (this.bseqb_map[bseqb])
+      this.bseqb_map[bseqb].remove(bo);
     this.branch_bseq.delete(bo.bseq);
   }
   _merge(bo, bo_next){

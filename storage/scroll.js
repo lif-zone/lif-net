@@ -448,6 +448,10 @@ export default class Scroll extends EventEmitterAsync {
       _this.name = b2s(M);
     assert(!M || seq==0 || !_this.storage, 'cannot use sotage if seq>0');
     yield _this.storage?.init({scroll: _this, M: b2s(M)});
+    _this.M_get(0).on('hash', e=>etask(function*init_on_hash(){
+      assert.strictEqual(e.cfid, 0, 'seq0 must be on cfid 0');
+      yield _this._init_index_table(true);
+    }));
     if (!M)
       return;
     let decl = _this.get_decl(seq);
@@ -455,6 +459,24 @@ export default class Scroll extends EventEmitterAsync {
     if (!decl.M.get_hash(0))
       yield decl.M.set_hash(0, M);
     yield _this.unlock();
+  }); }
+  _init_index_table(emit_on_data){
+    return etask({_: this}, function*_init_index_table()
+  {
+    let _this = this._;
+    if (_this.index_table || !_this.name)
+      return;
+    let data = _this.get_decl(0).data_get();
+    let body = data.get_body(0);
+    if (!body?.scroll?.index?.length)
+      return;
+    _this.index_table = new Index.Index_table({scroll: _this,
+      index: body.scroll.index});
+    if (_this.storage)
+      yield _this.storage.load_index_table(_this.name);
+    if (!emit_on_data || !data.get_header(0))
+      return;
+    yield _this.index_table.on_data({cfid: 0, seq: 0, bseq: '0', data});
   }); }
   unload(){ // XXX HACK: quick implementation
     let M0 = this.M_hash(0, 0);
@@ -1217,24 +1239,14 @@ export default class Scroll extends EventEmitterAsync {
     let bseq = h.bseq||bint(seq), branch = h.branch;
     let btable = _this.get_branch_table(cfid);
     btable.add({branch, seq, bseq});
-    if (body){
+    if (body)
       _this.conflict.get(cfid).mem_map.add(seq);
-      if (!_this.indexe_table && seq==0){
-        assert.strictEqual(cfid, 0, 'seq0 must be on cfid 0');
-        if (body.scroll?.index?.length){
-          _this.index_table = new Index.Index_table({scroll: _this,
-            index: body.scroll.index});
-          if (_this.storage && _this.name)
-            yield _this.storage.load_index_table(_this.name);
-        }
-        /* XXX: WIP
-        if (!this.allow_missing_seq0)
-          assert(!_this.top || _this.top.seq==0, 'XXX top is '+_this.top?.seq);
-        */
-      }
-    }
-    if (_this.index_table)
+    if (!_this.index_table)
+      yield _this._init_index_table(false);
+    if (_this.index_table){
+      xerr.notice('XXX scroll on_data %s', seq);
       yield _this.index_table.on_data({cfid, seq, bseq, data});
+    }
     return _this.emit_async('data', {data, seq, cfid, bseq});
   });
   get_branch_table(cfid){
@@ -1374,7 +1386,9 @@ class Decl extends EventEmitterAsync {
     if (Number.isInteger(opt))
       opt = {cfid: opt};
     return etask({_: this}, function*get_prev(){
-      let _this = this._, header = yield _this.get_header(opt.cfid||0);
+      let _this = this._;
+      yield _this.load(opt.cfid||0);
+      let header = yield _this.get_header(opt.cfid||0);
       if (Number.isInteger(header.prev))
         return _this.scroll.get_decl(header.prev);
       if (!opt.group || !header.group)

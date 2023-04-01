@@ -57,15 +57,21 @@ function decl_get_dir(h, body){
 }
 
 // XXX: need test
-function decl_git_br(h, body){ return body.git?.branch||h.branch; }
+function decl_git_br(h, body){
+  return h.seq==0 ? body.scroll?.git?.main||'main' :
+    body.git?.branch||h.branch;
+}
 
 function decl_git_br_curr(h, body){
-  return body.git?.branch||h.branch ? 'git_br' : null; }
+  return h.seq==0||body.git?.branch||h.branch ? 'git_br' : null;
+}
 
 // XXX: need test
-function data_filter(data, cfid, desc){
+function data_filter(h, data, cfid, desc){
   let {filter} = desc;
   if (!filter)
+    return true;
+  if (desc.inc_seq0 && h.seq==0)
     return true;
   let body = data.get_body(cfid);
   for (let f in filter){
@@ -106,9 +112,9 @@ export default class Index {
   on_data(e){
     let {cfid, seq, data} = e;
     let scroll = this.scroll, decl = scroll.get_decl(seq, {create: false});
-    if (!data_filter(data, cfid, this.desc)) // XXX: need test
-      return;
     let h = decl.get_header(cfid);
+    if (!data_filter(h, data, cfid, this.desc))
+      return;
     let key = key_from_data(h, data, cfid, this.desc);
     if (key===undefined || key===null)
       return;
@@ -349,12 +355,13 @@ class Index_table {
     return index;
   }
   schedule_db(id, cfid, bseqb, desc){
+    assert(this.scroll.name, 'missing scroll name');
     this.storage_queue.push({id, scroll: this.scroll.name, cfid, bseqb,
       ...desc});
   }
   on_data(e){
-    let {cfid, seq, bseq, data} = e, _this = this, scroll = this.scroll;
-    if (!seq || !this.desc.size || !data.get(cfid))
+    let {cfid, bseq, data} = e, _this = this, scroll = this.scroll;
+    if (!this.desc.size || !data.get(cfid))
       return;
     // XXX: scroll.is_conflict
     if (scroll.conflict.get(cfid).parent?.type=='t')

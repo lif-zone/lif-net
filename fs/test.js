@@ -3,6 +3,7 @@ import assert from 'assert';
 import {execSync} from 'node:child_process';
 import fs from 'fs';
 import xtest from '../util/test_lib.js';
+import util from '../util/util.js';
 import etask from '../util/etask.js';
 import xerr from '../util/xerr.js';
 import {Buffer} from 'buffer';
@@ -164,13 +165,14 @@ const cmd_buf = t=>etask(function*cmd_buf(){
 });
 
 const cmd_git = t=>etask(function*cmd_git(){
-  let name = t.ctx||get_def('left'), M, db_opt, src;
+  let name = t.ctx||get_def('left'), M, db_opt, src, main;
   assert(!t.l, 'invalid arg '+t.meta.s);
   assert(!get_scroll(name, true), 'scroll already exist '+name);
   for (let curr=t.r, i=0; curr = parse_get_next(curr); i++){
     let tt = parse_exp_arg(curr.exp), t2, a;
     switch (tt.cmd){
     case 'src': src = 'https://github.com/'+tt.r; break;
+    case 'main': main = tt.r; break;
     case 'db': db_opt = parse_db_init(tt); break;
     default:
       t2 = parse_exp_arg_pair(curr.exp);
@@ -184,7 +186,11 @@ const cmd_git = t=>etask(function*cmd_git(){
     }
   }
   assert(src, 'missing src');
-  let scroll_decl = src ? {src} : undefined;
+  let scroll_decl = {git: src ? {src} : undefined};
+  if (main){
+    scroll_decl.git = scroll_decl.git||{};
+    scroll_decl.git.main = main;
+  }
   yield new_scroll(name, M, null, t.prev?.ctx, db_opt, scroll_decl,
     function create_func(opt, d){ return GIT.create(opt, d); },
     function open_func(opt){ return GIT.open(opt); });
@@ -1004,7 +1010,8 @@ describe('fs', ()=>{
 });
 
 describe('git', function(){
-  this.timeout(10000); // XXX: git checkout/pull is slow
+  // XXX: git checkout/pull is slow
+  this.timeout(util.is_inspect() ? 99999999999 : 10000);
   describe('util', function(){
     it('parse_commit', ()=>{
       const t = (val, exp)=>assert.deepEqual(git_util.parse_commit(val), exp);
@@ -1413,7 +1420,7 @@ describe('git', function(){
       `);
     });
     describe('git2', ()=>{
-      let t_common = `$$mf(mode:100644) $$m0(mode:0) buf(d1:1)
+      let _t_common = `$$mf(mode:100644) $$m0(mode:0) buf(d1:1)
         $$d1(d00491fd7e5bb6fa28c517a0bb32b8b506539d4d)
         $$R(/tmp/__lif_test/git_test/repo)
         $$R2(/tmp/__lif_test/git_test/sync)
@@ -1423,13 +1430,14 @@ describe('git', function(){
         $$add_f4(fs_write($R/f4 d1) git_add(f4) git_commit(oid4 c_f4))
         $$add_f5(fs_write($R/f5 d1) git_add(f5) git_commit(oid5 c_f5))
         $$add_f6(fs_write($R/f6 d1) git_add(f6) git_commit(oid6 c_f6))
-        git_init($R) s..git(src(git_test))
+        git_init($R)
         $$sync_err() $$flip()
         $$t(fs_cp($R/.git $R2) sync($flip err($sync_err) gitdir($R2))
           ##seq$1={bseq:$2 type:$4 op:$5 $7... git:{oid:$3 $6}})
         $$tb(fs_cp($R/.git $R2) sync(err($sync_err) gitdir($R2))
           ##seq$1={bseq:$2 type:$4
           op:$5 branch($rm_parentesis($6)) $9... git:{oid:$3 branch:$7 $8}})`;
+      let t_common = `${_t_common} s..git(src:git_test main:master)`;
       const t = (name, test)=>it(name, ()=>test_run(test));
       t('sync_empty', `${t_common} $t $$() ##seq1={}`);
       t('commit_empty', `${t_common}
@@ -1890,16 +1898,11 @@ describe('git', function(){
         (4  ! $d1   fs     add $mf file:/f2 link:2)
         (5  ! $oid2 commit add !   group:1 desc:c_f2))
         git_br_orphan(b1) $t $$()
-        $add_f3 $$sync_err(Error: adding 2nd git root $oid3) $t $$()
+        $add_f3 $$sync_err(Error: multiple root not supported $oid3) $t $$()
         ##seq6={}`);
       t('commit_two_roots_full', `${t_common} $add_f1 $add_f2 git_br_orphan(b1)
-        $add_f3 $$sync_err(Error: adding 2nd git root $oid3) $t $$(
-        (1  ! !     fs     add $m0 dir:/)
-        (2  ! $d1   fs     add $mf file:/f1 content:1 f2:d1)
-        (3  ! $oid1 commit add !   group:2 desc:c_f1)
-        (4  ! $d1   fs     add $mf file:/f2 link:2)
-        (5  ! $oid2 commit add !   group:1 desc:c_f2))
-        ##seq6={}`);
+        $add_f3 $$sync_err(Error: multiple root not supported $oid3) $t $$()
+        ##seq1={}`);
       t('tag_full', `${t_common} $add_f1 $add_f2 $add_f3 git_tag(t1 $oid1)
         git_tag(t1 $oid2) git_tag(t3 $oid3) git_tag_del(t1) $t $$(
         (1  ! !     fs     add $m0 dir:/)
@@ -1929,7 +1932,6 @@ describe('git', function(){
       t('tag_annotate_full', `${t_common} $add_f1 $add_f2 $add_f3
         git_tag_annotate(toid1 t1 $oid1 c_tag1) $$C(commit_oid:$oid1) $t $$(
         (1  ! !      fs     add $m0 dir:/)
-        (1  ! !      fs     add $m0 dir:/)
         (2  ! $d1    fs     add $mf file:/f1 content:1 f2:d1)
         (3  ! $oid1  commit add !   group:2 desc:c_f1)
         (4  ! $d1    fs     add $mf file:/f2 link:2)
@@ -1941,7 +1943,6 @@ describe('git', function(){
         ##seq10={}`);
       t('flip_protect_off_tag', `${t_common} $$flip(flip_protect:false)
         $add_f1 $add_f2 $add_f3 $t $$(
-        (1  ! !      fs     add $m0 dir:/)
         (1  ! !      fs     add $m0 dir:/)
         (2  ! $d1    fs     add $mf file:/f1 content:1 f2:d1)
         (3  ! $oid1  commit add !   group:2 desc:c_f1)
@@ -1957,7 +1958,6 @@ describe('git', function(){
         (10 ! $oid1  tag    mod !   tag:t1 link:3))
         ##seq11={}`);
       t('flip_protect_warn_tag', `${t_common} $add_f1 $add_f2 $add_f3 $t $$(
-        (1  ! !      fs     add $m0 dir:/)
         (1  ! !      fs     add $m0 dir:/)
         (2  ! $d1    fs     add $mf file:/f1 content:1 f2:d1)
         (3  ! $oid1  commit add !   group:2 desc:c_f1)
@@ -1978,7 +1978,6 @@ describe('git', function(){
       // $$ -> $_ (activate last macro)
       t('flip_protect_true_tag', `${t_common} $$flip(flip_protect)
         $add_f1 $add_f2 $add_f3 $t $$(
-        (1  ! !      fs     add $m0 dir:/)
         (1  ! !      fs     add $m0 dir:/)
         (2  ! $d1    fs     add $mf file:/f1 content:1 f2:d1)
         (3  ! $oid1  commit add !   group:2 desc:c_f1)
@@ -2002,7 +2001,6 @@ describe('git', function(){
         git_tag(t1 $oid2) $t $$() ##seq13={}`);
       t('flip_protect_off_branch', `${t_common} $$flip(flip_protect:false)
         $add_f1 $add_f2 $add_f3 $t $$(
-        (1  !     !      fs     add $m0 dir:/)
         (1  !     !      fs     add $m0 dir:/)
         (2  !     $d1    fs     add $mf file:/f1 content:1 f2:d1)
         (3  !     $oid1  commit add !   group:2 desc:c_f1)
@@ -2030,7 +2028,6 @@ describe('git', function(){
         (16  5-2.0 $oid2 git_br add $B  branch(b1 4)))
         ##seq17={}`);
       t('flip_protect_warn_branch', `${t_common} $add_f1 $add_f2 $add_f3 $t $$(
-        (1  !     !      fs     add $m0 dir:/)
         (1  !     !      fs     add $m0 dir:/)
         (2  !     $d1    fs     add $mf file:/f1 content:1 f2:d1)
         (3  !     $oid1  commit add !   group:2 desc:c_f1)
@@ -2062,7 +2059,6 @@ describe('git', function(){
       t('flip_protect_on_branch', `${t_common} $$flip(flip_protect)
         $add_f1 $add_f2 $add_f3 $t $$(
         (1  !     !      fs     add $m0 dir:/)
-        (1  !     !      fs     add $m0 dir:/)
         (2  !     $d1    fs     add $mf file:/f1 content:1 f2:d1)
         (3  !     $oid1  commit add !   group:2 desc:c_f1)
         (4  !     $d1    fs     add $mf file:/f2 link:2)
@@ -2085,6 +2081,70 @@ describe('git', function(){
         (13  5-1.1 !     git_br rm  $B  !))
         git_br_new(b1 $oid2) $t $$()
         ##seq14={}`);
+      // XXX: missing head rm
+      t('no_main_inc', `${_t_common} s..git(src:git_test main:no_main)
+        $$bn(branch:no_main)
+        $$bm(branch:master)
+        $t $$() ##seq1={}
+        $add_f1 $t $$(
+        (1  !     !      git_br rm  $bn !)
+        (2  !     !      git_br add $bm !)
+        (3  !     !      fs     add $m0 dir:/)
+        (4  !     $d1    fs     add $mf file:/f1 content:1 f2:d1)
+        (5  !     $oid1  commit add !   group:2 desc:c_f1))
+        $add_f2 $t $$(
+        (6  !     $d1    fs     add $mf file:/f2 link:4)
+        (7  !     $oid2  commit add !   group:1 desc:c_f2))
+        git_br_new(no_main) $t $$(
+        (8  7-1.0 $oid2 git_br add  !   branch:no_main))
+        $add_f3 $t $$(
+        (9  7-1.1 $d1    fs     add $mf file:/f3 link:4)
+        (10 7-1.2 $oid3  commit add !   group:1 desc:c_f3))
+        git_br(master) $add_f4 $t $$(
+        (11 8     $d1   fs     add $mf file:/f4 link:4)
+        (12 9     $oid4  commit add !   group:1 desc:c_f4))
+        ##seq13={}`);
+      t('no_main_inc2', `${_t_common} s..git(src:git_test main:no_main)
+        $$bn(branch:no_main)
+        $$bm(branch:master)
+        $t $$() ##seq1={}
+        $add_f1 $t $$(
+        (1  !     !      git_br rm  $bn !)
+        (2  !     !      git_br add $bm !)
+        (3  !     !      fs     add $m0 dir:/)
+        (4  !     $d1    fs     add $mf file:/f1 content:1 f2:d1)
+        (5  !     $oid1  commit add !   group:2 desc:c_f1))
+        $add_f2 $t $$(
+        (6  !     $d1    fs     add $mf file:/f2 link:4)
+        (7  !     $oid2  commit add !   group:1 desc:c_f2))
+        git_br_new(no_main) $add_f3 $t $$(
+        (8  7-1.0 $oid2 git_br add  !   branch:no_main)
+        (9  7-1.1 $d1    fs     add $mf file:/f3 link:4)
+        (10 7-1.2 $oid3  commit add !   group:1 desc:c_f3))
+        git_br(master) $add_f4 $t $$(
+        (11 8     $d1   fs     add $mf file:/f4 link:4)
+        (12 9     $oid4  commit add !   group:1 desc:c_f4))
+        ##seq13={}`);
+      t('no_main_full', `${_t_common} s..git(src:git_test main:no_main)
+        $$bn(branch:no_main)
+        $$bm(branch:master)
+        $add_f1
+        $add_f2
+        git_br_new(no_main) $add_f3
+        git_br(master) $add_f4 $t $$(
+        (1  !     !      fs     add $m0 dir:/)
+        (2  !     $d1    fs     add $mf file:/f1 content:1 f2:d1)
+        (3  !     $oid1  commit add !   group:2 desc:c_f1)
+        (4  !     $d1    fs     add $mf file:/f2 link:2)
+        (5  !     $oid2  commit add !   group:1 desc:c_f2)
+        (6  !     $d1    fs     add $mf file:/f3 link:2)
+        (7  !     $oid3  commit add !   group:1 desc:c_f3)
+        (8  5-1.0 $oid2  git_br add !   branch:master)
+        (9  5-1.1 $d1    fs     add $mf file:/f4 link:2)
+        (10 5-1.2 $oid4  commit add !   group:1 desc:c_f4))
+        ##seq11={}`);
+      return; // XXX WIP
+      // XXX: make test where order of branches doesn't match ancestors
       t('head', `${t_common}
         $add_f1 $add_f2 $add_f3 $t $$(
         (1  !     !      fs     add $m0 dir:/)
@@ -2096,13 +2156,46 @@ describe('git', function(){
         (6  !     $d1    fs     add $mf file:/f3 link:2)
         (7  !     $oid3  commit add !   group:1 desc:c_f3))
       `);
+      t('head', `${t_common}
+        // XXX: {scroll: {git: {main}}}
+        in scroll header is the git_br name on lif main branch
+        // and also means that HEAD of git is top of main
+        s..git(src(github/lif) main:my_main) // XXX: default is 'main'
+        $add_f1 $add_f2 sync $$(
+        (1  !     !      fs     add $m0 dir:/)
+        (2  !     $d1    fs     add $mf file:/f1 content:1 f2:d1)
+        (3  !     $oid1  commit add !   group:2 desc:c_f1)
+        (4  !     $d1    fs     add $mf file:/f2 link:2)
+        (5  !     $oid2  commit add !   group:1 desc:c_f2)
+        $git_br_new(b1) sync $$(
+        (6  5-1.0 $oid2  git_br add !   branch:b1))
+        $add_f3 sync $$(
+        (7  5-1.1 $d1    fs     add $mf file:/f3 link:2)
+        (8  5-1.2 $oid3  commit add !   group:1 desc:c_f3))
+        git_change_head($oid3) sync $$(
+        (9  5-1.3 $oid3  head   mod !   !))
+        $git_br_del(my_main)
+        (10 7     $oid2  git_br rm  !   git_br:my_main))
+        $git_br_add(my_main $oid1) sync $((
+        (11 3-1.0 $oid1  git_br add !   branch:my_main))
+        $git_del_head sync $$(
+        (12 5-1.4 $oid3  head   rm  !   !))
+      `);
+      t('xxx', `${t_common}
+        s..git(src(github/lif))
+        $git_br_new(b1) $add_f1 git_change_head($oid1) sync $$(
+        (1  0-1.0 !      git_br add !   branch:b1)
+        (1  0-1.1 !      fs     add $m0 dir:/)
+        (1  0-1.2 $d1    fs     add $mf file:/f1 content:1 f2:d1)
+        (1  0-1.3 $oid1  commit add !   group:2 desc:c_f1)
+        (1  0-1.4 $oid1  head   mod !   !))
+      `);
       // save sync_event/sync_url (always, only if different than src)
       // sync({seal: true|false}) --> {type: 'seal', git: {src}}
-      // XXX: flip/flop tests for annotated tag
+      // XXX: rewrite old git tests to new format + add one http fetch example
       // XXX: test sync from multi repo
       // XXX: test change of head
       // XXX: add gpg annotated tag support
-      // XXX: rewrite old git tests to new format + add one http fetch example
       // XXX: verify we can rebuild git sha (file, dir, commit, gpg)+
       // branches/tags
       // XXX: fix index hacks

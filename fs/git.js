@@ -28,7 +28,7 @@ export default class GIT extends FS {
     let body = _this.get_decl(0).get_body(0);
     if (!body)
       throw new Error('missing seq0 body');
-    let url = opt.url||body.scroll?.src;
+    let url = opt.url||body.scroll?.git?.src;
     if (!url)
       throw new Error('missing git src');
     let config = {fs, http, cache: _this.cache};
@@ -53,6 +53,9 @@ export default class GIT extends FS {
         if (!prev_top_oid || git_data.branch[curr].map[prev_top_oid])
           continue;
         top = git_data.branch[curr].top;
+      } else {
+        if (!git_data.root && !(yield _this.get_git_br_top_oid(cfid, curr)))
+          continue;
       }
       if (top && flip_protect &&
         (yield _this.git_br_had_value(cfid, curr, top)))
@@ -75,7 +78,7 @@ export default class GIT extends FS {
       yield _this._sync_commits(config, cfid, main, git_br, commits,
         merge_queue);
       // add branches that were not added before (no commit after branch oid)
-      if (git_br!=main && commits.length){
+      if (commits.length){
         let top_oid = yield _this.get_git_br_top_oid(cfid, git_br);
         let oid = commits[commits.length-1].oid;
         if (top_oid){
@@ -129,11 +132,8 @@ export default class GIT extends FS {
       // commit, gpgsig
       let {oid, commit} = commits[i], prev, parent = commit.parent[0];
       let merge = commit.parent.slice(1);
-      // XXX: check logic for main
-      if (git_br==main || (yield _this.git_br_exists(cfid, git_br))){
-        // XXX: support get_git_br_top_seq for main and fix all code
-        let br_seq = git_br==main ? _this.get_branch_top(cfid, null).seq :
-          yield _this.get_git_br_top_seq(cfid, git_br);
+      if (yield _this.git_br_exists(cfid, git_br)){
+        let br_seq = yield _this.get_git_br_top_seq(cfid, git_br);
         let seq = yield _this.find_one(oid, {cfid, name: 'commit_git_oid',
           bseq: _this.bseq_get(cfid, br_seq)});
         if (seq)
@@ -158,10 +158,11 @@ export default class GIT extends FS {
       }
       if (!parent && (yield _this.get_root_seq(cfid)))
         throw new Error('adding 2nd git root '+oid);
-      // XXX: review logic for main
-      if (git_br!=main && !(yield _this.git_br_exists(cfid, git_br)))
+      if (!Number.isInteger(prev))
+        prev = _this.conflict.get(cfid).top.seq;
+      if (!(yield _this.git_br_exists(cfid, git_br)))
         prev = yield _this._new_set_branch(cfid, prev, git_br, parent);
-      else if (git_br!=main) // XXX: check logic for main
+      else
         prev = yield _this.get_git_br_top_seq(cfid, git_br);
       let prev_top_oid = yield _this.get_git_br_top_oid(cfid, git_br);
       if (prev_top_oid && prev_top_oid!=parent)
@@ -220,7 +221,7 @@ export default class GIT extends FS {
         assert.fail('invalid tag type '+o.type);
     }
   }); }
-  _get_git(config){ return etask({_: this}, function*_get_git()
+  _get_git(config, opt){ return etask({_: this}, function*_get_git()
   {
     // XXX: detect branch didn't change and make sure we don't work on it
     let _this = this._, main;
@@ -228,19 +229,13 @@ export default class GIT extends FS {
       {...config, remote: 'origin'});
     if (git_branches.includes('HEAD'))
       array.rm_elm(git_branches, 'HEAD');
-    main = yield _this._get_main_git_br(config);
-    if (!main){
-      main = git_branches.includes('main') ? 'main' :
-        git_branches.includes('master') ? 'master' : '';
-    }
-    if (git_branches.includes(main)){ // XXX: only if not first
-      array.rm_elm(git_branches, main);
-      git_branches.unshift(main);
-    }
-    let ret = {main: main, branch: {}, tag: {}};
+    main = _this.get_decl(0).get_body(0)?.scroll?.git?.main||'main';
+    if (main && git_branches[0]!=main && git_branches.includes(main))
+      git_branches.unshift(array.rm_elm(git_branches, main));
+    let ret = {root: undefined, main: main, branch: {}, tag: {}}, root;
     // add new commits to scroll
-    for (let b=0; b<git_branches.length; b++){
-      let git_br = git_branches[b];
+    for (let i=0; i<git_branches.length; i++){
+      let git_br = git_branches[i];
       yield git_api.checkout(config.gitdir ? {...config, ref: git_br} :
         {...config, ref: git_br, remote: 'origin'});
       if (config.url)
@@ -248,19 +243,25 @@ export default class GIT extends FS {
       // XXX: use since from last sync
       let log = yield git_api.log({...config, ref: git_br});
       let commits = [], map = {}, top = log[0].oid;
-      for (let i=0, parent; i<log.length && (!i||parent); i++){
-        let curr = log[i];
+      for (let j=0, parent; j<log.length && (!j||parent); j++){
+        let curr = log[j];
         if (parent && curr.oid!=parent) // skip merge side branch
           continue;
         commits.unshift(curr);
         parent = curr.commit.parent[0];
       }
-      for (let i=0; i<log.length; i++){
-        let curr = log[i];
+      for (let j=0; j<log.length; j++){
+        let curr = log[j];
         map[curr.oid] = curr;
       }
+      let r = commits[0]?.oid;
+      if (!root)
+        root = r;
+      if (root && r && root!=r)
+        throw new Error('multiple root not supported '+r);
       ret.branch[git_br] = {commits, map, log, top};
     }
+    ret.root = root;
     let tags = yield git_api.listTags(config.gitdir ? config :
       {...config, remote: 'origin'});
     for (let i=0; i<tags.length; i++){
@@ -361,49 +362,61 @@ export default class GIT extends FS {
     function*get_git_br_top_oid()
   {
     let _this = this._;
-    let top_seq = yield _this.get_git_br_top_seq(cfid, git_br);
+    let top_seq = yield _this.get_git_br_top_seq(cfid, git_br, 'commit');
     if (!top_seq)
       return;
     let decl = _this.get_decl(top_seq);
     yield decl.load(cfid); // XXX: review all load, try to mv t index data
     return decl.get_body(cfid)?.git?.oid;
   }); }
-  get_git_br_top_seq(cfid, git_br){ return etask({_: this},
+  get_git_br_top_seq(cfid, git_br, type){ return etask({_: this},
     function*get_git_br_top_seq()
   {
     let _this = this._, seq = yield _this.get_git_br_seq(cfid, git_br);
-    if (!seq)
+    if (!Number.isInteger(seq))
       return;
     let bseq_top = _this.get_bseq_top(cfid, _this.bseq_get(cfid, seq));
-    return bseq_top.seq;
+    if (type===undefined)
+      return bseq_top.seq;
+    let bseq = bseq_top.bseq;
+    while (true){
+      let decl = _this.get_decl(_this.bseq_to_seq(cfid, bseq));
+      yield decl.load(cfid);
+      if (decl.get_body(cfid)?.type==type)
+        return decl.seq;
+      let prev = yield decl.get_prev();
+      if (!prev)
+        return;
+      bseq = prev.bseq_get(cfid);
+    }
   }); }
   git_br_exists(cfid, git_br){ return etask({_: this}, function*git_br_exists()
   {
-    return !!(yield this._.get_git_br_seq(cfid, git_br));
+    return Number.isInteger(yield this._.get_git_br_seq(cfid, git_br));
   }); }
   get_git_br_seq(cfid, git_br){ return etask({_: this},
     function*get_git_br_seq()
   {
     let _this = this._;
     let seq = yield _this.find_one(git_br, {cfid, name: 'git_br_all'});
-    if (!seq)
+    if (!Number.isInteger(seq))
       return false;
     let decl = _this.get_decl(seq);
     yield decl.load(cfid); // XXX: avoid load and just use index extra data
     let body = decl.get_body(cfid);
-    if (body.type!='git_br')
-      throw new Error('scroll corruption');
+    if (body.type!='git_br' && seq!=0)
+      throw new Error('git scroll corruption');
     return body.op!='rm' ? seq : false;
   }); }
   git_tag_exists(cfid, tag){ return etask({_: this}, function*git_tag_exists(){
-    return !!(yield this._.get_git_tag_seq(cfid, tag));
+    return Number.isInteger(yield this._.get_git_tag_seq(cfid, tag));
   }); }
   get_git_tag_seq(cfid, tag){ return etask({_: this},
     function*get_git_tag_seq()
   {
     let _this = this._;
     let seq = yield _this.find_one(tag, {cfid, name: 'git_tag_all'});
-    if (!seq)
+    if (!Number.isInteger(seq))
       return false;
     let decl = _this.get_decl(seq);
     yield decl.load(cfid); // XXX: avoid load and just use index extra data
@@ -415,7 +428,7 @@ export default class GIT extends FS {
   {
     let _this = this._;
     let seq = yield _this.find_one(tag, {cfid, name: 'git_tag_all'});
-    if (!seq)
+    if (!Number.isInteger(seq))
       return false;
     let decl = _this.get_decl(seq);
     yield decl.load(cfid); // XXX: avoid load and just use index extra data
@@ -475,7 +488,7 @@ export default class GIT extends FS {
         continue;
       let seq = yield _this.get_git_br_seq(cfid, git_br);
       done[git_br] = true;
-      if (!seq)
+      if (!Number.isInteger(seq))
         continue;
       ret.push(git_br);
     }
@@ -494,7 +507,7 @@ export default class GIT extends FS {
         continue;
       let seq = yield _this.get_git_tag_seq(cfid, tag);
       done[tag] = true;
-      if (!seq)
+      if (!Number.isInteger(seq))
         continue;
       let decl = _this.get_decl(seq);
       yield decl.load(cfid); // XXX: avoid load. get it from index data
@@ -523,7 +536,8 @@ export default class GIT extends FS {
       // XXX: need to make sure banch is unique
       let branch = _this.get_avail_branch(cfid, git_br);
       decl = yield _this.decl({cfid, branch, prev}, {type: 'git_br',
-        op: 'add', git: branch==git_br ? {oid} : {oid, branch: git_br}});
+        op: 'add', git: branch==git_br ? oid ? {oid} : undefined :
+          {oid, branch: git_br}});
     }
     return decl.seq;
   }); }
@@ -535,7 +549,7 @@ export default class GIT extends FS {
 }
 
 GIT.create = (opt, d)=>etask(function*scroll_create(){
-  assert(d.src, 'missing git src');
+  assert(d.git?.src, 'missing git src');
   let git = new GIT(opt);
   yield git.init();
   // XXX: reuse code from FS.create and call FS.create
@@ -549,9 +563,11 @@ GIT.create = (opt, d)=>etask(function*scroll_create(){
     {name: 'fs_git_oid_all', field: 'git.oid', all_branches: true,
       filter: {type: 'fs'}},
     // XXX: review git_br_curr with derry - better way?
-    {name: 'git_br_curr', transform: 'git_br_curr', filter: {type: 'git_br'}},
+    // XXX HACK: inc_seq0
+    {name: 'git_br_curr', transform: 'git_br_curr', filter: {type: 'git_br'},
+      inc_seq0: true},
     {name: 'git_br_all', transform: 'git_br', all_branches: true,
-      filter: {type: 'git_br'}},
+      filter: {type: 'git_br'}, inc_seq0: true},
     {name: 'git_tag_all', field: 'tag', all_branches: true,
       filter: {type: 'tag'}},
     ]};

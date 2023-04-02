@@ -442,11 +442,61 @@ const test_get_seq = s=>etask(function*get_seq(){
   return bo;
 });
 
+const git_sha_file = (scroll, filter)=>etask(function*git_sha_file(){
+  let ret = {};
+  for (let i=0; i<filter.length; i++){
+    let t = parse_exp_arg(filter[i]);
+    let file, cfid=0, seq;
+    assert.strictEqual(t.cmd, 'git_sha_file', 'invalid git_sha_file '+
+      filter[i]);
+    assert(!t.l, 'invalid git_sha_file '+filter[i]);
+    for (let curr=t.r; curr = parse_get_next(curr);){
+      let tt = parse_exp_arg_pair(curr.exp);
+      switch (tt.l){
+      case 'seq': seq = +tt.r; break;
+      default:
+        if (!file)
+          file = tt.l;
+        else
+          assert.fail('invalid git_sha_file '+tt.l+' for '+filter[i]);
+      }
+    }
+    ret[file] = yield scroll.calc_sha_file({file, cfid, seq});
+  }
+  return ret;
+});
+
+const git_sha_dir = (scroll, filter)=>etask(function*git_sha_dir(){
+  let ret = {};
+  for (let i=0; i<filter.length; i++){
+    let t = parse_exp_arg(filter[i]);
+    let cfid = 0, dir, seq;
+    assert.strictEqual(t.cmd, 'git_sha_dir', 'invalid git_sha_dir '+
+      filter[i]);
+    assert(!t.l, 'invalid git_sha_dir '+filter[i]);
+    for (let curr=t.r; curr = parse_get_next(curr);){
+      let tt = parse_exp_arg_pair(curr.exp);
+      switch (tt.l){
+      case 'seq': seq = +tt.r; break;
+      default:
+        if (!dir)
+          dir = tt.l;
+        else
+          assert.fail('invalid git_sha_dir '+tt.l+' for '+filter[i]);
+      }
+    }
+    ret[t.r] = yield scroll.calc_sha_dir({dir, cfid, seq});
+  }
+  return ret;
+});
+
 function state_valid_filter(s){
   // XXX: mv seq from storage/test_cmd.js to this file
   switch (s){
   case 'fs': return true;
   case 'file': return true;
+  case 'git_sha_file': return true;
+  case 'git_sha_dir': return true;
   }
   return false;
 }
@@ -471,27 +521,45 @@ function state_split_var(v, def){
     return {name, type: 'fs', cfid, branch};
   }
   m = v.match(/^file(.*)$/);
-  assert(m?.[1], 'invalid var '+v);
-  let name = def||get_def('left'), file, cfid = 0;
-  let branch = null;
-  for (let curr=rm_parentesis(m[1]); curr = parse_get_next(curr);){
-    if (!file){
-      file = curr.exp;
-      continue;
+  if (m){
+    let name = def||get_def('left'), file, cfid = 0;
+    let branch = null;
+    for (let curr=rm_parentesis(m[1]); curr = parse_get_next(curr);){
+      if (!file){
+        file = curr.exp;
+        continue;
+      }
+      let o = parse_exp_arg(curr.exp);
+      switch (o.cmd){
+      case 'branch': branch = o.r; break;
+      case 'c': cfid = +o.r; break;
+      default: assert.fail('invalid state_split_var arg '+curr.exp);
+      }
     }
-    let o = parse_exp_arg(curr.exp);
-    switch (o.cmd){
-    case 'branch': branch = o.r; break;
-    case 'c': cfid = +o.r; break;
-    default: assert.fail('invalid state_split_var arg '+curr.exp);
-    }
+    return {name, type: 'file', file, cfid, branch};
   }
-  return {name, type: 'file', file, cfid, branch};
+  m = v.match(/^git_sha_file\((.*)\)$/);
+  if (m){
+    let name = def||get_def('left'), file = m[1];
+    return {name, type: 'git_sha_file', key: file};
+  }
+  m = v.match(/^git_sha_dir\((.*)\)$/);
+  if (m){
+    let name = def||get_def('left'), dir = m[1];
+    return {name, type: 'git_sha_dir', key: dir};
+  }
+  assert.fail('invalid var '+v);
 }
 
 function state_apply(state, o){
-  let {val, branch, cfid} = o;
-  if (o.type=='fs'){
+  let {val, key, branch, cfid} = o;
+  if (o.type=='git_sha_file'){
+    let so = state.git_sha_file = state.git_sha_file||{};
+      so[key] = !val ? undefined : val;
+  } else if (o.type=='git_sha_dir'){
+    let so = state.git_sha_dir = state.git_sha_dir||{};
+      so[key] = !val ? undefined : val;
+  } else if (o.type=='fs'){
     let {add, rm} = val;
     branch = branch||'main';
     state.fs = state.fs||{};
@@ -533,6 +601,10 @@ const state_split = (o, def)=>etask(function*state_split(){
     default: assert.fail('invalid state_split '+o.meta.s);
     }
   }
+  if (/^git_sha_file/.test(o.l))
+    return {...state_split_var(o.l, def), val: o.r};
+  if (/^git_sha_dir/.test(o.l))
+    return {...state_split_var(o.l, def), val: o.r};
 });
 
 const state_curr = (filter, state, fs)=>etask(function*state_curr(){
@@ -555,7 +627,10 @@ const state_curr = (filter, state, fs)=>etask(function*state_curr(){
     let o = state_split_var(f);
     state.file = state.file||{};
     state.file[o.file] = yield fs.get_file(o.cfid, o.file, o.branch);
-  }
+  } else if (filter.find(s=>/^git_sha_file/.test(s)))
+    state.git_sha_file = yield git_sha_file(fs, filter);
+  else if (filter.find(s=>/^git_sha_dir/.test(s)))
+    state.git_sha_dir = yield git_sha_dir(fs, filter);
 });
 
 function state_assert(filter, state_curr, state_exp){
@@ -563,6 +638,18 @@ function state_assert(filter, state_curr, state_exp){
     assert.deepEqual(state_curr.fs, state_exp.fs, 'state fs mismatch');
   if (filter.find(s=>/^file/.test(s)))
     assert.deepEqual(state_curr.file, state_exp.file, 'state file mismatch');
+  if (filter.find(s=>/^git_sha_dir/.test(s))){
+    assert.deepEqual(state_curr.git_sha_dir, state_exp.git_sha_dir,
+      'state git_sha_dir mismatch');
+  }
+  if (filter.find(s=>/^git_sha_file/.test(s))){
+    assert.deepEqual(state_curr.git_sha_file, state_exp.git_sha_file,
+      'state git_sha_file mismatch');
+  }
+  if (filter.find(s=>/^git_sha_dir/.test(s))){
+    assert.deepEqual(state_curr.git_sha_dir, state_exp.git_sha_dir,
+      'state git_sha_dir mismatch');
+  }
 }
 
 function state_get_steps(filter, name, s){
@@ -584,6 +671,10 @@ function state_get_steps(filter, name, s){
     return f+'='+s;
   if (f = filter.find(s=>/^seq\d/.test(s)))
     return f+'='+s;
+  else if (/^git_sha_file\(.*\)$/.test(filter))
+    return filter+'='+s;
+  if (/^git_sha_dir\(.*\)$/.test(filter))
+    return filter+'='+s;
 }
 
 const test_start = ()=>etask(function*test_start(){
@@ -1454,7 +1545,13 @@ describe('git', function(){
         $add_f2 $t $$(
         (4  ! $d1   fs     add $mf file:/f2 link:2)
         (5  ! $oid2 commit add !   group:1 desc:c_f2))
-        ##seq6={}`);
+        ##seq6={}
+        ##git_sha_file(/f1)=$d1
+        ##git_sha_file(/f2)=$d1
+        ##git_sha_dir(/ seq:5)=cdfbe84a9047568f4312fc01c4beddc712e0256e
+        // XXX: WIP
+//        ##git_sha_commit(3)=xxx
+      `);
       t('one_branch_inc', `${t_common}
         $add_f1 $t $$(
         (1  !     !     fs     add $m0 dir:/)

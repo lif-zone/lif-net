@@ -1,4 +1,7 @@
 // author: derry. coder: arik.
+import xcrypto from '../util/crypto.js';
+import buf_util from '../net/buf_util.js';
+const b2s = buf_util.buf_to_str;
 const E = {};
 
 function split_message(s){
@@ -51,5 +54,14 @@ E.parse_commit = function(commit){
 
 E.render_header = function(key, val){
   return key+' '+val.replace(/\n/g, '\n ')+'\n'; };
+
+E.wrap = function({type, object}){
+  return Buffer.concat([
+    Buffer.from(`${type} ${object.byteLength.toString()}\x00`), object]);
+};
+
+E.hash = function(type, object){
+  return b2s(xcrypto.sha1(E.wrap({type, object})));
+};
 
 export default E;

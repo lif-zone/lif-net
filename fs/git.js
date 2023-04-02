@@ -3,9 +3,11 @@ import assert from 'assert';
 import fs from 'fs';
 import http from 'isomorphic-git/http/node/index.cjs';
 import array from '../util/array.js';
+import string from '../util/string.js';
 import xerr from '../util/xerr.js';
 import FS from './fs.js';
 import util from '../util/util.js';
+import git_util from './git_util.js';
 import etask from '../util/etask.js';
 import Scroll from '../storage/scroll.js';
 import buf_util from '../net/buf_util.js';
@@ -546,6 +548,53 @@ export default class GIT extends FS {
     for (let i=2; this.branch_exists(cfid, b); b = br+' '+i, i++);
     return b;
   }
+  calc_sha_file(opt){ return etask({_: this}, function*calc_sha_file(){
+    let _this = this._, {file, cfid, seq} = opt;
+    // XXX: use seq to get file
+    let buf = yield _this.get_file(cfid, file, null);
+    if (!buf)
+      return;
+    return git_util.hash('blob', buf);
+  }); }
+  calc_sha_dir(opt){ return etask({_: this}, function*_calc_sha_dir(){
+    let _this = this._, {dir, cfid, seq} = opt;
+    let bseq = _this.bseq_get(cfid, seq);
+    let a = [];
+    let iter = yield _this.ls_iter(cfid, bseq, seq, dir);
+    for (; iter.curr; yield iter.next()){
+      let f = iter.curr;
+      if (FS.valid_file(f)){
+        // XXX: improve ls_iter to avoid call get_file_seq
+        let fseq = yield _this.get_file_seq(cfid, bseq, seq, f);
+        let decl = _this.get_decl(fseq);
+        yield decl.load(cfid);
+        a.push({file: f, mode: decl.get_body(cfid)?.git?.mode,
+          name: FS.split(f).name, type: 'blob',
+          sha: yield _this.calc_sha_file({cfid, seq, file: f})});
+      } else if (FS.valid_dir(f)){
+        // XXX: improve ls_iter to avoid call get_dir_seq
+        let fseq = yield _this.get_dir_seq(cfid, bseq, seq, f);
+        let decl = _this.get_decl(fseq);
+        yield decl.load(cfid);
+        a.push({dir: f, mode: decl.get_body(cfid)?.git?.mode,
+          name: FS.split(f).name, type: 'tree',
+          sha: yield _this.calc_sha_dir({cfid, seq, dir: f})});
+      } else
+        assert.fail('unknown type for '+f);
+    }
+    // XXX: support sort by abc in ls_iter
+    // XXX: review isomorphic git compareTreeEntryPath
+    a.sort((x, y)=>string.cmp(x.file||x.dir, y.file||y.dir));
+    let o = Buffer.concat(a.map(o=>{
+      const mode = Buffer.from(o.mode.replace(/^0/, ''));
+      const space = Buffer.from(' ');
+      const path = Buffer.from(o.name, 'utf8');
+      const nullchar = Buffer.from([0]);
+      const oid = Buffer.from(o.sha, 'hex');
+      return Buffer.concat([mode, space, path, nullchar, oid]);
+    }));
+    return git_util.hash('tree', o);
+  }); }
 }
 
 GIT.create = (opt, d)=>etask(function*scroll_create(){

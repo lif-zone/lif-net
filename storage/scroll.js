@@ -1243,10 +1243,8 @@ export default class Scroll extends EventEmitterAsync {
       _this.conflict.get(cfid).mem_map.add(seq);
     if (!_this.index_table)
       yield _this._init_index_table(false);
-    if (_this.index_table){
-      xerr.notice('XXX scroll on_data %s', seq);
+    if (_this.index_table)
       yield _this.index_table.on_data({cfid, seq, bseq, data});
-    }
     return _this.emit_async('data', {data, seq, cfid, bseq});
   });
   get_branch_table(cfid){

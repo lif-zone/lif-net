@@ -3,6 +3,7 @@ import assert from 'assert';
 import fs from 'fs';
 import http from 'isomorphic-git/http/node/index.cjs';
 import array from '../util/array.js';
+import date from '../util/date.js';
 import string from '../util/string.js';
 import xerr from '../util/xerr.js';
 import FS from './fs.js';
@@ -16,6 +17,59 @@ const b2s = buf_util.buf_to_str, s2b = buf_util.buf_from_str;
 
 // XXX: need test + mv to generic place + need proper escape
 function escape_fs(s){ return s.replaceAll('/', '_').replaceAll(':', '_'); }
+
+const copy_commit_data_safe = (config, body, oid, commit)=>etask(
+  function*copy_commit_data_safe()
+{
+  copy_commit_data(body, commit);
+  let _oid = calc_sha_commit(body);
+  if (oid==_oid)
+    return _oid;
+  let commit_o = yield git_api.readObject({...config, oid, format: 'content'});
+  let raw_commit = commit_o.object.toString();
+  let desc = raw_commit.slice(raw_commit.indexOf('\n\n') + 2);
+  body.desc = desc;
+  _oid = calc_sha_commit(body);
+  if (oid==_oid)
+    return _oid;
+  body.git.raw_commit = raw_commit;
+  return calc_sha_commit(body);
+});
+
+function copy_commit_data(body, commit){
+  body.desc = commit.message;
+  body.git.tree = commit.tree;
+  body.git.author = commit.author;
+  body.git.committer = commit.committer;
+  if (commit.gpgsig)
+    body.git.gpgsig = commit.gpgsig;
+}
+
+function calc_sha_commit(body){
+  return git_util.hash('commit', get_commit_raw(body)); }
+
+function get_commit_raw(body){
+  let git = body.git, s='';
+  if (git.raw_commit)
+    return git.raw_commit;
+  let line = git_util.render_header;
+  s+=line('tree', git.tree);
+  if (git.parent)
+    s+=line('parent', git.parent);
+  if (git.merge){
+    (Array.isArray(git.merge) ? git.merge : [git.merge])
+    .forEach(m=>s+=line('parent', m));
+  }
+  s+=line('author', git.author?.name+' <'+git.author?.email+'> '+
+    git.author?.timestamp+' '+date.format_tz(git.author?.timezoneOffset));
+  s+=line('committer', git.committer?.name+' <'+git.committer?.email+'> '+
+    git.committer?.timestamp+' '+
+    date.format_tz(git.committer?.timezoneOffset));
+  if (git.gpgsig)
+    s+=line('gpgsig', git.gpgsig);
+  s += '\n'+body.desc;
+  return Buffer.from(s);
+}
 
 export default class GIT extends FS {
   constructor(opt){
@@ -169,14 +223,18 @@ export default class GIT extends FS {
       let prev_top_oid = yield _this.get_git_br_top_oid(cfid, git_br);
       if (prev_top_oid && prev_top_oid!=parent)
         throw new Error('git corruption '+git_br);
-      let group = yield _this._sync_dir(config, cfid, prev,
-        '/', commit.tree, '0'); // XXX: can root mode be different?
-      // XXX: check behavir with empty commits (need to use prev)
-      let body = {type: 'commit', op: 'add', desc: commit.message, git: {oid}};
+      let body = {type: 'commit', op: 'add', git: {oid}};
+      if (parent)
+        body.git.parent = parent;
       if (merge.length){
         body.git.merge = merge.length==1 ? merge[0] : merge;
         merge.forEach(moid=>merge_queue[moid] = git_br);
       }
+      let _oid = yield copy_commit_data_safe(config, body, oid, commit);
+      if (oid!=_oid)
+        throw new Error('failed commmit verify '+oid+'!='+_oid);
+      let group = yield _this._sync_dir(config, cfid, prev,
+        '/', commit.tree, '0');
       delete merge_queue[oid];
       yield _this.decl(group ? {cfid, group} : {cfid, prev}, body);
     }

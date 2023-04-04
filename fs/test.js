@@ -412,6 +412,10 @@ const test_get_seq = s=>etask(function*get_seq(){
       bo[o.l] = o.r+'\n';
     else if ('desc'==o.cmd) // XXX: need better way to handle \n
       bo[o.cmd] = decode_str(rm_parentesis(o.r, '('))+'\n';
+    else if ('_desc'==o.l) // XXX: need better way to handle \n
+      bo.desc = o.r;
+    else if ('_desc'==o.cmd) // XXX: need better way to handle \n
+      bo.desc = decode_str(rm_parentesis(o.r, '('));
     else if ('branch'==o.cmd)
       bo[o.cmd] = rm_parentesis(o.r, '(');
     else if ('file'==o.cmd)
@@ -439,6 +443,8 @@ const test_get_seq = s=>etask(function*get_seq(){
   }
   if (bo.git && Object.keys(bo.git).length==0)
     delete bo.git;
+  if (bo.git?.gpgsig)
+    bo.git.gpgsig = decode_str(rm_parentesis(bo.git.gpgsig, '('));
   return bo;
 });
 
@@ -1261,13 +1267,32 @@ describe('git', function(){
       // XXX: derry: review encode_str/decode_str
       let desc5 = encode_str('Commit from cli with pgp\n\n'+
         'Signed-off-by: lif-rnd <lif.zone.main@gmail.com>');
+      let gpg3 = encode_str('-----BEGIN PGP SIGNATURE-----\n'+
+        '\nwsBcBAABCAAQBQJjlvwACRBK7hj4Ov3rIwAAAswIAFPmNEqZow/IUewkig8OnOot'+
+        '\nbrQTqOE9qb83naHpE6cGNOq+uOn0Twav6xsWI5B7/h7t0kOPMUPJcA8xmxduGN4+'+
+        '\n1Sw0ByvVoeO3x/UOpavv5SayuyOuxFNOasHFrHwne4ONyzM5J8EUkV4/oHYE+2jZ'+
+        '\nNWeJlvSSg85wA23YF1/7tAFV/wZrC3tFkFht3ZQraHDNBV2nG/vqUxtPxuvRAR8V'+
+        '\nFwIGDJ4uYW1gSxMdAP6MPFVkY+pzJmzEHKT22TC1InhZ5mklEPDNuSnuYAxRE2Cs'+
+        '\nL/O964lnhIfRpRUuuN7Fq02PHWSgtcsav++OrzjM+75Tp8JMz5a8FUOTIqSpaZk='+
+        '\n=dun1\n-----END PGP SIGNATURE-----\n');
+      let gpg7 = encode_str('-----BEGIN PGP SIGNATURE-----\n'+
+        '\niQGzBAABCgAdFiEEndepdIBVI/JR3VFqk63BrWpcXVgFAmOXBx8ACgkQk63BrWpc'+
+        '\nXVhX5AwAj0KkfEYd5jEm9Si5t4EfT0vFQqC2pHcBEwJB8g0Rvoq0otx4QEEHSYiE'+
+        '\n1yNxxrl3Ei0/EFZsADDJ5oZODXEZGssQgIfRPphoqueMmcl/IQ9J5mtgaGS+0EtX'+
+        '\npIt0ztktIJ3i1EZeSR3EB6Cch5gXORtWhDHTCgk8gReskuSLXm6f37V6PFM+mVl5'+
+        '\n7ZfyV0H6paumCPubgQFJ60y2o4FC2jGe4MYiIZEU1x7l6WG808PSWBe3FknTG0yW'+
+        '\n0vYpAwTfD7io5Q5HQzbjzyo+Z8xtj13zsfU1Lw/P3pMdgbOvDckvArgvCV23kD4A'+
+        '\n3SmNdtToYwsTpMTEyPX7lZ+aOPsU4kyEHa/eDNZ41MsQOPajBFi+S1eTHBL7RxON'+
+        '\no0u2MFoFEBmpNsLnVJUnY9a72tdeldGq5NKq1mrZIccOq88ybzlGWaVBAmGwTGXb'+
+        '\nI0XQP0JuNdGqXP50yMSzsqNpNIZPK6vrl6o7Faz2Y595cZbR+/XGnwmlaqTYTidX'+
+        '\nrFCDMFtn\n=gY2P\n-----END PGP SIGNATURE-----');
       t('gpg', `s..#seq git(src(lif-rnd/test_gpg)) #seq0={} sync #(
         seq1={type:fs op:add dir:/ git:{mode:0}}
         seq2={type:fs op:add file:/file_from_www content:1 f2:0x0a
           git:{oid:8b137891791fe96927ad78e64b0aad7bded08bdc mode:100644}}
         // XXX: missing more stuff in commit (eg author, gpg, ts)
-        seq3={group:2 type:commit op:add desc(Create file_from_www)
-          git:{oid:632392939fe3e3abcfd259ef24f2ff2a08d55f73}}
+        seq3={group:2 type:commit op:add _desc(Create file_from_www)
+          git:{oid:632392939fe3e3abcfd259ef24f2ff2a08d55f73 gpgsig:${gpg3}}}
         seq4={link:2 type:fs op:add file:/file_from_cli
           git:{oid:8b137891791fe96927ad78e64b0aad7bded08bdc mode:100644}}
         seq5={group:1 type:commit op:add desc(${desc5})
@@ -1275,16 +1300,25 @@ describe('git', function(){
         seq6={type:fs op:mod file:/file_from_cli content:1 f2:0x76320a
           git:{oid:8c1384d825dbbe41309b7dc18ee7991a9085c46e mode:100644}}
         seq7={group:1 type:commit op:add desc(test)
-          git:{oid:ca6b21664600f971cdeadbd357b98fd37ee53d8f}})`);
+          git:{oid:ca6b21664600f971cdeadbd357b98fd37ee53d8f gpgsig:${gpg7}}})
+      `);
       let d2 = '0x66696c6520613a0a'+('58'.repeat(104)+'0a').repeat(17);
       let d10 = '0x66696c6520630a'+('58'.repeat(104)+'0a').repeat(17);
+      gpg3 = encode_str('-----BEGIN PGP SIGNATURE-----\n'+
+        '\nwsBcBAABCAAQBQJjhahDCRBK7hj4Ov3rIwAAnpwIAERdey8XBjlOhm5T8hnPhDUS'+
+        '\nlfuK6mT/zO2Jw9YL1kfF6iK9cefdvFrcjq6Ecbq4TgkQSAaPYeBAEKJYhWa3yIMr'+
+        '\nVBjQy0o6YnK8Sf2jqNr/vyCCLsRaN3ANuuV8G09AUjh6Cn1I635vNBMjg41T/jqX'+
+        '\nFCVDrs+I+xUMItL9XIRG9IBrkKBzZv25kbhqg6smfmfBydR6nO7hNMF3qvG16Eye'+
+        '\nhtz7p4/jH92e8a+GwEP6CD6PrS4bF2yv0KaCgJr/sQqN36mF9RcVanTHvSn7PBaV'+
+        '\naFCYmUr36mXeGEd5VJflXD1o54ikte1/S5QwGmN1j+8lxwNSzoxfjQLEJYmn0V0='+
+        '\n=B9M5\n-----END PGP SIGNATURE-----\n');
       // XXX: mv git to lif-rnd
       t('move', `s..#seq git(src(lif-zone/test_move)) #seq0={} sync #(
         seq1={type:fs op:add dir:/ git:{mode:0}}
         seq2={type:fs op:add file:/a content:1 f2:${d2}
           git:{oid:7780c82f7ec168abd6f2cd9f756058fcedad80f2 mode:100644}}
-        seq3={group:2 type:commit op:add desc(Create a)
-          git:{oid:4160553ff40409ebd42a5cf29c02b3e0d2cade54}}
+        seq3={group:2 type:commit op:add _desc(Create a)
+          git:{oid:4160553ff40409ebd42a5cf29c02b3e0d2cade54 gpgsig:${gpg3}}}
         // XXX derry: detect move /a -> /b?
         seq4={type:fs op:rm file:/a}
         seq5={type:fs op:add file:/b link:2

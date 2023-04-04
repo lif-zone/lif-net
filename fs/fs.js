@@ -234,6 +234,13 @@ export default class FS extends Scroll {
       ret.link = header.link;
     if (f2)
       ret.f2 = f2;
+    if (ret.git){ // XXX HACK: rm this code
+      ret.git = {...ret.git};
+      delete ret.git.tree;
+      delete ret.git.author;
+      delete ret.git.committer;
+      delete ret.git.parent;
+    }
     return ret;
   }
   get_file_seq(cfid, bseq_top, seq, file){

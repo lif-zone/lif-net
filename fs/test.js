@@ -2345,19 +2345,21 @@ describe('git', function(){
     });
 
   });
-/* XXX derry:
-3-1.0>= bseq >3-2.0
-name,bseq,op
-b1,3-1.0,new
-b1,3-1.3,del
-git_branch=branch||git_branch
-key=[{name: git_branch field: git_branch all_branches: true,
-  val: [{field: op}], specific: 'git_br'}]
+/*
 
-b1,3,new
-b1,10,del
-b2,6,new
-b2,20,del
+git_br index:
+{name: 'git_br_all', transform: 'git_br', all_branches: true,
+  filter: {type: 'git_br'}};
+b1,3  // new
+b1,10 // del
+b1,25 // new
+b2,6  // new
+b2,20 // del
+b2,22 // new
+
+// XXX how to get list of all git branches?
+
+// XXX: review inc_seq0 hack
 
 */
 // XXX TODO:

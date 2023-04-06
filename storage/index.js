@@ -57,21 +57,15 @@ function decl_get_dir(h, body){
 }
 
 // XXX: need test
-function decl_git_br(h, body){
-  return h.seq==0 ? body.scroll?.git?.main||'main' :
-    body.git?.branch||h.branch;
-}
+function decl_git_br(h, body){ return body.git?.branch||h.branch; }
 
 function decl_git_br_curr(h, body){
-  return h.seq==0||body.git?.branch||h.branch ? 'git_br' : null;
-}
+  return body.git?.branch||h.branch ? 'git_br' : null; }
 
 // XXX: need test
 function data_filter(h, data, cfid, desc){
   let {filter} = desc;
   if (!filter)
-    return true;
-  if (desc.inc_seq0 && h.seq==0)
     return true;
   let body = data.get_body(cfid);
   for (let f in filter){

@@ -681,17 +681,18 @@ GIT.create = (opt, d)=>etask(function*scroll_create(){
     {name: 'fs_git_oid_all', field: 'git.oid', all_branches: true,
       filter: {type: 'fs'}},
     // XXX: review git_br_curr with derry - better way?
-    // XXX HACK: inc_seq0
-    {name: 'git_br_curr', transform: 'git_br_curr', filter: {type: 'git_br'},
-      inc_seq0: true},
+    {name: 'git_br_curr', transform: 'git_br_curr', filter: {type: 'git_br'}},
     {name: 'git_br_all', transform: 'git_br', all_branches: true,
-      filter: {type: 'git_br'}, inc_seq0: true},
+      filter: {type: 'git_br'}},
     {name: 'git_tag_all', field: 'tag', all_branches: true,
       filter: {type: 'tag'}},
     ]};
   if (d?.csum_sha256) // XXX: needed?
     s.index.push('csum_sha256');
+  let main = s.git?.main||'main';
   yield git.decl({scroll: s});
+  yield git.decl({type: 'git_br', op: 'add', git: {branch: main}});
+  yield git.decl({type: 'git_head', op: 'add', git: {branch: main}});
   return git;
 });
 

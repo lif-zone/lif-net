@@ -609,7 +609,7 @@ export default class GIT extends FS {
   calc_sha_file(opt){ return etask({_: this}, function*calc_sha_file(){
     let _this = this._, {file, cfid, seq} = opt;
     // XXX: use seq to get file
-    let buf = yield _this.get_file(cfid, file, null);
+    let buf = yield _this.get_file(file, {cfid: cfid, seq});
     if (!buf)
       return;
     return git_util.hash('blob', buf);
@@ -626,9 +626,12 @@ export default class GIT extends FS {
         let fseq = yield _this.get_file_seq(cfid, bseq, seq, f);
         let decl = _this.get_decl(fseq);
         yield decl.load(cfid);
-        a.push({file: f, mode: decl.get_body(cfid)?.git?.mode,
-          name: FS.split(f).name, type: 'blob',
-          sha: yield _this.calc_sha_file({cfid, seq, file: f})});
+        let body = decl.get_body(cfid);
+        let sha = yield _this.calc_sha_file({cfid, seq, file: f});
+        if (sha!=body?.git.oid)
+          throw new Error('file sha mismatch '+f+' seq'+seq);
+        a.push({file: f, mode: body?.git?.mode,
+          name: FS.split(f).name, type: 'blob', sha});
       } else if (FS.valid_dir(f)){
         // XXX: improve ls_iter to avoid call get_dir_seq
         let fseq = yield _this.get_dir_seq(cfid, bseq, seq, f);
@@ -652,6 +655,20 @@ export default class GIT extends FS {
       return Buffer.concat([mode, space, path, nullchar, oid]);
     }));
     return git_util.hash('tree', o);
+  }); }
+  verify_git(opt){ return etask({_: this}, function*(){
+    let _this = this._, {cfid} = opt, top = _this.conflict.get(cfid).top;
+    for (let i=0; i<=top.seq; i++){
+      let decl = _this.get_decl(i);
+      yield decl.load(cfid); // XXX: need load_body (load+get)
+      let body = decl.get_body(cfid);
+      if (body.type!='commit')
+        continue;
+      let oid = calc_sha_commit(body);
+      assert.equal(body.git.oid, oid, 'commit oid mismatch seq'+i);
+      let tree_sha = yield _this.calc_sha_dir({dir: '/', cfid, seq: i});
+      assert.equal(body.git.tree, tree_sha, 'tree sha mismatch seq'+i);
+    }
   }); }
 }
 

@@ -168,13 +168,19 @@ export default class FS extends Scroll {
     let body = decl.get_body(cfid);
     return ['add', 'mod'].includes(body.op);
   }); }
-  get_file(cfid, file, branch){ return etask({_: this}, function*get_file(){
-    let _this = this._, top = _this.get_branch_top(cfid, branch||null);
-    if (!top)
-      return;
-    let seq = yield _this.get_file_seq(cfid, top.bseq, top.seq, file);
-    if (seq)
-      return yield _this.resolve_buf(cfid, seq);
+  get_file(file, opt){ return etask({_: this}, function*get_file(){
+    let _this = this._;
+    let {cfid, branch, seq} = opt;
+    if (branch!==undefined){
+      let top = _this.get_branch_top(cfid, branch||null);
+      if (!top)
+        return;
+      seq = Math.max(top.seq, seq||0);
+    }
+    let seqf = yield _this.get_file_seq(cfid, _this.bseq_get(cfid, seq),
+      seq, file);
+    if (seqf)
+      return yield _this.resolve_buf(cfid, seqf);
   }); }
   resolve_buf(cfid, seq){ return etask({_: this}, function*resolve_buf(){
     // XXX: verify we test every part of it
@@ -370,7 +376,11 @@ function split(path){
   if (path=='/')
     return {path, parent: '', name: '/'};
   let i = path.lastIndexOf('/', path.length - (valid_dir(path) ? 2 : 1));
-  return {path, parent: path.substr(0, i+1), name: path.substr(i+1)};
+  let name = path.substr(i+1);
+  let parent = path.substr(0, i+1);
+  if (name.slice(-1)=='/')
+    name = name.substr(0, name.length-1);
+  return {path, parent, name};
 }
 
 function parse_buf_ref(ref){

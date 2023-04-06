@@ -2345,23 +2345,6 @@ describe('git', function(){
     });
 
   });
-/*
-
-git_br index:
-{name: 'git_br_all', transform: 'git_br', all_branches: true,
-  filter: {type: 'git_br'}};
-b1,3  // new
-b1,10 // del
-b1,25 // new
-b2,6  // new
-b2,20 // del
-b2,22 // new
-
-// XXX how to get list of all git branches?
-
-// XXX: review inc_seq0 hack
-
-*/
 // XXX TODO:
 // 1. review encode_str
 // 2. add test for same git branch name, but different branches

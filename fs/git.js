@@ -77,7 +77,6 @@ export default class GIT extends FS {
     this.cache = {};
   }
   sync(opt={}){ return etask({_: this}, function*sync(){
-    // XXX: need lock
     let _this = this._, {flip_protect} = opt;
     if (flip_protect===undefined)
       flip_protect = 'warn';
@@ -97,7 +96,7 @@ export default class GIT extends FS {
       config.url = url;
       yield git_api.clone({...config});
     }
-    let cfid = 0; // XXX: support conflict
+    let cfid = opt.cfid||0;
     let git_data = yield _this._get_git(config, {main: opt.main});
     let main = git_data.main;
     let curr_git_branches = yield _this.get_git_branches(cfid);
@@ -170,7 +169,6 @@ export default class GIT extends FS {
         // XXX: copy logic of parent from _get_git
         oid = commit.commit.parent[0];
       }
-      // XXX TODO: support branch without name
       let branch = _this.get_avail_branch(cfid, '_null');
       yield _this._sync_commits(config, cfid, main, branch, commits,
         merge_queue);
@@ -182,10 +180,6 @@ export default class GIT extends FS {
   {
     let _this = this._;
     for (let i=0; i<commits.length; i++){
-      // XXX: support multiple merge info and test it
-      // XXX: save missing info
-      // autohr, ts, tree, timestamp, timezoneOffset,
-      // commit, gpgsig
       let {oid, commit} = commits[i], prev, parent = commit.parent[0];
       let merge = commit.parent.slice(1);
       if (yield _this.git_br_exists(cfid, git_br)){
@@ -269,7 +263,7 @@ export default class GIT extends FS {
           name: 'commit_git_oid_all', cfid});
         yield _this.decl({cfid, branch: null, link}, {type: 'tag', op, tag,
           git: {oid}});
-      } else if (o.type=='tag'){ // XXX: TODO
+      } else if (o.type=='tag'){
         let commit_oid = o.tag.object;
         link = yield _this.find_one(commit_oid, {dir: 'up',
           name: 'commit_git_oid_all', cfid});
@@ -426,7 +420,7 @@ export default class GIT extends FS {
     if (!top_seq)
       return;
     let decl = _this.get_decl(top_seq);
-    yield decl.load(cfid); // XXX: review all load, try to mv t index data
+    yield decl.load(cfid); // XXX: review all load, try to mv to index data
     return decl.get_body(cfid)?.git?.oid;
   }); }
   get_git_br_top_seq(cfid, git_br, type){ return etask({_: this},

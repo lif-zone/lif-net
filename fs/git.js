@@ -119,15 +119,7 @@ export default class GIT extends FS {
           continue;
         }
       }
-      let prev = yield _this.get_git_br_top_seq(cfid, curr);
-      let head = yield _this.get_head(cfid);
-      if (head?.branch==curr){
-        yield _this.decl({cfid, prev}, {type: 'git_head', op: 'rm',
-          git: {branch: head.branch}});
-        prev++;
-      }
-      yield _this.decl({cfid, prev}, {type: 'git_br', op: 'rm',
-        git: {branch: curr}});
+      yield _this._rm_branch(cfid, curr);
     }
     // add new commits
     let merge_queue = {};
@@ -200,6 +192,15 @@ export default class GIT extends FS {
     for (let i=0; i<commits.length; i++){
       let {oid, commit} = commits[i], prev, parent = commit.parent[0];
       let merge = commit.parent.slice(1);
+      if (yield _this.git_br_exists(cfid, git_br)){
+        let br_seq = yield _this.get_git_br_top_seq(cfid, git_br);
+        let seq = yield _this.find_one(oid, {cfid, name: 'commit_git_oid',
+          bseq: _this.bseq_get(cfid, br_seq)});
+        let seq2 = yield _this.find_one(oid, {dir: 'up',
+          name: 'commit_git_oid_all', cfid});
+        if (!parent && !seq && seq2)
+          yield _this._rm_branch(cfid, git_br);
+      }
       if (yield _this.git_br_exists(cfid, git_br)){
         let br_seq = yield _this.get_git_br_top_seq(cfid, git_br);
         let seq = yield _this.find_one(oid, {cfid, name: 'commit_git_oid',
@@ -610,6 +611,18 @@ export default class GIT extends FS {
           {oid, branch: git_br}});
     }
     return decl.seq;
+  }); }
+  _rm_branch(cfid, git_br){ return etask({_: this}, function*_rm_branch(){
+    let _this = this._;
+    let prev = yield _this.get_git_br_top_seq(cfid, git_br);
+    let head = yield _this.get_head(cfid);
+    if (head?.branch==git_br){
+      let decl = yield _this.decl({cfid, prev}, {type: 'git_head', op: 'rm',
+        git: {branch: head.branch}});
+      prev = decl.seq;
+    }
+    yield _this.decl({cfid, prev}, {type: 'git_br', op: 'rm',
+      git: {branch: git_br}});
   }); }
   get_avail_branch(cfid, br){
     let b=br;

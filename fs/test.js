@@ -2377,9 +2377,30 @@ describe('git', function(){
         (9  7-1.1 $d1   fs        add $mf file:/f3 link:4)
         (10 7-1.2 $oid3 commit    add !   group:1 desc:c_f3))
         $$sync_main(b1) $$b1(branch:b1) $t $$(
-        (11 8     !     git_head rm  $bm !)
-        (12 7-1.3 !     git_head add $b1 !))
+        (11 8     !     git_head  rm  $bm !)
+        (12 7-1.3 !     git_head  add $b1 !))
         ##seq13={}`);
+      t('head_full', `${t_common}
+        $add_f1
+        $add_f2
+        git_br_new(b1)
+        $add_f3
+        $$sync_main(b1) $$b1(branch:b1) $t $$(
+        (1  !         !     git_br   add $bm !)
+        (2  !         !     git_head add $bm !)
+        (3  2-1.0     !     git_br   add !   branch:b1)
+        (4  2-1.1     !     fs       add $m0 dir:/)
+        (5  2-1.2     $d1   fs       add $mf file:/f1 content:1 f2:d1)
+        (6  2-1.3     $oid1 commit   add !   group:2 desc:c_f1)
+        (7  2-1.4     $d1   fs       add $mf file:/f2 link:5)
+        (8  2-1.5     $oid2 commit   add !   group:1 desc:c_f2)
+        (9  2-1.6     $d1   fs       add $mf file:/f3 link:5)
+        (10 2-1.7     $oid3 commit   add !   group:1 desc:c_f3)
+        (11 3         !     git_head rm  $bm !)
+        (12 4         !     git_br   rm  $bm !)
+        (13 2-1.5-1.0 $oid2 git_br   add !   branch:master)
+        (14 2-1.8     !     git_head add $b1 !))
+        ##seq15={}`);
       // XXX: head flip protection
       t('commit_two_roots_inc', `${t_common}
         $add_f1 $t $$(

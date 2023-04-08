@@ -62,6 +62,13 @@ function decl_git_br(h, body){ return body.git?.branch||h.branch; }
 function decl_git_br_curr(h, body){
   return body.git?.branch||h.branch ? 'git_br' : null; }
 
+function decl_git_head_curr(h, body){
+  let git = body.git;
+  if (!git || body.type!='git_head')
+    return;
+  return git.op=='rm' ? null : 'git_head';
+}
+
 // XXX: need test
 function data_filter(h, data, cfid, desc){
   let {filter} = desc;
@@ -89,6 +96,7 @@ function key_from_data(h, data, cfid, desc){
   case 'decl_get_dir': return decl_get_dir(h, body);
   case 'git_br': return decl_git_br(h, body);
   case 'git_br_curr': return decl_git_br_curr(h, body);
+  case 'git_head_curr': return decl_git_head_curr(h, body);
   default: throw new Error('unknown transform function '+transform);
   }
 }

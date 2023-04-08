@@ -2420,7 +2420,6 @@ describe('git', function(){
         (1  ! !     git_br   add $bm !)
         (2  ! !     git_head add $bm !))
         ##seq3={} verify_git`);
-      // save sync_event/sync_url (always, only if different than src)
       // sync({seal: true|false}) --> {type: 'seal', git: {src}}
       // XXX: rewrite old git tests to new format + add one http fetch example
       // XXX: test sync from multi repo
@@ -2432,6 +2431,7 @@ describe('git', function(){
       // XXX fix # (to be per filter) and replace tests of ## with #
       // (rm empty ##seq at the end
       // XXX: need git db test
+      // code cleanup
     });
   });
 // XXX TODO:

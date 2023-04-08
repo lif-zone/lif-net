@@ -1188,6 +1188,12 @@ export default class Scroll extends EventEmitterAsync {
     decl.init();
     return decl;
   }
+  load_body(cfid, seq){
+    let decl = this.get_decl(seq, {create: false});
+    if (!decl)
+      return;
+    return decl.load_body(cfid);
+  }
   conflict_to_static(){
     let o = {};
     for (const [cfid, co] of this.conflict){
@@ -1339,6 +1345,11 @@ class Decl extends EventEmitterAsync {
   get_header(cfid){ return this.data_get().get_header(this.to_c(cfid)); }
   // XXX: fix all api to use this.to_c
   get_body(cfid){ return this.data_get().get_body(this.to_c(cfid)); }
+  load_body(cfid){ return etask({_: this}, function*load_body(){
+    let _this = this._;
+    yield _this.load(cfid);
+    return _this.get_body(cfid);
+  }); }
   d_hash(cfid){ return this.fbuf_get(cfid).get_hash(); }
   m_get(range){
     let i = merkel_array_pos(range);

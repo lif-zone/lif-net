@@ -394,9 +394,8 @@ export default class GIT extends FS {
         prev_seq = yield _this.get_file_seq(cfid, _this.bseq_get(cfid, top),
           top, file);
         if (prev_seq){
-          let prev_decl = _this.get_decl(prev_seq);
-          yield prev_decl.load(cfid);
-          if (prev_decl.get_body(cfid)?.git?.oid==e.oid)
+          let prev_body = yield _this.load_body(cfid, prev_seq);
+          if (prev_body?.git?.oid==e.oid)
             break;
         }
         body = {git: {oid: e.oid, mode: e.mode}};
@@ -442,9 +441,8 @@ export default class GIT extends FS {
     let top_seq = yield _this.get_git_br_top_seq(cfid, git_br, 'commit');
     if (!top_seq)
       return;
-    let decl = _this.get_decl(top_seq);
-    yield decl.load(cfid); // XXX: review all load, try to mv to index data
-    return decl.get_body(cfid)?.git?.oid;
+    // XXX: review all load, try to mv to index data
+    return (yield _this.load_body(cfid, top_seq))?.git?.oid;
   }); }
   get_git_br_top_seq(cfid, git_br, type){ return etask({_: this},
     function*get_git_br_top_seq()
@@ -478,9 +476,8 @@ export default class GIT extends FS {
     let seq = yield _this.find_one(git_br, {cfid, name: 'git_br_all'});
     if (!Number.isInteger(seq))
       return false;
-    let decl = _this.get_decl(seq);
-    yield decl.load(cfid); // XXX: avoid load and just use index extra data
-    let body = decl.get_body(cfid);
+    // XXX: avoid load and just use index extra data
+    let body = yield _this.load_body(cfid, seq);
     if (body.type!='git_br')
       throw new Error('git scroll corruption');
     return body.op!='rm' ? seq : false;
@@ -495,9 +492,8 @@ export default class GIT extends FS {
     let seq = yield _this.find_one(tag, {cfid, name: 'git_tag_all'});
     if (!Number.isInteger(seq))
       return false;
-    let decl = _this.get_decl(seq);
-    yield decl.load(cfid); // XXX: avoid load and just use index extra data
-    let body = decl.get_body(cfid);
+    // XXX: avoid load and just use index extra data
+    let body = yield _this.load_body(cfid, seq);
     return body.op!='rm' ? seq : undefined;
   }); }
   get_git_tag_oid(cfid, tag){ return etask({_: this},
@@ -507,9 +503,8 @@ export default class GIT extends FS {
     let seq = yield _this.find_one(tag, {cfid, name: 'git_tag_all'});
     if (!Number.isInteger(seq))
       return false;
-    let decl = _this.get_decl(seq);
-    yield decl.load(cfid); // XXX: avoid load and just use index extra data
-    let body = decl.get_body(cfid);
+    // XXX: avoid load and just use index extra data
+    let body = yield _this.load_body(cfid, seq);
     return body.op!='rm' ? body.git?.oid : undefined;
   }); }
   git_tag_had_value(cfid, tag, oid){ return etask({_: this},
@@ -519,9 +514,8 @@ export default class GIT extends FS {
     let iter = yield _this.find_iter(tag, {cfid, name: 'git_tag_all'});
     for (; iter.curr; yield iter.next()){
       let seq = iter.curr.seq;
-      let decl = _this.get_decl(seq);
-      yield decl.load(cfid); // XXX: avoid load and just use index extra data
-      let body = decl.get_body(cfid);
+      // XXX: avoid load and just use index extra data
+      let body = yield _this.load_body(cfid, seq);
       if (body.git?.oid==oid)
         return true;
     }
@@ -529,9 +523,7 @@ export default class GIT extends FS {
   get_root_seq(cfid){ return etask({_: this}, function*get_root_seq(){
     let _this = this._, top = _this.conflict.get(cfid).top.seq;
     for (let i=0; i<=top; i++){
-      let decl = _this.get_decl(i);
-      yield decl.load(cfid);
-      let body = decl.get_body(cfid);
+      let body = yield _this.load_body(cfid, i);
       if (body.type=='commit')
         return i;
     }
@@ -543,9 +535,8 @@ export default class GIT extends FS {
     let iter = yield _this.find_iter(br, {cfid, name: 'git_br_all'});
     for (; iter.curr; yield iter.next()){
       let seq = iter.curr.seq;
-      let decl = _this.get_decl(seq);
-      yield decl.load(cfid); // XXX: avoid load and just use index extra data
-      let body = decl.get_body(cfid);
+      // XXX: avoid load and just use index extra data
+      let body = yield _this.load_body(cfid, seq);
       if (body.git?.oid==oid)
         return true;
     }
@@ -559,9 +550,8 @@ export default class GIT extends FS {
       if (done[git_br])
         continue;
       done[git_br] = true;
-      let decl = _this.get_decl(iter.curr.seq);
-      yield decl.load(cfid); // XXX: avoid load and just use index extra data
-      let body = decl.get_body(cfid);
+      // XXX: avoid load and just use index extra data
+      let body = yield _this.load_body(cfid, iter.curr.seq);
       if (body.type!='git_br')
         throw new Error('git scroll corruption');
       if (body.op!='rm')
@@ -578,11 +568,10 @@ export default class GIT extends FS {
       if (done[tag])
         continue;
       done[tag] = true;
-      let decl = _this.get_decl(iter.curr.seq);
-      yield decl.load(cfid); // XXX: avoid load and just use index extra data
-      let body = decl.get_body(cfid);
+      // XXX: avoid load and just use index extra data
+      let body = yield _this.load_body(cfid, iter.curr.seq);
       if (body.op!='rm')
-        ret.push({tag, oid: decl.get_body(cfid).git?.oid});
+        ret.push({tag, oid: body.git?.oid});
     }
     return ret;
   }); }
@@ -594,9 +583,9 @@ export default class GIT extends FS {
     let op, decl, br_seq = yield _this.find_one('git_br', {cfid,
       bseq: prev_bseq_top.bseq, name: 'git_br_curr'});
     if (br_seq){
-      decl = _this.get_decl(br_seq);
-      yield decl.load(cfid); // XXX: avoid load. get it from index data
-      op = decl.get_body(cfid)?.op;
+      // XXX: avoid load. get it from index data
+      let body = yield _this.load_body(cfid, br_seq);
+      op = body?.op;
       if (op=='rm')
         prev = prev_bseq_top.seq;
     }
@@ -647,9 +636,7 @@ export default class GIT extends FS {
       if (FS.valid_file(f)){
         // XXX: improve ls_iter to avoid call get_file_seq
         let fseq = yield _this.get_file_seq(cfid, bseq, seq, f);
-        let decl = _this.get_decl(fseq);
-        yield decl.load(cfid);
-        let body = decl.get_body(cfid);
+        let body = yield _this.load_body(cfid, fseq);
         let sha = yield _this.calc_sha_file({cfid, seq, file: f});
         if (sha!=body?.git.oid)
           throw new Error('file sha mismatch '+f+' seq'+seq);
@@ -658,9 +645,8 @@ export default class GIT extends FS {
       } else if (FS.valid_dir(f)){
         // XXX: improve ls_iter to avoid call get_dir_seq
         let fseq = yield _this.get_dir_seq(cfid, bseq, seq, f);
-        let decl = _this.get_decl(fseq);
-        yield decl.load(cfid);
-        a.push({dir: f, mode: decl.get_body(cfid)?.git?.mode,
+        let body = yield _this.load_body(cfid, fseq);
+        a.push({dir: f, mode: body?.git?.mode,
           name: FS.split(f).name, type: 'tree',
           sha: yield _this.calc_sha_dir({cfid, seq, dir: f})});
       } else
@@ -685,17 +671,14 @@ export default class GIT extends FS {
       name: 'git_head_curr_all'});
     if (!seq)
       return;
-    let decl = _this.get_decl(seq);
-    yield decl.load(cfid); // XXX: avoid load. get it from index data
-    let body = decl.get_body(cfid);
+    // XXX: avoid load. get it from index data
+    let body = yield _this.load_body(cfid, seq);
     return body.op=='rm' ? undefined : {branch: body.git?.branch, seq};
   }); }
   verify_git(opt){ return etask({_: this}, function*(){
     let _this = this._, {cfid} = opt, top = _this.conflict.get(cfid).top;
     for (let i=0; i<=top.seq; i++){
-      let decl = _this.get_decl(i);
-      yield decl.load(cfid); // XXX: need load_body (load+get)
-      let body = decl.get_body(cfid);
+      let body = yield _this.load_body(cfid, i);
       if (body.type!='commit')
         continue;
       let oid = calc_sha_commit(body);

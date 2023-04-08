@@ -125,8 +125,14 @@ export default class Index {
   find_mem_iter(key, opt={}){
     let avl = this.avl, Q = [], cmp = avl._comparator, node = avl._root;
     let {min, max, dir} = opt, iter = {};
-    let nmin = {key, seq: min===undefined ? 0 : min};
-    let nmax = {key, seq: max===undefined ? Infinity : max};
+    let nmin, nmax;
+    if (!avl.size)
+      return iter;
+    [min, max] = [min===undefined ? 0 : min, max===undefined ? Infinity : max];
+    if (key===undefined)
+      [nmin, nmax] = [avl.minNode().key, avl.maxNode().key];
+    else
+      [nmin, nmax] = [{key, seq: min}, {key, seq: max}];
     dir = dir||'dn';
     assert(['up', 'dn'].includes(dir), 'invalid dir '+dir);
     iter.next = ()=>{
@@ -140,6 +146,8 @@ export default class Index {
         node = Q.pop();
         iter.curr = node.key;
         node = dir=='up' ? node.right : node.left;
+        if (iter.curr.seq < min || iter.curr.seq > max)
+          continue;
         if (dir=='up' ? cmp(iter.curr, nmax)>0 : cmp(iter.curr, nmin)<0)
           return iter_ret(iter);
         if (dir=='up' ? cmp(iter.curr, nmin)>=0 : cmp(iter.curr, nmax)<=0)
@@ -157,13 +165,19 @@ export default class Index {
     assert(['up', 'dn'].includes(dir), 'invalid dir '+dir);
     if (min!==undefined && max!==undefined)
       assert(min<=max, 'invalid query min<=max min '+min+' max '+max);
-    query = IDBKeyRange.bound([id, key, min===undefined ? 0 : min],
-      [id, key, max===undefined ? Infinity : max]);
+    [min, max] = [min===undefined ? 0 : min, max===undefined ? Infinity : max];
+    query = key===undefined ? undefined :
+      IDBKeyRange.bound([id, key, min], [id, key, max]);
+    // XXX: handle min/max when key===undefined
     let cursor = yield db.cursor(store, query, dir=='up' ? 'next' : 'prev');
+    for (; cursor && (cursor.value.seq<min || cursor.value.seq>max);
+      cursor = yield cursor.next());
     let iter = {i: 0, curr: cursor?.value};
     iter.next = ()=>etask(function*iter_next(){
       assert(cursor, 'db iter already finished');
-      cursor = yield cursor.next();
+      for (cursor = yield cursor.next(); cursor &&
+        (cursor.value.seq<min || cursor.value.seq>max);
+        cursor = yield cursor.next());
       iter.i++;
       return iter_ret(iter, cursor?.value);
     });
@@ -175,6 +189,8 @@ export default class Index {
     assert(['up', 'dn'].includes(dir), 'invalid dir '+dir);
     if (!scroll.storage)
       return this.find_mem_iter(key, {min, max, dir});
+    if (key===undefined) // XXX: need to update up/dn in memory
+      return this.find_db_iter(key, {min, max, dir});
     let co = scroll.conflict.get(cfid), _max, _min;
     _min = min = min===undefined ? co.parent ? co.parent.seq+1 : 0 : min;
     _max = max = max===undefined ? co.top.seq : max;
@@ -404,6 +420,8 @@ class Index_table {
     return ret;
   }); }
   find_iter(key, opt){ return etask({_: this}, function*find_iter(){
+    if (opt===undefined)
+      [key, opt] = [undefined, key];
     let _this = this._, {id, name, cfid, min, max, dir, bseq} = opt;
     let iter = {}, _max = max;
     if (id!==undefined){

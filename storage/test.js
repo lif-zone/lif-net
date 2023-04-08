@@ -2185,6 +2185,7 @@ describe('scroll', function(){
             (/derry 8) (/derry 9) (/arik 10) (/arik 11) (/arik 12))
           ##index_find(index:0 key:/derry)=[9 8 7 4 3 1] #
           ##index_find(index:0 key:/arik)=[12 11 10 6 5 2] #
+          ##index_find(index:0)=[9 8 7 4 3 1 12 11 10 6 5 2] #
           // max
           ##index_find(index:0 key:$1 max:$2)=$3 # $$(
             (/derry 10 [9 8 7 4 3 1]) (/derry 9 [9 8 7 4 3 1])
@@ -2197,12 +2198,14 @@ describe('scroll', function(){
             (/arik 7 [6 5 2]) (/arik 6 [6 5 2]) (/arik 5 [5 2])
             (/arik 4 [2]) (/arik 3 [2]) (/arik 2 [2]) (/arik 1 [])
             (/arik 0 []))
+          ##index_find(index:0 max:$1)=$2 # $$((6 [4 3 1 6 5 2]))
           // min
           ##index_find(index:0 key:$1 min:$2)=$3 # $$(
             (/derry 0 [9 8 7 4 3 1]) (/derry 1 [9 8 7 4 3 1])
             (/derry 2 [9 8 7 4 3]) (/derry 3 [9 8 7 4 3]) (/derry 4 [9 8 7 4])
             (/derry 5 [9 8 7]) (/derry 6 [9 8 7]) (/derry 7 [9 8 7])
             (/derry 8 [9 8]) (/derry 9 [9]) (/derry 10 []))
+          ##index_find(index:0 min:$1)=$2 # $$((8 [9 8 12 11 10]))
           // max/count
           ##index_find(index:0 key:$1 max:$2 count:$3)=$4 # $$(
             (/derry 9 7 [9 8 7 4 3 1]) (/derry 9 6 [9 8 7 4 3 1])
@@ -2217,6 +2220,7 @@ describe('scroll', function(){
             (/derry 8) (/derry 9) (/arik 10) (/arik 11) (/arik 12))
           ##index_find(dir:up index:0 key:/derry)=[1 3 4 7 8 9] #
           ##index_find(dir:up index:0 key:/arik)=[2 5 6 10 11 12] #
+          ##index_find(dir:up index:0)=[2 5 6 10 11 12 1 3 4 7 8 9] #
           // max
           ##index_find(dir:up index:0 key:$1 max:$2)=$3 # $$(
             (/derry 10 [1 3 4 7 8 9]) (/derry 9 [1 3 4 7 8 9])
@@ -2228,12 +2232,14 @@ describe('scroll', function(){
             (/arik 8 [2 5 6]) (/arik 7 [2 5 6]) (/arik 6 [2 5 6])
             (/arik 5 [2 5]) (/arik 4 [2]) (/arik 3 [2]) (/arik 2 [2])
             (/arik 1 []) (/arik 0 []))
+          ##index_find(dir:up index:0 max:$1)=$2 # $$((7 [2 5 6 1 3 4 7]))
           // min
           ##index_find(dir:up index:0 key:$1 min:$2)=$3 # $$(
             (/derry 0 [1 3 4 7 8 9]) (/derry 1 [1 3 4 7 8 9])
             (/derry 2 [3 4 7 8 9]) (/derry 3 [3 4 7 8 9]) (/derry 4 [4 7 8 9])
             (/derry 5 [7 8 9]) (/derry 6 [7 8 9]) (/derry 7 [7 8 9])
             (/derry 8 [8 9]) (/derry 8 [8 9]) (/derry 9 [9]) (/derry 10 []))
+          ##index_find(dir:up index:0 min:$1)=$2 # $$((9 [10 11 12 9]))
           // count
           ##index_find(dir:up index:0 key:$1 max:$2 count:$3)=$4 # $$(
             (/derry 9 7 [1 3 4 7 8 9]) (/derry 9 6 [1 3 4 7 8 9])
@@ -2629,6 +2635,38 @@ describe('scroll', function(){
           ##index_find(index:0 dir:up key:/arik)=[1 3 5 7]
             #(db_query=${qup(8)} index={$a:7 dn:5 up:8})
           ##index_find(index:0 dir:up key:/arik)=[1 3 5 7] #`);
+        t('query_all_no_mem_find_all_in_steps_dn', `${t_init}
+          // XXX: need to update up/dn in the memory
+          ##index_find(index:0 count:$1)=$2 #(db_query=$3 index=$4)
+          $$((1 [8              ] [index,rev${' next'.repeat(0)}] [])
+             (2 [8 6            ] [index,rev${' next'.repeat(1)}] [])
+             (3 [8 6 4          ] [index,rev${' next'.repeat(2)}] [])
+             (4 [8 6 4 2        ] [index,rev${' next'.repeat(3)}] [])
+             (5 [8 6 4 2 7      ] [index,rev${' next'.repeat(4)}] [])
+             (6 [8 6 4 2 7 5    ] [index,rev${' next'.repeat(5)}] [])
+             (7 [8 6 4 2 7 5 3  ] [index,rev${' next'.repeat(6)}] [])
+             (8 [8 6 4 2 7 5 3 1] [index,rev${' next'.repeat(7)}] [])
+             (9 [8 6 4 2 7 5 3 1] [index,rev${' next'.repeat(8)}] []))
+          ##index_find(index:0 min:$1)=$2 #(db_query=$3 index=$4)
+          $$((4 [8 6 4 7 5] [index,rev${' next'.repeat(8)}] []))
+          ##index_find(index:0 max:$1)=$2 #(db_query=$3 index=$4)
+          $$((4 [4 2 3 1] [index,rev${' next'.repeat(8)}] []))`);
+        t('query_all_no_mem_find_all_in_steps_up', `${t_init}
+          // XXX: need to update up/dn in the memory
+          ##index_find(index:0 dir:up count:$1)=$2 #(db_query=$3 index=$4)
+          $$((1 [1              ] [index${' next'.repeat(0)}] [])
+             (2 [1 3            ] [index${' next'.repeat(1)}] [])
+             (3 [1 3 5          ] [index${' next'.repeat(2)}] [])
+             (4 [1 3 5 7        ] [index${' next'.repeat(3)}] [])
+             (5 [1 3 5 7 2      ] [index${' next'.repeat(4)}] [])
+             (6 [1 3 5 7 2 4    ] [index${' next'.repeat(5)}] [])
+             (7 [1 3 5 7 2 4 6  ] [index${' next'.repeat(6)}] [])
+             (8 [1 3 5 7 2 4 6 8] [index${' next'.repeat(7)}] [])
+             (9 [1 3 5 7 2 4 6 8] [index${' next'.repeat(8)}] []))
+          ##index_find(index:0 dir:up min:$1)=$2 #(db_query=$3 index=$4)
+          $$((4 [5 7 4 6 8] [index${' next'.repeat(8)}] []))
+          ##index_find(index:0 dir:up max:$1)=$2 #(db_query=$3 index=$4)
+          $$((4 [1 3 2 4] [index${' next'.repeat(8)}] []))`);
         t('no_mem_at_end_find_all_dn', `${t_init}
           // 0 1 2 3 4 5 6 7 8
           // -         a       find(max:5 n=1)

@@ -504,16 +504,14 @@ export default class GIT extends FS {
     }
   }); }
   get_root_seq(cfid){ return etask({_: this}, function*get_root_seq(){
-    let _this = this._;
-    let index = _this.index_table?.get_index(cfid, null, 'commit_git_oid');
-    if (!index)
-      return;
-    // XXX HACK: need to find a proper way to do it
-    let min;
-    let a = [...index.avl.keys()].reverse();
-    for (let i=0; i<a.length; i++)
-      min = min ? Math.min(min, a[i].seq) : a[i].seq;
-    return min;
+    let _this = this._, top = _this.conflict.get(cfid).top.seq;
+    for (let i=0; i<=top; i++){
+      let decl = _this.get_decl(i);
+      yield decl.load(cfid);
+      let body = decl.get_body(cfid);
+      if (body.type=='commit')
+        return i;
+    }
   }); }
   git_br_had_value(cfid, br, oid){ return etask({_: this},
     function*git_tag_had_value()

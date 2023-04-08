@@ -2424,7 +2424,6 @@ describe('git', function(){
       // sync({seal: true|false}) --> {type: 'seal', git: {src}}
       // XXX: rewrite old git tests to new format + add one http fetch example
       // XXX: test sync from multi repo
-      // XXX: test change of head
       // XXX: add gpg annotated tag support
       // XXX: tag+gpg
       // XXX: verify we can rebuild sha for git tag

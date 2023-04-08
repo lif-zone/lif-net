@@ -2420,53 +2420,6 @@ describe('git', function(){
         (1  ! !     git_br   add $bm !)
         (2  ! !     git_head add $bm !))
         ##seq3={} verify_git`);
-      return; // XXX WIP
-      // XXX: make test where order of branches doesn't match ancestors
-      t('head', `${t_common}
-        $add_f1 $add_f2 $add_f3 $t $$(
-        (1  !     !      fs     add $m0 dir:/)
-        (1  !     !      fs     add $m0 dir:/)
-        (2  !     $d1    fs     add $mf file:/f1 content:1 f2:d1)
-        (3  !     $oid1  commit add !   group:2 desc:c_f1)
-        (4  !     $d1    fs     add $mf file:/f2 link:4)
-        (5  !     $oid2  commit add !   group:1 desc:c_f2)
-        (6  !     $d1    fs     add $mf file:/f3 link:4)
-        (7  !     $oid3  commit add !   group:1 desc:c_f3))
-      `);
-      t('head', `${t_common}
-        // XXX: {scroll: {git: {main}}}
-        in scroll header is the git_br name on lif main branch
-        // and also means that HEAD of git is top of main
-        s..git(src(github/lif) main:my_main) // XXX: default is 'main'
-        $add_f1 $add_f2 sync $$(
-        (1  !     !      fs     add $m0 dir:/)
-        (2  !     $d1    fs     add $mf file:/f1 content:1 f2:d1)
-        (3  !     $oid1  commit add !   group:2 desc:c_f1)
-        (4  !     $d1    fs     add $mf file:/f2 link:4)
-        (5  !     $oid2  commit add !   group:1 desc:c_f2)
-        $git_br_new(b1) sync $$(
-        (6  5-1.0 $oid2  git_br add !   branch:b1))
-        $add_f3 sync $$(
-        (7  5-1.1 $d1    fs     add $mf file:/f3 link:4)
-        (8  5-1.2 $oid3  commit add !   group:1 desc:c_f3))
-        git_change_head($oid3) sync $$(
-        (9  5-1.3 $oid3  head   mod !   !))
-        $git_br_del(my_main)
-        (10 7     $oid2  git_br rm  !   git_br:my_main))
-        $git_br_add(my_main $oid1) sync $((
-        (11 3-1.0 $oid1  git_br add !   branch:my_main))
-        $git_del_head sync $$(
-        (12 5-1.4 $oid3  head   rm  !   !))
-      `);
-      t('xxx', `${t_common}
-        s..git(src(github/lif))
-        $git_br_new(b1) $add_f1 git_change_head($oid1) sync $$(
-        (1  0-1.0 !      git_br add !   branch:b1)
-        (1  0-1.1 !      fs     add $m0 dir:/)
-        (1  0-1.2 $d1    fs     add $mf file:/f1 content:1 f2:d1)
-        (1  0-1.3 $oid1  commit add !   group:2 desc:c_f1)
-        (1  0-1.4 $oid1  head   mod !   !))
-      `);
       // save sync_event/sync_url (always, only if different than src)
       // sync({seal: true|false}) --> {type: 'seal', git: {src}}
       // XXX: rewrite old git tests to new format + add one http fetch example

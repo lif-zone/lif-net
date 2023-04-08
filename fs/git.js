@@ -97,8 +97,7 @@ export default class GIT extends FS {
       yield git_api.clone({...config});
     }
     let cfid = opt.cfid||0;
-    let git_data = yield _this._get_git(config, {main: opt.main});
-    let main = git_data.main;
+    let git_data = yield _this._get_git(config, opt);
     let curr_git_branches = yield _this.get_git_branches(cfid);
     // delete branches
     for (let i=0; i<curr_git_branches.length; i++){
@@ -121,6 +120,12 @@ export default class GIT extends FS {
         }
       }
       let prev = yield _this.get_git_br_top_seq(cfid, curr);
+      let head = yield _this.get_head(cfid);
+      if (head?.branch==curr){
+        yield _this.decl({cfid, prev}, {type: 'git_head', op: 'rm',
+          git: {branch: head.branch}});
+        prev++;
+      }
       yield _this.decl({cfid, prev}, {type: 'git_br', op: 'rm',
         git: {branch: curr}});
     }
@@ -130,8 +135,7 @@ export default class GIT extends FS {
       let {ignore, commits} = git_data.branch[git_br];
       if (ignore)
         continue;
-      yield _this._sync_commits(config, cfid, main, git_br, commits,
-        merge_queue);
+      yield _this._sync_commits(config, cfid, git_br, commits, merge_queue);
       // add branches that were not added before (no commit after branch oid)
       if (commits.length){
         let top_oid = yield _this.get_git_br_top_oid(cfid, git_br);
@@ -170,12 +174,26 @@ export default class GIT extends FS {
         oid = commit.commit.parent[0];
       }
       let branch = _this.get_avail_branch(cfid, '_null');
-      yield _this._sync_commits(config, cfid, main, branch, commits,
+      yield _this._sync_commits(config, cfid, branch, commits,
         merge_queue);
     }
     yield _this._sync_tags(config, cfid, git_data.tag, flip_protect);
+    let head = yield _this.get_head(cfid);
+    if (head && head.branch!=git_data.main){ // XXX: rename main to head
+      let top = _this.get_bseq_top(cfid, _this.bseq_get(cfid, head.seq));
+      yield _this.decl({cfid, prev: top.seq}, {type: 'git_head', op: 'rm',
+        git: {branch: head.branch}});
+      head = null;
+    }
+    if (!head && git_data.main){
+      let br_seq = yield _this.get_git_br_top_seq(cfid, git_data.main);
+      if (!br_seq)
+        return xerr('cannot find head '+git_data.main);
+      yield _this.decl({cfid, prev: br_seq}, {type: 'git_head', op: 'add',
+        git: {branch: git_data.main}});
+    }
   }); }
-  _sync_commits(config, cfid, main, git_br, commits, merge_queue){
+  _sync_commits(config, cfid, git_br, commits, merge_queue){
     return etask({_: this}, function*_sync_commits()
   {
     let _this = this._;
@@ -279,11 +297,15 @@ export default class GIT extends FS {
   {
     // XXX: detect branch didn't change and make sure we don't work on it
     let _this = this._, main;
+    // XXX || _this._get_main_git_br(config);
     let git_branches = yield git_api.listBranches(config.gitdir ? config :
       {...config, remote: 'origin'});
     if (git_branches.includes('HEAD'))
       array.rm_elm(git_branches, 'HEAD');
-    main = _this.get_decl(0).get_body(0)?.scroll?.git?.main||'main';
+    if (config.gitdir)
+      main = opt.main;
+    else
+      main = yield _this._get_main_git_br(config);
     if (main && git_branches[0]!=main && git_branches.includes(main))
       git_branches.unshift(array.rm_elm(git_branches, main));
     let ret = {root: undefined, main: main, branch: {}, tag: {}}, root;
@@ -644,6 +666,17 @@ export default class GIT extends FS {
     }));
     return git_util.hash('tree', o);
   }); }
+  get_head(cfid){ return etask({_: this}, function*get_head(){
+    let _this = this._;
+    let seq = yield _this.find_one('git_head', {cfid,
+      name: 'git_head_curr_all'});
+    if (!seq)
+      return;
+    let decl = _this.get_decl(seq);
+    yield decl.load(cfid); // XXX: avoid load. get it from index data
+    let body = decl.get_body(cfid);
+    return body.op=='rm' ? undefined : {branch: body.git?.branch, seq};
+  }); }
   verify_git(opt){ return etask({_: this}, function*(){
     let _this = this._, {cfid} = opt, top = _this.conflict.get(cfid).top;
     for (let i=0; i<=top.seq; i++){
@@ -674,12 +707,14 @@ GIT.create = (opt, d)=>etask(function*scroll_create(){
       filter: {type: 'commit'}},
     {name: 'fs_git_oid_all', field: 'git.oid', all_branches: true,
       filter: {type: 'fs'}},
-    // XXX: review git_br_curr with derry - better way?
+    // XXX: unite trasnform git_br_curr & git_head_curr -> git_br
     {name: 'git_br_curr', transform: 'git_br_curr', filter: {type: 'git_br'}},
     {name: 'git_br_all', transform: 'git_br', all_branches: true,
       filter: {type: 'git_br'}},
     {name: 'git_tag_all', field: 'tag', all_branches: true,
       filter: {type: 'tag'}},
+    {name: 'git_head_curr_all', transform: 'git_head_curr',
+      filter: {type: 'git_head'}, all_branches: true},
     ]};
   if (d?.csum_sha256) // XXX: needed?
     s.index.push('csum_sha256');

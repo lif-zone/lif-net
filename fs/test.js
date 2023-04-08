@@ -2426,9 +2426,8 @@ describe('git', function(){
       // XXX: test sync from multi repo
       // XXX: test change of head
       // XXX: add gpg annotated tag support
-      // XXX: verify we can rebuild git sha (file, dir, commit, gpg)+
-      // branches/tags
-      // XXX: fix index hacks
+      // XXX: tag+gpg
+      // XXX: verify we can rebuild sha for git tag
       // XXX: fix macro $$ -> $_ (activate last macro) and support args to
       // macro
       // XXX fix # (to be per filter) and replace tests of ## with #

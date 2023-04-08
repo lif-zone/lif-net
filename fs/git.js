@@ -458,7 +458,7 @@ export default class GIT extends FS {
     let decl = _this.get_decl(seq);
     yield decl.load(cfid); // XXX: avoid load and just use index extra data
     let body = decl.get_body(cfid);
-    if (body.type!='git_br' && seq!=0)
+    if (body.type!='git_br')
       throw new Error('git scroll corruption');
     return body.op!='rm' ? seq : false;
   }); }
@@ -531,41 +531,37 @@ export default class GIT extends FS {
   }); }
   get_git_branches(cfid){ return etask({_: this}, function*get_git_branches(){
     let _this = this._;
-    let index = _this.index_table?.get_index(cfid, null, 'git_br_all');
-    if (!index)
-      return [];
-    // XXX HACK: need to find a proper way to do it
-    let a = [...index.avl.keys()].reverse(), done = {}, ret = [];
-    for (let i=0; i<a.length; i++){
-      let git_br = a[i].key;
+    let iter = yield _this.find_iter({cfid, name: 'git_br_all'});
+    let done = {}, ret = [];
+    for (; iter.curr; yield iter.next()){
+      let git_br = iter.curr.key;
       if (done[git_br])
         continue;
-      let seq = yield _this.get_git_br_seq(cfid, git_br);
       done[git_br] = true;
-      if (!Number.isInteger(seq))
-        continue;
-      ret.push(git_br);
+      let decl = _this.get_decl(iter.curr.seq);
+      yield decl.load(cfid); // XXX: avoid load and just use index extra data
+      let body = decl.get_body(cfid);
+      if (body.type!='git_br')
+        throw new Error('git scroll corruption');
+      if (body.op!='rm')
+        ret.push(git_br);
     }
     return ret;
   }); }
   get_git_tags(cfid){ return etask({_: this}, function*get_git_tags(){
     let _this = this._;
-    let index = _this.index_table?.get_index(cfid, null, 'git_tag_all');
-    if (!index)
-      return [];
-    // XXX HACK: need to find a proper way to do it
-    let a = [...index.avl.keys()].reverse(), done = {}, ret = [];
-    for (let i=0; i<a.length; i++){
-      let tag = a[i].key;
+    let iter = yield _this.find_iter({cfid, name: 'git_tag_all'});
+    let done = {}, ret = [];
+    for (; iter.curr; yield iter.next()){
+      let tag = iter.curr.key;
       if (done[tag])
         continue;
-      let seq = yield _this.get_git_tag_seq(cfid, tag);
       done[tag] = true;
-      if (!Number.isInteger(seq))
-        continue;
-      let decl = _this.get_decl(seq);
-      yield decl.load(cfid); // XXX: avoid load. get it from index data
-      ret.push({tag, oid: decl.get_body(cfid).git?.oid});
+      let decl = _this.get_decl(iter.curr.seq);
+      yield decl.load(cfid); // XXX: avoid load and just use index extra data
+      let body = decl.get_body(cfid);
+      if (body.op!='rm')
+        ret.push({tag, oid: decl.get_body(cfid).git?.oid});
     }
     return ret;
   }); }

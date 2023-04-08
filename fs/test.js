@@ -2432,8 +2432,8 @@ describe('git', function(){
       // macro
       // XXX fix # (to be per filter) and replace tests of ## with #
       // (rm empty ##seq at the end
+      // XXX: need git db test
     });
-
   });
 // XXX TODO:
 // 1. review encode_str

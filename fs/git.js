@@ -549,12 +549,10 @@ export default class GIT extends FS {
   {
     let _this = this._;
     let prev_bseq_top = _this.get_bseq_top(cfid, _this.bseq_get(cfid, prev));
-    let op, decl, br_seq = yield _this.find_one('git_br', {cfid,
+    let op, decl, o = yield _this.find_one_data('git_br', {cfid,
       bseq: prev_bseq_top.bseq, name: 'git_br_curr'});
-    if (br_seq){
-      // XXX: avoid load. get it from index data
-      let body = yield _this.load_body(cfid, br_seq);
-      op = body?.op;
+    if (o){
+      op = o.data?.op;
       if (op=='rm')
         prev = prev_bseq_top.seq;
     }
@@ -667,7 +665,8 @@ GIT.create = (opt, d)=>etask(function*scroll_create(){
     {name: 'fs_git_oid_all', field: 'git.oid', all_branches: true,
       filter: {type: 'fs'}},
     // XXX: unite trasnform git_br_curr & git_head_curr -> git_br
-    {name: 'git_br_curr', transform: 'git_br_curr', filter: {type: 'git_br'}},
+    {name: 'git_br_curr', transform: 'git_br_curr', filter: {type: 'git_br'},
+      data: 'op'},
     {name: 'git_br_all', transform: 'git_br', all_branches: true,
       filter: {type: 'git_br'}, data: ['op', 'git.oid']},
     {name: 'git_tag_all', field: 'tag', all_branches: true,

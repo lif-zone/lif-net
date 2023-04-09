@@ -595,19 +595,16 @@ export default class GIT extends FS {
     for (; iter.curr; yield iter.next()){
       let f = iter.curr.path;
       if (FS.valid_file(f)){
-        // XXX: improve ls_iter to avoid call get_file_seq
-        let fseq = yield _this.get_file_seq(cfid, bseq, seq, f);
-        let body = yield _this.load_body(cfid, fseq);
+        let o = yield _this.get_file_seq_data(cfid, bseq, seq, f);
+        // XXX: use sha from decl and verify file sha during insert
         let sha = yield _this.calc_sha_file({cfid, seq, file: f});
-        if (sha!=body?.git.oid)
+        if (sha!=o.data?.git?.oid)
           throw new Error('file sha mismatch '+f+' seq'+seq);
-        a.push({file: f, mode: body?.git?.mode,
+        a.push({file: f, mode: o.data?.git?.mode,
           name: FS.split(f).name, type: 'blob', sha});
       } else if (FS.valid_dir(f)){
-        // XXX: improve ls_iter to avoid call get_dir_seq
-        let fseq = yield _this.get_dir_seq(cfid, bseq, seq, f);
-        let body = yield _this.load_body(cfid, fseq);
-        a.push({dir: f, mode: body?.git?.mode,
+        let o = yield _this.get_dir_seq_data(cfid, bseq, seq, f);
+        a.push({dir: f, mode: o.data?.git?.mode,
           name: FS.split(f).name, type: 'tree',
           sha: yield _this.calc_sha_dir({cfid, seq, dir: f})});
       } else
@@ -617,11 +614,11 @@ export default class GIT extends FS {
     // XXX: review isomorphic git compareTreeEntryPath
     a.sort((x, y)=>string.cmp(x.file||x.dir, y.file||y.dir));
     let o = Buffer.concat(a.map(o=>{
-      const mode = Buffer.from(o.mode.replace(/^0/, ''));
+      const mode = Buffer.from((o.mode||'').replace(/^0/, ''));
       const space = Buffer.from(' ');
-      const path = Buffer.from(o.name, 'utf8');
+      const path = Buffer.from(o.name||'', 'utf8');
       const nullchar = Buffer.from([0]);
-      const oid = Buffer.from(o.sha, 'hex');
+      const oid = Buffer.from(o.sha||'', 'hex');
       return Buffer.concat([mode, space, path, nullchar, oid]);
     }));
     return git_util.hash('tree', o);
@@ -654,10 +651,10 @@ GIT.create = (opt, d)=>etask(function*scroll_create(){
   // extend it)
   let s = {crypt: Scroll.supported_crypt[0], pub: b2s(opt.pub), ...d,
     csum_sha1: true, index: [
-    {name: 'file', field: 'file', data: ['op', 'git.oid']},
-    {name: 'dir', field: 'dir', data: 'op'},
+    {name: 'file', field: 'file', data: ['op', 'git.oid', 'git.mode']},
+    {name: 'dir', field: 'dir', data: ['op', 'git.mode']},
     {name: 'dir_list', transform: 'decl_get_dir', filter: {op: ['add', 'rm']},
-      data: ['file', 'dir', 'op', 'git.oid', 'git.mode']},
+      data: ['file', 'dir', 'op']},
     {name: 'commit_git_oid', field: 'git.oid',
       filter: {type: 'commit'}},
     {name: 'commit_git_oid_all', field: 'git.oid', all_branches: true,

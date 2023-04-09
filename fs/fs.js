@@ -275,7 +275,7 @@ export default class FS extends Scroll {
     iter.next = ()=> etask({_: this}, function*ls_iter(){
       iter.curr = null;
       for (; diter.curr; yield diter.next()){
-        let {data} = diter.curr;
+        let {seq, data} = diter.curr;
         let path = data?.file||data?.dir;
         assert(['add', 'rm'].includes(data?.op), 'invalid op '+data?.op);
         if (done[path])
@@ -283,7 +283,7 @@ export default class FS extends Scroll {
         done[path] = true;
         if (data?.op=='rm')
           continue;
-        iter.curr = {path};
+        iter.curr = {seq, path, data};
         break;
       }
       if (diter.curr)

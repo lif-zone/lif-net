@@ -277,14 +277,13 @@ export default class FS extends Scroll {
     iter.next = ()=> etask({_: this}, function*ls_iter(){
       iter.curr = null;
       for (; diter.curr; yield diter.next()){
-        let decl = _this.get_decl(diter.curr.seq);
-        yield decl.load(cfid);
-        let body = decl.get_body(cfid), path = body.file||body.dir;
-        assert(['add', 'rm'].includes(body.op), 'invalid op '+body.op);
+        let {data} = diter.curr;
+        let path = data?.file||data?.dir;
+        assert(['add', 'rm'].includes(data?.op), 'invalid op '+data?.op);
         if (done[path])
           continue;
         done[path] = true;
-        if (body.op=='rm')
+        if (data?.op=='rm')
           continue;
         iter.curr = path;
         break;
@@ -348,7 +347,8 @@ FS.create = (opt, d)=>etask(function*scroll_create(){
   // XXX: add option for csum_sha256/len
   let s = {crypt: Scroll.supported_crypt[0], pub: b2s(opt.pub), ...d,
     index: ['file', 'dir', {name: 'dir_list',
-    transform: 'decl_get_dir', filter: {op: ['add', 'rm']}}]};
+    transform: 'decl_get_dir', filter: {op: ['add', 'rm']},
+    data: ['file', 'dir', 'op']}]};
   if (d?.csum_sha256)
     s.index.push('csum_sha256');
   if (d?.csum_sha1)

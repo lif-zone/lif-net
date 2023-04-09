@@ -1283,6 +1283,7 @@ export default class Scroll extends EventEmitterAsync {
   hash_str(buf){ return b2s(crypto.hash(this.crypt, buf)); }
   find(key, opt){ return this.index_table?.find(key, opt); }
   find_one(key, opt){ return this.index_table?.find_one(key, opt); }
+  find_one_data(key, opt){ return this.index_table?.find_one_data(key, opt); }
   find_iter(key, opt){ return this.index_table?.find_iter(key, opt); }
   get_section(cfid, seq){
     return this.conflict.get(cfid).mem_map.get_section(seq); }

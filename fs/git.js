@@ -472,14 +472,8 @@ export default class GIT extends FS {
     function*get_git_br_seq()
   {
     let _this = this._;
-    let seq = yield _this.find_one(git_br, {cfid, name: 'git_br_all'});
-    if (!Number.isInteger(seq))
-      return false;
-    // XXX: avoid load and just use index extra data
-    let body = yield _this.load_body(cfid, seq);
-    if (body.type!='git_br')
-      throw new Error('git scroll corruption');
-    return body.op!='rm' ? seq : false;
+    let o = yield _this.find_one_data(git_br, {cfid, name: 'git_br_all'});
+    return o && o.data?.op!='rm' ? o.seq : false;
   }); }
   git_tag_exists(cfid, tag){ return etask({_: this}, function*git_tag_exists(){
     return Number.isInteger(yield this._.get_git_tag_seq(cfid, tag));
@@ -488,23 +482,15 @@ export default class GIT extends FS {
     function*get_git_tag_seq()
   {
     let _this = this._;
-    let seq = yield _this.find_one(tag, {cfid, name: 'git_tag_all'});
-    if (!Number.isInteger(seq))
-      return false;
-    // XXX: avoid load and just use index extra data
-    let body = yield _this.load_body(cfid, seq);
-    return body.op!='rm' ? seq : undefined;
+    let o = yield _this.find_one_data(tag, {cfid, name: 'git_tag_all'});
+    return o && o.data?.op!='rm' ? o.seq : false;
   }); }
   get_git_tag_oid(cfid, tag){ return etask({_: this},
       function*get_git_tag_oid()
   {
     let _this = this._;
-    let seq = yield _this.find_one(tag, {cfid, name: 'git_tag_all'});
-    if (!Number.isInteger(seq))
-      return false;
-    // XXX: avoid load and just use index extra data
-    let body = yield _this.load_body(cfid, seq);
-    return body.op!='rm' ? body.git?.oid : undefined;
+    let o = yield _this.find_one_data(tag, {cfid, name: 'git_tag_all'});
+    return o && o.data?.op!='rm' ? o.data.git?.oid : false;
   }); }
   git_tag_had_value(cfid, tag, oid){ return etask({_: this},
     function*git_tag_had_value()
@@ -648,13 +634,9 @@ export default class GIT extends FS {
   }); }
   get_head(cfid){ return etask({_: this}, function*get_head(){
     let _this = this._;
-    let seq = yield _this.find_one('git_head', {cfid,
+    let o = yield _this.find_one_data('git_head', {cfid,
       name: 'git_head_curr_all'});
-    if (!seq)
-      return;
-    // XXX: avoid load. get it from index data
-    let body = yield _this.load_body(cfid, seq);
-    return body.op=='rm' ? undefined : {branch: body.git?.branch, seq};
+    return o && o.data?.op!='rm' && {branch: o.data?.git?.branch, seq: o.seq};
   }); }
   verify_git(opt){ return etask({_: this}, function*(){
     let _this = this._, {cfid} = opt, top = _this.conflict.get(cfid).top;
@@ -691,7 +673,8 @@ GIT.create = (opt, d)=>etask(function*scroll_create(){
     {name: 'git_tag_all', field: 'tag', all_branches: true,
       filter: {type: 'tag'}, data: ['op', 'git.oid']},
     {name: 'git_head_curr_all', transform: 'git_head_curr',
-      filter: {type: 'git_head'}, all_branches: true},
+      filter: {type: 'git_head'}, data: ['op', 'git.branch'],
+      all_branches: true},
     ]};
   if (d?.csum_sha256) // XXX: needed?
     s.index.push('csum_sha256');

@@ -442,10 +442,15 @@ class Index_table {
       yield _this.on_data({cfid, seq, bseq, data});
     }
   });
-  find_one(key, opt){ return etask({_: this}, function*find(){
+  find_one(key, opt){ return etask({_: this}, function*find_one(){
     let _this = this._;
     assert.strictEqual(opt.count, undefined, 'count not allowed');
     return (yield _this.find(key, {...opt, count: 1}))?.[0];
+  }); }
+  find_one_data(key, opt){ return etask({_: this}, function*find_one_data(){
+    let _this = this._;
+    assert.strictEqual(opt.count, undefined, 'count not allowed');
+    return (yield _this.find_data(key, {...opt, count: 1}))?.[0];
   }); }
   find(key, opt){ return etask({_: this}, function*find(){
     let _this = this._, {count} = opt, ret = [];
@@ -454,6 +459,19 @@ class Index_table {
     let iter = yield _this.find_iter(key, opt);
     while (iter.curr){
       ret.push(iter.curr.seq);
+      if (count && ret.length==count)
+        return ret;
+      yield iter.next();
+    }
+    return ret;
+  }); }
+  find_data(key, opt){ return etask({_: this}, function*find_data(){
+    let _this = this._, {count} = opt, ret = [];
+    if (count===undefined)
+      count = 1;
+    let iter = yield _this.find_iter(key, opt);
+    while (iter.curr){
+      ret.push({seq: iter.curr.seq, data: iter.curr.data});
       if (count && ret.length==count)
         return ret;
       yield iter.next();

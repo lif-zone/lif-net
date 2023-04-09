@@ -437,7 +437,6 @@ export default class GIT extends FS {
     let top_seq = yield _this.get_git_br_top_seq(cfid, git_br, 'commit');
     if (!top_seq)
       return;
-    // XXX: review all load, try to mv to index data
     return (yield _this.load_body(cfid, top_seq))?.git?.oid;
   }); }
   get_git_br_top_seq(cfid, git_br, type){ return etask({_: this},

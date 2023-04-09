@@ -32,7 +32,8 @@ export default class FS extends Scroll {
     let branch_prev = _this.bseq_to_branch(cfid, bseq_prev);
     let top_prev = _this.get_branch_top(cfid, branch_prev);
     let first = true;
-    const cb = path=>etask(function*rm_dir_cb(){
+    const cb = o=>etask(function*rm_dir_cb(){
+      let path = o.path;
       if (first)
         first = false;
       n++;
@@ -282,7 +283,7 @@ export default class FS extends Scroll {
         done[path] = true;
         if (data?.op=='rm')
           continue;
-        iter.curr = path;
+        iter.curr = {path};
         break;
       }
       if (diter.curr)
@@ -307,7 +308,8 @@ export default class FS extends Scroll {
   {
     let _this = this._, ret = [];
     assert(dir=='' || valid_dir(dir), 'invalid dir '+dir);
-    let cb = path=>{
+    let cb = o=>{
+      let path = o.path;
       ret.push(path);
       if (valid_dir(path))
         return _this.ls_foreach(cfid, bseq_top, seq, path, cb);

@@ -377,10 +377,10 @@ export default class GIT extends FS {
     let top = prev ? prev : _this.conflict.get(cfid).top.seq;
     let iter = yield _this.ls_iter(cfid, _this.bseq_get(cfid, top), top, dir);
     for (; iter.curr; yield iter.next()){
-      if (dir_list[iter.curr])
+      if (dir_list[iter.curr.path])
         continue;
       // XXX: fix rm so prev is used only once
-      n += yield _this.rm(iter.curr, {cfid, prev});
+      n += yield _this.rm(iter.curr.path, {cfid, prev});
       prev = undefined;
     }
     for (let i=0, e; e = tree[i]; i++){
@@ -593,7 +593,7 @@ export default class GIT extends FS {
     let a = [];
     let iter = yield _this.ls_iter(cfid, bseq, seq, dir);
     for (; iter.curr; yield iter.next()){
-      let f = iter.curr;
+      let f = iter.curr.path;
       if (FS.valid_file(f)){
         // XXX: improve ls_iter to avoid call get_file_seq
         let fseq = yield _this.get_file_seq(cfid, bseq, seq, f);

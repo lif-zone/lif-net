@@ -2420,32 +2420,20 @@ describe('git', function(){
         (1  ! !     git_br   add $bm !)
         (2  ! !     git_head add $bm !))
         ##seq3={} verify_git`);
-      // sync({seal: true|false}) --> {type: 'seal', git: {src}}
-      // XXX: rewrite old git tests to new format + add one http fetch example
-      // XXX: test sync from multi repo
-      // XXX: add gpg annotated tag support
-      // XXX: tag+gpg
-      // XXX: verify we can rebuild sha for git tag
-      // XXX: fix macro $$ -> $_ (activate last macro) and support args to
-      // macro
-      // XXX fix # (to be per filter) and replace tests of ## with #
-      // (rm empty ##seq at the end
-      // XXX: need git db test
-      // code cleanup
     });
   });
-// XXX TODO:
-// 1. review encode_str
-// 2. add test for same git branch name, but different branches
-// 3. add missing commit info
-// 4. static tag support
-// 5. verify I can rebuilt all git oid (file/dir/commit sha)
-// 6. detect that scroll was changed without git?
-// git git+a git+a+b git+a+b+c....
-// git git+a git+A       git+a+b git+a+b+c...
-//    git+a+A-(A & a)   git+a+A-(A&a)+b-(b&&a...)
-// 7. db test
-// 8. conflict test
-// 9. XXX cleanup
 });
-
+// XXX: add extra_data to index
+// XXX: sync({seal: true|false}) --> {type: 'seal', git: {src}}
+// XXX: rewrite 2 old GIT tests to new format
+// XXX: add gpg annotated tag support + verify we can rebuilt sha
+// XXX: detect branch didn't change and make sure we don't work on it
+// XXX: when doing sync, just get latest commits since last sync
+// XXX: don't load all commits into memory
+// XXX: improve ls_iter to avoid call get_file_seq
+// XXX: support sort by abc in ls_iter
+// XXX: add missing tests (db test, conflict test)
+// XXX: cleanup
+// XXX: fix macro $$ -> $_ (activate last macro) and support args to macro
+// XXX: fix # (to be per filter) and replace tests of ## with #
+//      (rm empty ##seq at the end

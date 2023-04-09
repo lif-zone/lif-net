@@ -298,7 +298,6 @@ export default class GIT extends FS {
   {
     // XXX: detect branch didn't change and make sure we don't work on it
     let _this = this._, main;
-    // XXX || _this._get_main_git_br(config);
     let git_branches = yield git_api.listBranches(config.gitdir ? config :
       {...config, remote: 'origin'});
     if (git_branches.includes('HEAD'))
@@ -593,7 +592,6 @@ export default class GIT extends FS {
       decl = yield _this.decl({cfid, prev}, {type: 'git_br', op: 'add',
         git: {oid, branch: git_br}});
     } else {
-      // XXX: need to make sure banch is unique
       let branch = _this.get_avail_branch(cfid, git_br);
       decl = yield _this.decl({cfid, branch, prev}, {type: 'git_br',
         op: 'add', git: branch==git_br ? oid ? {oid} : undefined :
@@ -620,7 +618,6 @@ export default class GIT extends FS {
   }
   calc_sha_file(opt){ return etask({_: this}, function*calc_sha_file(){
     let _this = this._, {file, cfid, seq} = opt;
-    // XXX: use seq to get file
     let buf = yield _this.get_file(file, {cfid: cfid, seq});
     if (!buf)
       return;

@@ -70,11 +70,10 @@ function decl_git_head_curr(h, body){
 }
 
 // XXX: need test
-function data_filter(h, data, cfid, desc){
+function data_filter(h, body, desc){
   let {filter} = desc;
   if (!filter)
     return true;
-  let body = data.get_body(cfid);
   for (let f in filter){
     let allowed = filter[f];
     if (!Array.isArray(allowed) && body[f]!=allowed)
@@ -86,8 +85,8 @@ function data_filter(h, data, cfid, desc){
 }
 
 // XXX: need test
-function key_from_data(h, data, cfid, desc){
-  let body = data.get_body(cfid), {field, transform, specific} = desc;
+function key_from_data(h, body, desc){
+  let {field, transform, specific} = desc;
   if (specific)
     throw new Error('XXX '+specific);
   if (!transform)
@@ -114,10 +113,12 @@ export default class Index {
   on_data(e){
     let {cfid, seq, data} = e;
     let scroll = this.scroll, decl = scroll.get_decl(seq, {create: false});
-    let h = decl.get_header(cfid);
-    if (!data_filter(h, data, cfid, this.desc))
+    let h = decl.get_header(cfid), body = data.get_body(cfid);
+    if (!h || !body)
       return;
-    let key = key_from_data(h, data, cfid, this.desc);
+    if (!data_filter(h, body, this.desc))
+      return;
+    let key = key_from_data(h, body, this.desc);
     if (key===undefined || key===null)
       return;
     let curr = this.find_mem_iter(key, {min: seq, max: seq})?.curr;

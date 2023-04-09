@@ -131,42 +131,32 @@ export default class FS extends Scroll {
   }); }
   file_exists(file, opt){ return etask({_: this}, function*file_exists(){
     assert(valid_file(file), 'invalid file '+file);
-    let _this = this._, {branch, prev, cfid} = _this.parse_opt(opt), seq;
+    let _this = this._, {branch, prev, cfid} = _this.parse_opt(opt), o;
     if (prev!==undefined)
-      seq = yield _this.get_file_seq(cfid, null, prev, file);
+      o = yield _this.get_file_seq_data(cfid, null, prev, file);
     else {
       let top = _this.get_branch_top(cfid, branch||null);
       if (!top){
-        seq = yield _this.get_file_seq(cfid, null,
+        o = yield _this.get_file_seq_data(cfid, null,
           _this.conflict.get(cfid).top.seq, file);
       } else
-        seq = yield _this.get_file_seq(cfid, top.bseq, top.seq, file);
+        o = yield _this.get_file_seq_data(cfid, top.bseq, top.seq, file);
     }
-    if (!seq)
-      return false;
-    let decl = _this.get_decl(seq);
-    yield decl.load(cfid, {data: true});
-    let body = decl.get_body(cfid);
-    return ['add', 'mod'].includes(body.op);
+    return ['add', 'mod'].includes(o?.data?.op);
   }); }
   dir_exists(dir, opt){ return etask({_: this}, function*dir_exists(){
-    let _this = this._, {branch, prev, cfid} = _this.parse_opt(opt), seq;
+    let _this = this._, {branch, prev, cfid} = _this.parse_opt(opt), o;
     if (prev!==undefined)
-      seq = yield _this.get_dir_seq(cfid, null, prev, dir);
+      o = yield _this.get_dir_seq_data(cfid, null, prev, dir);
     else {
       let top = _this.get_branch_top(cfid, branch||null);
       if (!top){
-        seq = yield _this.get_dir_seq(cfid, null,
+        o = yield _this.get_dir_seq_data(cfid, null,
           _this.conflict.get(cfid).top.seq, dir);
       } else
-        seq = yield _this.get_dir_seq(cfid, top.bseq, top.seq, dir);
+        o = yield _this.get_dir_seq_data(cfid, top.bseq, top.seq, dir);
     }
-    if (!seq)
-      return false;
-    let decl = _this.get_decl(seq);
-    yield decl.load(cfid, {data: true});
-    let body = decl.get_body(cfid);
-    return ['add', 'mod'].includes(body.op);
+    return ['add', 'mod'].includes(o?.data?.op);
   }); }
   get_file(file, opt){ return etask({_: this}, function*get_file(){
     let _this = this._;
@@ -268,6 +258,13 @@ export default class FS extends Scroll {
       bseq_top = this.bseq_get(cfid, seq);
     return this.find_one(dir, {name: 'dir', cfid, bseq: bseq_top, max: seq});
   }
+  get_dir_seq_data(cfid, bseq_top, seq, dir){
+    // XXX: mv this logic to find_one
+    if (bseq_top===undefined || bseq_top===null)
+      bseq_top = this.bseq_get(cfid, seq);
+    return this.find_one_data(dir, {name: 'dir', cfid, bseq: bseq_top,
+      max: seq});
+  }
    ls_iter(cfid, bseq_top, seq, dir){
     return etask({_: this}, function*ls_iter()
   {
@@ -346,8 +343,9 @@ FS.create = (opt, d)=>etask(function*scroll_create(){
   // XXX: add type/topic: 'fs'
   // XXX: add option for csum_sha256/len
   let s = {crypt: Scroll.supported_crypt[0], pub: b2s(opt.pub), ...d,
-    index: ['file', 'dir', {name: 'dir_list',
-    transform: 'decl_get_dir', filter: {op: ['add', 'rm']},
+    index: [{name: 'file', field: 'file', data: 'op'},
+    {name: 'dir', field: 'dir', data: 'op'},
+    {name: 'dir_list', transform: 'decl_get_dir', filter: {op: ['add', 'rm']},
     data: ['file', 'dir', 'op']}]};
   if (d?.csum_sha256)
     s.index.push('csum_sha256');

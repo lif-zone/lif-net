@@ -650,10 +650,12 @@ GIT.create = (opt, d)=>etask(function*scroll_create(){
   assert(d.git?.src, 'missing git src');
   let git = new GIT(opt);
   yield git.init();
-  // XXX: reuse code from FS.create and call FS.create
+  // XXX: reuse code from FS.create and call FS.create (inherit index and
+  // extend it)
   let s = {crypt: Scroll.supported_crypt[0], pub: b2s(opt.pub), ...d,
-    csum_sha1: true, index: [{name: 'file', field: 'file', data: 'git.oid'},
-    'dir',
+    csum_sha1: true, index: [
+    {name: 'file', field: 'file', data: ['op', 'git.oid']},
+    {name: 'dir', field: 'dir', data: 'op'},
     {name: 'dir_list', transform: 'decl_get_dir', filter: {op: ['add', 'rm']},
       data: ['file', 'dir', 'op', 'git.oid', 'git.mode']},
     {name: 'commit_git_oid', field: 'git.oid',

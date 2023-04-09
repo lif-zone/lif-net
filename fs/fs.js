@@ -255,6 +255,13 @@ export default class FS extends Scroll {
       bseq_top = this.bseq_get(cfid, seq);
     return this.find_one(file, {name: 'file', cfid, bseq: bseq_top, max: seq});
   }
+  get_file_seq_data(cfid, bseq_top, seq, file){
+    // XXX: mv this logic to find_one
+    if (bseq_top===undefined || bseq_top===null)
+      bseq_top = this.bseq_get(cfid, seq);
+    return this.find_one_data(file, {name: 'file',
+      cfid, bseq: bseq_top, max: seq});
+  }
   get_dir_seq(cfid, bseq_top, seq, dir){
     // XXX: mv this logic to find_one
     if (bseq_top===undefined || bseq_top===null)

@@ -384,19 +384,16 @@ export default class GIT extends FS {
       prev = undefined;
     }
     for (let i=0, e; e = tree[i]; i++){
-      let file, _dir, body, prev_seq, blob, link;
+      let file, _dir, body, prev_o, blob, link;
       switch (e.type){
       case 'blob':
         file = dir+e.path;
         dir_list[file] = true;
         top = prev ? prev : _this.conflict.get(cfid).top.seq;
-        prev_seq = yield _this.get_file_seq(cfid, _this.bseq_get(cfid, top),
-          top, file);
-        if (prev_seq){
-          let prev_body = yield _this.load_body(cfid, prev_seq);
-          if (prev_body?.git?.oid==e.oid)
-            break;
-        }
+        prev_o = yield _this.get_file_seq_data(cfid,
+          _this.bseq_get(cfid, top), top, file);
+        if (prev_o?.data?.git?.oid==e.oid)
+          break;
         body = {git: {oid: e.oid, mode: e.mode}};
         blob = (yield git_api.readBlob({...config, oid: e.oid})).blob;
         blob = blob ? Buffer.from(blob) : null;
@@ -656,8 +653,9 @@ GIT.create = (opt, d)=>etask(function*scroll_create(){
   yield git.init();
   // XXX: reuse code from FS.create and call FS.create
   let s = {crypt: Scroll.supported_crypt[0], pub: b2s(opt.pub), ...d,
-    csum_sha1: true, index: ['file', 'dir', {name: 'dir_list',
-    transform: 'decl_get_dir', filter: {op: ['add', 'rm']}},
+    csum_sha1: true, index: [{name: 'file', field: 'file', data: 'git.oid'},
+    'dir',
+    {name: 'dir_list', transform: 'decl_get_dir', filter: {op: ['add', 'rm']}},
     {name: 'commit_git_oid', field: 'git.oid',
       filter: {type: 'commit'}},
     {name: 'commit_git_oid_all', field: 'git.oid', all_branches: true,

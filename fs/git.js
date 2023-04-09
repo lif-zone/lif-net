@@ -511,13 +511,8 @@ export default class GIT extends FS {
   {
     let _this = this._;
     let iter = yield _this.find_iter(tag, {cfid, name: 'git_tag_all'});
-    for (; iter.curr; yield iter.next()){
-      let seq = iter.curr.seq;
-      // XXX: avoid load and just use index extra data
-      let body = yield _this.load_body(cfid, seq);
-      if (body.git?.oid==oid)
-        return true;
-    }
+    for (; iter.curr && iter.curr.data?.git?.oid!=oid; yield iter.next());
+    return !!iter.curr;
   }); }
   get_root_seq(cfid){ return etask({_: this}, function*get_root_seq(){
     let _this = this._, top = _this.conflict.get(cfid).top.seq;
@@ -532,13 +527,8 @@ export default class GIT extends FS {
   {
     let _this = this._;
     let iter = yield _this.find_iter(br, {cfid, name: 'git_br_all'});
-    for (; iter.curr; yield iter.next()){
-      let seq = iter.curr.seq;
-      // XXX: avoid load and just use index extra data
-      let body = yield _this.load_body(cfid, seq);
-      if (body.git?.oid==oid)
-        return true;
-    }
+    for (; iter.curr && iter.curr.data?.git?.oid!=oid; yield iter.next());
+    return !!iter.curr;
   }); }
   get_git_branches(cfid){ return etask({_: this}, function*get_git_branches(){
     let _this = this._;
@@ -549,11 +539,7 @@ export default class GIT extends FS {
       if (done[git_br])
         continue;
       done[git_br] = true;
-      // XXX: avoid load and just use index extra data
-      let body = yield _this.load_body(cfid, iter.curr.seq);
-      if (body.type!='git_br')
-        throw new Error('git scroll corruption');
-      if (body.op!='rm')
+      if (iter.curr.data?.op!='rm')
         ret.push(git_br);
     }
     return ret;
@@ -567,10 +553,8 @@ export default class GIT extends FS {
       if (done[tag])
         continue;
       done[tag] = true;
-      // XXX: avoid load and just use index extra data
-      let body = yield _this.load_body(cfid, iter.curr.seq);
-      if (body.op!='rm')
-        ret.push({tag, oid: body.git?.oid});
+      if (iter.curr.data?.op!='rm')
+        ret.push({tag, oid: iter.curr.data?.git?.oid});
     }
     return ret;
   }); }
@@ -703,9 +687,9 @@ GIT.create = (opt, d)=>etask(function*scroll_create(){
     // XXX: unite trasnform git_br_curr & git_head_curr -> git_br
     {name: 'git_br_curr', transform: 'git_br_curr', filter: {type: 'git_br'}},
     {name: 'git_br_all', transform: 'git_br', all_branches: true,
-      filter: {type: 'git_br'}},
+      filter: {type: 'git_br'}, data: ['op', 'git.oid']},
     {name: 'git_tag_all', field: 'tag', all_branches: true,
-      filter: {type: 'tag'}},
+      filter: {type: 'tag'}, data: ['op', 'git.oid']},
     {name: 'git_head_curr_all', transform: 'git_head_curr',
       filter: {type: 'git_head'}, all_branches: true},
     ]};

@@ -2423,13 +2423,12 @@ describe('git', function(){
     });
   });
 });
-// XXX: add extra_data to index
+// XXX: add data to index
 // XXX: sync({seal: true|false}) --> {type: 'seal', git: {src}}
 // XXX: rewrite 2 old GIT tests to new format
 // XXX: add gpg annotated tag support + verify we can rebuilt sha
-// XXX: detect branch didn't change and make sure we don't work on it
+// XXX: detect branch didn't change and make sure we don't do work on it
 // XXX: when doing sync, just get latest commits since last sync
-// XXX: don't load all commits into memory
 // XXX: improve ls_iter to avoid call get_file_seq
 // XXX: support sort by abc in ls_iter
 // XXX: add missing tests (db test, conflict test)

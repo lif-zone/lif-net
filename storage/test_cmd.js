@@ -126,6 +126,8 @@ function test_parse_index(str){
       let o = js_struct_from_str(curr.exp);
       if (o.filter)
         o.filter = test_parse_filter(rm_parentesis(o.filter, '{'));
+      if (o.data)
+        o.data = get_array_str(o.data);
       ret.push(o);
     }
   }
@@ -820,11 +822,9 @@ const state_split = (exp, def)=>etask(function*state_split(){
     if ('db_query'==o.l)
       return {...state_split_var(o.l, def), val: get_array_str(o.r)};
     if ('index'==o.l)
-      return {...state_split_var(o.l, def), val: get_index_array(o.r)};
-    if ('db_index'==o.l){
-      return {...state_split_var(o.l, def),
-        val: get_array(o.r, {num: ['id', 'seq']})};
-    }
+      return {...state_split_var(o.l, def), val: get_index_array(o.r, false)};
+    if ('db_index'==o.l)
+      return {...state_split_var(o.l, def), val: get_index_array(o.r, true)};
     if (/^index_find/.test(o.l))
       return {...state_split_var(o.l, def), val: get_array_int(o.r)};
     if (/^index_table/.test(o.l))
@@ -1372,13 +1372,17 @@ function get_btable(s){
   return bo;
 }
 
-function get_index_array(s){
+function get_index_array(s, skip_up_dn){
   let ret = get_array(s, {num: ['id', 'seq', 'up', 'dn'], bool: ['query']});
   ret.forEach(o=>{
-    if (o.dn===undefined)
-      o.dn = o.seq;
-    if (o.up===undefined)
-      o.up = o.seq;
+    if (!skip_up_dn){
+      if (o.dn===undefined)
+        o.dn = o.seq;
+      if (o.up===undefined)
+        o.up = o.seq;
+    }
+    if (o.data)
+      o.data = js_struct_from_str(o.data);
   });
   return ret;
 }
@@ -1414,6 +1418,8 @@ function get_array_db_index_table(name, s){
     assert(desc, 'index '+o.name+' not found for scroll '+name);
     o.field = desc.field;
     o.type = desc.type;
+    if (o.data)
+      o.data = get_array_str(o.data);
   });
   return ret;
 }

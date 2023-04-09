@@ -2,6 +2,7 @@
 'use strict';
 import assert from 'assert';
 import etask from '../util/etask.js';
+import xerr from '../util/xerr.js';
 import util from '../util/util.js';
 import Branch_table from './branch.js';
 const {bseq_branch} = Branch_table;
@@ -100,6 +101,27 @@ function key_from_data(h, body, desc){
   }
 }
 
+// XXX: need test
+function data_from_data(h, body, desc){
+  let data, a = desc.data;
+  if (!a)
+    return;
+  if (typeof a =='string')
+    a = [desc.data];
+  else if (!Array.isArray(a)){
+    xerr('invalid data %O', a);
+    return;
+  }
+  a.forEach(path=>{
+    let val = util.get(body, path);
+    if (val===undefined)
+      return;
+    data = data||{};
+    util.set(data, path, val);
+  });
+  return data;
+}
+
 export default class Index {
   constructor(opt){
     let {scroll, id, cfid, bseqb, desc} = opt;
@@ -124,13 +146,21 @@ export default class Index {
     let curr = this.find_mem_iter(key, {min: seq, max: seq})?.curr;
     if (curr)
       return;
-    this.avl.insert({key, seq, dn: seq, up: seq});
+    let _data = data_from_data(h, body, this.desc);
+    let node = this.avl.insert({key, seq, dn: seq, up: seq});
+    if (_data)
+      node.key.data = _data;
     // XXX: need is_loading
     if (scroll.storage && decl?.db?.cfid?.[e.cfid]?.busy)
       return;
-    this.schedule_db(key, seq);
+    this.schedule_db(key, seq, _data);
   }
-  schedule_db(key, seq){ this.storage_queue.push({id: this.id, key, seq}); }
+  schedule_db(key, seq, data){
+    let o = {id: this.id, key, seq};
+    if (data)
+      o.data = data;
+    this.storage_queue.push(o);
+  }
   find_mem_iter(key, opt={}){
     let avl = this.avl, Q = [], cmp = avl._comparator, node = avl._root;
     let {min, max, dir} = opt, iter = {};
@@ -279,7 +309,7 @@ export default class Index {
         }
         return db_iter = null;
       }
-      let seq = db_iter.curr.seq, curr;
+      let {seq, data} = db_iter.curr, curr;
       if (dir=='up'){
         curr = {key, seq, dn: prev ? prev.seq : mem_prev_edge, up: seq};
         if (prev)
@@ -289,6 +319,8 @@ export default class Index {
         if (prev)
           prev.dn = seq;
       }
+      if (data)
+        curr.data = data;
       return prev = iter.curr = _this.avl.insert(curr).key;
     });
     iter.next = ()=>{

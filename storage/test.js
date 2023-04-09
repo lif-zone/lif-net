@@ -1997,6 +1997,17 @@ describe('scroll', function(){
         decl({file:/f7 f1:e f2:d}) #
         decl({file:/f8 f1:b f2:e}) #
         decl({file:/f8 f1:c f2:e}) #`);
+      t('data', `s..#(index index_table)
+        scroll(index:[{name:file field:file data:[oid]}])
+        #index_table={id:0 cfid:0 bseqb:null name:file}
+        decl({file:/f1 oid:o1}) #index={id:0 key:/f1 seq:1 data:{oid:o1}}
+        $$decl(decl({file:$1 oid:$3})
+          #index={id:0 key:$1 seq:$2 data:{oid:$3}})
+        $decl $$([/f2 2 o2] [/f1 3 o3] [/f2 4 o4])
+        decl({}) # decl({file:null}) #
+        $decl $$([/f3 7 o3b])
+        ##index_find(index:0 key:$1)=$2
+          $$([/f1 [3 1]] [/f2 [4 2]] [/f3 7] [/f4 []])`);
       t('two_index', `s..#(index index_table) scroll(index:[i1 i2])
         #index_table=[{id:0 cfid:0 bseqb:null name:i1}
           {id:1 cfid:0 bseqb:null name:i2}]
@@ -2112,6 +2123,42 @@ describe('scroll', function(){
           index={id:1 key:/f3 seq:8}
           index_table={id:1 cfid:0 bseqb:7-1 name:file}
           db_index_table={id:1 cfid:0 bseqb:7-1 name:file}
+          db_index={id:1 key:/f3 seq:8})`);
+      t('data', `// test write
+        s..#(index index_table db_index db_index_table)
+          scroll(db index:[{name:file field:file data:[oid]}])
+          flush #index_table={id:0 cfid:0 bseqb:null name:file}
+        decl({file:/f1 oid:o1}) flush
+          #(index={id:0 key:/f1 seq:1 data:{oid:o1}}
+          db_index={id:0 key:/f1 seq:1 data:{oid:o1}}
+          db_index_table={id:0 cfid:0 bseqb:null name:file data:[oid]})
+        decl({file:/f2 oid:o2}) flush
+          #(index={id:0 key:/f2 seq:2 data:{oid:o2}}
+          db_index={id:0 key:/f2 seq:2 data:{oid:o2}})
+        decl({file:/f1}) flush #(index={id:0 key:/f1 seq:3}
+          db_index={id:0 key:/f1 seq:3})
+        decl({file:/f2}) flush #(index={id:0 key:/f2 seq:4}
+          db_index={id:0 key:/f2 seq:4})
+        decl({}) flush #
+        decl({file:null}) flush #
+        decl({file:/f3}) flush #(index={id:0 key:/f3 seq:7}
+          db_index={id:0 key:/f3 seq:7})
+        // test read
+        Soul.db_copy(s.soul) S..#(index index_table db_index db_index_table)
+        Soul.S.scroll(s..M0 db) #(
+          index_table={id:0 cfid:0 bseqb:null name:file}
+          db_index_table={id:0 cfid:0 bseqb:null name:file data:[oid]}
+          db_index=[{id:0 key:/f1 seq:3} {id:0 key:/f1 seq:1 data:{oid:o1}}
+            {id:0 key:/f2 seq:4} {id:0 key:/f2 seq:2 data:{oid:o2}}
+            {id:0 key:/f3 seq:7}])
+        S.load_c($1) #index=$2 $$((1 {id:0 key:/f1 seq:1 data:{oid:o1}})
+          (2 {id:0 key:/f2 seq:2 data:{oid:o2}}) (3 {id:0 key:/f1 seq:3})
+          (4 {id:0 key:/f2 seq:4}) (5 []) (6 []) (7 {id:0 key:/f3 seq:7}))
+        // test valid new index id
+        S.decl(branch:b {file:/f3}) flush #(
+          index={id:1 key:/f3 seq:8}
+          index_table={id:1 cfid:0 bseqb:7-1 name:file}
+          db_index_table={id:1 cfid:0 bseqb:7-1 name:file data:[oid]}
           db_index={id:1 key:/f3 seq:8})`);
       t('branch', `// test write
         s..#(index index_table db_index db_index_table) scroll(index:i db)

@@ -18,7 +18,7 @@ import DB from '../storage/db.js';
 const b2s = buf_util.buf_to_str, s2b = buf_util.buf_from_str;
 const Diff = new DiffMatchAndPath();
 const {parse_get_next, parse_exp, parse_exp_arg, rm_parentesis,
-  parse_exp_arg_pair, parse_push, get_array_str} = tparser;
+  parse_exp_arg_pair, parse_push, get_array_str, get_bool} = tparser;
 import {test_run, new_scroll, get_scroll, get_def, test_register,
   test_register_cmd, get_val, parse_db_init, js_struct_from_str}
   from '../storage/test_cmd.js';
@@ -198,12 +198,13 @@ const cmd_git = t=>etask(function*cmd_git(){
 
 const cmd_sync = t=>etask(function*cmd_sync(){
   let name = t.ctx||get_def('left'), git = get_scroll(name);
-  let gitdir, url, err, flip_protect, main;
+  let gitdir, url, err, flip_protect, main, seal;
   for (let curr=t.r, i=0; curr = parse_get_next(curr); i++){
     let tt = parse_exp_arg(curr.exp);
     switch (tt.cmd){
     case 'gitdir': gitdir = tt.r; break;
     case 'main': main = tt.r; break;
+    case 'seal': seal = get_bool(tt.r); break;
     case 'url': url = 'https://github.com'+tt.r; break;
     case 'flip_protect':
       flip_protect = tt.r=='false' ? false : tt.r||true;
@@ -213,7 +214,7 @@ const cmd_sync = t=>etask(function*cmd_sync(){
     }
   }
   try {
-    yield git.sync({main, gitdir, url, flip_protect});
+    yield git.sync({main, gitdir, url, flip_protect, seal});
     assert.equal(undefined, err, 'did not get expected error');
   } catch(e){ assert.equal(''+e, err); }
 });
@@ -451,6 +452,10 @@ const test_get_seq = s=>etask(function*get_seq(){
     delete bo.git;
   if (bo.git?.gpgsig)
     bo.git.gpgsig = decode_str(rm_parentesis(bo.git.gpgsig, '('));
+  if (bo.git?.src)
+    bo.git.src = decode_str(bo.git.src);
+  if (!bo.op)
+    delete bo.op;
   return bo;
 });
 
@@ -1296,7 +1301,7 @@ describe('git', function(){
       t('gpg', `s..#seq git(src(lif-rnd/test_gpg)) #(seq0={}
         seq1={type:git_br op:add git:{branch:main}}
         seq2={type:git_head op:add git:{branch:main}})
-        sync #(
+        sync(seal:false) #(
         seq3={type:fs op:add dir:/ git:{mode:0}}
         seq4={type:fs op:add file:/file_from_www content:1 f2:0x0a
           git:{oid:8b137891791fe96927ad78e64b0aad7bded08bdc mode:100644}}
@@ -1326,7 +1331,7 @@ describe('git', function(){
       t('move', `s..#seq git(src(lif-zone/test_move)) #(seq0={}
         seq1={type:git_br op:add git:{branch:main}}
         seq2={type:git_head op:add git:{branch:main}})
-        sync #(
+        sync(seal:false) #(
         seq3={type:fs op:add dir:/ git:{mode:0}}
         seq4={type:fs op:add file:/a content:1 f2:${d2}
           git:{oid:7780c82f7ec168abd6f2cd9f756058fcedad80f2 mode:100644}}
@@ -1379,7 +1384,7 @@ describe('git', function(){
       let d21 = '0x4040202d312c3238202b312c33322040400a2b5858582530410a'+
         '206d61696e5f66696c65332530416d61696e5f66696c65332530416d61696e5f660a';
       t('merge_simple', `s..#seq git(src(lif-zone/test_merge_simple)) #seq0={}
-        sync #(
+        sync(seal:false) #(
         seq1={op:add dir:/ git:{mode:0}}
         seq2={op:add file:/main_file1 content:1 f2:0x0a
           git:{oid:8b137891791fe96927ad78e64b0aad7bded08bdc mode:100644}}
@@ -1450,7 +1455,7 @@ describe('git', function(){
         $$mf(mode:100644) $$m0(mode:0) $$br1(branch:branch1)
         $$br2(branch:branch2) $$br2b1(branch:branch2_b1) $$br3(branch:branch3)
         $$br4(branch:branch4) $$file2b1(/file1 branch2b1)`;
-      t('branch_all', `s..git(src(lif-zone/test_branch_inc)) sync
+      t('branch_all', `s..git(src(lif-zone/test_branch_inc)) sync(seal:false)
         ${t_branch_vars}
         ##seq$1={bseq:$2 op:$3 $rm_parentesis($6) git:{oid:$4 $5}} $$(
         // seq-bseq   op     oid  mod extra
@@ -1484,7 +1489,7 @@ describe('git', function(){
         (28 3-2.3-1.0 add    $f2  $mf ($br4 file:/file_b4 link:4))
         (29 3-2.3-1.1 commit $c14 !   (group:1 desc(Create file_b4))))
         ##seq30={}`);
-      t('branch_inc', `s..git(src(lif-rnd/test_branch)) sync
+      t('branch_inc', `s..git(src(lif-rnd/test_branch)) sync(seal:false)
         ${t_branch_vars}
         ##seq$1={bseq:$2 op:$3 $rm_parentesis($6) git:{oid:$4 $5}} $$(
         // seq-bseq   op     oid  mod extra
@@ -1503,7 +1508,7 @@ describe('git', function(){
         (13 3-2.1-1.1 commit $c6  !   (group:1 desc(Create file1 branch2b1)))
         (14 3-3.0     add    $f2  $mf ($br3 file(/file2 branch3) link:4))
         (15 3-3.1     commit $c7  !   (group:1 desc(Create file2 branch3))))
-        ##seq16={} sync(url(/lif-zone/test_branch_inc)) $last $$(
+        ##seq16={} sync(seal:false)(url(/lif-zone/test_branch_inc)) $last $$(
         (16 8         add    $f2  $mf (file:/file4 link:4))
         (17 9         commit $c8  !   (group:1 desc(Create file4)))
         (18 _10       add    $f2  $mf (file:/file5 link:4))
@@ -1572,11 +1577,12 @@ describe('git', function(){
         $$add_f5(fs_write($R/f5 d1) git_add(f5) git_commit(oid5 c_f5))
         $$add_f6(fs_write($R/f6 d1) git_add(f6) git_commit(oid6 c_f6))
         git_init($R)
-        $$sync_err() $$flip() $$sync_main(master)
-        $$t(fs_cp($R/.git $R2) sync(main:$sync_main $flip err($sync_err)
+        $$sync_err() $$flip() $$sync_main(master) $$sync_seal(false)
+        $$t(fs_cp($R/.git $R2)
+        sync(seal:$sync_seal main:$sync_main $flip err($sync_err)
           gitdir($R2)) ##seq$1={bseq:$2 type:$4 op:$5 $7... git:{oid:$3 $6}})
         $$tb(fs_cp($R/.git $R2)
-          sync(main:$sync_main err($sync_err) gitdir($R2))
+          sync(seal:$sync_seal main:$sync_main err($sync_err) gitdir($R2))
           ##seq$1={bseq:$2 type:$4
           op:$5 branch($rm_parentesis($6)) $9... git:{oid:$3 branch:$7 $8}})`;
       let t_common = `${_t_common} s..git(src:git_test main:master)`;
@@ -2420,10 +2426,26 @@ describe('git', function(){
         (1  ! !     git_br   add $bm !)
         (2  ! !     git_head add $bm !))
         ##seq3={} verify_git`);
+      t('seal', `${t_common} $$sync_seal(true)
+        $$s(src:${encode_str('https://github.com/git_test')})
+        $add_f1 $t $$(
+        (1  !     !     git_br   add $bm !)
+        (2  !     !     git_head add $bm !)
+        (3  !     !     fs       add $m0 dir:/)
+        (4  !     $d1   fs       add $mf file:/f1 content:1 f2:d1)
+        (5  !     $oid1 commit   add !   group:2 desc:c_f1)
+        (6  !     !     seal     !   $s  !))
+        git_br_new(b1) $t $$(
+        (7  5-1.0 $oid1 git_br   add !   branch:b1)
+        (8  7     !     seal     !   $s  !))
+        $add_f2 $t $$(
+        (9  5-1.1 $d1   fs       add $mf file:/f2 link:4)
+        (10 5-1.2 $oid2 commit   add !   group:1 desc:c_f2)
+        (11 8     !     seal     !   $s  !))
+      `);
     });
   });
 });
-// XXX: sync({seal: true|false}) --> {type: 'seal', git: {src}}
 // XXX: support dir modify (mode can change)
 // XXX: rewrite 2 old GIT tests to new format
 // XXX: add gpg annotated tag support + verify we can rebuilt sha

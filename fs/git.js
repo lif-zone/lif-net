@@ -77,23 +77,23 @@ export default class GIT extends FS {
     this.cache = {};
   }
   sync(opt={}){ return etask({_: this}, function*sync(){
-    let _this = this._, {flip_protect} = opt;
-    if (flip_protect===undefined)
-      flip_protect = 'warn';
-    let body = _this.get_decl(0).get_body(0);
+    let _this = this._, {flip_protect, seal} = opt;
+    let body = _this.get_decl(0).get_body(0); // XXX: _this.header()
+    seal = seal===undefined ? true : !!seal;
+    flip_protect = flip_protect===undefined ? 'warn' : flip_protect;
     if (!body)
       throw new Error('missing seq0 body');
-    let url = opt.url||body.scroll?.git?.src;
-    if (!url)
+    let src = opt.url||body.scroll?.git?.src; // XXX: opt.url -> opt.src
+    if (!src)
       throw new Error('missing git src');
     let config = {fs, http, cache: _this.cache};
     // XXX: decide how to create valid dir
-    config.dir = opt.dir||'/tmp/lif_git_'+escape_fs(url);
+    config.dir = opt.dir||'/tmp/lif_git_'+escape_fs(src);
     if (opt.gitdir){
       config.gitdir = opt.gitdir;
       yield git_api.init({...config});
     } else {
-      config.url = url;
+      config.url = src;
       yield git_api.clone({...config});
     }
     let cfid = opt.cfid||0;
@@ -184,6 +184,10 @@ export default class GIT extends FS {
       yield _this.decl({cfid, prev: br_seq}, {type: 'git_head', op: 'add',
         git: {branch: git_data.main}});
     }
+    if (!seal)
+      return;
+    let prev = _this.get_bseq_top(cfid, '0').seq;
+    yield _this.decl({prev}, {type: 'seal', git: {src}});
   }); }
   _sync_commits(config, cfid, git_br, commits, merge_queue){
     return etask({_: this}, function*_sync_commits()
@@ -650,7 +654,7 @@ GIT.create = (opt, d)=>etask(function*scroll_create(){
   // XXX: reuse code from FS.create and call FS.create (inherit index and
   // extend it)
   let s = {crypt: Scroll.supported_crypt[0], pub: b2s(opt.pub), ...d,
-    csum_sha1: true, index: [
+    csum_sha1: true, index: ['seal',
     {name: 'file', field: 'file', data: ['op', 'git.oid', 'git.mode']},
     {name: 'dir', field: 'dir', data: ['op', 'git.mode']},
     {name: 'dir_list', transform: 'decl_get_dir', filter: {op: ['add', 'rm']},

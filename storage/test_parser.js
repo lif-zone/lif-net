@@ -203,6 +203,15 @@ function replace_macro_vars(s, vars){
   return s;
 }
 
+function get_bool(s){
+  if (s=='true')
+    return true;
+  if (s=='false')
+    return false;
+  assert.fail('invalid bool '+s);
+}
+E.get_bool = get_bool;
+
 function get_array_str(s, open){
   let ret = [];
   if (open!==null)
@@ -226,7 +235,7 @@ function remove_comments(s){
   let ret = '', comment;
   for (let i=0; i<s.length; i++){
     let ch = s.at(i);
-    if (s.substr(i, 2)=='//'){
+    if (s.substr(i, 3)=='// '){
       comment = true;
       continue;
     }

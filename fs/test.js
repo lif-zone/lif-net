@@ -239,6 +239,11 @@ const cmd_fs_write = t=>etask(function*cmd_fs_write(){
   fs.writeFileSync(file, buf);
 });
 
+const cmd_fs_mkdir = t=>etask(function*cmd_fs_mkdir(){
+  let dir = t.r;
+  fs.mkdirSync(dir, {recursive: true}); //mode: '777'});
+});
+
 const cmd_fs_cp = t=>etask(function*cmd_fs_cp(){
   let a = t.r.split(' '), [src, dst] = a;
   assert(src, 'missing src');
@@ -381,6 +386,7 @@ const test_run_single = (curr, o, step)=>etask(function*_test_run_single(){
   case 'git_tag_del': yield cmd_git_tag_del(o); break;
   case 'git_merge': yield cmd_git_merge(curr, o); break;
   case 'fs_write': yield cmd_fs_write(o); break;
+  case 'fs_mkdir': yield cmd_fs_mkdir(o); break;
   case 'fs_cp': yield cmd_fs_cp(o); break;
   default: return false;
   }
@@ -1576,6 +1582,8 @@ describe('git', function(){
         $$add_f4(fs_write($R/f4 d1) git_add(f4) git_commit(oid4 c_f4))
         $$add_f5(fs_write($R/f5 d1) git_add(f5) git_commit(oid5 c_f5))
         $$add_f6(fs_write($R/f6 d1) git_add(f6) git_commit(oid6 c_f6))
+        $$add_d1(fs_mkdir($R/d1) fs_write($R/d1/f d1) git_add($R/d1/f)
+          git_commit(oid1 c_d1))
         git_init($R)
         $$sync_err() $$flip() $$sync_main(master) $$sync_seal(false)
         $$t(fs_cp($R/.git $R2)
@@ -1615,6 +1623,15 @@ describe('git', function(){
         ##git_sha_file(/f2 seq:6)=$d1
         ##git_sha_dir(/ seq:6)=cdfbe84a9047568f4312fc01c4beddc712e0256e
         verify_git`);
+      if (0) // XXX WIP
+      t('dir', `${t_common} $t $$(
+        (1  ! !     git_br   add $bm !)
+        (2  ! !     git_head add $bm !))
+        $add_d1 $t $$(
+        (3  ! !     fs       add $m0 dir:/)
+        (4  ! !     fs       add $m0 dir:/d1))
+        ##seq5={}
+      `);
       t('one_branch_inc', `${t_common}
         $add_f1 $t $$(
         (1  !     !     git_br   add $bm !)
@@ -2442,12 +2459,12 @@ describe('git', function(){
         (9  5-1.1 $d1   fs       add $mf file:/f2 link:4)
         (10 5-1.2 $oid2 commit   add !   group:1 desc:c_f2)
         (11 8     !     seal     !   $s  !))
+        ##seq12={}
       `);
     });
   });
 });
-// XXX: support dir modify (mode can change)
-// XXX: rewrite 2 old GIT tests to new format
+// XXX: rewrite 2 old GIT tests to new format + add dir test
 // XXX: add gpg annotated tag support + verify we can rebuilt sha
 // XXX: detect branch didn't change and make sure we don't do work on it
 // XXX: when doing sync, just get latest commits since last sync

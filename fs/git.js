@@ -18,42 +18,67 @@ const b2s = buf_util.buf_to_str, s2b = buf_util.buf_from_str;
 // XXX: need test + mv to generic place + need proper escape
 function escape_fs(s){ return s.replaceAll('/', '_').replaceAll(':', '_'); }
 
-const copy_commit_data_safe = (config, body, oid, commit)=>etask(
+const copy_commit_data_safe = (type, config, body, oid, commit)=>etask(
   function*copy_commit_data_safe()
 {
-  copy_commit_data(body, commit);
-  let _oid = calc_sha_commit(body);
+  copy_commit_data(type, body, commit);
+  let _oid = calc_sha_commit(type, body);
   if (oid==_oid)
     return _oid;
   let commit_o = yield git_api.readObject({...config, oid, format: 'content'});
   let raw_commit = commit_o.object.toString();
   let desc = raw_commit.slice(raw_commit.indexOf('\n\n') + 2);
+  let i = desc.indexOf('-----');
+  if (i!=-1)
+    desc = desc.substr(0, i);
   body.desc = desc;
-  _oid = calc_sha_commit(body);
+  _oid = calc_sha_commit(type, body);
   if (oid==_oid)
     return _oid;
   body.git.raw_commit = raw_commit;
-  return calc_sha_commit(body);
+  return calc_sha_commit(type, body);
 });
 
-function copy_commit_data(body, commit){
+function copy_commit_data(type, body, commit){
   body.desc = commit.message;
-  body.git.tree = commit.tree;
-  body.git.author = commit.author;
-  body.git.committer = commit.committer;
+  switch (type){
+  case 'commit':
+    body.git.tree = commit.tree;
+    body.git.author = commit.author;
+    body.git.committer = commit.committer;
+    break;
+  case 'tag':
+    body.git.commit_oid = commit.object;
+    body.git.tagger = commit.tagger;
+    break;
+  default: assert.fail('invalid type '+type);
+  }
   if (commit.gpgsig)
     body.git.gpgsig = commit.gpgsig;
 }
 
-function calc_sha_commit(body){
-  return git_util.hash('commit', get_commit_raw(body)); }
+function calc_sha_commit(type, body){
+  return git_util.hash(type, get_commit_raw(type, body)); }
 
-function get_commit_raw(body){
+function get_commit_raw(type, body){
   let git = body.git, s='';
   if (git.raw_commit)
-    return git.raw_commit;
+    return Buffer.from(git.raw_commit);
   let line = git_util.render_header;
-  s+=line('tree', git.tree);
+  if (type=='tag'){
+    s+=line('object', git.commit_oid);
+    s+=line('type', 'commit');
+    s+=line('tag', body.tag);
+    s+=line('tagger', git.tagger?.name+' <'+git.tagger?.email+'> '+
+      git.tagger?.timestamp+' '+date.format_tz(git.tagger?.timezoneOffset));
+    s += '\n'+body.desc;
+    if (git.gpgsig)
+      s += '\n'+git.gpgsig;
+    return Buffer.from(s);
+  }
+  assert.equal(type, 'commit', 'invalid type');
+  if (git.tree)
+    s+=line('tree', git.tree);
   if (git.parent)
     s+=line('parent', git.parent);
   if (git.merge){
@@ -247,7 +272,8 @@ export default class GIT extends FS {
         body.git.merge = merge.length==1 ? merge[0] : merge;
         merge.forEach(moid=>merge_queue[moid] = git_br);
       }
-      let _oid = yield copy_commit_data_safe(config, body, oid, commit);
+      let _oid = yield copy_commit_data_safe('commit', config, body, oid,
+        commit);
       if (oid!=_oid)
         throw new Error('failed commmit verify '+oid+'!='+_oid);
       let group = yield _this._sync_dir(config, cfid, prev,
@@ -290,8 +316,12 @@ export default class GIT extends FS {
         let commit_oid = o.tag.object;
         link = yield _this.find_one(commit_oid, {dir: 'up',
           name: 'commit_git_oid_all', cfid});
-        link = (yield _this.decl({cfid, branch: null, link}, {type: 'tag_o',
-          op: 'add', tag, desc: o.tag.message, git: {oid, commit_oid}})).seq;
+        let body = {type: 'tag_o', op: 'add', tag, git: {oid}};
+        let _oid = yield copy_commit_data_safe('tag', config, body, oid,
+          o.tag);
+        if (oid!=_oid)
+          throw new Error('failed commmit tag verify '+oid+'!='+_oid);
+        link = (yield _this.decl({cfid, branch: null, link}, body)).seq;
         yield _this.decl({cfid, branch: null, link}, {type: 'tag', op, tag,
           git: {oid}});
       } else
@@ -639,7 +669,7 @@ export default class GIT extends FS {
       let body = yield _this.load_body(cfid, i);
       if (body.type!='commit')
         continue;
-      let oid = calc_sha_commit(body);
+      let oid = calc_sha_commit('commit', body);
       assert.equal(body.git.oid, oid, 'commit oid mismatch seq'+i);
       let tree_sha = yield _this.calc_sha_dir({dir: '/', cfid, seq: i});
       assert.equal(body.git.tree, tree_sha, 'tree sha mismatch seq'+i);

@@ -236,6 +236,7 @@ export default class FS extends Scroll {
       delete ret.git.tree;
       delete ret.git.author;
       delete ret.git.committer;
+      delete ret.git.tagger;
       delete ret.git.parent;
     }
     return ret;

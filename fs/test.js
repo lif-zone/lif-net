@@ -241,7 +241,7 @@ const cmd_fs_write = t=>etask(function*cmd_fs_write(){
 
 const cmd_fs_mkdir = t=>etask(function*cmd_fs_mkdir(){
   let dir = t.r;
-  fs.mkdirSync(dir, {recursive: true}); //mode: '777'});
+  fs.mkdirSync(dir, {recursive: true});
 });
 
 const cmd_fs_cp = t=>etask(function*cmd_fs_cp(){
@@ -2461,15 +2461,67 @@ describe('git', function(){
         (11 8     !     seal     !   $s  !))
         ##seq12={}
       `);
+      let gpg5 = encode_str('-----BEGIN PGP SIGNATURE-----\n'+
+        '\nwsBcBAABCAAQBQJkNm+YCRBK7hj4Ov3rIwAArvwIAKD/lrcoHllSLAf5FvCwoKd/'+
+        '\ndI3AVOdMZ4vXFPb36V2eh3fF8GBOab463mWx4cnAV3Lr11VY8IT/f30mch7qgrRy'+
+        '\nRvVdRtdighdgizoqUgjsZ3QHhWavHeluehQ/+AwSgau30L/9X3H9UeeRjbes1gRr'+
+        '\nyhrQ5cIV9mn3mUTB82AfhA23akZ21hEWmMbN3mivByZ7MNnv4D0ZMaedia3JmARn'+
+        '\nV7ssY94HmzeAYsiqcBiQ4j5Ec308yGW8oEWD/CzsjdNEW4OJaMUprRqoxKrSVVq3'+
+        '\nus+YUfJrJr5GrdaqMKvfKKZVGfwEqyeoWh/kU9anD6eNPgCRudqHjLFSHqrgHJQ='+
+        '\n=Zdym\n-----END PGP SIGNATURE-----\n');
+      let gpg7 = encode_str('-----BEGIN PGP SIGNATURE-----\n'+
+        '\nwsBcBAABCAAQBQJkNm+rCRBK7hj4Ov3rIwAAHIkIAF2TSXNjQFBsR1jLB1Hk9J8Z'+
+        '\nHbK8/Skv0iwmkTwfKkA7R4pT13QgskoFMMT6i7xOyBRQc2LEZLaR5FKQQhtxfSvc'+
+        '\nYTn+l3nLJdU5OCZjBon7yo/uM8eOzqw81LgVp+JbKaORfzAZno/pOfn3N47Czwoy'+
+        '\nQrC3Wdfq0EkeiXeOpC/yB2lDcynziuRT7QJFpuJIP3kJ5Zh3f6U1IY5C/Uo1Drrw'+
+        '\nq+5JMVJrdU3qLTK9/FIvoX6EYERB5QZeUmw3smX/5HzcdVsY5bjY+bIdgWO8mES/'+
+        '\nKzoGMn5nr2tgBTwjbgIgcG2PJ0wnf6JICns4USp0oRAE6EYAeH4vj2oSjyXCV5U='+
+        '\n=udUT\n-----END PGP SIGNATURE-----\n');
+      let gpg9 = encode_str('-----BEGIN PGP SIGNATURE-----\n'+
+        '\niQGzBAABCgAdFiEEndepdIBVI/JR3VFqk63BrWpcXVgFAmQ2ei0ACgkQk63BrWpc'+
+        '\nXVhqdQv/WdVqKEYqPV3iJukwR9qEWhZLo0Xl9WatvVynHKwV/mn0MWtUHV/KgvDu'+
+        '\nL+rfWpMauoIx5v2labUg13+FAZ67FDvh8oDTVGXjwMiwtmPod3MIQTU+B5/zE99r'+
+        '\nJWqpOsNtFb1yDDCY1NB5bFtfHU93FsVxaAcSssryCkdiEKURpjGKjE1lIv6uP3wh'+
+        '\nkHfjljOX9GJ5zAN7LR1LD8eM9H4NCGcw7BLNYOc6MNiiGP8BvLquj6n2IDa7jq6c'+
+        '\ninG9HkEifDEQnZuDrfhItmduAs46ehDjZASgwZz9qkDZNwqXAI6uYMdwkyQJrv4o'+
+        '\nFRu9+B9ChDfap75JS1oZnOsxOHb9afZ6mYDWDQHIp+qe40JoJxkYBATr/fhfU//9'+
+        '\nIXIZfJSlgGRFwwA2/V9+Luk0zJVjL/qUJjH9apW0V6j5n/PBW2ycYVnc/RtsLoAl'+
+        '\nHu5BDdKp+5HRUXnzfKHuJzOVB9zMRhx4Z5l05dg9baZE0xFvFIFNh10wLc00nKhI'+
+        '\n40aIXJC6\n=6XSv\n-----END PGP SIGNATURE-----\n');
+      t('tag_annotate_gpg', `${_t_common}
+        $$bm(branch:main) $$mf(mode:100644) $$m0(mode:0)
+        $$d1(8b137891791fe96927ad78e64b0aad7bded08bdc)
+        $$oid1(cc89e3d5f7bee12d8cb3b0564c18b27b9507f7ff)
+        $$oid2(b2694edc28f75909ec5e2af1b9cae53479753624)
+        $$toid(1e86977cdcf23a10d2fe57debe9fba53be1467be)
+        $$c(commit_oid:$oid2 gpgsig:${gpg9})
+        $$g5(gpgsig:${gpg5})
+        $$g7(gpgsig:${gpg7})
+        $$t(sync(seal:false)
+          ##seq$1={bseq:$2 type:$4 op:$5 $7... git:{oid:$3 $6}})
+        s..git(src(lif-rnd/test_tag_gpg)) $t $$(
+        (1  !     !     git_br   add $bm !)
+        (2  !     !     git_head add $bm !)
+        (3  !     !     fs       add $m0 dir:/)
+        (4  !     $d1   fs       add $mf file:/f1 content:1 f2:0x0a)
+        (5  !     $oid1 commit   add $g5 group:2 _desc:add_f1)
+        (6  !     $d1   fs       add $mf file:/f2 link:4)
+        (7  !     $oid2 commit   add $g7 group:1 _desc:add_f2)
+        (8  !     $oid2 tag      add !   link:7 tag:tag1)
+        (9  !     $toid tag_o    add $c  link:7 tag:tag_gpg _desc:tag_gpg_desc)
+        (10 !     $toid tag      add !   link:9 tag:tag_gpg))
+        ##seq11={}
+      `);
     });
   });
 });
+// XXX: verify we can rebuild tags/branches
 // XXX: rewrite 2 old GIT tests to new format + add dir test
-// XXX: add gpg annotated tag support + verify we can rebuilt sha
+// XXX: add missing tests (db test, conflict test)
 // XXX: detect branch didn't change and make sure we don't do work on it
+// and check how time works
 // XXX: when doing sync, just get latest commits since last sync
 // XXX: support sort by abc in ls_iter
-// XXX: add missing tests (db test, conflict test)
 // XXX: cleanup
 // XXX: fix macro $$ -> $_ (activate last macro) and support args to macro
 // XXX: fix # (to be per filter) and replace tests of ## with #

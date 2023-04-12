@@ -2283,6 +2283,75 @@ describe('git', function(){
       (10 !     $toid tag      add !   link:9 tag:tag_gpg))
       ##seq11={}
     `);
+    t('db_sync_empty', `${_t_common} s..git(db src:git_test main:master) $t $$(
+      (1  ! !     git_br   add $bm !)
+      (2  ! !     git_head add $bm !))
+      ##seq3={}`);
+    t('db_one_branch_del_branch_inc', `${_t_common}
+      s..git(db src:git_test main:master) $add_f1 $t $$(
+      (1  !     !     git_br   add $bm       !)
+      (2  !     !     git_head add $bm       !)
+      (3  !     !     fs       add $m0       dir:/)
+      (4  !     $d1   fs       add $mf       file:/f1 content:1 f2:d1)
+      (5  !     $oid1 commit   add !         group:2 desc:c_f1))
+      git_br_new(b1) $t $$(
+      (6  5-1.0 $oid1 git_br   add !         branch:b1))
+      $add_f2 $t $$(
+      (7  5-1.1 $d1   fs       add $mf       file:/f2 link:4)
+      (8  5-1.2 $oid2 commit   add !         group:1 desc:c_f2))
+      git_br(master) $add_f3 $t $$(
+      (9  6     $d1   fs       add $mf       file:/f3 link:4)
+      (10 7     $oid3 commit   add !         group:1 desc:c_f3))
+      git_br_del(b1) $t $$(
+      (11 5-1.3 !     git_br   rm  branch:b1 !))
+      ##seq12={} verify_git`);
+    t('db_three_branch_inc', `${_t_common} s..git(db src:git_test main:master)
+      $add_f1 $tb $$(
+      (1  !         !     git_br   add !   !   $bm !)
+      (2  !         !     git_head add !   !   $bm !)
+      (3  !         !     fs       add !    ! $m0 dir:/)
+      (4  !         $d1   fs       add !    ! $mf file:/f1 content:1 f2:d1)
+      (5  !         $oid1 commit   add !    ! !   group:2 desc:c_f1))
+      git_br_new(b1) $tb $$(
+      (6  5-1.0     $oid1 git_br   add b1   ! !   !))
+      git_br_new(b2) $tb $$(
+      (7  5-2.0     $oid1 git_br   add b2   ! !   !))
+      git_br(b1) $add_f2 $tb $$(
+      (8  5-1.1     $d1   fs       add !    ! $mf file:/f2 link:4)
+      (9  5-1.2     $oid2 commit   add !    ! !   group:1 desc:c_f2))
+      git_br_new(b1_1) $add_f3 $tb $$(
+      (10 5-1.2-1.0 $oid2 git_br   add b1_1 ! !   !)
+      (11 5-1.2-1.1 $d1   fs       add !    ! $mf file:/f3 link:4)
+      (12 5-1.2-1.2 $oid3 commit   add !    ! !   group:1 desc:c_f3))
+      git_br(b2) $add_f4 $tb $$(
+      (13 5-2.1     $d1   fs       add !    ! $mf file:/f4 link:4)
+      (14 5-2.2     $oid4 commit   add !    ! !   group:1 desc:c_f4))
+      git_br(master) $add_f5 $tb $$(
+      (15 6         $d1   fs       add !    ! $mf file:/f5 link:4)
+      (16 7         $oid5 commit   add !    ! !   group:1 desc:c_f5))
+      ##seq17={} verify_git`);
+    t('db_tag_inc', `${_t_common} s..git(db src:git_test main:master)
+      $add_f1 $t $$(
+      (1  ! !     git_br   add $bm !)
+      (2  ! !     git_head add $bm !)
+      (3  ! !     fs       add $m0 dir:/)
+      (4  ! $d1   fs       add $mf file:/f1 content:1 f2:d1)
+      (5  ! $oid1 commit   add !   group:2 desc:c_f1))
+      $add_f2 $t $$(
+      (6  ! $d1   fs       add $mf file:/f2 link:4)
+      (7  ! $oid2 commit   add !   group:1 desc:c_f2))
+      $add_f3 $t $$(
+      (8  ! $d1   fs       add $mf file:/f3 link:4)
+      (9  ! $oid3 commit   add !   group:1 desc:c_f3))
+      git_tag(t1 $oid1) $t $$(
+      (10 ! $oid1 tag      add !   tag:t1 link:5))
+      git_tag(t1 $oid2) $t $$(
+      (11 ! $oid2 tag      mod !   tag:t1 link:7))
+      git_tag(t3 $oid3) $t $$(
+      (12 ! $oid3 tag      add !   tag:t3 link:9))
+      git_tag_del(t1) $t $$(
+      (13 ! $oid2 tag      rm  !   tag:t1))
+      ##seq14={} verify_git`);
   });
 });
 // XXX: check how git handles time of commits + test with git rebase

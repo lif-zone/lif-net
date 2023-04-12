@@ -1340,949 +1340,949 @@ describe('git', function(){
         ##git_sha_dir(/ seq:11)=ebe5469761eaaf19bddac27a3fe49cec61897e31
         verify_git`);
     });
-    describe('git2', ()=>{
-      let _t_common = `$$mf(mode:100644) $$m0(mode:0) buf(d1:1)
-        $$bm(branch:master)
-        $$d1(d00491fd7e5bb6fa28c517a0bb32b8b506539d4d)
-        $$R(/tmp/__lif_test/git_test/repo)
-        $$R2(/tmp/__lif_test/git_test/sync)
-        $$add_f1(fs_write($R/f1 d1) git_add(f1) git_commit(oid1 c_f1))
-        $$add_f2(fs_write($R/f2 d1) git_add(f2) git_commit(oid2 c_f2))
-        $$add_f3(fs_write($R/f3 d1) git_add(f3) git_commit(oid3 c_f3))
-        $$add_f4(fs_write($R/f4 d1) git_add(f4) git_commit(oid4 c_f4))
-        $$add_f5(fs_write($R/f5 d1) git_add(f5) git_commit(oid5 c_f5))
-        $$add_f6(fs_write($R/f6 d1) git_add(f6) git_commit(oid6 c_f6))
-        $$add_d1(fs_mkdir($R/d1) fs_write($R/d1/f d1) git_add($R/d1/f)
-          git_commit(oid1 c_d1))
-        git_init($R)
-        $$sync_err() $$flip() $$sync_main(master) $$sync_seal(false)
-        $$t(fs_cp($R/.git $R2)
-        sync(seal:$sync_seal main:$sync_main $flip err($sync_err)
-          gitdir($R2)) ##seq$1={bseq:$2 type:$4 op:$5 $7... git:{oid:$3 $6}})
-        $$tb(fs_cp($R/.git $R2)
-          sync(seal:$sync_seal main:$sync_main err($sync_err) gitdir($R2))
-          ##seq$1={bseq:$2 type:$4
-          op:$5 branch($rm_parentesis($6)) $9... git:{oid:$3 branch:$7 $8}})`;
-      let t_common = `${_t_common} s..git(src:git_test main:master)`;
-      const t = (name, test)=>it(name, ()=>test_run(test));
-      t('sync_empty', `${t_common} $t $$(
-        (1  ! !     git_br   add $bm !)
-        (2  ! !     git_head add $bm !))
-        ##seq3={}`);
-      t('commit_empty', `${t_common} $t $$(
-        (1  ! !     git_br   add $bm !)
-        (2  ! !     git_head add $bm !))
-        git_commit(oid1 c_f1) $t $$(
-        (3  ! !     fs       add $m0 dir:/)
-        (4  ! $oid1 commit   add !   group:1 desc:c_f1))
-        git_commit(oid2 c_f2) $t $$(
-        (5  ! $oid2 commit add !   desc:c_f2))
-        ##seq6={} verify_git`);
-      t('commit_file', `${t_common} $t $$(
-        (1  ! !     git_br   add $bm !)
-        (2  ! !     git_head add $bm !))
-        $add_f1 $t $$(
-        (3  ! !     fs       add $m0 dir:/)
-        (4  ! $d1   fs       add $mf file:/f1 content:1 f2:d1)
-        (5  ! $oid1 commit   add !   group:2 desc:c_f1))
-        $add_f2 $t $$(
-        (6  ! $d1   fs       add $mf file:/f2 link:4)
-        (7  ! $oid2 commit   add !   group:1 desc:c_f2))
-        ##seq8={}
-        ##git_sha_file(/f1 seq:4)=$d1
-        ##git_sha_file(/f2 seq:6)=$d1
-        ##git_sha_dir(/ seq:6)=cdfbe84a9047568f4312fc01c4beddc712e0256e
-        verify_git`);
-      if (0) // XXX WIP
-      t('dir', `${t_common} $t $$(
-        (1  ! !     git_br   add $bm !)
-        (2  ! !     git_head add $bm !))
-        $add_d1 $t $$(
-        (3  ! !     fs       add $m0 dir:/)
-        (4  ! !     fs       add $m0 dir:/d1))
-        ##seq5={}
-      `);
-      t('one_branch_inc', `${t_common}
-        $add_f1 $t $$(
-        (1  !     !     git_br   add $bm !)
-        (2  !     !     git_head add $bm !)
-        (3  !     !     fs       add $m0 dir:/)
-        (4  !     $d1   fs       add $mf file:/f1 content:1 f2:d1)
-        (5  !     $oid1 commit   add !   group:2 desc:c_f1))
-        git_br_new(b1) $t $$(
-        (6  5-1.0 $oid1 git_br   add !   branch:b1))
-        $add_f2 $t $$(
-        (7  5-1.1 $d1   fs       add $mf file:/f2 link:4)
-        (8  5-1.2 $oid2 commit   add !   group:1 desc:c_f2))
-        git_br(master) $add_f3 $t $$(
-        (9  6     $d1   fs       add $mf file:/f3 link:4)
-        (10 7     $oid3 commit   add !   group:1 desc:c_f3))
-        ##seq11={} verify_git`);
-      t('one_branch_full', `${t_common} $add_f1 git_br_new(b1) $add_f2
-        git_br(master) $add_f3 $t $$(
-        (1  !     !     git_br   add $bm !)
-        (2  !     !     git_head add $bm !)
-        (3  !     !     fs       add $m0 dir:/)
-        (4  !     $d1   fs       add $mf file:/f1 content:1 f2:d1)
-        (5  !     $oid1 commit   add !   group:2 desc:c_f1)
-        (6  !     $d1   fs       add $mf file:/f3 link:4)
-        (7  !     $oid3 commit   add !   group:1 desc:c_f3)
-        (8  5-1.0 $oid1 git_br   add !   branch:b1)
-        (9  5-1.1 $d1   fs       add $mf file:/f2 link:4)
-        (10 5-1.2 $oid2 commit   add !   group:1 desc:c_f2))
-        ##seq11={} verify_git`);
-      t('one_branch_del_branch_inc', `${t_common}
-        $add_f1 $t $$(
-        (1  !     !     git_br   add $bm       !)
-        (2  !     !     git_head add $bm       !)
-        (3  !     !     fs       add $m0       dir:/)
-        (4  !     $d1   fs       add $mf       file:/f1 content:1 f2:d1)
-        (5  !     $oid1 commit   add !         group:2 desc:c_f1))
-        git_br_new(b1) $t $$(
-        (6  5-1.0 $oid1 git_br   add !         branch:b1))
-        $add_f2 $t $$(
-        (7  5-1.1 $d1   fs       add $mf       file:/f2 link:4)
-        (8  5-1.2 $oid2 commit   add !         group:1 desc:c_f2))
-        git_br(master) $add_f3 $t $$(
-        (9  6     $d1   fs       add $mf       file:/f3 link:4)
-        (10 7     $oid3 commit   add !         group:1 desc:c_f3))
-        git_br_del(b1) $t $$(
-        (11 5-1.3 !     git_br   rm  branch:b1 !))
-        ##seq12={} verify_git`);
-      t('one_branch_del_branch_full', `${t_common} $add_f1 git_br_new(b1)
-        $add_f2 git_br(master) $add_f3 git_br_del(b1) $t $$(
-        (1  !     !     git_br   add $bm !)
-        (2  !     !     git_head add $bm !)
-        (3  !     !     fs       add $m0 dir:/)
-        (4  !     $d1   fs       add $mf file:/f1 content:1 f2:d1)
-        (5  !     $oid1 commit   add !   group:2 desc:c_f1)
-        (6  !     $d1   fs       add $mf file:/f3 link:4)
-        (7  !     $oid3 commit   add !   group:1 desc:c_f3))
-        ##seq8={} verify_git`);
-      t('one_branch_rename_branch_inc', `${t_common}
-        $add_f1 $tb $$(
-        (1  !     !     git_br   add !   !  $bm !)
-        (2  !     !     git_head add !   !  $bm !)
-        (3  !     !     fs       add !   !  $m0 dir:/)
-        (4  !     $d1   fs       add !   !  $mf file:/f1 content:1 f2:d1)
-        (5  !     $oid1 commit   add !   !  !   group:2 desc:c_f1))
-        git_br_new(b1) $tb $$(
-        (6  5-1.0 $oid1 git_br   add b1  !  !   !))
-        $add_f2 $tb $$(
-        (7  5-1.1 $d1   fs       add !   !  $mf file:/f2 link:4)
-        (8  5-1.2 $oid2 commit   add !   !  !   group:1 desc:c_f2))
-        git_br(master) $add_f3 $tb $$(
-        (9  6     $d1   fs       add !   !  $mf file:/f3 link:4)
-        (10 7     $oid3 commit   add !   !  !   group:1 desc:c_f3))
-        git_br_rename(b1 b2) $tb $$(
-        (11 5-1.3 !     git_br   rm  !   b1 !   !)
-        (12 5-1.4 $oid2 git_br   add !   b2 !   !))
-        ##seq13={} verify_git`);
-      t('one_branch_rename_branch_full', `${t_common} $add_f1 git_br_new(b1)
-        $add_f2 git_br(master) $add_f3 git_br_rename(b1 b2) $tb $$(
-        (1  !     !     git_br   add !  !  $bm !)
-        (2  !     !     git_head add !  !  $bm !)
-        (3  !     !     fs       add !  !  $m0 dir:/)
-        (4  !     $d1   fs       add !  !  $mf file:/f1 content:1 f2:d1)
-        (5  !     $oid1 commit   add !  !  !   group:2 desc:c_f1)
-        (6  !     $d1   fs       add !  !  $mf file:/f3 link:4)
-        (7  !     $oid3 commit   add !  !  !   group:1 desc:c_f3)
-        (8  5-1.0 $oid1 git_br   add b2 !  !   branch:b2)
-        (9  5-1.1 $d1   fs       add !  !  $mf file:/f2 link:4)
-        (10 5-1.2 $oid2 commit   add !  !  !   group:1 desc:c_f2))
-        ##seq11={} verify_git`);
-      t('one_branch_rename_same_inc', `${t_common}
-        $add_f1 $tb $$(
-        (1  !     !     git_br   add !      !  $bm !)
-        (2  !     !     git_head add !      !  $bm !)
-        (3  !     !     fs       add !      !  $m0 dir:/)
-        (4  !     $d1   fs       add !      !  $mf file:/f1 content:1 f2:d1)
-        (5  !     $oid1 commit   add !      !  !   group:2 desc:c_f1))
-        git_br_new(b1) $tb $$(
-        (6  5-1.0 $oid1 git_br   add b1     !  !   !))
-        $add_f2 $tb $$(
-        (7  5-1.1 $d1   fs       add !      !  $mf file:/f2 link:4)
-        (8  5-1.2 $oid2 commit   add !      !  !   group:1 desc:c_f2))
-        git_br(master) $add_f3 $tb $$(
-        (9  6     $d1   fs       add !      !  $mf file:/f3 link:4)
-        (10 7     $oid3 commit   add !      !  !   group:1 desc:c_f3))
-        git_br_del(b1) $tb $$(
-        (11 5-1.3 !     git_br   rm  !      b1 !   !))
-        git_br(master) git_br_new(b1) $tb $$(
-        (12 7-1.0 $oid3 git_br   add (b1 2) b1 !   !))
-        ##seq13={} verify_git`);
-      t('two_branch_rename_new_branch_no_commit_inc', `${t_common}
-        $add_f1 $tb $$(
-        (1  !     !     git_br   add !   !   $bm !)
-        (2  !     !     git_head add !   !   $bm !)
-        (3  !     !     fs       add !   !   $m0 dir:/)
-        (4  !     $d1   fs       add !   !   $mf file:/f1 content:1 f2:d1)
-        (5  !     $oid1 commit   add !   !   !   group:2 desc:c_f1))
-        git_br_new(b1) $tb $$(
-        (6  5-1.0 $oid1 git_br   add b1  !   !   !))
-        $add_f2 $tb $$(
-        (7  5-1.1 $d1   fs       add !   !   $mf file:/f2 link:4)
-        (8  5-1.2 $oid2 commit   add !   !   !   group:1 desc:c_f2))
-        git_br(master) $add_f3 $tb $$(
-        (9  6     $d1   fs       add !   !   $mf file:/f3 link:4)
-        (10 7     $oid3 commit   add !   !   !   group:1 desc:c_f3))
-        git_br_new(b2) $tb $$(
-        (11 7-1.0 $oid3 git_br   add b2  !   !   !))
-        $add_f4 $tb $$(
-        (12 7-1.1 $d1   fs       add !   !   $mf file:/f4 link:4)
-        (13 7-1.2 $oid4 commit   add !   !   !   group:1 desc:c_f4))
-        git_br_rename(b1 bb1) git_br_rename(b2 bb2)
-        $tb $$(
-        (14 7-1.3 !     git_br   rm  !   b2  !   !)
-        (15 5-1.3 !     git_br   rm  !   b1  !   !)
-        (16 5-1.4 $oid2 git_br   add !   bb1 !   !)
-        (17 7-1.4 $oid4 git_br   add !   bb2 !   !))
-        ##seq18={} verify_git`);
-      t('two_branch_rename_new_branch_commit_after_inc', `${t_common}
-        $add_f1 $tb $$(
-        (1  !     !     git_br   add !   !   $bm !)
-        (2  !     !     git_head add !   !   $bm !)
-        (3  !     !     fs       add !   !   $m0 dir:/)
-        (4  !     $d1   fs       add !   !   $mf file:/f1 content:1 f2:d1)
-        (5  !     $oid1 commit   add !   !   !   group:2 desc:c_f1))
-        git_br_new(b1) $tb $$(
-        (6  5-1.0 $oid1 git_br   add b1  !   !   !))
-        $add_f2 $tb $$(
-        (7  5-1.1 $d1   fs       add !   !   $mf file:/f2 link:4)
-        (8  5-1.2 $oid2 commit   add !   !   !   group:1 desc:c_f2))
-        git_br(master) $add_f3 $tb $$(
-        (9  6     $d1   fs       add !   !   $mf file:/f3 link:4)
-        (10 7     $oid3 commit   add !   !   !   group:1 desc:c_f3))
-        git_br_new(b2) $tb $$(
-        (11 7-1.0 $oid3 git_br   add b2  !   !   !))
-        $add_f4 $tb $$(
-        (12 7-1.1 $d1   fs       add !   !   $mf file:/f4 link:4)
-        (13 7-1.2 $oid4 commit   add !   !   !   group:1 desc:c_f4))
-        git_br_rename(b1 bb1) git_br_rename(b2 bb2)
-        git_br(bb1) $add_f5 git_br(bb2) $add_f6 $tb $$(
-        (14 7-1.3 !     git_br   rm  !   b2  !   !)
-        (15 5-1.3 !     git_br   rm  !   b1  !   !)
-        (16 5-1.4 $oid2 git_br   add !   bb1 !   !)
-        (17 5-1.5 $d1   fs       add !   !   $mf file:/f5 link:4)
-        (18 5-1.6 $oid5 commit   add !   !   !   group:1 desc:c_f5)
-        (19 7-1.4 $oid4 git_br   add !   bb2 !   !)
-        (20 7-1.5 $d1   fs       add !   !   $mf file:/f6 link:4)
-        (21 7-1.6 $oid6 commit   add !   !   !   group:1 desc:c_f6))
-        ##seq22={} verify_git`);
-      t('two_branch_rename_flip_branch_no_commit_inc', `${t_common}
-        $add_f1 $tb $$(
-        (1  !     !     git_br   add !   !   $bm !)
-        (2  !     !     git_head add !   !   $bm !)
-        (3  !     !     fs       add !   !   $m0 dir:/)
-        (4  !     $d1   fs       add !   !   $mf file:/f1 content:1 f2:d1)
-        (5  !     $oid1 commit   add !   !   !   group:2 desc:c_f1))
-        git_br_new(b1) $tb $$(
-        (6  5-1.0 $oid1 git_br   add b1  !   !   !))
-        $add_f2 $tb $$(
-        (7  5-1.1 $d1   fs       add !   !   $mf file:/f2 link:4)
-        (8  5-1.2 $oid2 commit   add !   !   !   group:1 desc:c_f2))
-        git_br(master) $add_f3 $tb $$(
-        (9  6     $d1   fs       add !   !   $mf file:/f3 link:4)
-        (10 7     $oid3 commit   add !   !   !   group:1 desc:c_f3))
-        git_br_new(b2) $tb $$(
-        (11 7-1.0 $oid3 git_br   add b2  !   !   !))
-        $add_f4 $tb $$(
-        (12 7-1.1 $d1   fs       add !   !   $mf file:/f4 link:4)
-        (13 7-1.2 $oid4 commit   add !   !   !   group:1 desc:c_f4))
-        // rename-flip b1<>b2
-        git_br_rename(b1 tmp) git_br_rename(b2 b1) git_br_rename(tmp b2)
-        $tb $$(
-        (14 7-1.3 !     git_br   rm  !   b2  !   !)
-        (15 5-1.3 !     git_br   rm  !   b1  !   !)
-        (16 7-1.4 $oid4 git_br   add !   b1  !   !)
-        (17 5-1.4 $oid2 git_br   add !   b2  !   !))
-        ##seq18={} verify_git`);
-      t('two_branch_rename_flip_branch_with_commit_inc', `${t_common}
-        $add_f1 $tb $$(
-        (1  !     !     git_br   add !   !   $bm !)
-        (2  !     !     git_head add !   !   $bm !)
-        (3  !     !     fs       add !   !   $m0 dir:/)
-        (4  !     $d1   fs       add !   !   $mf file:/f1 content:1 f2:d1)
-        (5  !     $oid1 commit   add !   !   !   group:2 desc:c_f1))
-        git_br_new(b1) $tb $$(
-        (6  5-1.0 $oid1 git_br   add b1  !   !   !))
-        $add_f2 $tb $$(
-        (7  5-1.1 $d1   fs       add !   !   $mf file:/f2 link:4)
-        (8  5-1.2 $oid2 commit   add !   !   !   group:1 desc:c_f2))
-        git_br(master) $add_f3 $tb $$(
-        (9  6     $d1   fs       add !   !   $mf file:/f3 link:4)
-        (10 7     $oid3 commit   add !   !   !   group:1 desc:c_f3))
-        git_br_new(b2) $tb $$(
-        (11 7-1.0 $oid3 git_br   add b2  !   !   !))
-        $add_f4 $tb $$(
-        (12 7-1.1 $d1   fs       add !   !   $mf file:/f4 link:4)
-        (13 7-1.2 $oid4 commit   add !   !   !   group:1 desc:c_f4))
-        // rename-flip b1<>b2
-        git_br_rename(b1 tmp) git_br_rename(b2 b1) git_br_rename(tmp b2)
-        // commit new files on b1 & b2
-        git_br(b1) $add_f5 git_br(b2) $add_f6
-        $tb $$(
-        (14 7-1.3 !     git_br   rm  !   b2  !   !)
-        (15 5-1.3 !     git_br   rm  !   b1  !   !)
-        (16 7-1.4 $oid4 git_br   add !   b1  !   !)
-        (17 7-1.5 $d1   fs       add !   !   $mf file:/f5 link:4)
-        (18 7-1.6 $oid5 commit   add !   !   !   group:1 desc:c_f5)
-        (19 5-1.4 $oid2 git_br   add !   b2  !   !)
-        (20 5-1.5 $d1   fs       add !   !   $mf file:/f6 link:4)
-        (21 5-1.6 $oid6 commit   add !   !   !   group:1 desc:c_f6))
-        ##seq22={} verify_git`);
-      t('three_branch_inc', `${t_common}
-        $add_f1 $tb $$(
-        (1  !         !     git_br   add !   !   $bm !)
-        (2  !         !     git_head add !   !   $bm !)
-        (3  !         !     fs       add !    ! $m0 dir:/)
-        (4  !         $d1   fs       add !    ! $mf file:/f1 content:1 f2:d1)
-        (5  !         $oid1 commit   add !    ! !   group:2 desc:c_f1))
-        git_br_new(b1) $tb $$(
-        (6  5-1.0     $oid1 git_br   add b1   ! !   !))
-        git_br_new(b2) $tb $$(
-        (7  5-2.0     $oid1 git_br   add b2   ! !   !))
-        git_br(b1) $add_f2 $tb $$(
-        (8  5-1.1     $d1   fs       add !    ! $mf file:/f2 link:4)
-        (9  5-1.2     $oid2 commit   add !    ! !   group:1 desc:c_f2))
-        git_br_new(b1_1) $add_f3 $tb $$(
-        (10 5-1.2-1.0 $oid2 git_br   add b1_1 ! !   !)
-        (11 5-1.2-1.1 $d1   fs       add !    ! $mf file:/f3 link:4)
-        (12 5-1.2-1.2 $oid3 commit   add !    ! !   group:1 desc:c_f3))
-        git_br(b2) $add_f4 $tb $$(
-        (13 5-2.1     $d1   fs       add !    ! $mf file:/f4 link:4)
-        (14 5-2.2     $oid4 commit   add !    ! !   group:1 desc:c_f4))
-        git_br(master) $add_f5 $tb $$(
-        (15 6         $d1   fs       add !    ! $mf file:/f5 link:4)
-        (16 7         $oid5 commit   add !    ! !   group:1 desc:c_f5))
-        ##seq17={} verify_git`);
-      t('three_branch_full', `${t_common} $add_f1 git_br_new(b1) git_br_new(b2)
-        git_br(b1) $add_f2 git_br_new(b1_1) $add_f3 git_br(b2) $add_f4
-        git_br(master) $add_f5 $tb $$(
-        (1  !         !     git_br   add !    !   $bm !)
-        (2  !         !     git_head add !    !   $bm !)
-        (3  !         !     fs       add !    ! $m0 dir:/)
-        (4  !         $d1   fs       add !    ! $mf file:/f1 content:1 f2:d1)
-        (5  !         $oid1 commit   add !    ! !   group:2 desc:c_f1)
-        (6  !         $d1   fs       add !    ! $mf file:/f5 link:4)
-        (7  !         $oid5 commit   add !    ! !   group:1 desc:c_f5)
-        (8  5-1.0     $oid1 git_br   add b1   ! !   !)
-        (9  5-1.1     $d1   fs       add !    ! $mf file:/f2 link:4)
-        (10 5-1.2     $oid2 commit   add !    ! !   group:1 desc:c_f2)
-        (11 5-1.2-1.0 $oid2 git_br   add b1_1 ! !   !)
-        (12 5-1.2-1.1 $d1   fs       add !    ! $mf file:/f3 link:4)
-        (13 5-1.2-1.2 $oid3 commit   add !    ! !   group:1 desc:c_f3)
-        (14 5-2.0     $oid1 git_br   add b2   ! !   !)
-        (15 5-2.1     $d1   fs       add !    ! $mf file:/f4 link:4)
-        (16 5-2.2     $oid4 commit   add !    ! !   group:1 desc:c_f4))
-        ##seq17={} verify_git`);
-      t('merge_two_parents_inc', `${t_common}
-        $add_f1 $t $$(
-        (1  !     !     git_br   add $bm !)
-        (2  !     !     git_head add $bm !)
-        (3  !     !     fs       add $m0 dir:/)
-        (4  !     $d1   fs       add $mf file:/f1 content:1 f2:d1)
-        (5  !     $oid1 commit   add !   group:2 desc:c_f1))
-        git_br_new(b1) $t $$(
-        (6  5-1.0 $oid1 git_br   add !   branch:b1))
-        $add_f2 $t $$(
-        (7  5-1.1 $d1   fs       add $mf file:/f2 link:4)
-        (8  5-1.2 $oid2 commit add !   group:1 desc:c_f2))
-        git_br(master) $add_f3 $t $$(
-        (9  6     $d1   fs       add $mf file:/f3 link:4)
-        (10 7     $oid3 commit   add !   group:1 desc:c_f3))
-        git_merge(oid4 b1 c_merge) $$M(merge:$oid2) $t $$(
-        (11 8     $d1   fs       add $mf file:/f2 link:4)
-        (12 9     $oid4 commit   add $M  group:1 desc:c_merge))
-        ##seq13={} verify_git`);
-      t('merge_two_parents_full', `${t_common} $add_f1 git_br_new(b1)
-        $add_f2 git_br(master) $add_f3 git_merge(oid4 b1 c_merge)
-        $$M(merge:$oid2) $t $$(
-        (1  !     !     git_br   add $bm !)
-        (2  !     !     git_head add $bm !)
-        (3  !     !     fs     add $m0 dir:/)
-        (4  !     $d1   fs     add $mf file:/f1 content:1 f2:d1)
-        (5  !     $oid1 commit add !   group:2 desc:c_f1)
-        (6  !     $d1   fs     add $mf file:/f3 link:4)
-        (7  !     $oid3 commit add !   group:1 desc:c_f3)
-        (8  !     $d1   fs     add $mf file:/f2 link:4)
-        (9  !     $oid4 commit add $M   group:1 desc:c_merge)
-        (10 5-1.0 $oid1 git_br add !   branch:b1)
-        (11 5-1.1 $d1   fs     add $mf file:/f2 link:4)
-        (12 5-1.2 $oid2 commit add !   group:1 desc:c_f2))
-        ##seq13={} verify_git`);
-      t('merge_two_parents_del_branch_inc', `${t_common}
-        $add_f1 $t $$(
-        (1  !     !     git_br   add $bm !)
-        (2  !     !     git_head add $bm !)
-        (3  !     !     fs       add $m0 dir:/)
-        (4  !     $d1   fs       add $mf file:/f1 content:1 f2:d1)
-        (5  !     $oid1 commit   add !   group:2 desc:c_f1))
-        git_br_new(b1) $t $$(
-        (6  5-1.0 $oid1 git_br   add !   branch:b1))
-        $add_f2 $t $$(
-        (7  5-1.1 $d1   fs       add $mf file:/f2 link:4)
-        (8  5-1.2 $oid2 commit   add !   group:1 desc:c_f2))
-        git_br(master) $add_f3 $t $$(
-        (9  6     $d1   fs       add $mf file:/f3 link:4)
-        (10 7     $oid3 commit   add !   group:1 desc:c_f3))
-        git_merge(oid4 b1 c_merge) $$M(merge:$oid2) $t $$(
-        (11 8     $d1   fs       add $mf file:/f2 link:4)
-        (12 9     $oid4 commit   add $M   group:1 desc:c_merge))
-        git_br_del(b1) $$B(branch:b1) $t $$(
-        (13  5-1.3 !    git_br   rm  $B   !))
-        ##seq14={} verify_git`);
-      t('merge_two_parents_del_branch_full', `${t_common} $add_f1
-        git_br_new(b1) $add_f2 git_br(master) $add_f3
-        git_merge(oid4 b1 c_merge) git_br_del(b1) $$M(merge:$oid2) $t $$(
-        (1  !     !     git_br   add $bm !)
-        (2  !     !     git_head add $bm !)
-        (3  !     !     fs       add $m0 dir:/)
-        (4  !     $d1   fs       add $mf file:/f1 content:1 f2:d1)
-        (5  !     $oid1 commit   add !   group:2 desc:c_f1)
-        (6  !     $d1   fs       add $mf file:/f3 link:4)
-        (7  !     $oid3 commit   add !   group:1 desc:c_f3)
-        (8  !     $d1   fs       add $mf file:/f2 link:4)
-        (9  !     $oid4 commit   add $M  group:1 desc:c_merge)
-        (10 5-1.0 $oid1 git_br   add !   branch:_null)
-        (11 5-1.1 $d1   fs       add $mf file:/f2 link:4)
-        (12 5-1.2 $oid2 commit   add !   group:1 desc:c_f2))
-        ##seq13={} verify_git`);
-      t('merge_three_parents_inc', `${t_common}
-        $add_f1 $t $$(
-        (1  !     !     git_br   add $bm !)
-        (2  !     !     git_head add $bm !)
-        (3  !     !     fs       add $m0 dir:/)
-        (4  !     $d1   fs       add $mf file:/f1 content:1 f2:d1)
-        (5  !     $oid1 commit   add !   group:2 desc:c_f1))
-        git_br_new(b1) $t $$(
-        (6  5-1.0 $oid1 git_br   add !   branch:b1))
-        $add_f2 $t $$(
-        (7  5-1.1 $d1   fs       add $mf file:/f2 link:4)
-        (8  5-1.2 $oid2 commit   add !   group:1 desc:c_f2))
-        git_br(master) git_br_new(b2) $t $$(
-        (9  5-2.0 $oid1 git_br   add !   branch:b2))
-        $add_f3 $t $$(
-        (10 5-2.1 $d1   fs       add $mf file:/f3 link:4)
-        (11 5-2.2 $oid3 commit   add !   group:1 desc:c_f3))
-        git_br(master) $add_f4 $t $$(
-        (12 6     $d1   fs       add $mf file:/f4 link:4)
-        (13 7     $oid4 commit   add !   group:1 desc:c_f4))
-        git_merge(oid5 b1 b2 c_merge) $$M(merge:[$oid2 $oid3]) $t $$(
-        (14 8     $d1   fs       add $mf file:/f2 link:4)
-        (15 9     $d1   fs       add $mf file:/f3 link:4)
-        (16 _10   $oid5 commit   add $M  group:2 desc:c_merge))
-        ##seq17={} verify_git`);
-      t('merge_three_parents_full', `${t_common} $add_f1 git_br_new(b1)
-        $add_f2 git_br(master) git_br_new(b2) $add_f3 git_br(master) $add_f4
-        git_merge(oid5 b1 b2 c_merge) $$M(merge:[$oid2 $oid3]) $t $$(
-        (1  !     !     git_br   add $bm !)
-        (2  !     !     git_head add $bm !)
-        (3  !     !     fs       add $m0 dir:/)
-        (4  !     $d1   fs       add $mf file:/f1 content:1 f2:d1)
-        (5  !     $oid1 commit   add !   group:2 desc:c_f1)
-        (6  !     $d1   fs       add $mf file:/f4 link:4)
-        (7  !     $oid4 commit   add !   group:1 desc:c_f4)
-        (8  !     $d1   fs       add $mf file:/f2 link:4)
-        (9  !     $d1   fs       add $mf file:/f3 link:4)
-        (10 !     $oid5 commit   add $M  group:2 desc:c_merge)
-        (11 5-1.0 $oid1 git_br   add !   branch:b1)
-        (12 5-1.1 $d1   fs       add $mf file:/f2 link:4)
-        (13 5-1.2 $oid2 commit   add !   group:1 desc:c_f2)
-        (14 5-2.0 $oid1 git_br   add !   branch:b2)
-        (15 5-2.1 $d1   fs       add $mf file:/f3 link:4)
-        (16 5-2.2 $oid3 commit   add !   group:1 desc:c_f3))
-        ##seq17={} verify_git`);
-      t('merge_three_parents_del_br_full', `${t_common} $add_f1 git_br_new(b1)
-        $add_f2 git_br(master) git_br_new(b2) $add_f3 git_br(master) $add_f4
-        git_merge(oid5 b1 b2 c_merge) $$M(merge:[$oid2 $oid3])
-        git_br_del(b1) git_br_del(b2) $t $$(
-        (1  !     !     git_br   add $bm !)
-        (2  !     !     git_head add $bm !)
-        (3  !     !     fs       add $m0 dir:/)
-        (4  !     $d1   fs       add $mf file:/f1 content:1 f2:d1)
-        (5  !     $oid1 commit   add !   group:2 desc:c_f1)
-        (6  !     $d1   fs       add $mf file:/f4 link:4)
-        (7  !     $oid4 commit   add !   group:1 desc:c_f4)
-        (8  !     $d1   fs       add $mf file:/f2 link:4)
-        (9  !     $d1   fs       add $mf file:/f3 link:4)
-        (10 !     $oid5 commit   add $M  group:2 desc:c_merge)
-        (11 5-1.0 $oid1 git_br   add !   branch:_null)
-        (12 5-1.1 $d1   fs       add $mf file:/f2 link:4)
-        (13 5-1.2 $oid2 commit   add !   group:1 desc:c_f2)
-        (14 5-2.0 $oid1 git_br   add !   branch(_null 2))
-        (15 5-2.1 $d1   fs       add $mf file:/f3 link:4)
-        (16 5-2.2 $oid3 commit   add !   group:1 desc:c_f3))
-        ##seq17={} verify_git`);
-      t('merge_one_parent_inc', `${t_common}
-        $add_f1 $t $$(
-        (1  !     !     git_br   add $bm !)
-        (2  !     !     git_head add $bm !)
-        (3  !     !     fs       add $m0 dir:/)
-        (4  !     $d1   fs       add $mf file:/f1 content:1 f2:d1)
-        (5  !     $oid1 commit   add !   group:2 desc:c_f1))
-        git_br_new(b1) $t $$(
-        (6  5-1.0 $oid1 git_br   add !   branch:b1))
-        $add_f2 $t $$(
-        (7  5-1.1 $d1   fs       add $mf file:/f2 link:4)
-        (8  5-1.2 $oid2 commit   add !   group:1 desc:c_f2))
-        git_br(master) git_merge(oid3 b1 c_merge) $t $$(
-        (9  6     $d1   fs       add $mf file:/f2 link:4)
-        (10 7     $oid2 commit   add !   group:1 desc:c_f2))
-        ##seq11={} verify_git`);
-      t('merge_one_parent_full', `${t_common} $add_f1 git_br_new(b1)
-        $add_f2 git_br(master) git_merge(oid3 b1 c_merge) $t $$(
-        (1  !     !     git_br   add $bm !)
-        (2  !     !     git_head add $bm !)
-        (3  !     !     fs       add $m0 dir:/)
-        (4  !     $d1   fs       add $mf file:/f1 content:1 f2:d1)
-        (5  !     $oid1 commit   add !   group:2 desc:c_f1)
-        (6  !     $d1   fs       add $mf file:/f2 link:4)
-        (7  !     $oid2 commit   add !   group:1 desc:c_f2)
-        (8  7-1.0 $oid2 git_br   add !   branch:b1))
-        ##seq9={} verify_git`);
-      t('merge_one_parent_on_branch_inc', `${t_common}
-        $add_f1 $t $$(
-        (1  !         !     git_br   add $bm !)
-        (2  !         !     git_head add $bm !)
-        (3  !         !     fs       add $m0 dir:/)
-        (4  !         $d1   fs       add $mf file:/f1 content:1 f2:d1)
-        (5  !         $oid1 commit   add !   group:2 desc:c_f1))
-        git_br_new(b1) $t $$(
-        (6  5-1.0     $oid1 git_br   add !   branch:b1))
-        $add_f2 $t $$(
-        (7  5-1.1     $d1   fs       add $mf file:/f2 link:4)
-        (8  5-1.2     $oid2 commit   add !   group:1 desc:c_f2))
-        git_br_new(b2) $t $$(
-        (9  5-1.2-1.0 $oid2 git_br   add !   branch:b2))
-        $add_f3 $t $$(
-        (10 5-1.2-1.1 $d1   fs       add $mf file:/f3 link:4)
-        (11 5-1.2-1.2 $oid3 commit   add !   group:1 desc:c_f3))
-        git_br(b1) git_merge(oid4 b2 c_merge) $t $$(
-        (12 5-1.3   $d1     fs       add $mf file:/f3 link:4)
-        (13 5-1.4   $oid3   commit   add !   group:1 desc:c_f3))
-        ##seq14={} verify_git`);
-      t('tag_inc', `${t_common}
-        $add_f1 $t $$(
-        (1  ! !     git_br   add $bm !)
-        (2  ! !     git_head add $bm !)
-        (3  ! !     fs       add $m0 dir:/)
-        (4  ! $d1   fs       add $mf file:/f1 content:1 f2:d1)
-        (5  ! $oid1 commit   add !   group:2 desc:c_f1))
-        $add_f2 $t $$(
-        (6  ! $d1   fs       add $mf file:/f2 link:4)
-        (7  ! $oid2 commit   add !   group:1 desc:c_f2))
-        $add_f3 $t $$(
-        (8  ! $d1   fs       add $mf file:/f3 link:4)
-        (9  ! $oid3 commit   add !   group:1 desc:c_f3))
-        git_tag(t1 $oid1) $t $$(
-        (10 ! $oid1 tag      add !   tag:t1 link:5))
-        git_tag(t1 $oid2) $t $$(
-        (11 ! $oid2 tag      mod !   tag:t1 link:7))
-        git_tag(t3 $oid3) $t $$(
-        (12 ! $oid3 tag      add !   tag:t3 link:9))
-        git_tag_del(t1) $t $$(
-        (13 ! $oid2 tag      rm  !   tag:t1))
-        ##seq14={} verify_git`);
-      t('tag_full', `${t_common} $add_f1 $add_f2 $add_f3 git_tag(t1 $oid1)
-        git_tag(t1 $oid2) git_tag(t3 $oid3) git_tag_del(t1) $t $$(
-        (1  ! !     git_br   add $bm !)
-        (2  ! !     git_head add $bm !)
-        (3  ! !     fs       add $m0 dir:/)
-        (4  ! $d1   fs       add $mf file:/f1 content:1 f2:d1)
-        (5  ! $oid1 commit   add !   group:2 desc:c_f1)
-        (6  ! $d1   fs       add $mf file:/f2 link:4)
-        (7  ! $oid2 commit   add !   group:1 desc:c_f2)
-        (8  ! $d1   fs       add $mf file:/f3 link:4)
-        (9  ! $oid3 commit   add !   group:1 desc:c_f3)
-        (10 ! $oid3 tag      add !   tag:t3 link:9))
-        ##seq11={} verify_git`);
-      t('tag_annotate_inc', `${t_common}
-        $add_f1 $t $$(
-        (1  ! !      git_br   add $bm !)
-        (2  ! !      git_head add $bm !)
-        (3  ! !      fs       add $m0 dir:/)
-        (4  ! $d1    fs       add $mf file:/f1 content:1 f2:d1)
-        (5  ! $oid1  commit   add !   group:2 desc:c_f1))
-        $add_f2 $t $$(
-        (6  ! $d1    fs       add $mf file:/f2 link:4)
-        (7  ! $oid2  commit   add !   group:1 desc:c_f2))
-        $add_f3 $t $$(
-        (8  ! $d1    fs       add $mf file:/f3 link:4)
-        (9  ! $oid3  commit   add !   group:1 desc:c_f3))
-        git_tag_annotate(toid1 t1 $oid1 c_tag1) $$C(commit_oid:$oid1) $t $$(
-        (10 ! $toid1 tag_o    add $C  tag:t1 link:5 desc:c_tag1)
-        (11 ! $toid1 tag      add !   tag:t1 link:10))
-        ##seq12={} verify_git`);
-      t('tag_annotate_full', `${t_common} $add_f1 $add_f2 $add_f3
-        git_tag_annotate(toid1 t1 $oid1 c_tag1) $$C(commit_oid:$oid1) $t $$(
-        (1  ! !      git_br   add $bm !)
-        (2  ! !      git_head add $bm !)
-        (3  ! !      fs       add $m0 dir:/)
-        (4  ! $d1    fs       add $mf file:/f1 content:1 f2:d1)
-        (5  ! $oid1  commit   add !   group:2 desc:c_f1)
-        (6  ! $d1    fs       add $mf file:/f2 link:4)
-        (7  ! $oid2  commit   add !   group:1 desc:c_f2)
-        (8  ! $d1    fs       add $mf file:/f3 link:4)
-        (9  ! $oid3  commit   add !   group:1 desc:c_f3)
-        (10 ! $toid1 tag_o    add $C  tag:t1 link:5 desc:c_tag1)
-        (11 ! $toid1 tag      add !   tag:t1 link:10))
-        ##seq12={} verify_git`);
-      // XXX: need flip protect for head
-      t('flip_protect_off_tag', `${t_common} $$flip(flip_protect:false)
-        $add_f1 $add_f2 $add_f3 $t $$(
-        (1  ! !      git_br   add $bm !)
-        (2  ! !      git_head add $bm !)
-        (3  ! !      fs       add $m0 dir:/)
-        (4  ! $d1    fs       add $mf file:/f1 content:1 f2:d1)
-        (5  ! $oid1  commit   add !   group:2 desc:c_f1)
-        (6  ! $d1    fs       add $mf file:/f2 link:4)
-        (7  ! $oid2  commit   add !   group:1 desc:c_f2)
-        (8  ! $d1    fs       add $mf file:/f3 link:4)
-        (9  ! $oid3  commit   add !   group:1 desc:c_f3))
-        git_tag(t1 $oid1) $t $$(
-        (10 ! $oid1  tag      add !   tag:t1 link:5))
-        git_tag(t1 $oid2) $t $$(
-        (11 ! $oid2  tag      mod !   tag:t1 link:7))
-        git_tag(t1 $oid1) $t $$(
-        (12 ! $oid1  tag      mod !   tag:t1 link:5))
-        ##seq13={} verify_git`);
-      t('flip_protect_warn_tag', `${t_common} $add_f1 $add_f2 $add_f3 $t $$(
-        (1  ! !      git_br   add $bm !)
-        (2  ! !      git_head add $bm !)
-        (3  ! !      fs       add $m0 dir:/)
-        (4  ! $d1    fs       add $mf file:/f1 content:1 f2:d1)
-        (5  ! $oid1  commit   add !   group:2 desc:c_f1)
-        (6  ! $d1    fs       add $mf file:/f2 link:4)
-        (7  ! $oid2  commit   add !   group:1 desc:c_f2)
-        (8  ! $d1    fs       add $mf file:/f3 link:4)
-        (9  ! $oid3  commit   add !   group:1 desc:c_f3))
-        git_tag(t1 $oid1) $t $$(
-        (10 ! $oid1  tag      add !   tag:t1 link:5))
-        git_tag(t1 $oid2) $t $$(
-        (11 ! $oid2  tag      mod !   tag:t1 link:7))
-        xerr(git: adding tag t1 with a previous oid $oid1)
-        git_tag(t1 $oid1)
-        $t xerr $$(
-        (12 ! $oid1  tag      mod !   tag:t1 link:5))
-        ##seq13={} verify_git`);
-      // XXX: test flip_protect branch, flip_protect annotated tag
-      // $$ -> $_ (activate last macro)
-      t('flip_protect_true_tag', `${t_common} $$flip(flip_protect)
-        $add_f1 $add_f2 $add_f3 $t $$(
-        (1  ! !      git_br   add $bm !)
-        (2  ! !      git_head add $bm !)
-        (3  ! !      fs       add $m0 dir:/)
-        (4  ! $d1    fs       add $mf file:/f1 content:1 f2:d1)
-        (5  ! $oid1  commit   add !   group:2 desc:c_f1)
-        (6  ! $d1    fs       add $mf file:/f2 link:4)
-        (7  ! $oid2  commit   add !   group:1 desc:c_f2)
-        (8  ! $d1    fs       add $mf file:/f3 link:4)
-        (9  ! $oid3  commit   add !   group:1 desc:c_f3))
-        git_tag(t1 $oid1) $t $$(
-        (10 ! $oid1  tag      add !   tag:t1 link:5))
-        git_tag(t1 $oid2) $t $$(
-        (11 ! $oid2  tag      mod !   tag:t1 link:7))
-        git_tag(t1 $oid1) $t $$() ##seq12={}
-        git_tag(t2 $oid2) $t $$(
-        (12 ! $oid2  tag      add !   tag:t2 link:7))
-        git_tag_del(t1) $t $$(
-        (13 ! $oid2  tag      rm  !   tag:t1))
-        git_tag(t1 $oid1) $t $$() ##seq14={}
-        git_tag(t1 $oid2) $t $$() ##seq14={}
-        git_tag(t1 $oid3) $t $$(
-        (14 ! $oid3  tag      add !   tag:t1 link:9))
-        git_tag(t1 $oid2) $t $$() ##seq15={} verify_git`);
-      t('flip_protect_off_branch', `${t_common} $$flip(flip_protect:false)
-        $add_f1 $add_f2 $add_f3 $t $$(
-        (1  !     !      git_br   add $bm !)
-        (2  !     !      git_head add $bm !)
-        (3  !     !      fs       add $m0 dir:/)
-        (4  !     $d1    fs       add $mf file:/f1 content:1 f2:d1)
-        (5  !     $oid1  commit   add !   group:2 desc:c_f1)
-        (6  !     $d1    fs       add $mf file:/f2 link:4)
-        (7  !     $oid2  commit   add !   group:1 desc:c_f2)
-        (8  !     $d1    fs       add $mf file:/f3 link:4)
-        (9  !     $oid3  commit   add !   group:1 desc:c_f3))
-        git_br_new(b1 $oid1) $t $$(
-        (10 5-1.0 $oid1  git_br   add !   branch:b1))
-        git_br(master) git_br_del(b1) git_br_new(b1 $oid2) $t $$(
-        (11 5-1.1 $d1    fs       add $mf file:/f2 link:4)
-        (12 5-1.2 $oid2  commit   add !  group:1 desc:c_f2))
-        git_br(master) git_br_del(b1) git_br_new(b1 $oid1) $$B(branch:b1)
-        $t $$(
-        (13  5-1.3 !     git_br   rm  $B  !)
-        (14  5-2.0 $oid1 git_br   add $B  branch(b1 2)))
-        git_br(master) git_br_del(b1) $t $$(
-        (15  5-2.1 !     git_br   rm  $B  !))
-        git_br_new(b1 $oid2) $t $$(
-        (16  7-1.0 $oid2 git_br   add $B  branch(b1 3)))
-        ##seq17={}
-        git_br(master) git_br_del(b1) $t $$(
-        (17  7-1.1 !     git_br   rm  $B  !))
-        git_br_new(b1 $oid2) $t $$(
-        (18  7-2.0 $oid2 git_br   add $B  branch(b1 4)))
-        ##seq19={} verify_git`);
-      t('flip_protect_warn_branch', `${t_common} $add_f1 $add_f2 $add_f3 $t $$(
-        (1  !     !      git_br   add $bm !)
-        (2  !     !      git_head add $bm !)
-        (3  !     !      fs       add $m0 dir:/)
-        (4  !     $d1    fs       add $mf file:/f1 content:1 f2:d1)
-        (5  !     $oid1  commit   add !   group:2 desc:c_f1)
-        (6  !     $d1    fs       add $mf file:/f2 link:4)
-        (7  !     $oid2  commit   add !   group:1 desc:c_f2)
-        (8  !     $d1    fs       add $mf file:/f3 link:4)
-        (9  !     $oid3  commit   add !   group:1 desc:c_f3))
-        git_br_new(b1 $oid1) $t $$(
-        (10 5-1.0 $oid1  git_br   add !   branch:b1))
-        git_br(master) git_br_del(b1) git_br_new(b1 $oid2) $t $$(
-        (11 5-1.1 $d1    fs       add $mf file:/f2 link:4)
-        (12 5-1.2 $oid2  commit   add !  group:1 desc:c_f2))
-        git_br(master) git_br_del(b1) git_br_new(b1 $oid1) $$B(branch:b1)
-        xerr(git: adding branch b1 with a previous oid $oid1) $t $$(
-        (13  5-1.3 !     git_br   rm  $B  !)
-        (14  5-2.0 $oid1 git_br   add $B  branch(b1 2)))
-        xerr ##seq15={}
-        git_br(master) git_br_del(b1) $t $$(
-        (15  5-2.1 !     git_br   rm  $B  !))
-        git_br_new(b1 $oid2) $t $$(
-        (16  7-1.0 $oid2 git_br   add $B  branch(b1 3)))
-        ##seq17={}
-        git_br(master) git_br_del(b1) $t $$(
-        (17  7-1.1 !     git_br   rm  $B  !))
-        git_br_new(b1 $oid2)
-        xerr(git: adding branch b1 with a previous oid $oid2) $t $$(
-        (18  7-2.0 $oid2 git_br   add $B  branch(b1 4)))
-        xerr ##seq19={} verify_git`);
-      t('flip_protect_on_branch', `${t_common} $$flip(flip_protect)
-        $add_f1 $add_f2 $add_f3 $t $$(
-        (1  !     !      git_br   add $bm !)
-        (2  !     !      git_head add $bm !)
-        (3  !     !      fs       add $m0 dir:/)
-        (4  !     $d1    fs       add $mf file:/f1 content:1 f2:d1)
-        (5  !     $oid1  commit   add !   group:2 desc:c_f1)
-        (6  !     $d1    fs       add $mf file:/f2 link:4)
-        (7  !     $oid2  commit   add !   group:1 desc:c_f2)
-        (8  !     $d1    fs       add $mf file:/f3 link:4)
-        (9  !     $oid3  commit   add !   group:1 desc:c_f3))
-        git_br_new(b1 $oid1) $t $$(
-        (10 5-1.0 $oid1  git_br   add !   branch:b1))
-        git_br(master) git_br_del(b1) git_br_new(b1 $oid2) $t $$(
-        (11 5-1.1 $d1    fs       add $mf file:/f2 link:4)
-        (12 5-1.2 $oid2  commit   add !  group:1 desc:c_f2))
-        git_br(master) git_br_del(b1) git_br_new(b1 $oid1) $$B(branch:b1)
-        ##seq13={}
-        git_br(master) git_br_del(b1) $t $$(
-        (13  5-1.3 !     git_br   rm  $B  !))
-        git_br_new(b1 $oid2) $t $$(
-        (14  7-1.0 $oid2 git_br   add $B  branch(b1 2)))
-        ##seq15={}
-        git_br(master) git_br_del(b1) $t $$(
-        (15  7-1.1 !     git_br   rm  $B  !))
-        git_br_new(b1 $oid2) $t $$()
-        ##seq16={} verify_git`);
-      // XXX: missing head rm
-      t('no_main_inc', `${_t_common} s..git(src:git_test main:no_main)
-        $$sync_main(no_main)
-        $$bn(branch:no_main) $t $$(
-        (1  !     !        git_br   add $bn !)
-        (2  !     !        git_head add $bn !))
-        $add_f1 xerr(cannot find head no_main) $t $$(
-        (3  !       !      git_head rm  $bn !)
-        (4  !       !      git_br   rm  $bn !)
-        (5  !       !      git_br   add $bm !)
-        (6  !       !      fs       add $m0 dir:/)
-        (7  !       $d1    fs       add $mf file:/f1 content:1 f2:d1)
-        (8  !       $oid1  commit   add !   group:2 desc:c_f1))
-        xerr
-        $add_f2 xerr(cannot find head no_main) $t $$(
-        (9  !       $d1    fs       add $mf file:/f2 link:7)
-        (10 !       $oid2  commit   add !   group:1 desc:c_f2))
-        xerr
-        git_br_new(no_main) $t $$(
-        (11 _10-1.0 $oid2  git_br add !   branch:no_main))
-        $add_f3 $t $$(
-        (12 _10-1.1 !      git_head add $bn !)
-        (13 _10-1.2 $d1    fs       add $mf file:/f3 link:7)
-        (14 _10-1.3 $oid3  commit   add !   group:1 desc:c_f3))
-        git_br(master) $add_f4 $t $$(
-        (15 _11     $d1   fs        add $mf file:/f4 link:7)
-        (16 _12     $oid4  commit   add !   group:1 desc:c_f4))
-        ##seq17={} verify_git`);
-      t('no_main_inc2', `${_t_common} s..git(src:git_test main:no_main)
-        $$sync_main(no_main) $$bn(branch:no_main)
-        $t $$(
-        (1  !       !     git_br   add $bn !)
-        (2  !       !     git_head add $bn !))
-        $add_f1 xerr(cannot find head no_main) $t $$(
-        (3  !       !     git_head rm  $bn !)
-        (4  !       !     git_br   rm  $bn !)
-        (5  !       !     git_br   add $bm !)
-        (6  !       !     fs       add $m0 dir:/)
-        (7  !       $d1   fs       add $mf file:/f1 content:1 f2:d1)
-        (8  !       $oid1 commit   add !   group:2 desc:c_f1))
-        xerr
-        $add_f2 xerr(cannot find head no_main) $t $$(
-        (9  !       $d1   fs       add $mf file:/f2 link:7)
-        (10 !       $oid2 commit   add !   group:1 desc:c_f2))
-        dbg
-        git_br_new(no_main) $add_f3 $t $$(
-        (11 _10-1.0 $oid2 git_br    add  !   branch:no_main)
-        (12 _10-1.1 $d1   fs       add $mf file:/f3 link:7)
-        (13 _10-1.2 $oid3 commit   add !   group:1 desc:c_f3)
-        (14 _10-1.3 !     git_head add $bn !))
-        git_br(master) $add_f4 $t $$(
-        (15 _11     $d1   fs        add $mf file:/f4 link:7)
-        (16 _12     $oid4 commit   add !   group:1 desc:c_f4))
-        ##seq17={} verify_git`);
-      t('no_main_full', `${_t_common} s..git(src:git_test main:no_main)
-        $$bn(branch:no_main)
-        $add_f1
-        $add_f2
-        git_br_new(no_main) $add_f3
-        git_br(master) $add_f4 $$sync_main(no_main) $t $$(
-        (1  !     !      git_br   add $bn !)
-        (2  !     !      git_head add $bn !)
-        (3  !     !      fs       add $m0 dir:/)
-        (4  !     $d1    fs       add $mf file:/f1 content:1 f2:d1)
-        (5  !     $oid1  commit   add !   group:2 desc:c_f1)
-        (6  !     $d1    fs       add $mf file:/f2 link:4)
-        (7  !     $oid2  commit   add !   group:1 desc:c_f2)
-        (8  !     $d1    fs       add $mf file:/f3 link:4)
-        (9  !     $oid3  commit   add !   group:1 desc:c_f3)
-        (10 7-1.0 $oid2  git_br   add !   branch:master)
-        (11 7-1.1 $d1    fs       add $mf file:/f4 link:4)
-        (12 7-1.2 $oid4  commit   add !   group:1 desc:c_f4))
-        ##seq13={} verify_git`);
-      t('head_inc', `${t_common}
-        $add_f1 $t $$(
-        (1  !     !     git_br   add $bm !)
-        (2  !     !     git_head add $bm !)
-        (3  !     !     fs       add $m0 dir:/)
-        (4  !     $d1   fs       add $mf file:/f1 content:1 f2:d1)
-        (5  !     $oid1 commit   add !   group:2 desc:c_f1))
-        $add_f2 $t $$(
-        (6  !     $d1   fs        add $mf file:/f2 link:4)
-        (7  !     $oid2 commit    add !   group:1 desc:c_f2))
-        git_br_new(b1) $t $$(
-        (8  7-1.0 $oid2 git_br    add !   branch:b1))
-        $add_f3 $t $$(
-        (9  7-1.1 $d1   fs        add $mf file:/f3 link:4)
-        (10 7-1.2 $oid3 commit    add !   group:1 desc:c_f3))
-        $$sync_main(b1) $$b1(branch:b1) $t $$(
-        (11 8     !     git_head  rm  $bm !)
-        (12 7-1.3 !     git_head  add $b1 !))
-        ##seq13={}`);
-      t('head_full', `${t_common}
-        $add_f1
-        $add_f2
-        git_br_new(b1)
-        $add_f3
-        $$sync_main(b1) $$b1(branch:b1) $t $$(
-        (1  !         !     git_br   add $bm !)
-        (2  !         !     git_head add $bm !)
-        (3  2-1.0     !     git_br   add !   branch:b1)
-        (4  2-1.1     !     fs       add $m0 dir:/)
-        (5  2-1.2     $d1   fs       add $mf file:/f1 content:1 f2:d1)
-        (6  2-1.3     $oid1 commit   add !   group:2 desc:c_f1)
-        (7  2-1.4     $d1   fs       add $mf file:/f2 link:5)
-        (8  2-1.5     $oid2 commit   add !   group:1 desc:c_f2)
-        (9  2-1.6     $d1   fs       add $mf file:/f3 link:5)
-        (10 2-1.7     $oid3 commit   add !   group:1 desc:c_f3)
-        (11 3         !     git_head rm  $bm !)
-        (12 4         !     git_br   rm  $bm !)
-        (13 2-1.5-1.0 $oid2 git_br   add !   branch:master)
-        (14 2-1.8     !     git_head add $b1 !))
-        ##seq15={}`);
-      // XXX: head flip protection
-      t('commit_two_roots_inc', `${t_common}
-        $add_f1 $t $$(
-        (1  ! !     git_br   add $bm !)
-        (2  ! !     git_head add $bm !)
-        (3  ! !     fs       add $m0 dir:/)
-        (4  ! $d1   fs       add $mf file:/f1 content:1 f2:d1)
-        (5  ! $oid1 commit   add !   group:2 desc:c_f1))
-        $add_f2 $t $$(
-        (6  ! $d1   fs       add $mf file:/f2 link:4)
-        (7  ! $oid2 commit   add !   group:1 desc:c_f2))
-        git_br_orphan(b1) $t $$()
-        $add_f3 $$sync_err(Error: multiple root not supported $oid3) $t $$()
-        ##seq8={} verify_git`);
-      t('commit_two_roots_full', `${t_common} $add_f1 $add_f2 git_br_orphan(b1)
-        $add_f3 $$sync_err(Error: multiple root not supported $oid3) $t $$(
-        (1  ! !     git_br   add $bm !)
-        (2  ! !     git_head add $bm !))
-        ##seq3={} verify_git`);
-      t('seal', `${t_common} $$sync_seal(true)
-        $$s(src:${encode_str('https://github.com/git_test')})
-        $add_f1 $t $$(
-        (1  !     !     git_br   add $bm !)
-        (2  !     !     git_head add $bm !)
-        (3  !     !     fs       add $m0 dir:/)
-        (4  !     $d1   fs       add $mf file:/f1 content:1 f2:d1)
-        (5  !     $oid1 commit   add !   group:2 desc:c_f1)
-        (6  !     !     seal     !   $s  !))
-        git_br_new(b1) $t $$(
-        (7  5-1.0 $oid1 git_br   add !   branch:b1)
-        (8  7     !     seal     !   $s  !))
-        $add_f2 $t $$(
-        (9  5-1.1 $d1   fs       add $mf file:/f2 link:4)
-        (10 5-1.2 $oid2 commit   add !   group:1 desc:c_f2)
-        (11 8     !     seal     !   $s  !))
-        ##seq12={}
-      `);
-      let gpg5 = encode_str('-----BEGIN PGP SIGNATURE-----\n'+
-        '\nwsBcBAABCAAQBQJkNm+YCRBK7hj4Ov3rIwAArvwIAKD/lrcoHllSLAf5FvCwoKd/'+
-        '\ndI3AVOdMZ4vXFPb36V2eh3fF8GBOab463mWx4cnAV3Lr11VY8IT/f30mch7qgrRy'+
-        '\nRvVdRtdighdgizoqUgjsZ3QHhWavHeluehQ/+AwSgau30L/9X3H9UeeRjbes1gRr'+
-        '\nyhrQ5cIV9mn3mUTB82AfhA23akZ21hEWmMbN3mivByZ7MNnv4D0ZMaedia3JmARn'+
-        '\nV7ssY94HmzeAYsiqcBiQ4j5Ec308yGW8oEWD/CzsjdNEW4OJaMUprRqoxKrSVVq3'+
-        '\nus+YUfJrJr5GrdaqMKvfKKZVGfwEqyeoWh/kU9anD6eNPgCRudqHjLFSHqrgHJQ='+
-        '\n=Zdym\n-----END PGP SIGNATURE-----\n');
-      let gpg7 = encode_str('-----BEGIN PGP SIGNATURE-----\n'+
-        '\nwsBcBAABCAAQBQJkNm+rCRBK7hj4Ov3rIwAAHIkIAF2TSXNjQFBsR1jLB1Hk9J8Z'+
-        '\nHbK8/Skv0iwmkTwfKkA7R4pT13QgskoFMMT6i7xOyBRQc2LEZLaR5FKQQhtxfSvc'+
-        '\nYTn+l3nLJdU5OCZjBon7yo/uM8eOzqw81LgVp+JbKaORfzAZno/pOfn3N47Czwoy'+
-        '\nQrC3Wdfq0EkeiXeOpC/yB2lDcynziuRT7QJFpuJIP3kJ5Zh3f6U1IY5C/Uo1Drrw'+
-        '\nq+5JMVJrdU3qLTK9/FIvoX6EYERB5QZeUmw3smX/5HzcdVsY5bjY+bIdgWO8mES/'+
-        '\nKzoGMn5nr2tgBTwjbgIgcG2PJ0wnf6JICns4USp0oRAE6EYAeH4vj2oSjyXCV5U='+
-        '\n=udUT\n-----END PGP SIGNATURE-----\n');
-      let gpg9 = encode_str('-----BEGIN PGP SIGNATURE-----\n'+
-        '\niQGzBAABCgAdFiEEndepdIBVI/JR3VFqk63BrWpcXVgFAmQ2ei0ACgkQk63BrWpc'+
-        '\nXVhqdQv/WdVqKEYqPV3iJukwR9qEWhZLo0Xl9WatvVynHKwV/mn0MWtUHV/KgvDu'+
-        '\nL+rfWpMauoIx5v2labUg13+FAZ67FDvh8oDTVGXjwMiwtmPod3MIQTU+B5/zE99r'+
-        '\nJWqpOsNtFb1yDDCY1NB5bFtfHU93FsVxaAcSssryCkdiEKURpjGKjE1lIv6uP3wh'+
-        '\nkHfjljOX9GJ5zAN7LR1LD8eM9H4NCGcw7BLNYOc6MNiiGP8BvLquj6n2IDa7jq6c'+
-        '\ninG9HkEifDEQnZuDrfhItmduAs46ehDjZASgwZz9qkDZNwqXAI6uYMdwkyQJrv4o'+
-        '\nFRu9+B9ChDfap75JS1oZnOsxOHb9afZ6mYDWDQHIp+qe40JoJxkYBATr/fhfU//9'+
-        '\nIXIZfJSlgGRFwwA2/V9+Luk0zJVjL/qUJjH9apW0V6j5n/PBW2ycYVnc/RtsLoAl'+
-        '\nHu5BDdKp+5HRUXnzfKHuJzOVB9zMRhx4Z5l05dg9baZE0xFvFIFNh10wLc00nKhI'+
-        '\n40aIXJC6\n=6XSv\n-----END PGP SIGNATURE-----\n');
-      t('tag_gpg', `${_t_common}
-        $$bm(branch:main) $$mf(mode:100644) $$m0(mode:0)
-        $$d1(8b137891791fe96927ad78e64b0aad7bded08bdc)
-        $$oid1(cc89e3d5f7bee12d8cb3b0564c18b27b9507f7ff)
-        $$oid2(b2694edc28f75909ec5e2af1b9cae53479753624)
-        $$toid(1e86977cdcf23a10d2fe57debe9fba53be1467be)
-        $$c(commit_oid:$oid2 gpgsig:${gpg9})
-        $$g5(gpgsig:${gpg5})
-        $$g7(gpgsig:${gpg7})
-        $$t(sync(seal:false)
-          ##seq$1={bseq:$2 type:$4 op:$5 $7... git:{oid:$3 $6}})
-        s..git(src(lif-rnd/test_tag_gpg)) $t $$(
-        (1  !     !     git_br   add $bm !)
-        (2  !     !     git_head add $bm !)
-        (3  !     !     fs       add $m0 dir:/)
-        (4  !     $d1   fs       add $mf file:/f1 content:1 f2:0x0a)
-        (5  !     $oid1 commit   add $g5 group:2 _desc:add_f1)
-        (6  !     $d1   fs       add $mf file:/f2 link:4)
-        (7  !     $oid2 commit   add $g7 group:1 _desc:add_f2)
-        (8  !     $oid2 tag      add !   link:7 tag:tag1)
-        (9  !     $toid tag_o    add $c  link:7 tag:tag_gpg _desc:tag_gpg_desc)
-        (10 !     $toid tag      add !   link:9 tag:tag_gpg))
-        ##seq11={}
-      `);
-    });
+  });
+  describe('sync', ()=>{
+    let _t_common = `$$mf(mode:100644) $$m0(mode:0) buf(d1:1)
+      $$bm(branch:master)
+      $$d1(d00491fd7e5bb6fa28c517a0bb32b8b506539d4d)
+      $$R(/tmp/__lif_test/git_test/repo)
+      $$R2(/tmp/__lif_test/git_test/sync)
+      $$add_f1(fs_write($R/f1 d1) git_add(f1) git_commit(oid1 c_f1))
+      $$add_f2(fs_write($R/f2 d1) git_add(f2) git_commit(oid2 c_f2))
+      $$add_f3(fs_write($R/f3 d1) git_add(f3) git_commit(oid3 c_f3))
+      $$add_f4(fs_write($R/f4 d1) git_add(f4) git_commit(oid4 c_f4))
+      $$add_f5(fs_write($R/f5 d1) git_add(f5) git_commit(oid5 c_f5))
+      $$add_f6(fs_write($R/f6 d1) git_add(f6) git_commit(oid6 c_f6))
+      $$add_d1(fs_mkdir($R/d1) fs_write($R/d1/f d1) git_add($R/d1/f)
+        git_commit(oid1 c_d1))
+      git_init($R)
+      $$sync_err() $$flip() $$sync_main(master) $$sync_seal(false)
+      $$t(fs_cp($R/.git $R2)
+      sync(seal:$sync_seal main:$sync_main $flip err($sync_err)
+        gitdir($R2)) ##seq$1={bseq:$2 type:$4 op:$5 $7... git:{oid:$3 $6}})
+      $$tb(fs_cp($R/.git $R2)
+        sync(seal:$sync_seal main:$sync_main err($sync_err) gitdir($R2))
+        ##seq$1={bseq:$2 type:$4
+        op:$5 branch($rm_parentesis($6)) $9... git:{oid:$3 branch:$7 $8}})`;
+    let t_common = `${_t_common} s..git(src:git_test main:master)`;
+    const t = (name, test)=>it(name, ()=>test_run(test));
+    t('sync_empty', `${t_common} $t $$(
+      (1  ! !     git_br   add $bm !)
+      (2  ! !     git_head add $bm !))
+      ##seq3={}`);
+    t('commit_empty', `${t_common} $t $$(
+      (1  ! !     git_br   add $bm !)
+      (2  ! !     git_head add $bm !))
+      git_commit(oid1 c_f1) $t $$(
+      (3  ! !     fs       add $m0 dir:/)
+      (4  ! $oid1 commit   add !   group:1 desc:c_f1))
+      git_commit(oid2 c_f2) $t $$(
+      (5  ! $oid2 commit add !   desc:c_f2))
+      ##seq6={} verify_git`);
+    t('commit_file', `${t_common} $t $$(
+      (1  ! !     git_br   add $bm !)
+      (2  ! !     git_head add $bm !))
+      $add_f1 $t $$(
+      (3  ! !     fs       add $m0 dir:/)
+      (4  ! $d1   fs       add $mf file:/f1 content:1 f2:d1)
+      (5  ! $oid1 commit   add !   group:2 desc:c_f1))
+      $add_f2 $t $$(
+      (6  ! $d1   fs       add $mf file:/f2 link:4)
+      (7  ! $oid2 commit   add !   group:1 desc:c_f2))
+      ##seq8={}
+      ##git_sha_file(/f1 seq:4)=$d1
+      ##git_sha_file(/f2 seq:6)=$d1
+      ##git_sha_dir(/ seq:6)=cdfbe84a9047568f4312fc01c4beddc712e0256e
+      verify_git`);
+    if (0) // XXX WIP
+    t('dir', `${t_common} $t $$(
+      (1  ! !     git_br   add $bm !)
+      (2  ! !     git_head add $bm !))
+      $add_d1 $t $$(
+      (3  ! !     fs       add $m0 dir:/)
+      (4  ! !     fs       add $m0 dir:/d1))
+      ##seq5={}
+    `);
+    t('one_branch_inc', `${t_common}
+      $add_f1 $t $$(
+      (1  !     !     git_br   add $bm !)
+      (2  !     !     git_head add $bm !)
+      (3  !     !     fs       add $m0 dir:/)
+      (4  !     $d1   fs       add $mf file:/f1 content:1 f2:d1)
+      (5  !     $oid1 commit   add !   group:2 desc:c_f1))
+      git_br_new(b1) $t $$(
+      (6  5-1.0 $oid1 git_br   add !   branch:b1))
+      $add_f2 $t $$(
+      (7  5-1.1 $d1   fs       add $mf file:/f2 link:4)
+      (8  5-1.2 $oid2 commit   add !   group:1 desc:c_f2))
+      git_br(master) $add_f3 $t $$(
+      (9  6     $d1   fs       add $mf file:/f3 link:4)
+      (10 7     $oid3 commit   add !   group:1 desc:c_f3))
+      ##seq11={} verify_git`);
+    t('one_branch_full', `${t_common} $add_f1 git_br_new(b1) $add_f2
+      git_br(master) $add_f3 $t $$(
+      (1  !     !     git_br   add $bm !)
+      (2  !     !     git_head add $bm !)
+      (3  !     !     fs       add $m0 dir:/)
+      (4  !     $d1   fs       add $mf file:/f1 content:1 f2:d1)
+      (5  !     $oid1 commit   add !   group:2 desc:c_f1)
+      (6  !     $d1   fs       add $mf file:/f3 link:4)
+      (7  !     $oid3 commit   add !   group:1 desc:c_f3)
+      (8  5-1.0 $oid1 git_br   add !   branch:b1)
+      (9  5-1.1 $d1   fs       add $mf file:/f2 link:4)
+      (10 5-1.2 $oid2 commit   add !   group:1 desc:c_f2))
+      ##seq11={} verify_git`);
+    t('one_branch_del_branch_inc', `${t_common}
+      $add_f1 $t $$(
+      (1  !     !     git_br   add $bm       !)
+      (2  !     !     git_head add $bm       !)
+      (3  !     !     fs       add $m0       dir:/)
+      (4  !     $d1   fs       add $mf       file:/f1 content:1 f2:d1)
+      (5  !     $oid1 commit   add !         group:2 desc:c_f1))
+      git_br_new(b1) $t $$(
+      (6  5-1.0 $oid1 git_br   add !         branch:b1))
+      $add_f2 $t $$(
+      (7  5-1.1 $d1   fs       add $mf       file:/f2 link:4)
+      (8  5-1.2 $oid2 commit   add !         group:1 desc:c_f2))
+      git_br(master) $add_f3 $t $$(
+      (9  6     $d1   fs       add $mf       file:/f3 link:4)
+      (10 7     $oid3 commit   add !         group:1 desc:c_f3))
+      git_br_del(b1) $t $$(
+      (11 5-1.3 !     git_br   rm  branch:b1 !))
+      ##seq12={} verify_git`);
+    t('one_branch_del_branch_full', `${t_common} $add_f1 git_br_new(b1)
+      $add_f2 git_br(master) $add_f3 git_br_del(b1) $t $$(
+      (1  !     !     git_br   add $bm !)
+      (2  !     !     git_head add $bm !)
+      (3  !     !     fs       add $m0 dir:/)
+      (4  !     $d1   fs       add $mf file:/f1 content:1 f2:d1)
+      (5  !     $oid1 commit   add !   group:2 desc:c_f1)
+      (6  !     $d1   fs       add $mf file:/f3 link:4)
+      (7  !     $oid3 commit   add !   group:1 desc:c_f3))
+      ##seq8={} verify_git`);
+    t('one_branch_rename_branch_inc', `${t_common}
+      $add_f1 $tb $$(
+      (1  !     !     git_br   add !   !  $bm !)
+      (2  !     !     git_head add !   !  $bm !)
+      (3  !     !     fs       add !   !  $m0 dir:/)
+      (4  !     $d1   fs       add !   !  $mf file:/f1 content:1 f2:d1)
+      (5  !     $oid1 commit   add !   !  !   group:2 desc:c_f1))
+      git_br_new(b1) $tb $$(
+      (6  5-1.0 $oid1 git_br   add b1  !  !   !))
+      $add_f2 $tb $$(
+      (7  5-1.1 $d1   fs       add !   !  $mf file:/f2 link:4)
+      (8  5-1.2 $oid2 commit   add !   !  !   group:1 desc:c_f2))
+      git_br(master) $add_f3 $tb $$(
+      (9  6     $d1   fs       add !   !  $mf file:/f3 link:4)
+      (10 7     $oid3 commit   add !   !  !   group:1 desc:c_f3))
+      git_br_rename(b1 b2) $tb $$(
+      (11 5-1.3 !     git_br   rm  !   b1 !   !)
+      (12 5-1.4 $oid2 git_br   add !   b2 !   !))
+      ##seq13={} verify_git`);
+    t('one_branch_rename_branch_full', `${t_common} $add_f1 git_br_new(b1)
+      $add_f2 git_br(master) $add_f3 git_br_rename(b1 b2) $tb $$(
+      (1  !     !     git_br   add !  !  $bm !)
+      (2  !     !     git_head add !  !  $bm !)
+      (3  !     !     fs       add !  !  $m0 dir:/)
+      (4  !     $d1   fs       add !  !  $mf file:/f1 content:1 f2:d1)
+      (5  !     $oid1 commit   add !  !  !   group:2 desc:c_f1)
+      (6  !     $d1   fs       add !  !  $mf file:/f3 link:4)
+      (7  !     $oid3 commit   add !  !  !   group:1 desc:c_f3)
+      (8  5-1.0 $oid1 git_br   add b2 !  !   branch:b2)
+      (9  5-1.1 $d1   fs       add !  !  $mf file:/f2 link:4)
+      (10 5-1.2 $oid2 commit   add !  !  !   group:1 desc:c_f2))
+      ##seq11={} verify_git`);
+    t('one_branch_rename_same_inc', `${t_common}
+      $add_f1 $tb $$(
+      (1  !     !     git_br   add !      !  $bm !)
+      (2  !     !     git_head add !      !  $bm !)
+      (3  !     !     fs       add !      !  $m0 dir:/)
+      (4  !     $d1   fs       add !      !  $mf file:/f1 content:1 f2:d1)
+      (5  !     $oid1 commit   add !      !  !   group:2 desc:c_f1))
+      git_br_new(b1) $tb $$(
+      (6  5-1.0 $oid1 git_br   add b1     !  !   !))
+      $add_f2 $tb $$(
+      (7  5-1.1 $d1   fs       add !      !  $mf file:/f2 link:4)
+      (8  5-1.2 $oid2 commit   add !      !  !   group:1 desc:c_f2))
+      git_br(master) $add_f3 $tb $$(
+      (9  6     $d1   fs       add !      !  $mf file:/f3 link:4)
+      (10 7     $oid3 commit   add !      !  !   group:1 desc:c_f3))
+      git_br_del(b1) $tb $$(
+      (11 5-1.3 !     git_br   rm  !      b1 !   !))
+      git_br(master) git_br_new(b1) $tb $$(
+      (12 7-1.0 $oid3 git_br   add (b1 2) b1 !   !))
+      ##seq13={} verify_git`);
+    t('two_branch_rename_new_branch_no_commit_inc', `${t_common}
+      $add_f1 $tb $$(
+      (1  !     !     git_br   add !   !   $bm !)
+      (2  !     !     git_head add !   !   $bm !)
+      (3  !     !     fs       add !   !   $m0 dir:/)
+      (4  !     $d1   fs       add !   !   $mf file:/f1 content:1 f2:d1)
+      (5  !     $oid1 commit   add !   !   !   group:2 desc:c_f1))
+      git_br_new(b1) $tb $$(
+      (6  5-1.0 $oid1 git_br   add b1  !   !   !))
+      $add_f2 $tb $$(
+      (7  5-1.1 $d1   fs       add !   !   $mf file:/f2 link:4)
+      (8  5-1.2 $oid2 commit   add !   !   !   group:1 desc:c_f2))
+      git_br(master) $add_f3 $tb $$(
+      (9  6     $d1   fs       add !   !   $mf file:/f3 link:4)
+      (10 7     $oid3 commit   add !   !   !   group:1 desc:c_f3))
+      git_br_new(b2) $tb $$(
+      (11 7-1.0 $oid3 git_br   add b2  !   !   !))
+      $add_f4 $tb $$(
+      (12 7-1.1 $d1   fs       add !   !   $mf file:/f4 link:4)
+      (13 7-1.2 $oid4 commit   add !   !   !   group:1 desc:c_f4))
+      git_br_rename(b1 bb1) git_br_rename(b2 bb2)
+      $tb $$(
+      (14 7-1.3 !     git_br   rm  !   b2  !   !)
+      (15 5-1.3 !     git_br   rm  !   b1  !   !)
+      (16 5-1.4 $oid2 git_br   add !   bb1 !   !)
+      (17 7-1.4 $oid4 git_br   add !   bb2 !   !))
+      ##seq18={} verify_git`);
+    t('two_branch_rename_new_branch_commit_after_inc', `${t_common}
+      $add_f1 $tb $$(
+      (1  !     !     git_br   add !   !   $bm !)
+      (2  !     !     git_head add !   !   $bm !)
+      (3  !     !     fs       add !   !   $m0 dir:/)
+      (4  !     $d1   fs       add !   !   $mf file:/f1 content:1 f2:d1)
+      (5  !     $oid1 commit   add !   !   !   group:2 desc:c_f1))
+      git_br_new(b1) $tb $$(
+      (6  5-1.0 $oid1 git_br   add b1  !   !   !))
+      $add_f2 $tb $$(
+      (7  5-1.1 $d1   fs       add !   !   $mf file:/f2 link:4)
+      (8  5-1.2 $oid2 commit   add !   !   !   group:1 desc:c_f2))
+      git_br(master) $add_f3 $tb $$(
+      (9  6     $d1   fs       add !   !   $mf file:/f3 link:4)
+      (10 7     $oid3 commit   add !   !   !   group:1 desc:c_f3))
+      git_br_new(b2) $tb $$(
+      (11 7-1.0 $oid3 git_br   add b2  !   !   !))
+      $add_f4 $tb $$(
+      (12 7-1.1 $d1   fs       add !   !   $mf file:/f4 link:4)
+      (13 7-1.2 $oid4 commit   add !   !   !   group:1 desc:c_f4))
+      git_br_rename(b1 bb1) git_br_rename(b2 bb2)
+      git_br(bb1) $add_f5 git_br(bb2) $add_f6 $tb $$(
+      (14 7-1.3 !     git_br   rm  !   b2  !   !)
+      (15 5-1.3 !     git_br   rm  !   b1  !   !)
+      (16 5-1.4 $oid2 git_br   add !   bb1 !   !)
+      (17 5-1.5 $d1   fs       add !   !   $mf file:/f5 link:4)
+      (18 5-1.6 $oid5 commit   add !   !   !   group:1 desc:c_f5)
+      (19 7-1.4 $oid4 git_br   add !   bb2 !   !)
+      (20 7-1.5 $d1   fs       add !   !   $mf file:/f6 link:4)
+      (21 7-1.6 $oid6 commit   add !   !   !   group:1 desc:c_f6))
+      ##seq22={} verify_git`);
+    t('two_branch_rename_flip_branch_no_commit_inc', `${t_common}
+      $add_f1 $tb $$(
+      (1  !     !     git_br   add !   !   $bm !)
+      (2  !     !     git_head add !   !   $bm !)
+      (3  !     !     fs       add !   !   $m0 dir:/)
+      (4  !     $d1   fs       add !   !   $mf file:/f1 content:1 f2:d1)
+      (5  !     $oid1 commit   add !   !   !   group:2 desc:c_f1))
+      git_br_new(b1) $tb $$(
+      (6  5-1.0 $oid1 git_br   add b1  !   !   !))
+      $add_f2 $tb $$(
+      (7  5-1.1 $d1   fs       add !   !   $mf file:/f2 link:4)
+      (8  5-1.2 $oid2 commit   add !   !   !   group:1 desc:c_f2))
+      git_br(master) $add_f3 $tb $$(
+      (9  6     $d1   fs       add !   !   $mf file:/f3 link:4)
+      (10 7     $oid3 commit   add !   !   !   group:1 desc:c_f3))
+      git_br_new(b2) $tb $$(
+      (11 7-1.0 $oid3 git_br   add b2  !   !   !))
+      $add_f4 $tb $$(
+      (12 7-1.1 $d1   fs       add !   !   $mf file:/f4 link:4)
+      (13 7-1.2 $oid4 commit   add !   !   !   group:1 desc:c_f4))
+      // rename-flip b1<>b2
+      git_br_rename(b1 tmp) git_br_rename(b2 b1) git_br_rename(tmp b2)
+      $tb $$(
+      (14 7-1.3 !     git_br   rm  !   b2  !   !)
+      (15 5-1.3 !     git_br   rm  !   b1  !   !)
+      (16 7-1.4 $oid4 git_br   add !   b1  !   !)
+      (17 5-1.4 $oid2 git_br   add !   b2  !   !))
+      ##seq18={} verify_git`);
+    t('two_branch_rename_flip_branch_with_commit_inc', `${t_common}
+      $add_f1 $tb $$(
+      (1  !     !     git_br   add !   !   $bm !)
+      (2  !     !     git_head add !   !   $bm !)
+      (3  !     !     fs       add !   !   $m0 dir:/)
+      (4  !     $d1   fs       add !   !   $mf file:/f1 content:1 f2:d1)
+      (5  !     $oid1 commit   add !   !   !   group:2 desc:c_f1))
+      git_br_new(b1) $tb $$(
+      (6  5-1.0 $oid1 git_br   add b1  !   !   !))
+      $add_f2 $tb $$(
+      (7  5-1.1 $d1   fs       add !   !   $mf file:/f2 link:4)
+      (8  5-1.2 $oid2 commit   add !   !   !   group:1 desc:c_f2))
+      git_br(master) $add_f3 $tb $$(
+      (9  6     $d1   fs       add !   !   $mf file:/f3 link:4)
+      (10 7     $oid3 commit   add !   !   !   group:1 desc:c_f3))
+      git_br_new(b2) $tb $$(
+      (11 7-1.0 $oid3 git_br   add b2  !   !   !))
+      $add_f4 $tb $$(
+      (12 7-1.1 $d1   fs       add !   !   $mf file:/f4 link:4)
+      (13 7-1.2 $oid4 commit   add !   !   !   group:1 desc:c_f4))
+      // rename-flip b1<>b2
+      git_br_rename(b1 tmp) git_br_rename(b2 b1) git_br_rename(tmp b2)
+      // commit new files on b1 & b2
+      git_br(b1) $add_f5 git_br(b2) $add_f6
+      $tb $$(
+      (14 7-1.3 !     git_br   rm  !   b2  !   !)
+      (15 5-1.3 !     git_br   rm  !   b1  !   !)
+      (16 7-1.4 $oid4 git_br   add !   b1  !   !)
+      (17 7-1.5 $d1   fs       add !   !   $mf file:/f5 link:4)
+      (18 7-1.6 $oid5 commit   add !   !   !   group:1 desc:c_f5)
+      (19 5-1.4 $oid2 git_br   add !   b2  !   !)
+      (20 5-1.5 $d1   fs       add !   !   $mf file:/f6 link:4)
+      (21 5-1.6 $oid6 commit   add !   !   !   group:1 desc:c_f6))
+      ##seq22={} verify_git`);
+    t('three_branch_inc', `${t_common}
+      $add_f1 $tb $$(
+      (1  !         !     git_br   add !   !   $bm !)
+      (2  !         !     git_head add !   !   $bm !)
+      (3  !         !     fs       add !    ! $m0 dir:/)
+      (4  !         $d1   fs       add !    ! $mf file:/f1 content:1 f2:d1)
+      (5  !         $oid1 commit   add !    ! !   group:2 desc:c_f1))
+      git_br_new(b1) $tb $$(
+      (6  5-1.0     $oid1 git_br   add b1   ! !   !))
+      git_br_new(b2) $tb $$(
+      (7  5-2.0     $oid1 git_br   add b2   ! !   !))
+      git_br(b1) $add_f2 $tb $$(
+      (8  5-1.1     $d1   fs       add !    ! $mf file:/f2 link:4)
+      (9  5-1.2     $oid2 commit   add !    ! !   group:1 desc:c_f2))
+      git_br_new(b1_1) $add_f3 $tb $$(
+      (10 5-1.2-1.0 $oid2 git_br   add b1_1 ! !   !)
+      (11 5-1.2-1.1 $d1   fs       add !    ! $mf file:/f3 link:4)
+      (12 5-1.2-1.2 $oid3 commit   add !    ! !   group:1 desc:c_f3))
+      git_br(b2) $add_f4 $tb $$(
+      (13 5-2.1     $d1   fs       add !    ! $mf file:/f4 link:4)
+      (14 5-2.2     $oid4 commit   add !    ! !   group:1 desc:c_f4))
+      git_br(master) $add_f5 $tb $$(
+      (15 6         $d1   fs       add !    ! $mf file:/f5 link:4)
+      (16 7         $oid5 commit   add !    ! !   group:1 desc:c_f5))
+      ##seq17={} verify_git`);
+    t('three_branch_full', `${t_common} $add_f1 git_br_new(b1) git_br_new(b2)
+      git_br(b1) $add_f2 git_br_new(b1_1) $add_f3 git_br(b2) $add_f4
+      git_br(master) $add_f5 $tb $$(
+      (1  !         !     git_br   add !    !   $bm !)
+      (2  !         !     git_head add !    !   $bm !)
+      (3  !         !     fs       add !    ! $m0 dir:/)
+      (4  !         $d1   fs       add !    ! $mf file:/f1 content:1 f2:d1)
+      (5  !         $oid1 commit   add !    ! !   group:2 desc:c_f1)
+      (6  !         $d1   fs       add !    ! $mf file:/f5 link:4)
+      (7  !         $oid5 commit   add !    ! !   group:1 desc:c_f5)
+      (8  5-1.0     $oid1 git_br   add b1   ! !   !)
+      (9  5-1.1     $d1   fs       add !    ! $mf file:/f2 link:4)
+      (10 5-1.2     $oid2 commit   add !    ! !   group:1 desc:c_f2)
+      (11 5-1.2-1.0 $oid2 git_br   add b1_1 ! !   !)
+      (12 5-1.2-1.1 $d1   fs       add !    ! $mf file:/f3 link:4)
+      (13 5-1.2-1.2 $oid3 commit   add !    ! !   group:1 desc:c_f3)
+      (14 5-2.0     $oid1 git_br   add b2   ! !   !)
+      (15 5-2.1     $d1   fs       add !    ! $mf file:/f4 link:4)
+      (16 5-2.2     $oid4 commit   add !    ! !   group:1 desc:c_f4))
+      ##seq17={} verify_git`);
+    t('merge_two_parents_inc', `${t_common}
+      $add_f1 $t $$(
+      (1  !     !     git_br   add $bm !)
+      (2  !     !     git_head add $bm !)
+      (3  !     !     fs       add $m0 dir:/)
+      (4  !     $d1   fs       add $mf file:/f1 content:1 f2:d1)
+      (5  !     $oid1 commit   add !   group:2 desc:c_f1))
+      git_br_new(b1) $t $$(
+      (6  5-1.0 $oid1 git_br   add !   branch:b1))
+      $add_f2 $t $$(
+      (7  5-1.1 $d1   fs       add $mf file:/f2 link:4)
+      (8  5-1.2 $oid2 commit add !   group:1 desc:c_f2))
+      git_br(master) $add_f3 $t $$(
+      (9  6     $d1   fs       add $mf file:/f3 link:4)
+      (10 7     $oid3 commit   add !   group:1 desc:c_f3))
+      git_merge(oid4 b1 c_merge) $$M(merge:$oid2) $t $$(
+      (11 8     $d1   fs       add $mf file:/f2 link:4)
+      (12 9     $oid4 commit   add $M  group:1 desc:c_merge))
+      ##seq13={} verify_git`);
+    t('merge_two_parents_full', `${t_common} $add_f1 git_br_new(b1)
+      $add_f2 git_br(master) $add_f3 git_merge(oid4 b1 c_merge)
+      $$M(merge:$oid2) $t $$(
+      (1  !     !     git_br   add $bm !)
+      (2  !     !     git_head add $bm !)
+      (3  !     !     fs     add $m0 dir:/)
+      (4  !     $d1   fs     add $mf file:/f1 content:1 f2:d1)
+      (5  !     $oid1 commit add !   group:2 desc:c_f1)
+      (6  !     $d1   fs     add $mf file:/f3 link:4)
+      (7  !     $oid3 commit add !   group:1 desc:c_f3)
+      (8  !     $d1   fs     add $mf file:/f2 link:4)
+      (9  !     $oid4 commit add $M   group:1 desc:c_merge)
+      (10 5-1.0 $oid1 git_br add !   branch:b1)
+      (11 5-1.1 $d1   fs     add $mf file:/f2 link:4)
+      (12 5-1.2 $oid2 commit add !   group:1 desc:c_f2))
+      ##seq13={} verify_git`);
+    t('merge_two_parents_del_branch_inc', `${t_common}
+      $add_f1 $t $$(
+      (1  !     !     git_br   add $bm !)
+      (2  !     !     git_head add $bm !)
+      (3  !     !     fs       add $m0 dir:/)
+      (4  !     $d1   fs       add $mf file:/f1 content:1 f2:d1)
+      (5  !     $oid1 commit   add !   group:2 desc:c_f1))
+      git_br_new(b1) $t $$(
+      (6  5-1.0 $oid1 git_br   add !   branch:b1))
+      $add_f2 $t $$(
+      (7  5-1.1 $d1   fs       add $mf file:/f2 link:4)
+      (8  5-1.2 $oid2 commit   add !   group:1 desc:c_f2))
+      git_br(master) $add_f3 $t $$(
+      (9  6     $d1   fs       add $mf file:/f3 link:4)
+      (10 7     $oid3 commit   add !   group:1 desc:c_f3))
+      git_merge(oid4 b1 c_merge) $$M(merge:$oid2) $t $$(
+      (11 8     $d1   fs       add $mf file:/f2 link:4)
+      (12 9     $oid4 commit   add $M   group:1 desc:c_merge))
+      git_br_del(b1) $$B(branch:b1) $t $$(
+      (13  5-1.3 !    git_br   rm  $B   !))
+      ##seq14={} verify_git`);
+    t('merge_two_parents_del_branch_full', `${t_common} $add_f1
+      git_br_new(b1) $add_f2 git_br(master) $add_f3
+      git_merge(oid4 b1 c_merge) git_br_del(b1) $$M(merge:$oid2) $t $$(
+      (1  !     !     git_br   add $bm !)
+      (2  !     !     git_head add $bm !)
+      (3  !     !     fs       add $m0 dir:/)
+      (4  !     $d1   fs       add $mf file:/f1 content:1 f2:d1)
+      (5  !     $oid1 commit   add !   group:2 desc:c_f1)
+      (6  !     $d1   fs       add $mf file:/f3 link:4)
+      (7  !     $oid3 commit   add !   group:1 desc:c_f3)
+      (8  !     $d1   fs       add $mf file:/f2 link:4)
+      (9  !     $oid4 commit   add $M  group:1 desc:c_merge)
+      (10 5-1.0 $oid1 git_br   add !   branch:_null)
+      (11 5-1.1 $d1   fs       add $mf file:/f2 link:4)
+      (12 5-1.2 $oid2 commit   add !   group:1 desc:c_f2))
+      ##seq13={} verify_git`);
+    t('merge_three_parents_inc', `${t_common}
+      $add_f1 $t $$(
+      (1  !     !     git_br   add $bm !)
+      (2  !     !     git_head add $bm !)
+      (3  !     !     fs       add $m0 dir:/)
+      (4  !     $d1   fs       add $mf file:/f1 content:1 f2:d1)
+      (5  !     $oid1 commit   add !   group:2 desc:c_f1))
+      git_br_new(b1) $t $$(
+      (6  5-1.0 $oid1 git_br   add !   branch:b1))
+      $add_f2 $t $$(
+      (7  5-1.1 $d1   fs       add $mf file:/f2 link:4)
+      (8  5-1.2 $oid2 commit   add !   group:1 desc:c_f2))
+      git_br(master) git_br_new(b2) $t $$(
+      (9  5-2.0 $oid1 git_br   add !   branch:b2))
+      $add_f3 $t $$(
+      (10 5-2.1 $d1   fs       add $mf file:/f3 link:4)
+      (11 5-2.2 $oid3 commit   add !   group:1 desc:c_f3))
+      git_br(master) $add_f4 $t $$(
+      (12 6     $d1   fs       add $mf file:/f4 link:4)
+      (13 7     $oid4 commit   add !   group:1 desc:c_f4))
+      git_merge(oid5 b1 b2 c_merge) $$M(merge:[$oid2 $oid3]) $t $$(
+      (14 8     $d1   fs       add $mf file:/f2 link:4)
+      (15 9     $d1   fs       add $mf file:/f3 link:4)
+      (16 _10   $oid5 commit   add $M  group:2 desc:c_merge))
+      ##seq17={} verify_git`);
+    t('merge_three_parents_full', `${t_common} $add_f1 git_br_new(b1)
+      $add_f2 git_br(master) git_br_new(b2) $add_f3 git_br(master) $add_f4
+      git_merge(oid5 b1 b2 c_merge) $$M(merge:[$oid2 $oid3]) $t $$(
+      (1  !     !     git_br   add $bm !)
+      (2  !     !     git_head add $bm !)
+      (3  !     !     fs       add $m0 dir:/)
+      (4  !     $d1   fs       add $mf file:/f1 content:1 f2:d1)
+      (5  !     $oid1 commit   add !   group:2 desc:c_f1)
+      (6  !     $d1   fs       add $mf file:/f4 link:4)
+      (7  !     $oid4 commit   add !   group:1 desc:c_f4)
+      (8  !     $d1   fs       add $mf file:/f2 link:4)
+      (9  !     $d1   fs       add $mf file:/f3 link:4)
+      (10 !     $oid5 commit   add $M  group:2 desc:c_merge)
+      (11 5-1.0 $oid1 git_br   add !   branch:b1)
+      (12 5-1.1 $d1   fs       add $mf file:/f2 link:4)
+      (13 5-1.2 $oid2 commit   add !   group:1 desc:c_f2)
+      (14 5-2.0 $oid1 git_br   add !   branch:b2)
+      (15 5-2.1 $d1   fs       add $mf file:/f3 link:4)
+      (16 5-2.2 $oid3 commit   add !   group:1 desc:c_f3))
+      ##seq17={} verify_git`);
+    t('merge_three_parents_del_br_full', `${t_common} $add_f1 git_br_new(b1)
+      $add_f2 git_br(master) git_br_new(b2) $add_f3 git_br(master) $add_f4
+      git_merge(oid5 b1 b2 c_merge) $$M(merge:[$oid2 $oid3])
+      git_br_del(b1) git_br_del(b2) $t $$(
+      (1  !     !     git_br   add $bm !)
+      (2  !     !     git_head add $bm !)
+      (3  !     !     fs       add $m0 dir:/)
+      (4  !     $d1   fs       add $mf file:/f1 content:1 f2:d1)
+      (5  !     $oid1 commit   add !   group:2 desc:c_f1)
+      (6  !     $d1   fs       add $mf file:/f4 link:4)
+      (7  !     $oid4 commit   add !   group:1 desc:c_f4)
+      (8  !     $d1   fs       add $mf file:/f2 link:4)
+      (9  !     $d1   fs       add $mf file:/f3 link:4)
+      (10 !     $oid5 commit   add $M  group:2 desc:c_merge)
+      (11 5-1.0 $oid1 git_br   add !   branch:_null)
+      (12 5-1.1 $d1   fs       add $mf file:/f2 link:4)
+      (13 5-1.2 $oid2 commit   add !   group:1 desc:c_f2)
+      (14 5-2.0 $oid1 git_br   add !   branch(_null 2))
+      (15 5-2.1 $d1   fs       add $mf file:/f3 link:4)
+      (16 5-2.2 $oid3 commit   add !   group:1 desc:c_f3))
+      ##seq17={} verify_git`);
+    t('merge_one_parent_inc', `${t_common}
+      $add_f1 $t $$(
+      (1  !     !     git_br   add $bm !)
+      (2  !     !     git_head add $bm !)
+      (3  !     !     fs       add $m0 dir:/)
+      (4  !     $d1   fs       add $mf file:/f1 content:1 f2:d1)
+      (5  !     $oid1 commit   add !   group:2 desc:c_f1))
+      git_br_new(b1) $t $$(
+      (6  5-1.0 $oid1 git_br   add !   branch:b1))
+      $add_f2 $t $$(
+      (7  5-1.1 $d1   fs       add $mf file:/f2 link:4)
+      (8  5-1.2 $oid2 commit   add !   group:1 desc:c_f2))
+      git_br(master) git_merge(oid3 b1 c_merge) $t $$(
+      (9  6     $d1   fs       add $mf file:/f2 link:4)
+      (10 7     $oid2 commit   add !   group:1 desc:c_f2))
+      ##seq11={} verify_git`);
+    t('merge_one_parent_full', `${t_common} $add_f1 git_br_new(b1)
+      $add_f2 git_br(master) git_merge(oid3 b1 c_merge) $t $$(
+      (1  !     !     git_br   add $bm !)
+      (2  !     !     git_head add $bm !)
+      (3  !     !     fs       add $m0 dir:/)
+      (4  !     $d1   fs       add $mf file:/f1 content:1 f2:d1)
+      (5  !     $oid1 commit   add !   group:2 desc:c_f1)
+      (6  !     $d1   fs       add $mf file:/f2 link:4)
+      (7  !     $oid2 commit   add !   group:1 desc:c_f2)
+      (8  7-1.0 $oid2 git_br   add !   branch:b1))
+      ##seq9={} verify_git`);
+    t('merge_one_parent_on_branch_inc', `${t_common}
+      $add_f1 $t $$(
+      (1  !         !     git_br   add $bm !)
+      (2  !         !     git_head add $bm !)
+      (3  !         !     fs       add $m0 dir:/)
+      (4  !         $d1   fs       add $mf file:/f1 content:1 f2:d1)
+      (5  !         $oid1 commit   add !   group:2 desc:c_f1))
+      git_br_new(b1) $t $$(
+      (6  5-1.0     $oid1 git_br   add !   branch:b1))
+      $add_f2 $t $$(
+      (7  5-1.1     $d1   fs       add $mf file:/f2 link:4)
+      (8  5-1.2     $oid2 commit   add !   group:1 desc:c_f2))
+      git_br_new(b2) $t $$(
+      (9  5-1.2-1.0 $oid2 git_br   add !   branch:b2))
+      $add_f3 $t $$(
+      (10 5-1.2-1.1 $d1   fs       add $mf file:/f3 link:4)
+      (11 5-1.2-1.2 $oid3 commit   add !   group:1 desc:c_f3))
+      git_br(b1) git_merge(oid4 b2 c_merge) $t $$(
+      (12 5-1.3   $d1     fs       add $mf file:/f3 link:4)
+      (13 5-1.4   $oid3   commit   add !   group:1 desc:c_f3))
+      ##seq14={} verify_git`);
+    t('tag_inc', `${t_common}
+      $add_f1 $t $$(
+      (1  ! !     git_br   add $bm !)
+      (2  ! !     git_head add $bm !)
+      (3  ! !     fs       add $m0 dir:/)
+      (4  ! $d1   fs       add $mf file:/f1 content:1 f2:d1)
+      (5  ! $oid1 commit   add !   group:2 desc:c_f1))
+      $add_f2 $t $$(
+      (6  ! $d1   fs       add $mf file:/f2 link:4)
+      (7  ! $oid2 commit   add !   group:1 desc:c_f2))
+      $add_f3 $t $$(
+      (8  ! $d1   fs       add $mf file:/f3 link:4)
+      (9  ! $oid3 commit   add !   group:1 desc:c_f3))
+      git_tag(t1 $oid1) $t $$(
+      (10 ! $oid1 tag      add !   tag:t1 link:5))
+      git_tag(t1 $oid2) $t $$(
+      (11 ! $oid2 tag      mod !   tag:t1 link:7))
+      git_tag(t3 $oid3) $t $$(
+      (12 ! $oid3 tag      add !   tag:t3 link:9))
+      git_tag_del(t1) $t $$(
+      (13 ! $oid2 tag      rm  !   tag:t1))
+      ##seq14={} verify_git`);
+    t('tag_full', `${t_common} $add_f1 $add_f2 $add_f3 git_tag(t1 $oid1)
+      git_tag(t1 $oid2) git_tag(t3 $oid3) git_tag_del(t1) $t $$(
+      (1  ! !     git_br   add $bm !)
+      (2  ! !     git_head add $bm !)
+      (3  ! !     fs       add $m0 dir:/)
+      (4  ! $d1   fs       add $mf file:/f1 content:1 f2:d1)
+      (5  ! $oid1 commit   add !   group:2 desc:c_f1)
+      (6  ! $d1   fs       add $mf file:/f2 link:4)
+      (7  ! $oid2 commit   add !   group:1 desc:c_f2)
+      (8  ! $d1   fs       add $mf file:/f3 link:4)
+      (9  ! $oid3 commit   add !   group:1 desc:c_f3)
+      (10 ! $oid3 tag      add !   tag:t3 link:9))
+      ##seq11={} verify_git`);
+    t('tag_annotate_inc', `${t_common}
+      $add_f1 $t $$(
+      (1  ! !      git_br   add $bm !)
+      (2  ! !      git_head add $bm !)
+      (3  ! !      fs       add $m0 dir:/)
+      (4  ! $d1    fs       add $mf file:/f1 content:1 f2:d1)
+      (5  ! $oid1  commit   add !   group:2 desc:c_f1))
+      $add_f2 $t $$(
+      (6  ! $d1    fs       add $mf file:/f2 link:4)
+      (7  ! $oid2  commit   add !   group:1 desc:c_f2))
+      $add_f3 $t $$(
+      (8  ! $d1    fs       add $mf file:/f3 link:4)
+      (9  ! $oid3  commit   add !   group:1 desc:c_f3))
+      git_tag_annotate(toid1 t1 $oid1 c_tag1) $$C(commit_oid:$oid1) $t $$(
+      (10 ! $toid1 tag_o    add $C  tag:t1 link:5 desc:c_tag1)
+      (11 ! $toid1 tag      add !   tag:t1 link:10))
+      ##seq12={} verify_git`);
+    t('tag_annotate_full', `${t_common} $add_f1 $add_f2 $add_f3
+      git_tag_annotate(toid1 t1 $oid1 c_tag1) $$C(commit_oid:$oid1) $t $$(
+      (1  ! !      git_br   add $bm !)
+      (2  ! !      git_head add $bm !)
+      (3  ! !      fs       add $m0 dir:/)
+      (4  ! $d1    fs       add $mf file:/f1 content:1 f2:d1)
+      (5  ! $oid1  commit   add !   group:2 desc:c_f1)
+      (6  ! $d1    fs       add $mf file:/f2 link:4)
+      (7  ! $oid2  commit   add !   group:1 desc:c_f2)
+      (8  ! $d1    fs       add $mf file:/f3 link:4)
+      (9  ! $oid3  commit   add !   group:1 desc:c_f3)
+      (10 ! $toid1 tag_o    add $C  tag:t1 link:5 desc:c_tag1)
+      (11 ! $toid1 tag      add !   tag:t1 link:10))
+      ##seq12={} verify_git`);
+    // XXX: need flip protect for head
+    t('flip_protect_off_tag', `${t_common} $$flip(flip_protect:false)
+      $add_f1 $add_f2 $add_f3 $t $$(
+      (1  ! !      git_br   add $bm !)
+      (2  ! !      git_head add $bm !)
+      (3  ! !      fs       add $m0 dir:/)
+      (4  ! $d1    fs       add $mf file:/f1 content:1 f2:d1)
+      (5  ! $oid1  commit   add !   group:2 desc:c_f1)
+      (6  ! $d1    fs       add $mf file:/f2 link:4)
+      (7  ! $oid2  commit   add !   group:1 desc:c_f2)
+      (8  ! $d1    fs       add $mf file:/f3 link:4)
+      (9  ! $oid3  commit   add !   group:1 desc:c_f3))
+      git_tag(t1 $oid1) $t $$(
+      (10 ! $oid1  tag      add !   tag:t1 link:5))
+      git_tag(t1 $oid2) $t $$(
+      (11 ! $oid2  tag      mod !   tag:t1 link:7))
+      git_tag(t1 $oid1) $t $$(
+      (12 ! $oid1  tag      mod !   tag:t1 link:5))
+      ##seq13={} verify_git`);
+    t('flip_protect_warn_tag', `${t_common} $add_f1 $add_f2 $add_f3 $t $$(
+      (1  ! !      git_br   add $bm !)
+      (2  ! !      git_head add $bm !)
+      (3  ! !      fs       add $m0 dir:/)
+      (4  ! $d1    fs       add $mf file:/f1 content:1 f2:d1)
+      (5  ! $oid1  commit   add !   group:2 desc:c_f1)
+      (6  ! $d1    fs       add $mf file:/f2 link:4)
+      (7  ! $oid2  commit   add !   group:1 desc:c_f2)
+      (8  ! $d1    fs       add $mf file:/f3 link:4)
+      (9  ! $oid3  commit   add !   group:1 desc:c_f3))
+      git_tag(t1 $oid1) $t $$(
+      (10 ! $oid1  tag      add !   tag:t1 link:5))
+      git_tag(t1 $oid2) $t $$(
+      (11 ! $oid2  tag      mod !   tag:t1 link:7))
+      xerr(git: adding tag t1 with a previous oid $oid1)
+      git_tag(t1 $oid1)
+      $t xerr $$(
+      (12 ! $oid1  tag      mod !   tag:t1 link:5))
+      ##seq13={} verify_git`);
+    // XXX: test flip_protect branch, flip_protect annotated tag
+    // $$ -> $_ (activate last macro)
+    t('flip_protect_true_tag', `${t_common} $$flip(flip_protect)
+      $add_f1 $add_f2 $add_f3 $t $$(
+      (1  ! !      git_br   add $bm !)
+      (2  ! !      git_head add $bm !)
+      (3  ! !      fs       add $m0 dir:/)
+      (4  ! $d1    fs       add $mf file:/f1 content:1 f2:d1)
+      (5  ! $oid1  commit   add !   group:2 desc:c_f1)
+      (6  ! $d1    fs       add $mf file:/f2 link:4)
+      (7  ! $oid2  commit   add !   group:1 desc:c_f2)
+      (8  ! $d1    fs       add $mf file:/f3 link:4)
+      (9  ! $oid3  commit   add !   group:1 desc:c_f3))
+      git_tag(t1 $oid1) $t $$(
+      (10 ! $oid1  tag      add !   tag:t1 link:5))
+      git_tag(t1 $oid2) $t $$(
+      (11 ! $oid2  tag      mod !   tag:t1 link:7))
+      git_tag(t1 $oid1) $t $$() ##seq12={}
+      git_tag(t2 $oid2) $t $$(
+      (12 ! $oid2  tag      add !   tag:t2 link:7))
+      git_tag_del(t1) $t $$(
+      (13 ! $oid2  tag      rm  !   tag:t1))
+      git_tag(t1 $oid1) $t $$() ##seq14={}
+      git_tag(t1 $oid2) $t $$() ##seq14={}
+      git_tag(t1 $oid3) $t $$(
+      (14 ! $oid3  tag      add !   tag:t1 link:9))
+      git_tag(t1 $oid2) $t $$() ##seq15={} verify_git`);
+    t('flip_protect_off_branch', `${t_common} $$flip(flip_protect:false)
+      $add_f1 $add_f2 $add_f3 $t $$(
+      (1  !     !      git_br   add $bm !)
+      (2  !     !      git_head add $bm !)
+      (3  !     !      fs       add $m0 dir:/)
+      (4  !     $d1    fs       add $mf file:/f1 content:1 f2:d1)
+      (5  !     $oid1  commit   add !   group:2 desc:c_f1)
+      (6  !     $d1    fs       add $mf file:/f2 link:4)
+      (7  !     $oid2  commit   add !   group:1 desc:c_f2)
+      (8  !     $d1    fs       add $mf file:/f3 link:4)
+      (9  !     $oid3  commit   add !   group:1 desc:c_f3))
+      git_br_new(b1 $oid1) $t $$(
+      (10 5-1.0 $oid1  git_br   add !   branch:b1))
+      git_br(master) git_br_del(b1) git_br_new(b1 $oid2) $t $$(
+      (11 5-1.1 $d1    fs       add $mf file:/f2 link:4)
+      (12 5-1.2 $oid2  commit   add !  group:1 desc:c_f2))
+      git_br(master) git_br_del(b1) git_br_new(b1 $oid1) $$B(branch:b1)
+      $t $$(
+      (13  5-1.3 !     git_br   rm  $B  !)
+      (14  5-2.0 $oid1 git_br   add $B  branch(b1 2)))
+      git_br(master) git_br_del(b1) $t $$(
+      (15  5-2.1 !     git_br   rm  $B  !))
+      git_br_new(b1 $oid2) $t $$(
+      (16  7-1.0 $oid2 git_br   add $B  branch(b1 3)))
+      ##seq17={}
+      git_br(master) git_br_del(b1) $t $$(
+      (17  7-1.1 !     git_br   rm  $B  !))
+      git_br_new(b1 $oid2) $t $$(
+      (18  7-2.0 $oid2 git_br   add $B  branch(b1 4)))
+      ##seq19={} verify_git`);
+    t('flip_protect_warn_branch', `${t_common} $add_f1 $add_f2 $add_f3 $t $$(
+      (1  !     !      git_br   add $bm !)
+      (2  !     !      git_head add $bm !)
+      (3  !     !      fs       add $m0 dir:/)
+      (4  !     $d1    fs       add $mf file:/f1 content:1 f2:d1)
+      (5  !     $oid1  commit   add !   group:2 desc:c_f1)
+      (6  !     $d1    fs       add $mf file:/f2 link:4)
+      (7  !     $oid2  commit   add !   group:1 desc:c_f2)
+      (8  !     $d1    fs       add $mf file:/f3 link:4)
+      (9  !     $oid3  commit   add !   group:1 desc:c_f3))
+      git_br_new(b1 $oid1) $t $$(
+      (10 5-1.0 $oid1  git_br   add !   branch:b1))
+      git_br(master) git_br_del(b1) git_br_new(b1 $oid2) $t $$(
+      (11 5-1.1 $d1    fs       add $mf file:/f2 link:4)
+      (12 5-1.2 $oid2  commit   add !  group:1 desc:c_f2))
+      git_br(master) git_br_del(b1) git_br_new(b1 $oid1) $$B(branch:b1)
+      xerr(git: adding branch b1 with a previous oid $oid1) $t $$(
+      (13  5-1.3 !     git_br   rm  $B  !)
+      (14  5-2.0 $oid1 git_br   add $B  branch(b1 2)))
+      xerr ##seq15={}
+      git_br(master) git_br_del(b1) $t $$(
+      (15  5-2.1 !     git_br   rm  $B  !))
+      git_br_new(b1 $oid2) $t $$(
+      (16  7-1.0 $oid2 git_br   add $B  branch(b1 3)))
+      ##seq17={}
+      git_br(master) git_br_del(b1) $t $$(
+      (17  7-1.1 !     git_br   rm  $B  !))
+      git_br_new(b1 $oid2)
+      xerr(git: adding branch b1 with a previous oid $oid2) $t $$(
+      (18  7-2.0 $oid2 git_br   add $B  branch(b1 4)))
+      xerr ##seq19={} verify_git`);
+    t('flip_protect_on_branch', `${t_common} $$flip(flip_protect)
+      $add_f1 $add_f2 $add_f3 $t $$(
+      (1  !     !      git_br   add $bm !)
+      (2  !     !      git_head add $bm !)
+      (3  !     !      fs       add $m0 dir:/)
+      (4  !     $d1    fs       add $mf file:/f1 content:1 f2:d1)
+      (5  !     $oid1  commit   add !   group:2 desc:c_f1)
+      (6  !     $d1    fs       add $mf file:/f2 link:4)
+      (7  !     $oid2  commit   add !   group:1 desc:c_f2)
+      (8  !     $d1    fs       add $mf file:/f3 link:4)
+      (9  !     $oid3  commit   add !   group:1 desc:c_f3))
+      git_br_new(b1 $oid1) $t $$(
+      (10 5-1.0 $oid1  git_br   add !   branch:b1))
+      git_br(master) git_br_del(b1) git_br_new(b1 $oid2) $t $$(
+      (11 5-1.1 $d1    fs       add $mf file:/f2 link:4)
+      (12 5-1.2 $oid2  commit   add !  group:1 desc:c_f2))
+      git_br(master) git_br_del(b1) git_br_new(b1 $oid1) $$B(branch:b1)
+      ##seq13={}
+      git_br(master) git_br_del(b1) $t $$(
+      (13  5-1.3 !     git_br   rm  $B  !))
+      git_br_new(b1 $oid2) $t $$(
+      (14  7-1.0 $oid2 git_br   add $B  branch(b1 2)))
+      ##seq15={}
+      git_br(master) git_br_del(b1) $t $$(
+      (15  7-1.1 !     git_br   rm  $B  !))
+      git_br_new(b1 $oid2) $t $$()
+      ##seq16={} verify_git`);
+    // XXX: missing head rm
+    t('no_main_inc', `${_t_common} s..git(src:git_test main:no_main)
+      $$sync_main(no_main)
+      $$bn(branch:no_main) $t $$(
+      (1  !     !        git_br   add $bn !)
+      (2  !     !        git_head add $bn !))
+      $add_f1 xerr(cannot find head no_main) $t $$(
+      (3  !       !      git_head rm  $bn !)
+      (4  !       !      git_br   rm  $bn !)
+      (5  !       !      git_br   add $bm !)
+      (6  !       !      fs       add $m0 dir:/)
+      (7  !       $d1    fs       add $mf file:/f1 content:1 f2:d1)
+      (8  !       $oid1  commit   add !   group:2 desc:c_f1))
+      xerr
+      $add_f2 xerr(cannot find head no_main) $t $$(
+      (9  !       $d1    fs       add $mf file:/f2 link:7)
+      (10 !       $oid2  commit   add !   group:1 desc:c_f2))
+      xerr
+      git_br_new(no_main) $t $$(
+      (11 _10-1.0 $oid2  git_br add !   branch:no_main))
+      $add_f3 $t $$(
+      (12 _10-1.1 !      git_head add $bn !)
+      (13 _10-1.2 $d1    fs       add $mf file:/f3 link:7)
+      (14 _10-1.3 $oid3  commit   add !   group:1 desc:c_f3))
+      git_br(master) $add_f4 $t $$(
+      (15 _11     $d1   fs        add $mf file:/f4 link:7)
+      (16 _12     $oid4  commit   add !   group:1 desc:c_f4))
+      ##seq17={} verify_git`);
+    t('no_main_inc2', `${_t_common} s..git(src:git_test main:no_main)
+      $$sync_main(no_main) $$bn(branch:no_main)
+      $t $$(
+      (1  !       !     git_br   add $bn !)
+      (2  !       !     git_head add $bn !))
+      $add_f1 xerr(cannot find head no_main) $t $$(
+      (3  !       !     git_head rm  $bn !)
+      (4  !       !     git_br   rm  $bn !)
+      (5  !       !     git_br   add $bm !)
+      (6  !       !     fs       add $m0 dir:/)
+      (7  !       $d1   fs       add $mf file:/f1 content:1 f2:d1)
+      (8  !       $oid1 commit   add !   group:2 desc:c_f1))
+      xerr
+      $add_f2 xerr(cannot find head no_main) $t $$(
+      (9  !       $d1   fs       add $mf file:/f2 link:7)
+      (10 !       $oid2 commit   add !   group:1 desc:c_f2))
+      dbg
+      git_br_new(no_main) $add_f3 $t $$(
+      (11 _10-1.0 $oid2 git_br    add  !   branch:no_main)
+      (12 _10-1.1 $d1   fs       add $mf file:/f3 link:7)
+      (13 _10-1.2 $oid3 commit   add !   group:1 desc:c_f3)
+      (14 _10-1.3 !     git_head add $bn !))
+      git_br(master) $add_f4 $t $$(
+      (15 _11     $d1   fs        add $mf file:/f4 link:7)
+      (16 _12     $oid4 commit   add !   group:1 desc:c_f4))
+      ##seq17={} verify_git`);
+    t('no_main_full', `${_t_common} s..git(src:git_test main:no_main)
+      $$bn(branch:no_main)
+      $add_f1
+      $add_f2
+      git_br_new(no_main) $add_f3
+      git_br(master) $add_f4 $$sync_main(no_main) $t $$(
+      (1  !     !      git_br   add $bn !)
+      (2  !     !      git_head add $bn !)
+      (3  !     !      fs       add $m0 dir:/)
+      (4  !     $d1    fs       add $mf file:/f1 content:1 f2:d1)
+      (5  !     $oid1  commit   add !   group:2 desc:c_f1)
+      (6  !     $d1    fs       add $mf file:/f2 link:4)
+      (7  !     $oid2  commit   add !   group:1 desc:c_f2)
+      (8  !     $d1    fs       add $mf file:/f3 link:4)
+      (9  !     $oid3  commit   add !   group:1 desc:c_f3)
+      (10 7-1.0 $oid2  git_br   add !   branch:master)
+      (11 7-1.1 $d1    fs       add $mf file:/f4 link:4)
+      (12 7-1.2 $oid4  commit   add !   group:1 desc:c_f4))
+      ##seq13={} verify_git`);
+    t('head_inc', `${t_common}
+      $add_f1 $t $$(
+      (1  !     !     git_br   add $bm !)
+      (2  !     !     git_head add $bm !)
+      (3  !     !     fs       add $m0 dir:/)
+      (4  !     $d1   fs       add $mf file:/f1 content:1 f2:d1)
+      (5  !     $oid1 commit   add !   group:2 desc:c_f1))
+      $add_f2 $t $$(
+      (6  !     $d1   fs        add $mf file:/f2 link:4)
+      (7  !     $oid2 commit    add !   group:1 desc:c_f2))
+      git_br_new(b1) $t $$(
+      (8  7-1.0 $oid2 git_br    add !   branch:b1))
+      $add_f3 $t $$(
+      (9  7-1.1 $d1   fs        add $mf file:/f3 link:4)
+      (10 7-1.2 $oid3 commit    add !   group:1 desc:c_f3))
+      $$sync_main(b1) $$b1(branch:b1) $t $$(
+      (11 8     !     git_head  rm  $bm !)
+      (12 7-1.3 !     git_head  add $b1 !))
+      ##seq13={}`);
+    t('head_full', `${t_common}
+      $add_f1
+      $add_f2
+      git_br_new(b1)
+      $add_f3
+      $$sync_main(b1) $$b1(branch:b1) $t $$(
+      (1  !         !     git_br   add $bm !)
+      (2  !         !     git_head add $bm !)
+      (3  2-1.0     !     git_br   add !   branch:b1)
+      (4  2-1.1     !     fs       add $m0 dir:/)
+      (5  2-1.2     $d1   fs       add $mf file:/f1 content:1 f2:d1)
+      (6  2-1.3     $oid1 commit   add !   group:2 desc:c_f1)
+      (7  2-1.4     $d1   fs       add $mf file:/f2 link:5)
+      (8  2-1.5     $oid2 commit   add !   group:1 desc:c_f2)
+      (9  2-1.6     $d1   fs       add $mf file:/f3 link:5)
+      (10 2-1.7     $oid3 commit   add !   group:1 desc:c_f3)
+      (11 3         !     git_head rm  $bm !)
+      (12 4         !     git_br   rm  $bm !)
+      (13 2-1.5-1.0 $oid2 git_br   add !   branch:master)
+      (14 2-1.8     !     git_head add $b1 !))
+      ##seq15={}`);
+    // XXX: head flip protection
+    t('commit_two_roots_inc', `${t_common}
+      $add_f1 $t $$(
+      (1  ! !     git_br   add $bm !)
+      (2  ! !     git_head add $bm !)
+      (3  ! !     fs       add $m0 dir:/)
+      (4  ! $d1   fs       add $mf file:/f1 content:1 f2:d1)
+      (5  ! $oid1 commit   add !   group:2 desc:c_f1))
+      $add_f2 $t $$(
+      (6  ! $d1   fs       add $mf file:/f2 link:4)
+      (7  ! $oid2 commit   add !   group:1 desc:c_f2))
+      git_br_orphan(b1) $t $$()
+      $add_f3 $$sync_err(Error: multiple root not supported $oid3) $t $$()
+      ##seq8={} verify_git`);
+    t('commit_two_roots_full', `${t_common} $add_f1 $add_f2 git_br_orphan(b1)
+      $add_f3 $$sync_err(Error: multiple root not supported $oid3) $t $$(
+      (1  ! !     git_br   add $bm !)
+      (2  ! !     git_head add $bm !))
+      ##seq3={} verify_git`);
+    t('seal', `${t_common} $$sync_seal(true)
+      $$s(src:${encode_str('https://github.com/git_test')})
+      $add_f1 $t $$(
+      (1  !     !     git_br   add $bm !)
+      (2  !     !     git_head add $bm !)
+      (3  !     !     fs       add $m0 dir:/)
+      (4  !     $d1   fs       add $mf file:/f1 content:1 f2:d1)
+      (5  !     $oid1 commit   add !   group:2 desc:c_f1)
+      (6  !     !     seal     !   $s  !))
+      git_br_new(b1) $t $$(
+      (7  5-1.0 $oid1 git_br   add !   branch:b1)
+      (8  7     !     seal     !   $s  !))
+      $add_f2 $t $$(
+      (9  5-1.1 $d1   fs       add $mf file:/f2 link:4)
+      (10 5-1.2 $oid2 commit   add !   group:1 desc:c_f2)
+      (11 8     !     seal     !   $s  !))
+      ##seq12={}
+    `);
+    let gpg5 = encode_str('-----BEGIN PGP SIGNATURE-----\n'+
+      '\nwsBcBAABCAAQBQJkNm+YCRBK7hj4Ov3rIwAArvwIAKD/lrcoHllSLAf5FvCwoKd/'+
+      '\ndI3AVOdMZ4vXFPb36V2eh3fF8GBOab463mWx4cnAV3Lr11VY8IT/f30mch7qgrRy'+
+      '\nRvVdRtdighdgizoqUgjsZ3QHhWavHeluehQ/+AwSgau30L/9X3H9UeeRjbes1gRr'+
+      '\nyhrQ5cIV9mn3mUTB82AfhA23akZ21hEWmMbN3mivByZ7MNnv4D0ZMaedia3JmARn'+
+      '\nV7ssY94HmzeAYsiqcBiQ4j5Ec308yGW8oEWD/CzsjdNEW4OJaMUprRqoxKrSVVq3'+
+      '\nus+YUfJrJr5GrdaqMKvfKKZVGfwEqyeoWh/kU9anD6eNPgCRudqHjLFSHqrgHJQ='+
+      '\n=Zdym\n-----END PGP SIGNATURE-----\n');
+    let gpg7 = encode_str('-----BEGIN PGP SIGNATURE-----\n'+
+      '\nwsBcBAABCAAQBQJkNm+rCRBK7hj4Ov3rIwAAHIkIAF2TSXNjQFBsR1jLB1Hk9J8Z'+
+      '\nHbK8/Skv0iwmkTwfKkA7R4pT13QgskoFMMT6i7xOyBRQc2LEZLaR5FKQQhtxfSvc'+
+      '\nYTn+l3nLJdU5OCZjBon7yo/uM8eOzqw81LgVp+JbKaORfzAZno/pOfn3N47Czwoy'+
+      '\nQrC3Wdfq0EkeiXeOpC/yB2lDcynziuRT7QJFpuJIP3kJ5Zh3f6U1IY5C/Uo1Drrw'+
+      '\nq+5JMVJrdU3qLTK9/FIvoX6EYERB5QZeUmw3smX/5HzcdVsY5bjY+bIdgWO8mES/'+
+      '\nKzoGMn5nr2tgBTwjbgIgcG2PJ0wnf6JICns4USp0oRAE6EYAeH4vj2oSjyXCV5U='+
+      '\n=udUT\n-----END PGP SIGNATURE-----\n');
+    let gpg9 = encode_str('-----BEGIN PGP SIGNATURE-----\n'+
+      '\niQGzBAABCgAdFiEEndepdIBVI/JR3VFqk63BrWpcXVgFAmQ2ei0ACgkQk63BrWpc'+
+      '\nXVhqdQv/WdVqKEYqPV3iJukwR9qEWhZLo0Xl9WatvVynHKwV/mn0MWtUHV/KgvDu'+
+      '\nL+rfWpMauoIx5v2labUg13+FAZ67FDvh8oDTVGXjwMiwtmPod3MIQTU+B5/zE99r'+
+      '\nJWqpOsNtFb1yDDCY1NB5bFtfHU93FsVxaAcSssryCkdiEKURpjGKjE1lIv6uP3wh'+
+      '\nkHfjljOX9GJ5zAN7LR1LD8eM9H4NCGcw7BLNYOc6MNiiGP8BvLquj6n2IDa7jq6c'+
+      '\ninG9HkEifDEQnZuDrfhItmduAs46ehDjZASgwZz9qkDZNwqXAI6uYMdwkyQJrv4o'+
+      '\nFRu9+B9ChDfap75JS1oZnOsxOHb9afZ6mYDWDQHIp+qe40JoJxkYBATr/fhfU//9'+
+      '\nIXIZfJSlgGRFwwA2/V9+Luk0zJVjL/qUJjH9apW0V6j5n/PBW2ycYVnc/RtsLoAl'+
+      '\nHu5BDdKp+5HRUXnzfKHuJzOVB9zMRhx4Z5l05dg9baZE0xFvFIFNh10wLc00nKhI'+
+      '\n40aIXJC6\n=6XSv\n-----END PGP SIGNATURE-----\n');
+    t('gpg', `${_t_common}
+      $$bm(branch:main) $$mf(mode:100644) $$m0(mode:0)
+      $$d1(8b137891791fe96927ad78e64b0aad7bded08bdc)
+      $$oid1(cc89e3d5f7bee12d8cb3b0564c18b27b9507f7ff)
+      $$oid2(b2694edc28f75909ec5e2af1b9cae53479753624)
+      $$toid(1e86977cdcf23a10d2fe57debe9fba53be1467be)
+      $$c(commit_oid:$oid2 gpgsig:${gpg9})
+      $$g5(gpgsig:${gpg5})
+      $$g7(gpgsig:${gpg7})
+      $$t(sync(seal:false)
+        ##seq$1={bseq:$2 type:$4 op:$5 $7... git:{oid:$3 $6}})
+      s..git(src(lif-rnd/test_tag_gpg)) $t $$(
+      (1  !     !     git_br   add $bm !)
+      (2  !     !     git_head add $bm !)
+      (3  !     !     fs       add $m0 dir:/)
+      (4  !     $d1   fs       add $mf file:/f1 content:1 f2:0x0a)
+      (5  !     $oid1 commit   add $g5 group:2 _desc:add_f1)
+      (6  !     $d1   fs       add $mf file:/f2 link:4)
+      (7  !     $oid2 commit   add $g7 group:1 _desc:add_f2)
+      (8  !     $oid2 tag      add !   link:7 tag:tag1)
+      (9  !     $toid tag_o    add $c  link:7 tag:tag_gpg _desc:tag_gpg_desc)
+      (10 !     $toid tag      add !   link:9 tag:tag_gpg))
+      ##seq11={}
+    `);
   });
 });
 // XXX: check how git handles time of commits + test with git rebase

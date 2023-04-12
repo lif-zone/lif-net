@@ -2358,7 +2358,7 @@ describe('git', function(){
 // XXX: discuss with derry how to save git user/date in scroll
 // XXX: verify we can rebuild tags/branches
 // XXX: rewrite 1 old GIT tests to new format + add dir test+make them local
-// XXX: add missing tests (db test, conflict test)
+// XXX: add missing tests (conflict test)
 // XXX: cleanup
 // XXX: fix macro $$ -> $_ (activate last macro) and support args to macro
 // XXX: fix # (to be per filter) and replace tests of ## with #

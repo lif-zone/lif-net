@@ -2584,6 +2584,14 @@ describe('scroll', function(){
           $$(${'/arik /niko '.repeat(4)}) Soul.db_copy(s.soul)
           S..#(db_query_index index index_table) Soul.S.scroll(s..M0 db)
           #(index_table={id:0 cfid:0 bseqb:null name:path})`;
+        let t_init_2index = `s..scroll(index:[path path2] db)
+          $$a(id:0 key:/arik seq)
+          $$n(id:0 key:/niko seq) $$m(id:0 key:/arik seq)
+          decl({path:$1 path2:p2_$1})
+          $$(${'/arik /niko '.repeat(4)}) Soul.db_copy(s.soul)
+          S..#(db_query_index index index_table) Soul.S.scroll(s..M0 db)
+          #(index_table=[{id:0 cfid:0 bseqb:null name:path}
+            {id:1 cfid:0 bseqb:null name:path2}])`;
         let t_init_x3 = `s..scroll(index:path db) $$a(id:0 key:/arik seq)
           $$n(id:0 key:/niko seq) $$m(id:0 key:/arik seq) decl({path:$1})
           $$(${'/arik /arik /arik /niko /niko /niko '.repeat(4)})
@@ -2686,38 +2694,40 @@ describe('scroll', function(){
           ##index_find(index:0 dir:up key:/arik)=[1 3 5 7]
             #(db_query=${qup(8)} index={$a:7 dn:5 up:8})
           ##index_find(index:0 dir:up key:/arik)=[1 3 5 7] #`);
-        t('query_all_no_mem_find_all_in_steps_dn', `${t_init}
+        t('query_all_no_mem_find_all_in_steps_dn', `${t_init_2index}
+          $$q(index,rev,0__0<=key<=1__-1)
           // XXX: need to update up/dn in the memory
           ##index_find(index:0 count:$1)=$2 #(db_query=$3 index=$4)
-          $$((1 [8              ] [index,rev${' next'.repeat(0)}] [])
-             (2 [8 6            ] [index,rev${' next'.repeat(1)}] [])
-             (3 [8 6 4          ] [index,rev${' next'.repeat(2)}] [])
-             (4 [8 6 4 2        ] [index,rev${' next'.repeat(3)}] [])
-             (5 [8 6 4 2 7      ] [index,rev${' next'.repeat(4)}] [])
-             (6 [8 6 4 2 7 5    ] [index,rev${' next'.repeat(5)}] [])
-             (7 [8 6 4 2 7 5 3  ] [index,rev${' next'.repeat(6)}] [])
-             (8 [8 6 4 2 7 5 3 1] [index,rev${' next'.repeat(7)}] [])
-             (9 [8 6 4 2 7 5 3 1] [index,rev${' next'.repeat(8)}] []))
+          $$((1 [8              ] [$q${' next'.repeat(0)}] [])
+             (2 [8 6            ] [$q${' next'.repeat(1)}] [])
+             (3 [8 6 4          ] [$q${' next'.repeat(2)}] [])
+             (4 [8 6 4 2        ] [$q${' next'.repeat(3)}] [])
+             (5 [8 6 4 2 7      ] [$q${' next'.repeat(4)}] [])
+             (6 [8 6 4 2 7 5    ] [$q${' next'.repeat(5)}] [])
+             (7 [8 6 4 2 7 5 3  ] [$q${' next'.repeat(6)}] [])
+             (8 [8 6 4 2 7 5 3 1] [$q${' next'.repeat(7)}] [])
+             (9 [8 6 4 2 7 5 3 1] [$q${' next'.repeat(8)}] []))
           ##index_find(index:0 min:$1)=$2 #(db_query=$3 index=$4)
-          $$((4 [8 6 4 7 5] [index,rev${' next'.repeat(8)}] []))
+          $$((4 [8 6 4 7 5] [$q${' next'.repeat(8)}] []))
           ##index_find(index:0 max:$1)=$2 #(db_query=$3 index=$4)
-          $$((4 [4 2 3 1] [index,rev${' next'.repeat(8)}] []))`);
-        t('query_all_no_mem_find_all_in_steps_up', `${t_init}
+          $$((4 [4 2 3 1] [$q${' next'.repeat(8)}] []))`);
+        t('query_all_no_mem_find_all_in_steps_up', `${t_init_2index}
+          $$q(index,0__0<=key<=1__-1)
           // XXX: need to update up/dn in the memory
           ##index_find(index:0 dir:up count:$1)=$2 #(db_query=$3 index=$4)
-          $$((1 [1              ] [index${' next'.repeat(0)}] [])
-             (2 [1 3            ] [index${' next'.repeat(1)}] [])
-             (3 [1 3 5          ] [index${' next'.repeat(2)}] [])
-             (4 [1 3 5 7        ] [index${' next'.repeat(3)}] [])
-             (5 [1 3 5 7 2      ] [index${' next'.repeat(4)}] [])
-             (6 [1 3 5 7 2 4    ] [index${' next'.repeat(5)}] [])
-             (7 [1 3 5 7 2 4 6  ] [index${' next'.repeat(6)}] [])
-             (8 [1 3 5 7 2 4 6 8] [index${' next'.repeat(7)}] [])
-             (9 [1 3 5 7 2 4 6 8] [index${' next'.repeat(8)}] []))
+          $$((1 [1              ] [$q${' next'.repeat(0)}] [])
+             (2 [1 3            ] [$q${' next'.repeat(1)}] [])
+             (3 [1 3 5          ] [$q${' next'.repeat(2)}] [])
+             (4 [1 3 5 7        ] [$q${' next'.repeat(3)}] [])
+             (5 [1 3 5 7 2      ] [$q${' next'.repeat(4)}] [])
+             (6 [1 3 5 7 2 4    ] [$q${' next'.repeat(5)}] [])
+             (7 [1 3 5 7 2 4 6  ] [$q${' next'.repeat(6)}] [])
+             (8 [1 3 5 7 2 4 6 8] [$q${' next'.repeat(7)}] [])
+             (9 [1 3 5 7 2 4 6 8] [$q${' next'.repeat(8)}] []))
           ##index_find(index:0 dir:up min:$1)=$2 #(db_query=$3 index=$4)
-          $$((4 [5 7 4 6 8] [index${' next'.repeat(8)}] []))
+          $$((4 [5 7 4 6 8] [$q${' next'.repeat(8)}] []))
           ##index_find(index:0 dir:up max:$1)=$2 #(db_query=$3 index=$4)
-          $$((4 [1 3 2 4] [index${' next'.repeat(8)}] []))`);
+          $$((4 [1 3 2 4] [$q${' next'.repeat(8)}] []))`);
         t('no_mem_at_end_find_all_dn', `${t_init}
           // 0 1 2 3 4 5 6 7 8
           // -         a       find(max:5 n=1)

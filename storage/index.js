@@ -205,7 +205,7 @@ export default class Index {
     if (min!==undefined && max!==undefined)
       assert(min<=max, 'invalid query min<=max min '+min+' max '+max);
     [min, max] = [min===undefined ? 0 : min, max===undefined ? Infinity : max];
-    query = key===undefined ? undefined :
+    query = key===undefined ? IDBKeyRange.bound([id, '', 0], [id+1, '', -1]) :
       IDBKeyRange.bound([id, key, min], [id, key, max]);
     // XXX: handle min/max when key===undefined
     let cursor = yield db.cursor(store, query, dir=='up' ? 'next' : 'prev');

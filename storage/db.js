@@ -226,9 +226,9 @@ function transaction(db, store_names, mode, options){
 
 function limit_to_str(v){
   if (!Array.isArray(v))
-    return ''+v;
+    return v===undefined ? '' : ''+v;
   let s = '';
-  v.forEach(vv=>s += (s=='' ? '' : '_')+vv);
+  v.forEach(vv=>s += (s=='' ? '' : '_')+(vv===undefined ? '' : vv));
   return s;
 }
 
@@ -241,6 +241,10 @@ function query_to_str(store, query, dir){
     let upper = limit_to_str(query.__upper);
     if (lower==upper)
       e += ',key=='+lower;
+    else if (upper==='')
+      e += ','+lower+'<=key';
+    else if (lower==='')
+      e += 'key<='+upper;
     else
       e += ','+lower+'<=key<='+upper;
   }

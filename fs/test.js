@@ -1277,55 +1277,11 @@ describe('git', function(){
         ' L/O964lnhIfRpRUuuN7Fq02PHWSgtcsav++OrzjM+75Tp8JMz5a8FUOTIqSpaZk=\n'+
         ' =dun1\n -----END PGP SIGNATURE-----\n \n');
     });
-    describe('git_to_scroll', function(){
-      // XXX: rewrite using macros and using local git
+    describe('xxx_git_to_scroll', function(){
       const t = (name, test)=>it(name, ()=>test_run(test));
-      // XXX: verify seq0 has the correct headers
-      // XXX: do we need author in scroll header
-      // XXX: derry: review encode_str/decode_str
-      let desc5 = encode_str('Commit from cli with pgp\n\n'+
-        'Signed-off-by: lif-rnd <lif.zone.main@gmail.com>');
-      let gpg3 = encode_str('-----BEGIN PGP SIGNATURE-----\n'+
-        '\nwsBcBAABCAAQBQJjlvwACRBK7hj4Ov3rIwAAAswIAFPmNEqZow/IUewkig8OnOot'+
-        '\nbrQTqOE9qb83naHpE6cGNOq+uOn0Twav6xsWI5B7/h7t0kOPMUPJcA8xmxduGN4+'+
-        '\n1Sw0ByvVoeO3x/UOpavv5SayuyOuxFNOasHFrHwne4ONyzM5J8EUkV4/oHYE+2jZ'+
-        '\nNWeJlvSSg85wA23YF1/7tAFV/wZrC3tFkFht3ZQraHDNBV2nG/vqUxtPxuvRAR8V'+
-        '\nFwIGDJ4uYW1gSxMdAP6MPFVkY+pzJmzEHKT22TC1InhZ5mklEPDNuSnuYAxRE2Cs'+
-        '\nL/O964lnhIfRpRUuuN7Fq02PHWSgtcsav++OrzjM+75Tp8JMz5a8FUOTIqSpaZk='+
-        '\n=dun1\n-----END PGP SIGNATURE-----\n');
-      let gpg7 = encode_str('-----BEGIN PGP SIGNATURE-----\n'+
-        '\niQGzBAABCgAdFiEEndepdIBVI/JR3VFqk63BrWpcXVgFAmOXBx8ACgkQk63BrWpc'+
-        '\nXVhX5AwAj0KkfEYd5jEm9Si5t4EfT0vFQqC2pHcBEwJB8g0Rvoq0otx4QEEHSYiE'+
-        '\n1yNxxrl3Ei0/EFZsADDJ5oZODXEZGssQgIfRPphoqueMmcl/IQ9J5mtgaGS+0EtX'+
-        '\npIt0ztktIJ3i1EZeSR3EB6Cch5gXORtWhDHTCgk8gReskuSLXm6f37V6PFM+mVl5'+
-        '\n7ZfyV0H6paumCPubgQFJ60y2o4FC2jGe4MYiIZEU1x7l6WG808PSWBe3FknTG0yW'+
-        '\n0vYpAwTfD7io5Q5HQzbjzyo+Z8xtj13zsfU1Lw/P3pMdgbOvDckvArgvCV23kD4A'+
-        '\n3SmNdtToYwsTpMTEyPX7lZ+aOPsU4kyEHa/eDNZ41MsQOPajBFi+S1eTHBL7RxON'+
-        '\no0u2MFoFEBmpNsLnVJUnY9a72tdeldGq5NKq1mrZIccOq88ybzlGWaVBAmGwTGXb'+
-        '\nI0XQP0JuNdGqXP50yMSzsqNpNIZPK6vrl6o7Faz2Y595cZbR+/XGnwmlaqTYTidX'+
-        '\nrFCDMFtn\n=gY2P\n-----END PGP SIGNATURE-----');
-      t('gpg', `s..#seq git(src(lif-rnd/test_gpg)) #(seq0={}
-        seq1={type:git_br op:add git:{branch:main}}
-        seq2={type:git_head op:add git:{branch:main}})
-        sync(seal:false) #(
-        seq3={type:fs op:add dir:/ git:{mode:0}}
-        seq4={type:fs op:add file:/file_from_www content:1 f2:0x0a
-          git:{oid:8b137891791fe96927ad78e64b0aad7bded08bdc mode:100644}}
-        // XXX: missing more stuff in commit (eg author, gpg, ts)
-        seq5={group:2 type:commit op:add _desc(Create file_from_www)
-          git:{oid:632392939fe3e3abcfd259ef24f2ff2a08d55f73 gpgsig:${gpg3}}}
-        seq6={link:4 type:fs op:add file:/file_from_cli
-          git:{oid:8b137891791fe96927ad78e64b0aad7bded08bdc mode:100644}}
-        seq7={group:1 type:commit op:add desc(${desc5})
-          git:{oid:4ee9e2edc6655e077b2b01f379b7acc5e3c35d8f}}
-        seq8={type:fs op:mod file:/file_from_cli content:1 f2:0x76320a
-          git:{oid:8c1384d825dbbe41309b7dc18ee7991a9085c46e mode:100644}}
-        seq9={group:1 type:commit op:add desc(test)
-          git:{oid:ca6b21664600f971cdeadbd357b98fd37ee53d8f gpgsig:${gpg7}}})
-        verify_git`);
       let d2 = '0x66696c6520613a0a'+('58'.repeat(104)+'0a').repeat(17);
       let d10 = '0x66696c6520630a'+('58'.repeat(104)+'0a').repeat(17);
-      gpg3 = encode_str('-----BEGIN PGP SIGNATURE-----\n'+
+      let gpg3 = encode_str('-----BEGIN PGP SIGNATURE-----\n'+
         '\nwsBcBAABCAAQBQJjhahDCRBK7hj4Ov3rIwAAnpwIAERdey8XBjlOhm5T8hnPhDUS'+
         '\nlfuK6mT/zO2Jw9YL1kfF6iK9cefdvFrcjq6Ecbq4TgkQSAaPYeBAEKJYhWa3yIMr'+
         '\nVBjQy0o6YnK8Sf2jqNr/vyCCLsRaN3ANuuV8G09AUjh6Cn1I635vNBMjg41T/jqX'+
@@ -1383,192 +1339,6 @@ describe('git', function(){
           git:{oid:aa18f16781702a407f879aca38902577418f7cb3}})
         ##git_sha_dir(/ seq:11)=ebe5469761eaaf19bddac27a3fe49cec61897e31
         verify_git`);
-      return;
-      let desc18 = encode_str('Merge pull request #1 from lif-zone/branch1'+
-        '\n\nMerge from Branch1');
-      let d19 = '0x'+'6d61696e5f66696c65330a'.repeat(26);
-      let d21 = '0x4040202d312c3238202b312c33322040400a2b5858582530410a'+
-        '206d61696e5f66696c65332530416d61696e5f66696c65332530416d61696e5f660a';
-      t('merge_simple', `s..#seq git(src(lif-zone/test_merge_simple)) #seq0={}
-        sync(seal:false) #(
-        seq1={op:add dir:/ git:{mode:0}}
-        seq2={op:add file:/main_file1 content:1 f2:0x0a
-          git:{oid:8b137891791fe96927ad78e64b0aad7bded08bdc mode:100644}}
-        seq3={op:commit group:2 desc(Create main_file1)
-          git:{oid:90d08c6fe5d7a766218f3db8355402d1e88030a9}}
-        seq4={op:mod file:/main_file1 content:1 f2:0x66696c65310a
-          git:{oid:e2129701f1a4d54dc44f03c93bca0a2aec7c5449 mode:100644}}
-        seq5={op:commit group:1 desc(Update main_file1)
-          git:{oid:ff1c84df1f072b79a8fe8cc0edb3ed24e33134c8}}
-        seq6={op:add file:/main_file2 content:1 f2:0x66696c65320a
-          git:{oid:6c493ff740f9380390d5c9ddef4af18697ac9375 mode:100644}}
-        seq7={op:commit group:1 desc(Create main_file2)
-          git:{oid:ab861bddf2f5674d199ac1d04aa420286c2b4de6}}
-        seq8={op:add file:/main_file3 content:1 f2:0x6d61696e5f66696c65330a
-          git:{oid:9df9148b245e84d4eefc7adfb9d747c2a3e6966a mode:100644}}
-        seq9={op:commit group:1 desc(Create main_file3)
-          git:{oid:0999c0da6a48c7fb3e12a2478af689abe84ccd36}}
-        seq10={op:add file:/branch_file1
-          content:1 f2:0x6272616e63685f66696c65310a
-          git:{oid:81feec21ec7e7b068f45ca64ca352e151331fcf2 mode:100644}}
-        seq11={op:add file:/branch_file2 content:1
-          f2:0x6272616e63685f66696c65320a
-          git:{oid:00cd2033b090d099f771e57f39f23c858c22f651 mode:100644}}
-        seq12={group:2 op:commit desc(${desc18})
-          git:{oid:529918326b683cebb869faa11ee487f70828fb31
-          merge:d4181b6ca66e54bb077feb44f6554d0c6236ba2b}}
-        seq13={op:mod file:/main_file3 content:1 f2:${d19}
-          git:{oid:70350ee2b46550a16f7f3e4ab189620f89194ce3 mode:100644}}
-        seq14={op:commit group:1 desc(Update main_file3)
-          git:{oid:3c32b322655215d3723de7362a6880bb7ff20e4d}}
-        seq15={op:mod file:/main_file3 diff:1 link:13 f2=${d21}
-          git:{oid:c11256c184e585acd4bc63f86adc1b4cb512affa mode:100644}}
-        seq16={op:commit group:1 desc(Update main_file3)
-          git:{oid:e37d0cbddd4c351996dae2a01f04986dbab5b071}}
-        seq17={bseq:7-1.0 branch:branch1 op:add file:/branch_file1 link:10
-          git:{oid:81feec21ec7e7b068f45ca64ca352e151331fcf2 mode:100644}}
-        seq18={bseq:7-1.1 op:commit group:1 desc(Create branch_file1)
-          git:{oid:8ed244dd4cf2cac485cfe0665e0450f0fbb7e71e}}
-        seq19={bseq:7-1.2 op:add file:/branch_file2 link:11
-          git:{oid:00cd2033b090d099f771e57f39f23c858c22f651 mode:100644}}
-        seq20={bseq:7-1.3 op:commit group:1 desc(Create branch_file2)
-          git:{oid:d4181b6ca66e54bb077feb44f6554d0c6236ba2b}}
-        // XXX: missing test_tag1
-        )`);
-      d2='0x66696c65310a'+('58'.repeat(99)+'0a').repeat(8);
-      let desc7 = encode_str('Merge pull request #1 from lif-rnd/branch1'+
-        '\n\nmerge branch1');
-      let t_branch_vars = `
-        $$f1(634568dfc1c5c07e337f2d99a472a8d9b03c3964)
-        $$f2(8b137891791fe96927ad78e64b0aad7bded08bdc)
-        $$c1(cb42290303d83a9254397228e586f45539bbe010)
-        $$c2(549f06c75c8818b582f552d110094a4b617196f9)
-        $$c3(ebfa9a6980f982ffef775895cbb5a6e48a3cfc3c)
-        $$c4(f748254314933c43f7992743c3ef8c04f7f0a70d)
-        $$M1(ebfa9a6980f982ffef775895cbb5a6e48a3cfc3c
-          merge:f748254314933c43f7992743c3ef8c04f7f0a70d)
-        $$c5(63f7e4a5ba325b71f00f32dc53d45a606c1b75eb)
-        $$c6(70327166e0bbc36da012739545f77e392f6557f5)
-        $$c7(9215645089772245e3583f257527e4ac40093607)
-        $$c8(62dc45e52ebe66f203aa002c199232c2173e525a)
-        $$c9(da75abc9686b22c272dcc5f68722f2611f1544b6)
-        $$c10(fdd8c6da236eff68d8f996bae6cb03288965ba11)
-        $$c11(2f53a9af4aa94f04a917df7d5bb36c4afebdec81)
-        $$c12(04aa5bc25586310dea65376e2ce9d57db1354086)
-        $$c13(981d0f12fd0e0780141efcaea2ff0bb76c5e3229)
-        $$c14(981d0f12fd0e0780141efcaea2ff0bb76c5e3229)
-        $$c14(6d3758d6bcb40ed4cf51eea77f7ee540f11f2bcd)
-        $$mf(mode:100644) $$m0(mode:0) $$br1(branch:branch1)
-        $$br2(branch:branch2) $$br2b1(branch:branch2_b1) $$br3(branch:branch3)
-        $$br4(branch:branch4) $$file2b1(/file1 branch2b1)`;
-      t('branch_all', `s..git(src(lif-zone/test_branch_inc)) sync(seal:false)
-        ${t_branch_vars}
-        ##seq$1={bseq:$2 op:$3 $rm_parentesis($6) git:{oid:$4 $5}} $$(
-        // seq-bseq   op     oid  mod extra
-        (1  !         add    !    $m0 (dir:/))
-        (2  !         add    $f1  $mf (file:/file1 content:1 f2:${d2}))
-        (3  !         commit $c1  !   (group:2 desc(Create file1)))
-        (4  !         add    $f2  $mf (file:/file3 content:1 f2:0x0a))
-        (5  !         commit $c2  !   (group:1 desc(Create file3)))
-        (6  !         add    $f2  $mf (file:/file1-branch1 link:4))
-        (7  !         commit $M1  !   (group:1 desc(${desc7})))
-        (8  !         add    $f2  $mf (file:/file4 link:4))
-        (9  !         commit $c8  !   (group:1 desc(Create file4)))
-        (10 !         add    $f2  $mf (file:/file5 link:4))
-        (11 !         commit $c9  !   (group:1 desc(Create file5)))
-        (12 3-1.0     add    $f2  $mf ($br1 file:/file1-branch1 link:4))
-        (13 3-1.1     commit $c4  !   (group:1 desc(Create file1-branch1)))
-        (14 3-1.2     add    $f2  $mf (file:/file4b1 link:4))
-        (15 3-1.3     commit $c10 !   (group:1 desc(Create file4b1)))
-        (16 3-2.0     add    $f2  $mf ($br2 file:/file1-branch2 link:4))
-        (17 3-2.1     commit $c5  !   (group:1 desc(Create file1-branch2)))
-        (18 3-2.2     add    $f2  $mf (file:/file_b2 link:4))
-        (19 3-2.3     commit $c11 !   (group:1 desc(Create file_b2)))
-        (20 3-2.1-1.0 add    $f2  $mf ($br2b1 file($file2b1) link:4))
-        (21 3-2.1-1.1 commit $c6  !   (group:1 desc(Create file1 branch2b1)))
-        (22 3-2.1-1.2 add    $f2  $mf (file:/file4b2b1 link:4))
-        (23 3-2.1-1.3 commit $c12 !   (group:1 desc(Create file4b2b1)))
-        (24 3-3.0     add    $f2  $mf ($br3 file(/file2 branch3) link:4))
-        (25 3-3.1     commit $c7  !   (group:1 desc(Create file2 branch3)))
-        (26 3-3.2     add    $f2  $mf (file:/file_b4 link:4))
-        (27 3-3.3     commit $c13 !   (group:1 desc(Create file_b4)))
-        (28 3-2.3-1.0 add    $f2  $mf ($br4 file:/file_b4 link:4))
-        (29 3-2.3-1.1 commit $c14 !   (group:1 desc(Create file_b4))))
-        ##seq30={}`);
-      t('branch_inc', `s..git(src(lif-rnd/test_branch)) sync(seal:false)
-        ${t_branch_vars}
-        ##seq$1={bseq:$2 op:$3 $rm_parentesis($6) git:{oid:$4 $5}} $$(
-        // seq-bseq   op     oid  mod extra
-        (1  !         add    !    $m0 (dir:/))
-        (2  !         add    $f1  $mf (file:/file1 content:1 f2:${d2}))
-        (3  !         commit $c1  !   (group:2 desc(Create file1)))
-        (4  !         add    $f2  $mf (file:/file3 content:1 f2:0x0a))
-        (5  !         commit $c2  !   (group:1 desc(Create file3)))
-        (6  !         add    $f2  $mf (file:/file1-branch1 link:4))
-        (7  !         commit $M1  !   (group:1 desc(${desc7})))
-        (8  3-1.0     add    $f2  $mf ($br1 file:/file1-branch1 link:4))
-        (9  3-1.1     commit $c4  !   (group:1 desc(Create file1-branch1)))
-        (10 3-2.0     add    $f2  $mf ($br2 file:/file1-branch2 link:4))
-        (11 3-2.1     commit $c5  !   (group:1 desc(Create file1-branch2)))
-        (12 3-2.1-1.0 add    $f2  $mf ($br2b1 file($file2b1) link:4))
-        (13 3-2.1-1.1 commit $c6  !   (group:1 desc(Create file1 branch2b1)))
-        (14 3-3.0     add    $f2  $mf ($br3 file(/file2 branch3) link:4))
-        (15 3-3.1     commit $c7  !   (group:1 desc(Create file2 branch3))))
-        ##seq16={} sync(seal:false)(url(/lif-zone/test_branch_inc)) $last $$(
-        (16 8         add    $f2  $mf (file:/file4 link:4))
-        (17 9         commit $c8  !   (group:1 desc(Create file4)))
-        (18 _10       add    $f2  $mf (file:/file5 link:4))
-        (19 _11       commit $c9  !   (group:1 desc(Create file5)))
-        (20 3-1.2     add    $f2  $mf (file:/file4b1 link:4))
-        (21 3-1.3     commit $c10 !   (group:1 desc(Create file4b1)))
-        (22 3-2.2     add    $f2  $mf (file:/file_b2 link:4))
-        (23 3-2.3     commit $c11 !   (group:1 desc(Create file_b2)))
-        (24 3-2.1-1.2 add    $f2  $mf (file:/file4b2b1 link:4))
-        (25 3-2.1-1.3 commit $c12 !   (group:1 desc(Create file4b2b1)))
-        (26 3-3.2     add    $f2  $mf (file:/file_b4 link:4))
-        (27 3-3.3     commit $c13 !   (group:1 desc(Create file_b4)))
-        (28 3-2.3-1.0 add    $f2  $mf ($br4 file:/file_b4 link:4))
-        (29 3-2.3-1.1 commit $c14 !   (group:1 desc(Create file_b4))))
-        ##seq30={}`);
-      t_branch_vars = `$$c1(79db66810d6c2af9181b97feed1b865bee3d2101)
-        $$c2(6e512652a3b6bd8a12adcd9a1f0086029a8199f8)
-        $$c3(0ca332fb7b3a3c6493abb6b28c4f340fcc1b2842)
-        $$c4(8e9a8ccc46bad9514abe70acac01c50c018b3f7e)
-        $$f1(8b137891791fe96927ad78e64b0aad7bded08bdc)
-        $$br1(branch:br1) $$br1b(branch:br1b) $$mf(mode:100644) $$m0(mode:0)`;
-      t('branch_no_rename', `s..git(src(lif-zone/test_branch_dup_rename)) sync
-        ${t_branch_vars}
-        ##seq$1={bseq:$2 op:$3 $rm_parentesis($6) git:{oid:$4 $5}} $$(
-        // seq-bseq   op     oid  mod extra
-        (1  !         add    !    $m0 (dir:/))
-        (2  !         add    $f1  $mf (file:/f1 content:1 f2:0x0a))
-        (3  !         commit $c1  !   (group:2 desc(f1)))
-        (4  !         add    $f1  $mf (file:/f2 link:2))
-        (5  !         commit $c2  !   (group:1 desc(f2)))
-        (6  3-1.0     add    $f1  $mf ($br1b file:/b1_f1 link:2))
-        (7  3-1.1     commit $c3  !   (group:1 desc(b1_f1)))
-        (8  3-1.2     add    $f1  $mf (file:/br1b_f2 link:2))
-        (9  3-1.3     commit $c4  !   (group:1 desc(br1b_f2))))
-        ##seq10={}`);
-      if (0) // XXX WIP
-      t('branch_rename', `s..git(src(lif-rnd/test_branch_dup)) sync
-        ${t_branch_vars}
-        ##seq$1={bseq:$2 op:$3 $rm_parentesis($6) git:{oid:$4 $5}} $$(
-        // seq-bseq   op     oid  mod extra
-        (1  !         add    !    $m0 (dir:/))
-        (2  !         add    $f1  $mf (file:/f1 content:1 f2:0x0a))
-        (3  !         commit $c1  !   (group:2 desc(f1)))
-        (4  !         add    $f1  $mf (file:/f2 link:2))
-        (5  !         commit $c2  !   (group:1 desc(f2)))
-        (6  3-1.0     add    $f1  $mf ($br1 file:/b1_f1 link:2))
-        (7  3-1.1     commit $c3  !   (group:1 desc(b1_f1))))
-        branch:new_name link:7
-        ##seq8={} sync(url:/lif-zone/test_branch_dup_rename) $last $$(
-        // rm old branch
-        (8  3-1.2 add    $f1  $mf ($br1b file:/br1b_f2 link:2))
-        (9  3-1.3 commit $c4  !   (group:1 desc(br1b_f2))))
-        ##seq10={}
-      `);
     });
     describe('git2', ()=>{
       let _t_common = `$$mf(mode:100644) $$m0(mode:0) buf(d1:1)
@@ -2488,7 +2258,7 @@ describe('git', function(){
         '\nIXIZfJSlgGRFwwA2/V9+Luk0zJVjL/qUJjH9apW0V6j5n/PBW2ycYVnc/RtsLoAl'+
         '\nHu5BDdKp+5HRUXnzfKHuJzOVB9zMRhx4Z5l05dg9baZE0xFvFIFNh10wLc00nKhI'+
         '\n40aIXJC6\n=6XSv\n-----END PGP SIGNATURE-----\n');
-      t('tag_annotate_gpg', `${_t_common}
+      t('tag_gpg', `${_t_common}
         $$bm(branch:main) $$mf(mode:100644) $$m0(mode:0)
         $$d1(8b137891791fe96927ad78e64b0aad7bded08bdc)
         $$oid1(cc89e3d5f7bee12d8cb3b0564c18b27b9507f7ff)
@@ -2515,13 +2285,11 @@ describe('git', function(){
     });
   });
 });
+// XXX: check how git handles time of commits + test with git rebase
+// XXX: discuss with derry how to save git user/date in scroll
 // XXX: verify we can rebuild tags/branches
-// XXX: rewrite 2 old GIT tests to new format + add dir test
+// XXX: rewrite 2 old GIT tests to new format + add dir test+make them local
 // XXX: add missing tests (db test, conflict test)
-// XXX: detect branch didn't change and make sure we don't do work on it
-// and check how time works
-// XXX: when doing sync, just get latest commits since last sync
-// XXX: support sort by abc in ls_iter
 // XXX: cleanup
 // XXX: fix macro $$ -> $_ (activate last macro) and support args to macro
 // XXX: fix # (to be per filter) and replace tests of ## with #

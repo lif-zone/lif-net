@@ -2357,7 +2357,7 @@ describe('git', function(){
 // XXX: check how git handles time of commits + test with git rebase
 // XXX: discuss with derry how to save git user/date in scroll
 // XXX: verify we can rebuild tags/branches
-// XXX: rewrite 2 old GIT tests to new format + add dir test+make them local
+// XXX: rewrite 1 old GIT tests to new format + add dir test+make them local
 // XXX: add missing tests (db test, conflict test)
 // XXX: cleanup
 // XXX: fix macro $$ -> $_ (activate last macro) and support args to macro

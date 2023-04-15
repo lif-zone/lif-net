@@ -1277,69 +1277,6 @@ describe('git', function(){
         ' L/O964lnhIfRpRUuuN7Fq02PHWSgtcsav++OrzjM+75Tp8JMz5a8FUOTIqSpaZk=\n'+
         ' =dun1\n -----END PGP SIGNATURE-----\n \n');
     });
-    describe('xxx_git_to_scroll', function(){
-      const t = (name, test)=>it(name, ()=>test_run(test));
-      let d2 = '0x66696c6520613a0a'+('58'.repeat(104)+'0a').repeat(17);
-      let d10 = '0x66696c6520630a'+('58'.repeat(104)+'0a').repeat(17);
-      let gpg3 = encode_str('-----BEGIN PGP SIGNATURE-----\n'+
-        '\nwsBcBAABCAAQBQJjhahDCRBK7hj4Ov3rIwAAnpwIAERdey8XBjlOhm5T8hnPhDUS'+
-        '\nlfuK6mT/zO2Jw9YL1kfF6iK9cefdvFrcjq6Ecbq4TgkQSAaPYeBAEKJYhWa3yIMr'+
-        '\nVBjQy0o6YnK8Sf2jqNr/vyCCLsRaN3ANuuV8G09AUjh6Cn1I635vNBMjg41T/jqX'+
-        '\nFCVDrs+I+xUMItL9XIRG9IBrkKBzZv25kbhqg6smfmfBydR6nO7hNMF3qvG16Eye'+
-        '\nhtz7p4/jH92e8a+GwEP6CD6PrS4bF2yv0KaCgJr/sQqN36mF9RcVanTHvSn7PBaV'+
-        '\naFCYmUr36mXeGEd5VJflXD1o54ikte1/S5QwGmN1j+8lxwNSzoxfjQLEJYmn0V0='+
-        '\n=B9M5\n-----END PGP SIGNATURE-----\n');
-      // XXX: mv git to lif-rnd
-      t('move', `s..#seq git(src(lif-zone/test_move)) #(seq0={}
-        seq1={type:git_br op:add git:{branch:main}}
-        seq2={type:git_head op:add git:{branch:main}})
-        sync(seal:false) #(
-        seq3={type:fs op:add dir:/ git:{mode:0}}
-        seq4={type:fs op:add file:/a content:1 f2:${d2}
-          git:{oid:7780c82f7ec168abd6f2cd9f756058fcedad80f2 mode:100644}}
-        seq5={group:2 type:commit op:add _desc(Create a)
-          git:{oid:4160553ff40409ebd42a5cf29c02b3e0d2cade54 gpgsig:${gpg3}}}
-        // XXX derry: detect move /a -> /b?
-        seq6={type:fs op:rm file:/a}
-        seq7={type:fs op:add file:/b link:4
-          git:{oid:7780c82f7ec168abd6f2cd9f756058fcedad80f2 mode:100644}}
-        seq8={group:2 type:commit op:add desc(move a to b)
-          git:{oid:d13f423f4853887bd7503f078b2887da6b64e43b}}
-        seq9={type:fs op:add dir:/dir1/ git:{mode:040000}}
-        seq10={type:fs op:add file:/dir1/b link:4
-          git:{oid:7780c82f7ec168abd6f2cd9f756058fcedad80f2 mode:100644}}
-        seq11={group:2 type:commit op:add desc(move /b -> /dir1/b)
-          git:{oid:05dfa3ebd084699425fe3ac202ec7cae7bbee89b}}
-        seq12={type:fs op:add file:/dir1/c content:1 f2:${d10}
-          git:{oid:bc9e3e7b4c0e05a8efb4942498c1afc86d431672 mode:100644}}
-        seq13={group:1 type:commit op:add desc(add c)
-          git:{oid:3538536829ce7864fa53cdd85b78af1e8c5c8522}}
-        // XXX derry: detect move /dir1/ -> /dir2/
-        seq14={type:fs op:rm file:/dir1/c}
-        seq15={type:fs op:rm file:/dir1/b}
-        seq16={type:fs op:rm dir:/dir1/}
-        seq17={type:fs op:add dir:/dir2/ git:{mode:040000}}
-        seq18={type:fs op:add file:/dir2/b link:4
-          git:{oid:7780c82f7ec168abd6f2cd9f756058fcedad80f2 mode:100644}}
-        seq19={type:fs op:add file:/dir2/c link:12
-          git:{oid:bc9e3e7b4c0e05a8efb4942498c1afc86d431672 mode:100644}}
-        seq20={group:1 type:commit op:add group:6 desc(/dir1 -> /dir2)
-          git:{oid:a7dc61ad160e9e5d004f02b86e79bc289ad24af8}}
-        seq21={type:fs op:rm file:/b}
-        seq22={type:fs op:add dir:/b/ git={mode:040000}}
-        seq23={type:fs op:add file:/b/a content:1 f2:0x7878780a
-          git={oid:d6459e005434a49a66a3ddec92279a86160ad71f mode:100644}}
-        seq24={group:3 type:commit op:add desc(change b from file to dir)
-          git:{oid:c0232fb014456ae8ee9b8060121a67016eda6512}}
-        seq25={type:fs op:rm file:/b/a}
-        seq26={type:fs op:rm dir:/b/}
-        seq27={type:fs op:add file:/b content:1 f2:0x5858585f626262620a
-          git:{oid:6d700c06af2977bb61a59cdefb4957ec3ef4f6ff mode:100644}}
-        seq28={group:3 type:commit op:add desc(change b from dir to file)
-          git:{oid:aa18f16781702a407f879aca38902577418f7cb3}})
-        ##git_sha_dir(/ seq:11)=ebe5469761eaaf19bddac27a3fe49cec61897e31
-        verify_git`);
-    });
   });
   describe('sync', ()=>{
     let _t_common = `$$mf(mode:100644) $$m0(mode:0) buf(d1:1)
@@ -2283,6 +2220,64 @@ describe('git', function(){
       (10 !     $toid tag      add !   link:9 tag:tag_gpg))
       ##seq11={}
     `);
+    let gpg3 = encode_str('-----BEGIN PGP SIGNATURE-----\n'+
+      '\nwsBcBAABCAAQBQJjhahDCRBK7hj4Ov3rIwAAnpwIAERdey8XBjlOhm5T8hnPhDUS'+
+      '\nlfuK6mT/zO2Jw9YL1kfF6iK9cefdvFrcjq6Ecbq4TgkQSAaPYeBAEKJYhWa3yIMr'+
+      '\nVBjQy0o6YnK8Sf2jqNr/vyCCLsRaN3ANuuV8G09AUjh6Cn1I635vNBMjg41T/jqX'+
+      '\nFCVDrs+I+xUMItL9XIRG9IBrkKBzZv25kbhqg6smfmfBydR6nO7hNMF3qvG16Eye'+
+      '\nhtz7p4/jH92e8a+GwEP6CD6PrS4bF2yv0KaCgJr/sQqN36mF9RcVanTHvSn7PBaV'+
+      '\naFCYmUr36mXeGEd5VJflXD1o54ikte1/S5QwGmN1j+8lxwNSzoxfjQLEJYmn0V0='+
+      '\n=B9M5\n-----END PGP SIGNATURE-----\n');
+    t('move', `${_t_common}
+      $$bm(branch:main) $$mf(mode:100644) $$m0(mode:0) $$md(mode:040000)
+      $$d2(${'0x66696c6520613a0a'+('58'.repeat(104)+'0a').repeat(17)})
+      $$d12(${'0x66696c6520630a'+('58'.repeat(104)+'0a').repeat(17)})
+      $$d23(0x7878780a)
+      $$d27(0x5858585f626262620a)
+      $$of2(7780c82f7ec168abd6f2cd9f756058fcedad80f2)
+      $$of12(bc9e3e7b4c0e05a8efb4942498c1afc86d431672)
+      $$of23(d6459e005434a49a66a3ddec92279a86160ad71f)
+      $$of27(6d700c06af2977bb61a59cdefb4957ec3ef4f6ff)
+      $$oid1(4160553ff40409ebd42a5cf29c02b3e0d2cade54)
+      $$oid2(d13f423f4853887bd7503f078b2887da6b64e43b)
+      $$oid3(05dfa3ebd084699425fe3ac202ec7cae7bbee89b)
+      $$oid4(3538536829ce7864fa53cdd85b78af1e8c5c8522)
+      $$oid5(a7dc61ad160e9e5d004f02b86e79bc289ad24af8)
+      $$oid6(c0232fb014456ae8ee9b8060121a67016eda6512)
+      $$oid7(aa18f16781702a407f879aca38902577418f7cb3)
+      $$g3(gpgsig:${gpg3})
+      $$t(sync(seal:false)
+        ##seq$1={bseq:$2 type:$4 op:$5 $7... git:{oid:$3 $6}})
+      s..git(src(lif-zone/test_move)) $t $$(
+      (1  !     !     git_br   add $bm !)
+      (2  !     !     git_head add $bm !)
+      (3  !     !     fs       add $m0 dir:/)
+      (4  !     $of2  fs       add $mf file:/a content:1 f2:$d2)
+      (5  !     $oid1 commit   add $g3 group:2 _desc(Create a))
+      (6  !     !     fs       rm  !   file:/a)
+      (7  !     $of2  fs       add $mf file:/b link:4)
+      (8  !     $oid2 commit   add !   group:2 desc(move a to b))
+      (9  !     !     fs       add $md dir:/dir1/)
+      (10 !     $of2  fs       add $mf file:/dir1/b link:4)
+      (11 !     $oid3 commit   add !   group:2 desc(move /b -> /dir1/b))
+      (12 !     $of12 fs       add $mf file:/dir1/c content:1 f2:$d12)
+      (13 !     $oid4 commit   add !   group:1 desc(add c))
+      (14 !     !     fs       rm  !   file:/dir1/c)
+      (15 !     !     fs       rm  !   file:/dir1/b)
+      (16 !     !     fs       rm  !   dir:/dir1/)
+      (17 !     !     fs       add $md dir:/dir2/)
+      (18 !     $of2  fs       add $mf file:/dir2/b link:4)
+      (19 !     $of12 fs      add $mf file:/dir2/c link:12)
+      (20 !     $oid5 commit   add !   group:6 desc(/dir1 -> /dir2))
+      (21 !     !     fs       rm  !   file:/b)
+      (22 !     !     fs       add $md dir:/b/)
+      (23 !     $of23 fs       add $mf file:/b/a content:1 f2:$d23)
+      (24 !     $oid6 commit   add !   group:3 desc(change b from file to dir))
+      (25 !     !     fs       rm  !   file:/b/a)
+      (26 !     !     fs       rm  !   dir:/b/)
+      (27 !     $of27 fs       add $mf file:/b content:1 f2:$d27)
+      (28 !     $oid7 commit   add !   group:3 desc(change b from dir to file))
+      ) ##seq29={}`);
     t('db_sync_empty', `${_t_common} s..git(db src:git_test main:master) $t $$(
       (1  ! !     git_br   add $bm !)
       (2  ! !     git_head add $bm !))
@@ -2357,7 +2352,7 @@ describe('git', function(){
 // XXX: check how git handles time of commits + test with git rebase
 // XXX: discuss with derry how to save git user/date in scroll
 // XXX: verify we can rebuild tags/branches
-// XXX: rewrite 1 old GIT tests to new format + add dir test+make them local
+// XXX: make remote tests local and rm them from git
 // XXX: add missing tests (conflict test)
 // XXX: cleanup
 // XXX: fix macro $$ -> $_ (activate last macro) and support args to macro

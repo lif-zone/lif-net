@@ -2248,7 +2248,7 @@ describe('git', function(){
       $$g3(gpgsig:${gpg3})
       $$t(sync(seal:false)
         ##seq$1={bseq:$2 type:$4 op:$5 $7... git:{oid:$3 $6}})
-      s..git(src(lif-zone/test_move)) $t $$(
+      s..git(src(lif-rnd/test_move)) $t $$(
       (1  !     !     git_br   add $bm !)
       (2  !     !     git_head add $bm !)
       (3  !     !     fs       add $m0 dir:/)

@@ -1056,7 +1056,6 @@ describe('fs', ()=>{
       ##file(/D1/f2 c:1)=d2`);
     // XXX: test temporary conflict, conflict+branches and files
   });
-  // XXX: test tag
   describe('db', ()=>{
     t('file_add', `s..#(seq fs) buf(d1:1) buf(d2:2) buf(d3:3)
       buf(d4:4) buf(d5:5) buf(d6:6) buf(d7:7) s..fs(db) #seq0={}

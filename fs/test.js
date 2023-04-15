@@ -2205,6 +2205,30 @@ describe('git', function(){
       $$c(commit_oid:$oid2 gpgsig:${gpg9})
       $$g5(gpgsig:${gpg5})
       $$g7(gpgsig:${gpg7})
+      $$t(sync(seal:false main:main
+        gitdir(${process.cwd()+'/test_git/test_tag_gpg'}))
+        ##seq$1={bseq:$2 type:$4 op:$5 $7... git:{oid:$3 $6}})
+      s..git(src(lif-rnd/test_tag_gpg)) $t $$(
+      (1  !     !     git_br   add $bm !)
+      (2  !     !     git_head add $bm !)
+      (3  !     !     fs       add $m0 dir:/)
+      (4  !     $d1   fs       add $mf file:/f1 content:1 f2:0x0a)
+      (5  !     $oid1 commit   add $g5 group:2 _desc:add_f1)
+      (6  !     $d1   fs       add $mf file:/f2 link:4)
+      (7  !     $oid2 commit   add $g7 group:1 _desc:add_f2)
+      (8  !     $oid2 tag      add !   link:7 tag:tag1)
+      (9  !     $toid tag_o    add $c  link:7 tag:tag_gpg _desc:tag_gpg_desc)
+      (10 !     $toid tag      add !   link:9 tag:tag_gpg))
+      ##seq11={}`);
+    t('gpg_remote', `${_t_common}
+      $$bm(branch:main) $$mf(mode:100644) $$m0(mode:0)
+      $$d1(8b137891791fe96927ad78e64b0aad7bded08bdc)
+      $$oid1(cc89e3d5f7bee12d8cb3b0564c18b27b9507f7ff)
+      $$oid2(b2694edc28f75909ec5e2af1b9cae53479753624)
+      $$toid(1e86977cdcf23a10d2fe57debe9fba53be1467be)
+      $$c(commit_oid:$oid2 gpgsig:${gpg9})
+      $$g5(gpgsig:${gpg5})
+      $$g7(gpgsig:${gpg7})
       $$t(sync(seal:false)
         ##seq$1={bseq:$2 type:$4 op:$5 $7... git:{oid:$3 $6}})
       s..git(src(lif-rnd/test_tag_gpg)) $t $$(
@@ -2218,8 +2242,7 @@ describe('git', function(){
       (8  !     $oid2 tag      add !   link:7 tag:tag1)
       (9  !     $toid tag_o    add $c  link:7 tag:tag_gpg _desc:tag_gpg_desc)
       (10 !     $toid tag      add !   link:9 tag:tag_gpg))
-      ##seq11={}
-    `);
+      ##seq11={}`);
     let gpg3 = encode_str('-----BEGIN PGP SIGNATURE-----\n'+
       '\nwsBcBAABCAAQBQJjhahDCRBK7hj4Ov3rIwAAnpwIAERdey8XBjlOhm5T8hnPhDUS'+
       '\nlfuK6mT/zO2Jw9YL1kfF6iK9cefdvFrcjq6Ecbq4TgkQSAaPYeBAEKJYhWa3yIMr'+
@@ -2246,7 +2269,8 @@ describe('git', function(){
       $$oid6(c0232fb014456ae8ee9b8060121a67016eda6512)
       $$oid7(aa18f16781702a407f879aca38902577418f7cb3)
       $$g3(gpgsig:${gpg3})
-      $$t(sync(seal:false)
+      $$t(sync(seal:false main:main
+        gitdir(${process.cwd()+'/test_git/test_move'}))
         ##seq$1={bseq:$2 type:$4 op:$5 $7... git:{oid:$3 $6}})
       s..git(src(lif-rnd/test_move)) $t $$(
       (1  !     !     git_br   add $bm !)
@@ -2352,7 +2376,6 @@ describe('git', function(){
 // XXX: check how git handles time of commits + test with git rebase
 // XXX: discuss with derry how to save git user/date in scroll
 // XXX: verify we can rebuild tags/branches
-// XXX: make remote tests local and rm them from git
 // XXX: add missing tests (conflict test)
 // XXX: cleanup
 // XXX: fix macro $$ -> $_ (activate last macro) and support args to macro

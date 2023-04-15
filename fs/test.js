@@ -1279,8 +1279,8 @@ describe('git', function(){
     });
   });
   describe('sync', ()=>{
-    let _t_common = `$$mf(mode:100644) $$m0(mode:0) buf(d1:1)
-      $$bm(branch:master)
+    let _t_common = `$$mf(mode:100644) $$m0(mode:0) $$md(mode:040000)
+      buf(d1:1) $$bm(branch:master)
       $$d1(d00491fd7e5bb6fa28c517a0bb32b8b506539d4d)
       $$R(/tmp/__lif_test/git_test/repo)
       $$R2(/tmp/__lif_test/git_test/sync)
@@ -1291,7 +1291,7 @@ describe('git', function(){
       $$add_f5(fs_write($R/f5 d1) git_add(f5) git_commit(oid5 c_f5))
       $$add_f6(fs_write($R/f6 d1) git_add(f6) git_commit(oid6 c_f6))
       $$add_d1(fs_mkdir($R/d1) fs_write($R/d1/f d1) git_add($R/d1/f)
-        git_commit(oid1 c_d1))
+        git_commit(od1 c_d1))
       git_init($R)
       $$sync_err() $$flip() $$sync_main(master) $$sync_seal(false)
       $$t(fs_cp($R/.git $R2)
@@ -1331,14 +1331,15 @@ describe('git', function(){
       ##git_sha_file(/f2 seq:6)=$d1
       ##git_sha_dir(/ seq:6)=cdfbe84a9047568f4312fc01c4beddc712e0256e
       verify_git`);
-    if (0) // XXX WIP
     t('dir', `${t_common} $t $$(
       (1  ! !     git_br   add $bm !)
       (2  ! !     git_head add $bm !))
       $add_d1 $t $$(
       (3  ! !     fs       add $m0 dir:/)
-      (4  ! !     fs       add $m0 dir:/d1))
-      ##seq5={}
+      (4  ! !     fs       add $md dir:/d1/)
+      (5  ! $d1   fs       add $mf file:/d1/f content:1 f2:d1)
+      (6  ! $od1  commit   add !   group:3 desc:c_d1))
+      ##seq7={}
     `);
     t('one_branch_inc', `${t_common}
       $add_f1 $t $$(
@@ -1866,7 +1867,6 @@ describe('git', function(){
       (10 ! $toid1 tag_o    add $C  tag:t1 link:5 desc:c_tag1)
       (11 ! $toid1 tag      add !   tag:t1 link:10))
       ##seq12={} verify_git`);
-    // XXX: need flip protect for head
     t('flip_protect_off_tag', `${t_common} $$flip(flip_protect:false)
       $add_f1 $add_f2 $add_f3 $t $$(
       (1  ! !      git_br   add $bm !)
@@ -1904,8 +1904,6 @@ describe('git', function(){
       $t xerr $$(
       (12 ! $oid1  tag      mod !   tag:t1 link:5))
       ##seq13={} verify_git`);
-    // XXX: test flip_protect branch, flip_protect annotated tag
-    // $$ -> $_ (activate last macro)
     t('flip_protect_true_tag', `${t_common} $$flip(flip_protect)
       $add_f1 $add_f2 $add_f3 $t $$(
       (1  ! !      git_br   add $bm !)
@@ -2019,7 +2017,6 @@ describe('git', function(){
       (15  7-1.1 !     git_br   rm  $B  !))
       git_br_new(b1 $oid2) $t $$()
       ##seq16={} verify_git`);
-    // XXX: missing head rm
     t('no_main_inc', `${_t_common} s..git(src:git_test main:no_main)
       $$sync_main(no_main)
       $$bn(branch:no_main) $t $$(
@@ -2132,7 +2129,6 @@ describe('git', function(){
       (13 2-1.5-1.0 $oid2 git_br   add !   branch:master)
       (14 2-1.8     !     git_head add $b1 !))
       ##seq15={}`);
-    // XXX: head flip protection
     t('commit_two_roots_inc', `${t_common}
       $add_f1 $t $$(
       (1  ! !     git_br   add $bm !)
@@ -2373,6 +2369,7 @@ describe('git', function(){
       ##seq14={} verify_git`);
   });
 });
+// XXX: head flip protection
 // XXX: check how git handles time of commits + test with git rebase
 // XXX: discuss with derry how to save git user/date in scroll
 // XXX: verify we can rebuild tags/branches

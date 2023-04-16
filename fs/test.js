@@ -2367,12 +2367,9 @@ describe('git', function(){
       ##seq14={} verify_git`);
   });
 });
-// XXX: head flip protection
 // XXX: check how git handles time of commits + test with git rebase
 // XXX: discuss with derry how to save git user/date in scroll
-// XXX: verify we can rebuild tags/branches
-// XXX: add missing tests (conflict test)
-// XXX: cleanup
+// Object.freeze when returning pointers to internal scroll buffers
 // XXX: fix macro $$ -> $_ (activate last macro) and support args to macro
 // XXX: fix # (to be per filter) and replace tests of ## with #
 //      (rm empty ##seq at the end

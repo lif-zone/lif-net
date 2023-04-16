@@ -340,20 +340,25 @@ export default class FS extends Scroll {
   }
 }
 
+FS.def_index = opt=>{
+  let a = ['seal',
+    {name: 'file', field: 'file', data: 'op'},
+    {name: 'dir', field: 'dir', data: 'op'},
+    {name: 'dir_list', transform: 'decl_get_dir', filter: {op: ['add', 'rm']},
+      data: ['file', 'dir', 'op']}
+  ];
+  if (opt?.csum_sha256)
+    a.push('csum_sha256');
+  if (opt?.csum_sha1)
+    a.push('csum_sha1');
+  return a;
+};
+
 FS.create = (opt, d)=>etask(function*scroll_create(){
   let fs = new FS(opt);
   yield fs.init();
-  // XXX: add type/topic: 'fs'
-  // XXX: add option for csum_sha256/len
   let s = {crypt: Scroll.supported_crypt[0], pub: b2s(opt.pub), ...d,
-    index: [{name: 'file', field: 'file', data: 'op'},
-    {name: 'dir', field: 'dir', data: 'op'},
-    {name: 'dir_list', transform: 'decl_get_dir', filter: {op: ['add', 'rm']},
-    data: ['file', 'dir', 'op']}]};
-  if (d?.csum_sha256)
-    s.index.push('csum_sha256');
-  if (d?.csum_sha1)
-    s.index.push('csum_sha1');
+    index: FS.def_index(d)};
   yield fs.decl({scroll: s});
   return fs;
 });

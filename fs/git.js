@@ -185,7 +185,6 @@ export default class GIT extends FS {
         if (!commit)
           throw new Error('commit not found for '+oid);
         commits.unshift(commit);
-        // XXX: copy logic of parent from _get_git
         oid = commit.commit.parent[0];
       }
       let branch = _this.get_avail_branch(cfid, '_null');
@@ -328,7 +327,6 @@ export default class GIT extends FS {
   }); }
   _get_git(config, opt){ return etask({_: this}, function*_get_git()
   {
-    // XXX: detect branch didn't change and make sure we don't work on it
     let _this = this._, head;
     let git_branches = yield git_api.listBranches(config.gitdir ? config :
       {...config, remote: 'origin'});
@@ -348,7 +346,6 @@ export default class GIT extends FS {
         {...config, ref: git_br, remote: 'origin'});
       if (config.url)
         yield git_api.fetch({...config});
-      // XXX: use since from last sync
       let log = yield git_api.log({...config, ref: git_br});
       let commits = [], map = {}, top = log[0].oid;
       for (let j=0, parent; j<log.length && (!j||parent); j++){
@@ -396,7 +393,6 @@ export default class GIT extends FS {
     return etask({_: this}, function*_sync_dir()
   {
     let _this = this._, n = 0;
-    // XXX: early return if if dir oid did not changed
     if (!(yield _this.dir_exists(dir, {cfid, prev}))){
       yield _this.add_dir(dir, {cfid, prev, body: {git: {mode}}});
       n++;
@@ -411,7 +407,6 @@ export default class GIT extends FS {
     for (; iter.curr; yield iter.next()){
       if (dir_list[iter.curr.path])
         continue;
-      // XXX: fix rm so prev is used only once
       n += yield _this.rm(iter.curr.path, {cfid, prev});
       prev = undefined;
     }
@@ -641,7 +636,6 @@ export default class GIT extends FS {
         assert.fail('unknown type for '+f);
     }
     // XXX: support sort by abc in ls_iter
-    // XXX: review isomorphic git compareTreeEntryPath
     a.sort((x, y)=>string.cmp(x.file||x.dir, y.file||y.dir));
     let o = Buffer.concat(a.map(o=>{
       const mode = Buffer.from((o.mode||'').replace(/^0/, ''));
@@ -673,14 +667,8 @@ export default class GIT extends FS {
   }); }
 }
 
-GIT.create = (opt, d)=>etask(function*scroll_create(){
-  assert(d.git?.src, 'missing git src');
-  let git = new GIT(opt);
-  yield git.init();
-  // XXX: reuse code from FS.create and call FS.create (inherit index and
-  // extend it)
-  let s = {crypt: Scroll.supported_crypt[0], pub: b2s(opt.pub), ...d,
-    csum_sha1: true, index: ['seal',
+GIT.def_index = opt=>{
+  return ['seal',
     {name: 'file', field: 'file', data: ['op', 'git.oid', 'git.mode']},
     {name: 'dir', field: 'dir', data: ['op', 'git.mode']},
     {name: 'dir_list', transform: 'decl_get_dir', filter: {op: ['add', 'rm']},
@@ -691,7 +679,6 @@ GIT.create = (opt, d)=>etask(function*scroll_create(){
       filter: {type: 'commit'}},
     {name: 'fs_git_oid_all', field: 'git.oid', all_branches: true,
       filter: {type: 'fs'}},
-    // XXX: unite trasnform git_br_curr & git_head_curr -> git_br
     {name: 'git_br_curr', transform: 'git_br_curr', filter: {type: 'git_br'},
       data: 'op'},
     {name: 'git_br_all', transform: 'git_br', all_branches: true,
@@ -701,9 +688,15 @@ GIT.create = (opt, d)=>etask(function*scroll_create(){
     {name: 'git_head_curr_all', transform: 'git_head_curr',
       filter: {type: 'git_head'}, data: ['op', 'git.branch'],
       all_branches: true},
-    ]};
-  if (d?.csum_sha256) // XXX: needed?
-    s.index.push('csum_sha256');
+    ];
+};
+
+GIT.create = (opt, d)=>etask(function*scroll_create(){
+  assert(d.git?.src, 'missing git src');
+  let git = new GIT(opt);
+  yield git.init();
+  let s = {crypt: Scroll.supported_crypt[0], pub: b2s(opt.pub), ...d,
+    index: GIT.def_index()};
   let head = s.git?.head||'main';
   yield git.decl({scroll: s});
   yield git.decl({type: 'git_br', op: 'add', git: {branch: head}});
@@ -716,8 +709,10 @@ GIT.open = opt=>etask(function*scroll_open(){
   let seq, h;
   if (typeof opt.M=='string')
     [seq, h] = [0, s2b(opt.M)];
-  else // XXX: support Uint8Array
-    [seq, h] = Buffer.isBuffer(opt.M) ? [0, opt.M] : [opt.M.seq, opt.M.h];
+  else if (Buffer.isBuffer(opt.M) || opt.M instanceof Uint8Array)
+    [0, opt.M];
+  else
+    [opt.M.seq, opt.M.h];
   assert.strictEqual(seq, 0, 'must provide M0');
   assert(/^\d+$/.test(seq) && h, 'scroll.open missing M');
   let soul = opt.soul||Scroll.soul, git = seq==0 && soul.get(h);

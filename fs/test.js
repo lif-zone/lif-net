@@ -3,7 +3,6 @@ import assert from 'assert';
 import {execSync} from 'node:child_process';
 import fs from 'fs';
 import xtest from '../util/test_lib.js';
-import util from '../util/util.js';
 import etask from '../util/etask.js';
 import xerr from '../util/xerr.js';
 import {Buffer} from 'buffer';
@@ -1124,8 +1123,7 @@ describe('fs', ()=>{
 });
 
 describe('git', function(){
-  // XXX: git checkout/pull is slow
-  this.timeout(util.is_inspect() ? 99999999999 : 10000);
+  xtest.set_timeout(this, 10000);
   describe('util', function(){
     it('parse_commit', ()=>{
       const t = (val, exp)=>assert.deepEqual(git_util.parse_commit(val), exp);

@@ -50,12 +50,12 @@ function copy_commit_data(type, body, commit){
   switch (type){
   case 'commit':
     body.git.tree = commit.tree;
-    body.git.author = get_email_ts(commit.author)
-    body.git.committer = get_email_ts(commit.committer)
+    body.git.author = get_email_ts(commit.author);
+    body.git.committer = get_email_ts(commit.committer);
     break;
   case 'tag':
     body.git.commit_oid = commit.object;
-    body.git.tagger = get_email_ts(commit.tagger)
+    body.git.tagger = get_email_ts(commit.tagger);
     break;
   default: assert.fail('invalid type '+type);
   }
@@ -695,7 +695,8 @@ GIT.def_index = opt=>{
     {name: 'git_head_curr_all', transform: 'git_head_curr',
       filter: {type: 'git_head'}, data: ['op', 'git.branch'],
       all_branches: true},
-    ];
+    {name: 'git_committer_ts', field: 'git.committer.ts',
+      filter: {type: 'commit'}, data: 'git.oid'}];
 };
 
 GIT.create = (opt, d)=>etask(function*scroll_create(){

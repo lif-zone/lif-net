@@ -269,6 +269,8 @@ describe('parser', ()=>{
     t('cmd($1) cmd2($1) $$(a)', ['cmd(a)', 'cmd2(a)']);
     t('cmd($1 $2) cmd2($1) cmd3($2) $$([a b] [c d])',
       ['cmd(a b)', 'cmd2(a)', 'cmd3(b)', 'cmd(c d)', 'cmd2(c)', 'cmd3(d)']);
+    t('cmd($1) $$(a) $last $$(b)', ['cmd(a)', 'cmd(b)']);
+    t('cmd($1) $$(a) $_(b)', ['cmd(a)', 'cmd(b)']);
     t('$$a(A) cmd($a)', ['cmd(A)']);
     t('$$a(A B) cmd($a)', ['cmd(A B)']);
     t(`$$a(A

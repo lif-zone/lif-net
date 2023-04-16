@@ -90,6 +90,8 @@ E.parse_get_next = function(curr){
   if (skip_macro)
     return {exp, s, at, vars, skip_macro};
   if (exp.includes('$')){
+    if (vars.last)
+      vars._ = vars.last+' $$$$';
     let _exp = replace_macro_vars(exp, vars);
     if (_exp!=exp){
       let l = s.substr(0, curr.at||0), r = s.substr(at);
@@ -197,7 +199,7 @@ function replace_macro_vars(s, vars){
       s = s.replace(new RegExp('\\$'+escape.regex(v)+'\\b', 'g'), vars[v]);
   }
   if (s!=_s){
-    xerr.notice('macro_vars %s -> %s', _s, s);
+    xerr.notice('%s <- %s', s, _s);
     return replace_macro_vars(s, vars);
   }
   return s;

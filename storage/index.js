@@ -87,9 +87,7 @@ function data_filter(h, body, desc){
 
 // XXX: need test
 function key_from_data(h, body, desc){
-  let {field, transform, specific} = desc;
-  if (specific)
-    throw new Error('XXX '+specific);
+  let {field, transform} = desc;
   if (!transform)
     return util.get(body, field);
   switch (transform){

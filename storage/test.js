@@ -4,7 +4,6 @@ import tparser from './test_parser.js';
 import {test_run, parse_var, parse_cfid_seq, parse_conflict, macro_to_m}
   from './test_cmd.js';
 import xtest from '../util/test_lib.js';
-import util from '../util/util.js';
 import Scroll from './scroll.js';
 import Branch_table from './branch.js';
 import Index from './index.js';
@@ -355,7 +354,7 @@ describe('parser', ()=>{
 
 describe('scroll', function(){
   // XXX: db tests are slow
-  this.timeout(util.is_inspect() ? 99999999999 : 10000);
+  xtest.set_timeout(this, 10000);
   describe('util', ()=>{
     it('seq_merkel_array_size', ()=>{
       const t = (seq, exp)=>assert.strictEqual(

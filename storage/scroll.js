@@ -466,8 +466,7 @@ export default class Scroll extends EventEmitterAsync {
     let _this = this._;
     if (_this.index_table || !_this.name)
       return;
-    let data = _this.get_decl(0).data_get();
-    let body = data.get_body(0);
+    let data = _this.get_decl(0).data_get(), body = data.get_body(0);
     if (!body?.scroll?.index?.length)
       return;
     _this.index_table = new Index.Index_table({scroll: _this,
@@ -1177,6 +1176,7 @@ export default class Scroll extends EventEmitterAsync {
     let decl = this.get_decl(seq);
     return decl.M_hash(cfid||0);
   }
+  header(){ return this.get_decl(0).get_body(0)?.scroll; }
   get_decl(seq, opt={}){
     assert(typeof seq=='number', 'invalid seq '+seq);
     let decl = this.dmap.get(seq);

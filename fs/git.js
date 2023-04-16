@@ -416,7 +416,7 @@ export default class GIT extends FS {
       prev = undefined;
     }
     for (let i=0, e; e = tree[i]; i++){
-      let file, _dir, body, prev_o, blob, link;
+      let file, _dir, body, prev_o, blob, link, sha;
       switch (e.type){
       case 'blob':
         file = dir+e.path;
@@ -428,6 +428,9 @@ export default class GIT extends FS {
           break;
         body = {git: {oid: e.oid, mode: e.mode}};
         blob = (yield git_api.readBlob({...config, oid: e.oid})).blob;
+        sha = git_util.hash('blob', blob);
+        if (sha!=e.oid)
+          throw new Error('invalid oid for '+file);
         blob = blob ? Buffer.from(blob) : null;
         link = yield _this.find_one(e.oid, {dir: 'up', name: 'fs_git_oid_all',
           cfid});
@@ -627,12 +630,8 @@ export default class GIT extends FS {
       let f = iter.curr.path;
       if (FS.valid_file(f)){
         let o = yield _this.get_file_seq_data(cfid, bseq, seq, f);
-        // XXX: use sha from decl and verify file sha during insert
-        let sha = yield _this.calc_sha_file({cfid, seq, file: f});
-        if (sha!=o.data?.git?.oid)
-          throw new Error('file sha mismatch '+f+' seq'+seq);
         a.push({file: f, mode: o.data?.git?.mode,
-          name: FS.split(f).name, type: 'blob', sha});
+          name: FS.split(f).name, type: 'blob', sha: o.data?.git?.oid});
       } else if (FS.valid_dir(f)){
         let o = yield _this.get_dir_seq_data(cfid, bseq, seq, f);
         a.push({dir: f, mode: o.data?.git?.mode,

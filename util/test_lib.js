@@ -771,6 +771,10 @@ E.xerr_level = function(level){
   xerr.register(xerr_cb);
 };
 
+E.set_timeout = function(_this, ms){
+  _this.timeout(xutil.is_inspect() ? Number.MAX_SAFE_INTEGER : ms);
+};
+
 E.init = function(){
   proc.init();
   // XXX: is it needed?

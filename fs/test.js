@@ -2374,9 +2374,9 @@ describe('git', function(){
 author lif-rnd <lif.zone.main@gmail.com> 1637905164 +0200
 committer lif-rnd <lif.zone.main@gmail.com> 1637905164 +0200
 {... git: {oid, author: {name, email, ts, ts_zone},
-  committer: {name, email, ts, ts_zone}}}
+  committer: {name, email, ts, ts_offset}}}
 
-// XXX: index on git ts?
+// XXX: index on git ts/name?
 // XXX: index on decl ts?
 
 // XXX derry: use Object.freeze when returning pointers to internal scroll

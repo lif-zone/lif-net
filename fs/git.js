@@ -38,17 +38,24 @@ const copy_commit_data_safe = (type, config, body, oid, commit)=>etask(
   return calc_sha_commit(type, body);
 });
 
+function get_email_ts(o){
+  if (!o)
+    return;
+  return {name: o.name, email: o.email, ts: o.timestamp,
+    ts_offset: o.timezoneOffset};
+}
+
 function copy_commit_data(type, body, commit){
   body.desc = commit.message;
   switch (type){
   case 'commit':
     body.git.tree = commit.tree;
-    body.git.author = commit.author;
-    body.git.committer = commit.committer;
+    body.git.author = get_email_ts(commit.author)
+    body.git.committer = get_email_ts(commit.committer)
     break;
   case 'tag':
     body.git.commit_oid = commit.object;
-    body.git.tagger = commit.tagger;
+    body.git.tagger = get_email_ts(commit.tagger)
     break;
   default: assert.fail('invalid type '+type);
   }
@@ -69,7 +76,7 @@ function get_commit_raw(type, body){
     s+=line('type', 'commit');
     s+=line('tag', body.tag);
     s+=line('tagger', git.tagger?.name+' <'+git.tagger?.email+'> '+
-      git.tagger?.timestamp+' '+date.format_tz(git.tagger?.timezoneOffset));
+      git.tagger?.ts+' '+date.format_tz(git.tagger?.ts_offset));
     s += '\n'+body.desc;
     if (git.gpgsig)
       s += '\n'+git.gpgsig;
@@ -85,10 +92,10 @@ function get_commit_raw(type, body){
     .forEach(m=>s+=line('parent', m));
   }
   s+=line('author', git.author?.name+' <'+git.author?.email+'> '+
-    git.author?.timestamp+' '+date.format_tz(git.author?.timezoneOffset));
+    git.author?.ts+' '+date.format_tz(git.author?.ts_offset));
   s+=line('committer', git.committer?.name+' <'+git.committer?.email+'> '+
-    git.committer?.timestamp+' '+
-    date.format_tz(git.committer?.timezoneOffset));
+    git.committer?.ts+' '+
+    date.format_tz(git.committer?.ts_offset));
   if (git.gpgsig)
     s+=line('gpgsig', git.gpgsig);
   s += '\n'+body.desc;

@@ -197,14 +197,14 @@ const cmd_git = t=>etask(function*cmd_git(){
 
 const cmd_sync = t=>etask(function*cmd_sync(){
   let name = t.ctx||get_def('left'), git = get_scroll(name);
-  let gitdir, url, err, flip_protect, main, seal;
+  let gitdir, src, err, flip_protect, main, seal;
   for (let curr=t.r, i=0; curr = parse_get_next(curr); i++){
     let tt = parse_exp_arg(curr.exp);
     switch (tt.cmd){
     case 'gitdir': gitdir = tt.r; break;
     case 'main': main = tt.r; break;
     case 'seal': seal = get_bool(tt.r); break;
-    case 'url': url = 'https://github.com'+tt.r; break;
+    case 'src': src = 'https://github.com'+tt.r; break;
     case 'flip_protect':
       flip_protect = tt.r=='false' ? false : tt.r||true;
       break;
@@ -213,7 +213,7 @@ const cmd_sync = t=>etask(function*cmd_sync(){
     }
   }
   try {
-    yield git.sync({main, gitdir, url, flip_protect, seal});
+    yield git.sync({main, gitdir, src, flip_protect, seal});
     assert.equal(undefined, err, 'did not get expected error');
   } catch(e){ assert.equal(''+e, err); }
 });

@@ -107,7 +107,7 @@ export default class GIT extends FS {
     flip_protect = flip_protect===undefined ? 'warn' : flip_protect;
     if (!header)
       throw new Error('missing seq0 header');
-    let src = opt.url||header?.git?.src; // XXX: opt.url -> opt.src
+    let src = opt.src||header?.git?.src;
     if (!src)
       throw new Error('missing git src');
     let config = {fs, http, cache: _this.cache};
@@ -157,7 +157,7 @@ export default class GIT extends FS {
         let oid = commits[commits.length-1].oid;
         if (top_oid){
           if (top_oid!=oid)
-            throw new Error('XXX TODO '+git_br); // XXX TODO
+            throw new Error('unexpected git_br top '+git_br);
           continue;
         }
         let prev = yield _this.find_one(oid, {dir: 'up',

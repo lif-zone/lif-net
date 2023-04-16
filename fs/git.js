@@ -108,8 +108,7 @@ export default class GIT extends FS {
     this.cache = {};
   }
   sync(opt={}){ return etask({_: this}, function*sync(){
-    let _this = this._, {flip_protect, seal} = opt;
-    let header = _this.header();
+    let _this = this._, {flip_protect, seal} = opt, header = _this.header();
     seal = seal===undefined ? true : !!seal;
     flip_protect = flip_protect===undefined ? 'warn' : flip_protect;
     if (!header)
@@ -119,15 +118,14 @@ export default class GIT extends FS {
       throw new Error('missing git src');
     let config = {fs, http, cache: _this.cache};
     config.dir = opt.dir||'/tmp/lif_git_'+escape_fs(src);
-    if (opt.gitdir){
-      config.gitdir = opt.gitdir;
+    config.gitdir = opt.gitdir;
+    if (opt.gitdir)
       yield git_api.init({...config});
-    } else {
+    else {
       config.url = src;
       yield git_api.clone({...config});
     }
-    let cfid = opt.cfid||0;
-    let git_data = yield _this._get_git(config, opt);
+    let cfid = opt.cfid||0, git_data = yield _this._get_git(config, opt);
     let curr_git_branches = yield _this.get_git_branches(cfid);
     // delete branches
     for (let i=0; i<curr_git_branches.length; i++){

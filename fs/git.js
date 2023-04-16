@@ -15,7 +15,6 @@ import buf_util from '../net/buf_util.js';
 import git_api from 'isomorphic-git';
 const b2s = buf_util.buf_to_str, s2b = buf_util.buf_from_str;
 
-// XXX: need test + mv to generic place + need proper escape
 function escape_fs(s){ return s.replaceAll('/', '_').replaceAll(':', '_'); }
 
 const copy_commit_data_safe = (type, config, body, oid, commit)=>etask(
@@ -103,16 +102,15 @@ export default class GIT extends FS {
   }
   sync(opt={}){ return etask({_: this}, function*sync(){
     let _this = this._, {flip_protect, seal} = opt;
-    let body = _this.get_decl(0).get_body(0); // XXX: _this.header()
+    let header = _this.header();
     seal = seal===undefined ? true : !!seal;
     flip_protect = flip_protect===undefined ? 'warn' : flip_protect;
-    if (!body)
-      throw new Error('missing seq0 body');
-    let src = opt.url||body.scroll?.git?.src; // XXX: opt.url -> opt.src
+    if (!header)
+      throw new Error('missing seq0 header');
+    let src = opt.url||header?.git?.src; // XXX: opt.url -> opt.src
     if (!src)
       throw new Error('missing git src');
     let config = {fs, http, cache: _this.cache};
-    // XXX: decide how to create valid dir
     config.dir = opt.dir||'/tmp/lif_git_'+escape_fs(src);
     if (opt.gitdir){
       config.gitdir = opt.gitdir;

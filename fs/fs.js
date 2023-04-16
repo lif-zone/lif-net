@@ -331,12 +331,12 @@ export default class FS extends Scroll {
     }
     return ret;
   }); }
-  support_len(){ return !!this.get_decl(0).get_body(0)?.scroll?.len; }
+  support_len(){ return !!this.header()?.len; }
   support_csum_sha256(){
-    return !!this.get_decl(0).get_body(0)?.scroll?.csum_sha256;
+    return !!this.header()?.csum_sha256;
   }
   support_csum_sha1(){
-    return !!this.get_decl(0).get_body(0)?.scroll?.csum_sha1;
+    return !!this.header()?.csum_sha1;
   }
 }
 

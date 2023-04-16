@@ -176,7 +176,7 @@ export default class GIT extends FS {
     for (let oid in merge_queue){
       let git_br = merge_queue[oid];
       let seq = yield _this.find_one(oid, {dir: 'up',
-        name: 'commit_git_oid_all', cfid});
+        name: 'com/mit_git_oid_all', cfid});
       if (seq)
         continue;
       let commits = [];
@@ -194,18 +194,18 @@ export default class GIT extends FS {
     }
     yield _this._sync_tags(config, cfid, git_data.tag, flip_protect);
     let head = yield _this.get_head(cfid);
-    if (head && head.branch!=git_data.main){ // XXX: rename main to head
+    if (head && head.branch!=git_data.head){
       let top = _this.get_bseq_top(cfid, _this.bseq_get(cfid, head.seq));
       yield _this.decl({cfid, prev: top.seq}, {type: 'git_head', op: 'rm',
         git: {branch: head.branch}});
       head = null;
     }
-    if (!head && git_data.main){
-      let br_seq = yield _this.get_git_br_top_seq(cfid, git_data.main);
+    if (!head && git_data.head){
+      let br_seq = yield _this.get_git_br_top_seq(cfid, git_data.head);
       if (!br_seq)
-        return xerr('cannot find head '+git_data.main);
+        return xerr('cannot find head '+git_data.head);
       yield _this.decl({cfid, prev: br_seq}, {type: 'git_head', op: 'add',
-        git: {branch: git_data.main}});
+        git: {branch: git_data.head}});
     }
     if (!seal)
       return;
@@ -329,18 +329,18 @@ export default class GIT extends FS {
   _get_git(config, opt){ return etask({_: this}, function*_get_git()
   {
     // XXX: detect branch didn't change and make sure we don't work on it
-    let _this = this._, main;
+    let _this = this._, head;
     let git_branches = yield git_api.listBranches(config.gitdir ? config :
       {...config, remote: 'origin'});
     if (git_branches.includes('HEAD'))
       array.rm_elm(git_branches, 'HEAD');
     if (config.gitdir)
-      main = opt.main;
+      head = opt.head;
     else
-      main = yield _this._get_main_git_br(config);
-    if (main && git_branches[0]!=main && git_branches.includes(main))
-      git_branches.unshift(array.rm_elm(git_branches, main));
-    let ret = {root: undefined, main: main, branch: {}, tag: {}}, root;
+      head = yield _this._get_head_git_br(config);
+    if (head && git_branches[0]!=head && git_branches.includes(head))
+      git_branches.unshift(array.rm_elm(git_branches, head));
+    let ret = {root: undefined, head: head, branch: {}, tag: {}}, root;
     // add new commits to scroll
     for (let i=0; i<git_branches.length; i++){
       let git_br = git_branches[i];
@@ -449,9 +449,8 @@ export default class GIT extends FS {
     }
     return n;
   }); }
-  _get_main_git_br(config){ return etask(function*_get_main_git_br(){
-  // XXX: we call it to force getting origin refs into directory
-  if (!config.gitdir)
+  _get_head_git_br(config){ return etask(function*_get_head_git_br(){
+  if (!config.gitdir) // force update origin refs
     yield git_api.listServerRefs({...config, remote: 'origin'});
   let s, m;
   try {
@@ -706,10 +705,10 @@ GIT.create = (opt, d)=>etask(function*scroll_create(){
     ]};
   if (d?.csum_sha256) // XXX: needed?
     s.index.push('csum_sha256');
-  let main = s.git?.main||'main';
+  let head = s.git?.head||'main';
   yield git.decl({scroll: s});
-  yield git.decl({type: 'git_br', op: 'add', git: {branch: main}});
-  yield git.decl({type: 'git_head', op: 'add', git: {branch: main}});
+  yield git.decl({type: 'git_br', op: 'add', git: {branch: head}});
+  yield git.decl({type: 'git_head', op: 'add', git: {branch: head}});
   return git;
 });
 

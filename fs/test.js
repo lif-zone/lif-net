@@ -164,14 +164,14 @@ const cmd_buf = t=>etask(function*cmd_buf(){
 });
 
 const cmd_git = t=>etask(function*cmd_git(){
-  let name = t.ctx||get_def('left'), M, db_opt, src, main;
+  let name = t.ctx||get_def('left'), M, db_opt, src, head;
   assert(!t.l, 'invalid arg '+t.meta.s);
   assert(!get_scroll(name, true), 'scroll already exist '+name);
   for (let curr=t.r, i=0; curr = parse_get_next(curr); i++){
     let tt = parse_exp_arg(curr.exp), t2, a;
     switch (tt.cmd){
     case 'src': src = 'https://github.com/'+tt.r; break;
-    case 'main': main = tt.r; break;
+    case 'head': head = tt.r; break;
     case 'db': db_opt = parse_db_init(tt); break;
     default:
       t2 = parse_exp_arg_pair(curr.exp);
@@ -186,9 +186,9 @@ const cmd_git = t=>etask(function*cmd_git(){
   }
   assert(src, 'missing src');
   let scroll_decl = {git: src ? {src} : undefined};
-  if (main){
+  if (head){
     scroll_decl.git = scroll_decl.git||{};
-    scroll_decl.git.main = main;
+    scroll_decl.git.head = head;
   }
   yield new_scroll(name, M, null, t.prev?.ctx, db_opt, scroll_decl,
     function create_func(opt, d){ return GIT.create(opt, d); },
@@ -197,12 +197,12 @@ const cmd_git = t=>etask(function*cmd_git(){
 
 const cmd_sync = t=>etask(function*cmd_sync(){
   let name = t.ctx||get_def('left'), git = get_scroll(name);
-  let gitdir, src, err, flip_protect, main, seal;
+  let gitdir, src, err, flip_protect, head, seal;
   for (let curr=t.r, i=0; curr = parse_get_next(curr); i++){
     let tt = parse_exp_arg(curr.exp);
     switch (tt.cmd){
     case 'gitdir': gitdir = tt.r; break;
-    case 'main': main = tt.r; break;
+    case 'head': head = tt.r; break;
     case 'seal': seal = get_bool(tt.r); break;
     case 'src': src = 'https://github.com'+tt.r; break;
     case 'flip_protect':
@@ -213,7 +213,7 @@ const cmd_sync = t=>etask(function*cmd_sync(){
     }
   }
   try {
-    yield git.sync({main, gitdir, src, flip_protect, seal});
+    yield git.sync({head, gitdir, src, flip_protect, seal});
     assert.equal(undefined, err, 'did not get expected error');
   } catch(e){ assert.equal(''+e, err); }
 });
@@ -1055,7 +1055,8 @@ describe('fs', ()=>{
       ##file(/D1/f2 c:1)=d2`);
     // XXX: test temporary conflict, conflict+branches and files
   });
-  describe('db', ()=>{
+  describe('db', function(){
+    xtest.set_timeout(this, 5000);
     t('file_add', `s..#(seq fs) buf(d1:1) buf(d2:2) buf(d3:3)
       buf(d4:4) buf(d5:5) buf(d6:6) buf(d7:7) s..fs(db) #seq0={}
       add(/)          #(seq1={type:fs op:add dir:/} fs=/)
@@ -1290,15 +1291,15 @@ describe('git', function(){
       $$add_d1(fs_mkdir($R/d1) fs_write($R/d1/f d1) git_add($R/d1/f)
         git_commit(od1 c_d1))
       git_init($R)
-      $$sync_err() $$flip() $$sync_main(master) $$sync_seal(false)
+      $$sync_err() $$flip() $$sync_head(master) $$sync_seal(false)
       $$t(fs_cp($R/.git $R2)
-      sync(seal:$sync_seal main:$sync_main $flip err($sync_err)
+      sync(seal:$sync_seal head:$sync_head $flip err($sync_err)
         gitdir($R2)) ##seq$1={bseq:$2 type:$4 op:$5 $7... git:{oid:$3 $6}})
       $$tb(fs_cp($R/.git $R2)
-        sync(seal:$sync_seal main:$sync_main err($sync_err) gitdir($R2))
+        sync(seal:$sync_seal head:$sync_head err($sync_err) gitdir($R2))
         ##seq$1={bseq:$2 type:$4
         op:$5 branch($rm_parentesis($6)) $9... git:{oid:$3 branch:$7 $8}})`;
-    let t_common = `${_t_common} s..git(src:git_test main:master)`;
+    let t_common = `${_t_common} s..git(src:git_test head:master)`;
     const t = (name, test)=>it(name, ()=>test_run(test));
     t('sync_empty', `${t_common} $t $$(
       (1  ! !     git_br   add $bm !)
@@ -2014,12 +2015,12 @@ describe('git', function(){
       (15  7-1.1 !     git_br   rm  $B  !))
       git_br_new(b1 $oid2) $t $$()
       ##seq16={} verify_git`);
-    t('no_main_inc', `${_t_common} s..git(src:git_test main:no_main)
-      $$sync_main(no_main)
-      $$bn(branch:no_main) $t $$(
+    t('no_head_inc', `${_t_common} s..git(src:git_test head:no_head)
+      $$sync_head(no_head)
+      $$bn(branch:no_head) $t $$(
       (1  !     !        git_br   add $bn !)
       (2  !     !        git_head add $bn !))
-      $add_f1 xerr(cannot find head no_main) $t $$(
+      $add_f1 xerr(cannot find head no_head) $t $$(
       (3  !       !      git_head rm  $bn !)
       (4  !       !      git_br   rm  $bn !)
       (5  !       !      git_br   add $bm !)
@@ -2027,12 +2028,12 @@ describe('git', function(){
       (7  !       $d1    fs       add $mf file:/f1 content:1 f2:d1)
       (8  !       $oid1  commit   add !   group:2 desc:c_f1))
       xerr
-      $add_f2 xerr(cannot find head no_main) $t $$(
+      $add_f2 xerr(cannot find head no_head) $t $$(
       (9  !       $d1    fs       add $mf file:/f2 link:7)
       (10 !       $oid2  commit   add !   group:1 desc:c_f2))
       xerr
-      git_br_new(no_main) $t $$(
-      (11 _10-1.0 $oid2  git_br add !   branch:no_main))
+      git_br_new(no_head) $t $$(
+      (11 _10-1.0 $oid2  git_br add !   branch:no_head))
       $add_f3 $t $$(
       (12 _10-1.1 !      git_head add $bn !)
       (13 _10-1.2 $d1    fs       add $mf file:/f3 link:7)
@@ -2041,12 +2042,12 @@ describe('git', function(){
       (15 _11     $d1   fs        add $mf file:/f4 link:7)
       (16 _12     $oid4  commit   add !   group:1 desc:c_f4))
       ##seq17={} verify_git`);
-    t('no_main_inc2', `${_t_common} s..git(src:git_test main:no_main)
-      $$sync_main(no_main) $$bn(branch:no_main)
+    t('no_head_inc2', `${_t_common} s..git(src:git_test head:no_head)
+      $$sync_head(no_head) $$bn(branch:no_head)
       $t $$(
       (1  !       !     git_br   add $bn !)
       (2  !       !     git_head add $bn !))
-      $add_f1 xerr(cannot find head no_main) $t $$(
+      $add_f1 xerr(cannot find head no_head) $t $$(
       (3  !       !     git_head rm  $bn !)
       (4  !       !     git_br   rm  $bn !)
       (5  !       !     git_br   add $bm !)
@@ -2054,12 +2055,12 @@ describe('git', function(){
       (7  !       $d1   fs       add $mf file:/f1 content:1 f2:d1)
       (8  !       $oid1 commit   add !   group:2 desc:c_f1))
       xerr
-      $add_f2 xerr(cannot find head no_main) $t $$(
+      $add_f2 xerr(cannot find head no_head) $t $$(
       (9  !       $d1   fs       add $mf file:/f2 link:7)
       (10 !       $oid2 commit   add !   group:1 desc:c_f2))
       dbg
-      git_br_new(no_main) $add_f3 $t $$(
-      (11 _10-1.0 $oid2 git_br    add  !   branch:no_main)
+      git_br_new(no_head) $add_f3 $t $$(
+      (11 _10-1.0 $oid2 git_br    add  !   branch:no_head)
       (12 _10-1.1 $d1   fs       add $mf file:/f3 link:7)
       (13 _10-1.2 $oid3 commit   add !   group:1 desc:c_f3)
       (14 _10-1.3 !     git_head add $bn !))
@@ -2067,12 +2068,12 @@ describe('git', function(){
       (15 _11     $d1   fs        add $mf file:/f4 link:7)
       (16 _12     $oid4 commit   add !   group:1 desc:c_f4))
       ##seq17={} verify_git`);
-    t('no_main_full', `${_t_common} s..git(src:git_test main:no_main)
-      $$bn(branch:no_main)
+    t('no_head_full', `${_t_common} s..git(src:git_test head:no_head)
+      $$bn(branch:no_head)
       $add_f1
       $add_f2
-      git_br_new(no_main) $add_f3
-      git_br(master) $add_f4 $$sync_main(no_main) $t $$(
+      git_br_new(no_head) $add_f3
+      git_br(master) $add_f4 $$sync_head(no_head) $t $$(
       (1  !     !      git_br   add $bn !)
       (2  !     !      git_head add $bn !)
       (3  !     !      fs       add $m0 dir:/)
@@ -2101,7 +2102,7 @@ describe('git', function(){
       $add_f3 $t $$(
       (9  7-1.1 $d1   fs        add $mf file:/f3 link:4)
       (10 7-1.2 $oid3 commit    add !   group:1 desc:c_f3))
-      $$sync_main(b1) $$b1(branch:b1) $t $$(
+      $$sync_head(b1) $$b1(branch:b1) $t $$(
       (11 8     !     git_head  rm  $bm !)
       (12 7-1.3 !     git_head  add $b1 !))
       ##seq13={}`);
@@ -2110,7 +2111,7 @@ describe('git', function(){
       $add_f2
       git_br_new(b1)
       $add_f3
-      $$sync_main(b1) $$b1(branch:b1) $t $$(
+      $$sync_head(b1) $$b1(branch:b1) $t $$(
       (1  !         !     git_br   add $bm !)
       (2  !         !     git_head add $bm !)
       (3  2-1.0     !     git_br   add !   branch:b1)
@@ -2198,7 +2199,7 @@ describe('git', function(){
       $$c(commit_oid:$oid2 gpgsig:${gpg9})
       $$g5(gpgsig:${gpg5})
       $$g7(gpgsig:${gpg7})
-      $$t(sync(seal:false main:main
+      $$t(sync(seal:false head:main
         gitdir(${process.cwd()+'/test_git/test_tag_gpg'}))
         ##seq$1={bseq:$2 type:$4 op:$5 $7... git:{oid:$3 $6}})
       s..git(src(lif-rnd/test_tag_gpg)) $t $$(
@@ -2262,7 +2263,7 @@ describe('git', function(){
       $$oid6(c0232fb014456ae8ee9b8060121a67016eda6512)
       $$oid7(aa18f16781702a407f879aca38902577418f7cb3)
       $$g3(gpgsig:${gpg3})
-      $$t(sync(seal:false main:main
+      $$t(sync(seal:false head:main
         gitdir(${process.cwd()+'/test_git/test_move'}))
         ##seq$1={bseq:$2 type:$4 op:$5 $7... git:{oid:$3 $6}})
       s..git(src(lif-rnd/test_move)) $t $$(
@@ -2295,12 +2296,12 @@ describe('git', function(){
       (27 !     $of27 fs       add $mf file:/b content:1 f2:$d27)
       (28 !     $oid7 commit   add !   group:3 desc(change b from dir to file))
       ) ##seq29={}`);
-    t('db_sync_empty', `${_t_common} s..git(db src:git_test main:master) $t $$(
+    t('db_sync_empty', `${_t_common} s..git(db src:git_test head:master) $t $$(
       (1  ! !     git_br   add $bm !)
       (2  ! !     git_head add $bm !))
       ##seq3={}`);
     t('db_one_branch_del_branch_inc', `${_t_common}
-      s..git(db src:git_test main:master) $add_f1 $t $$(
+      s..git(db src:git_test head:master) $add_f1 $t $$(
       (1  !     !     git_br   add $bm       !)
       (2  !     !     git_head add $bm       !)
       (3  !     !     fs       add $m0       dir:/)
@@ -2317,7 +2318,7 @@ describe('git', function(){
       git_br_del(b1) $t $$(
       (11 5-1.3 !     git_br   rm  branch:b1 !))
       ##seq12={} verify_git`);
-    t('db_three_branch_inc', `${_t_common} s..git(db src:git_test main:master)
+    t('db_three_branch_inc', `${_t_common} s..git(db src:git_test head:master)
       $add_f1 $tb $$(
       (1  !         !     git_br   add !   !   $bm !)
       (2  !         !     git_head add !   !   $bm !)
@@ -2342,7 +2343,7 @@ describe('git', function(){
       (15 6         $d1   fs       add !    ! $mf file:/f5 link:4)
       (16 7         $oid5 commit   add !    ! !   group:1 desc:c_f5))
       ##seq17={} verify_git`);
-    t('db_tag_inc', `${_t_common} s..git(db src:git_test main:master)
+    t('db_tag_inc', `${_t_common} s..git(db src:git_test head:master)
       $add_f1 $t $$(
       (1  ! !     git_br   add $bm !)
       (2  ! !     git_head add $bm !)

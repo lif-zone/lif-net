@@ -1,7 +1,7 @@
 // author: derry. coder: arik.
 import express from 'express';
 import http from 'http';
-
+const cwd = process.cwd();
 
 function http_start(port){
   const app = express();
@@ -10,8 +10,10 @@ function http_start(port){
 }
 
 async function start(){
-  console.log('XXX start');
+  let dir = cwd.replace('/www', '');
+  console.log('XXX start cwd %s dir %s', cwd, dir);
   let app = http_start(8000);
+  app.use('/static', express.static(dir));
   app.get('/', xxx_handler);
 }
 

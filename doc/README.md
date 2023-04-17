@@ -2,7 +2,7 @@ LIF - Instal stand alone node server
 ====================================
 
 # Setup dns
-## Setup dns on Godday.com
+## Setup dns on Godaddy.com
 1. Browse to https://account.godaddy.com/products
 2. Login with your Godaddy account
 3. In "Domains" section, click on "Manage All -->"

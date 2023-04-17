@@ -27,46 +27,48 @@ E.start = opt=>{
   let rdomain = escape.regex(domain);
   let server = E.server = dns2.createServer({udp: true, tcp: true,
     handle: (request, send, rinfo)=>etask(function*dnss_handle(){
-      // XXX: improve invalid requests handlign and try/catch to avoid crash
-      let response = Packet.createResponseFromRequest(request);
-      if (!request.questions || !request.questions.length)
-        return send(response);
-      // XXX: support multiple questsions
-      let question = request.questions[0];
-      if (!question)
-        return send(response);
-      let {name, type} = question;
-      xerr.notice('XXX query len %s name %s type %s question %O request %O',
-        request.questions.length, name, type, question, request);
+      try {
+        // XXX: improve invalid requests handlign and try/catch to avoid crash
+        let response = Packet.createResponseFromRequest(request);
+        if (!request.questions || !request.questions.length)
+          return send(response);
+        // XXX: support multiple questsions
+        let question = request.questions[0];
+        if (!question)
+          return send(response);
+        let {name, type} = question;
+        xerr.notice('XXX query len %s name %s type %s question %O request %O',
+          request.questions.length, name, type, question, request);
 
-      if (!name)
-        return send(response);
-      let r = new RegExp('(^'+rdomain+'$)|(\\.'+rdomain+'$)', 'i');
-      if (!r.test(name)){ // XXX: handle all query types
-        // simple dns client to have internet connectivity
-        // XXX: need to send the complete question
-        response.answers = yield dns_resolve(name);
-        return send(response);
-      }
-      switch (type){
-      case Packet.TYPE.A:
-        xerr.notice('ddns TYPE.A');
-        response.answers.push({name, type: Packet.TYPE.A,
-          class: Packet.CLASS.IN, ttl: 300, address: ip});
-        break;
-      case Packet.TYPE.ANY:
-        xerr.notice('ddns TYPE.ANY');
-        response.answers.push({name, type: Packet.TYPE.A,
-          class: Packet.CLASS.IN, ttl: 300, address: ip});
-        response.answers.push({name, type: Packet.TYPE.NS,
-          class: Packet.CLASS.IN, ttl: 300, ns: 'peer1dns1.lif.zone'});
-        response.answers.push({name, type: Packet.TYPE.NS,
-          class: Packet.CLASS.IN, ttl: 300, ns: 'peer1dns2.lif.zone'});
-        break;
-      default: // XXX TODO
-        xerr('ddns unsupported type %s', type);
-      }
-      send(response);
+        if (!name)
+          return send(response);
+        let r = new RegExp('(^'+rdomain+'$)|(\\.'+rdomain+'$)', 'i');
+        if (!r.test(name)){ // XXX: handle all query types
+          // simple dns client to have internet connectivity
+          // XXX: need to send the complete question
+          response.answers = yield dns_resolve(name);
+          return send(response);
+        }
+        switch (type){
+        case Packet.TYPE.A:
+          xerr.notice('ddns TYPE.A');
+          response.answers.push({name, type: Packet.TYPE.A,
+            class: Packet.CLASS.IN, ttl: 300, address: ip});
+          break;
+        case Packet.TYPE.ANY:
+          xerr.notice('ddns TYPE.ANY');
+          response.answers.push({name, type: Packet.TYPE.A,
+            class: Packet.CLASS.IN, ttl: 300, address: ip});
+          response.answers.push({name, type: Packet.TYPE.NS,
+            class: Packet.CLASS.IN, ttl: 300, ns: 'peer1dns1.lif.zone'});
+          response.answers.push({name, type: Packet.TYPE.NS,
+            class: Packet.CLASS.IN, ttl: 300, ns: 'peer1dns2.lif.zone'});
+          break;
+        default: // XXX TODO
+          xerr('ddns unsupported type %s', type);
+        }
+        send(response);
+      } catch(err) { xerr('XXX dnss_handle error %s', err); }
     })
   });
   server.on('close', ()=>xerr.notice('dnss: closed'));

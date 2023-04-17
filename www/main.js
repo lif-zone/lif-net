@@ -13,7 +13,7 @@ async function start(){
   let dir = cwd.replace('/www', '');
   console.log('XXX start cwd %s dir %s', cwd, dir);
   let app = http_start(8000);
-  app.use('/static', express.static(dir));
+  app.use('/', express.static(dir));
   app.get('/', xxx_handler);
 }
 

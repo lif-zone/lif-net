@@ -3,17 +3,22 @@
 import dns2 from 'dns2';
 import etask from '../util/etask.js';
 import xerr from '../util/xerr.js';
-import escape from '../util/escape.js'; // XXX: fix vim coloring
-const {Packet, TCPClient} = dns2;
+import escape from '../util/escape.js'; // XXX: fix vim coloring (and class)
+const {Packet, UDPClient} = dns2;
 
-const E = {};
+const E = {type_str: {}, class_str: {}};
 export default E;
 
-// XXX: mv to dns.js
-const dns_resolve = host=>etask(function*dns_resolve(){
-  // XXX: use UDPClient and fallack to TCPClient
-  let resolve = TCPClient({dns: '8.8.8.8'});
-  try { return (yield resolve(host)).answers;
+for (let type in Packet.TYPE)
+  E.type_str[Packet.TYPE[type]] = type;
+for (let c in Packet.CLASS)
+  E.class_str[Packet.CLASS[c]] = c;
+
+const dns_resolve = query=>etask(function*dns_resolve(){
+  // XXX: use UDPClient and fallack to TCPClient/HTTPClient (or in parallel)
+  let {name, type} = query, _class = query.class;
+  let resolve = UDPClient({dns: '8.8.8.8'}); // XXX: use multiple DNS servers
+  try { return (yield resolve(name, E.type_str[type], _class)).answers;
   } catch(err){ xerr('dnss: error %o', err); } // XXX: send error
 });
 
@@ -25,6 +30,7 @@ E.start = opt=>{
   let {port, domain, ip} = opt;
   port = port||53;
   let rdomain = escape.regex(domain);
+  // XXX: https support
   let server = E.server = dns2.createServer({udp: true, tcp: true,
     handle: (request, send, rinfo)=>etask(function*dnss_handle(){
       try {
@@ -39,14 +45,10 @@ E.start = opt=>{
         let {name, type} = question;
         xerr.notice('XXX query len %s name %s type %s question %O request %O',
           request.questions.length, name, type, question, request);
-
-        if (!name)
-          return send(response);
         let r = new RegExp('(^'+rdomain+'$)|(\\.'+rdomain+'$)', 'i');
-        if (!r.test(name)){ // XXX: handle all query types
+        if (!r.test(name)){
           // simple dns client to have internet connectivity
-          // XXX: need to send the complete question
-          response.answers = yield dns_resolve(name);
+          response.answers = yield dns_resolve(question);
           return send(response);
         }
         switch (type){
@@ -68,7 +70,7 @@ E.start = opt=>{
           xerr('ddns unsupported type %s', type);
         }
         send(response);
-      } catch(err) { xerr('XXX dnss_handle error %s', err); }
+      } catch(err){ xerr('XXX dnss_handle error %s', err); }
     })
   });
   server.on('close', ()=>xerr.notice('dnss: closed'));

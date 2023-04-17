@@ -29,7 +29,11 @@ E.start = opt=>{
     throw new Error('dnss already started');
   let {port, domain, ip} = opt;
   port = port||53;
-  let rdomain = escape.regex(domain);
+  domain = Array.isArray(domain) ? domain : [domain];
+  let rdomain = domain.map(s=>{
+    let r = escape.regex(s);
+    return new RegExp('(^'+r+'$)|(\\.'+r+'$)', 'i');
+  });
   // XXX: https support
   let server = E.server = dns2.createServer({udp: true, tcp: true,
     handle: (request, send, rinfo)=>etask(function*dnss_handle(){
@@ -45,8 +49,7 @@ E.start = opt=>{
         let {name, type} = question;
         xerr.notice('XXX query len %s name %s type %s question %O request %O',
           request.questions.length, name, type, question, request);
-        let r = new RegExp('(^'+rdomain+'$)|(\\.'+rdomain+'$)', 'i');
-        if (!r.test(name)){
+        if (!rdomain.find(r=>r.test(name))){
           // simple dns client to have internet connectivity
           response.answers = yield dns_resolve(question);
           return send(response);
@@ -62,9 +65,9 @@ E.start = opt=>{
           response.answers.push({name, type: Packet.TYPE.A,
             class: Packet.CLASS.IN, ttl: 300, address: ip});
           response.answers.push({name, type: Packet.TYPE.NS,
-            class: Packet.CLASS.IN, ttl: 300, ns: 'peer1dns1.lif.zone'});
+            class: Packet.CLASS.IN, ttl: 300, ns: 'lif--dns1.'+name});
           response.answers.push({name, type: Packet.TYPE.NS,
-            class: Packet.CLASS.IN, ttl: 300, ns: 'peer1dns2.lif.zone'});
+            class: Packet.CLASS.IN, ttl: 300, ns: 'lif--dns2.'+name});
           break;
         default: // XXX TODO
           xerr('ddns unsupported type %s', type);

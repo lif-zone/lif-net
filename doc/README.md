@@ -28,3 +28,5 @@ LIF - Instal stand alone node server
 
 ## XXX TODO: Setup dns on other dns providers
 
+## XXX TODO: How to buy domain
+

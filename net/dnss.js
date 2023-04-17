@@ -41,7 +41,7 @@ E.start = opt=>{
 
       if (!name)
         return send(response);
-      let r = new RegExp('(^'+rdomain+'$)|(\\.'+rdomain+'$)');
+      let r = new RegExp('(^'+rdomain+'$)|(\\.'+rdomain+'$)', 'i');
       if (!r.test(name)){ // XXX: handle all query types
         // simple dns client to have internet connectivity
         // XXX: need to send the complete question

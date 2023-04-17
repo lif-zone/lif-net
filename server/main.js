@@ -22,7 +22,7 @@ function http_start(port){
 const main = ()=>etask(function*main(){
   let dir = cwd.replace('/server', ''); // XXX: HACK
   xerr.notice('run lif server cwd %s dir %s', cwd, dir);
-  dnss.start({ip: '127.0.0.1', domain: 'site.pub'});
+  dnss.start({ip: '127.0.0.1', domain: 'lif.biz'});
   let app = http_start(80);
   app.use('/', express.static(dir));
   app.get('/', xxx_handler);

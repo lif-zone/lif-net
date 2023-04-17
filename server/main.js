@@ -1,6 +1,8 @@
+#! /usr/local/bin/node
 // author: derry. coder: arik.
 import express from 'express';
 import http from 'http';
+import dnss from '../net/dnss.js';
 const cwd = process.cwd();
 
 function http_start(port){
@@ -10,7 +12,7 @@ function http_start(port){
 }
 
 async function start(){
-  let dir = cwd.replace('/www', '');
+  let dir = cwd.replace('/server', ''); // XXX: HACK
   console.log('XXX start cwd %s dir %s', cwd, dir);
   let app = http_start(8000);
   app.use('/', express.static(dir));

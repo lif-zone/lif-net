@@ -32,7 +32,6 @@
     "buffershift": "0.0.2",
     "dns2": "2.0.1",
     "escape-html": "1.0.3",
-    "escape-string-regexp": "5.0.0",
     "events": "3.0.0",
     "express": "4.17.1",
     "hypercore": "9.12.0",

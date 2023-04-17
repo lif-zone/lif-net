@@ -2,8 +2,16 @@
 // author: derry. coder: arik.
 import express from 'express';
 import http from 'http';
+import assert from 'assert';
 import dnss from '../net/dnss.js';
+import etask from '../util/etask.js';
+import xerr from '../util/xerr.js';
+import proc from '../util/proc.js';
 const cwd = process.cwd();
+
+proc.init();
+proc.xexit_init();
+xerr.on_unhandled_exception = err=>assert.fail(err);
 
 function http_start(port){
   const app = express();
@@ -11,13 +19,14 @@ function http_start(port){
   return app;
 }
 
-async function start(){
+const main = ()=>etask(function*main(){
   let dir = cwd.replace('/server', ''); // XXX: HACK
-  console.log('XXX start cwd %s dir %s', cwd, dir);
-  let app = http_start(8000);
+  xerr.notice('run lif server cwd %s dir %s', cwd, dir);
+  dnss.start({ip: '127.0.0.1', domain: 'site.pub'});
+  let app = http_start(80);
   app.use('/', express.static(dir));
   app.get('/', xxx_handler);
-}
+});
 
 function xxx_handler(req, res){
   res.send(`<html>
@@ -25,4 +34,4 @@ function xxx_handler(req, res){
   <html>`);
 }
 
-start();
+main();

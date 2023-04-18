@@ -10,6 +10,15 @@ const {Packet} = dns2;
 const E = {res_cache: {}};
 export default E;
 
+const Packet_parse = Packet.parse;
+Packet.parse = function(buffer){
+  try { return Packet_parse.call(Packet, buffer); }
+  catch(err){
+    xerr('dnss failed to parse packet %s', err.stack);
+    return new Packet();
+  }
+}
+
 function res_type_a(name){
   let type = Packet.TYPE.A, c = Packet.CLASS.IN;
   let o = E.res_cache[name] = E.res_cache[name]||{};
@@ -84,7 +93,7 @@ E.start = opt=>{
           res.answers = res.answers.concat(res_type_a('lif--dns2.'+name));
           break;
         default: // XXX TODO
-          xerr('ddns unsupported type %s', type);
+          xerr('dnss unsupported type %s', type);
         }
         send(res);
       } catch(err){ xerr('dnss_handle error %s', err.stack||err); }

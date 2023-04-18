@@ -36,3 +36,15 @@ function xxx_handler(req, res){
 }
 
 main();
+
+/* XXX TODO
+1. server/main.js
+2. save configuration at server/main.conf.js
+3. npm run install --> /var/lif/server
+4. questions during install to generate conf
+   install dir: /var/lif/server
+   server ip: try to get using what is myip service
+   domains:
+   email (optional) // to send alerts (ssl issue, hd full,...)
+
+*/

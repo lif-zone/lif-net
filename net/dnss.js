@@ -2,6 +2,7 @@
 'use strict';
 import dns2 from 'dns2';
 import etask from '../util/etask.js';
+import date from '../util/date.js';
 import xerr from '../util/xerr.js';
 import escape from '../util/escape.js'; // XXX: fix vim coloring (and class)
 const {Packet} = dns2;
@@ -30,8 +31,9 @@ function res_type_soa(name){
   let o = E.res_cache[name] = E.res_cache[name]||{};
   let ns = 'lif--dns1.'+name;
   // copy vals from google.com: dig @8.8.8.8 google.com SOA
+  let serial = date.strftime('%Y%m%d00', new Date());
   return o[type] = o[type]||[{name, type, class: c, ttl: 300,
-    primary: ns, admin: ns, serial: 1, refresh: 900, retry: 900,
+    primary: ns, admin: ns, serial, refresh: 900, retry: 900,
     expiration: 1800, minimum: 60}];
 }
 

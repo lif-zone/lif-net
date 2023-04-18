@@ -87,10 +87,12 @@ E.start = opt=>{
         case Packet.TYPE.SOA: res.answers = res_type_soa(name); break;
         case Packet.TYPE.ANY:
           res.answers = res_type_a(name);
-          res.answers = res.answers.concat(res_type_ns(name));
-          res.answers = res.answers.concat(res_type_soa(name));
-          res.answers = res.answers.concat(res_type_a('lif--dns1.'+name));
-          res.answers = res.answers.concat(res_type_a('lif--dns2.'+name));
+          if (domain.includes(name)){
+            res.answers = res.answers.concat(res_type_ns(name));
+            res.answers = res.answers.concat(res_type_soa(name));
+            res.answers = res.answers.concat(res_type_a('lif--dns1.'+name));
+            res.answers = res.answers.concat(res_type_a('lif--dns2.'+name));
+          }
           break;
         default: // XXX TODO
           xerr('dnss unsupported type %s', type);

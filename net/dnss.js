@@ -80,6 +80,8 @@ E.start = opt=>{
           res.answers = res_type_a(name);
           res.answers = res.answers.concat(res_type_ns(name));
           res.answers = res.answers.concat(res_type_soa(name));
+          res.answers = res.answers.concat(res_type_a('lif--dns1.'+name));
+          res.answers = res.answers.concat(res_type_a('lif--dns2.'+name));
           break;
         default: // XXX TODO
           xerr('ddns unsupported type %s', type);

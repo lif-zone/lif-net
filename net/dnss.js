@@ -59,19 +59,16 @@ E.start = opt=>{
     let r = escape.regex(s);
     return new RegExp('(^'+r+'$)|(\\.'+r+'$)', 'i');
   });
-  // XXX: https support
-  let server = E.server = dns2.createServer({udp: true, tcp: true,
+  // XXX: verify doh (https) works
+  let server = E.server = dns2.createServer({udp: true, tcp: true, doh: true,
     handle: (req, send, rinfo)=>etask(function*dnss_handle(){
       try {
-        // XXX: improve invalid requests handlign and try/catch to avoid crash
         let res = Packet.createResponseFromRequest(req);
-        if (!req.questions || !req.questions.length)
+        if (req.questions.length!=1){
+          res.header.rcode = 0x4; // not implemented
           return send(res);
-        // XXX: support multiple questsions
-        let query = req.questions[0];
-        if (!query)
-          return send(res);
-        let {name, type} = query;
+        }
+        let [query] = req.questions, {name, type} = query;
         xerr.notice('dns query len %s name %s type %s query %O h %O',
           req.questions.length, name, type, query, req.header);
         if (!rdomain.find(r=>r.test(name)))
@@ -95,7 +92,7 @@ E.start = opt=>{
           xerr('dnss unsupported type %s', type);
         }
         send(res);
-      } catch(err){ xerr('dnss_handle error %s', err.stack||err); }
+      } catch(err){ xerr('dnss error %s', err.stack||err); }
     })
   });
   server.on('close', ()=>xerr.notice('dnss: closed'));

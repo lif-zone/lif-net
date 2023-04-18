@@ -17,7 +17,7 @@ Packet.parse = function(buffer){
     xerr('dnss failed to parse packet %s', err.stack);
     return new Packet();
   }
-}
+};
 
 function res_type_a(name){
   let type = Packet.TYPE.A, c = Packet.CLASS.IN;
@@ -65,6 +65,8 @@ E.start = opt=>{
       try {
         // XXX: improve invalid requests handlign and try/catch to avoid crash
         let res = Packet.createResponseFromRequest(req);
+        // https://tools.ietf.org/html/rfc1035#section-4.1.1
+        res.header.aa = 1;
         if (!req.questions || !req.questions.length)
           return send(res);
         // XXX: support multiple questsions
@@ -74,13 +76,8 @@ E.start = opt=>{
         let {name, type} = query;
         xerr.notice('dns query len %s name %s type %s query %O h %O',
           req.questions.length, name, type, query, req.header);
-        if (!rdomain.find(r=>r.test(name))){
+        if (!rdomain.find(r=>r.test(name)))
           return send(res);
-          /* XXX: rm, simple dns client to have internet connectivity
-          res.answers = yield dns_resolve(query);
-          return send(res);
-          */
-        }
         switch (type){
         case Packet.TYPE.A: res.answers = res_type_a(name); break;
         case Packet.TYPE.NS: res.answers = res_type_ns(name); break;

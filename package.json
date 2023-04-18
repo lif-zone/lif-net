@@ -72,6 +72,7 @@
     "brittle": "^3.0.0",
     "@babel/core": "^7.16.5",
     "@babel/eslint-parser": "^7.16.5",
+    "@babel/plugin-syntax-import-assertions": "7.20.0",
     "autoprefixer": "10.2.4",
     "babel-eslint": "10.1.0",
     "big-integer": "1.6.51",

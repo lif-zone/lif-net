@@ -65,8 +65,6 @@ E.start = opt=>{
       try {
         // XXX: improve invalid requests handlign and try/catch to avoid crash
         let res = Packet.createResponseFromRequest(req);
-        // https://tools.ietf.org/html/rfc1035#section-4.1.1
-        res.header.aa = 1; // set authoritive answer
         if (!req.questions || !req.questions.length)
           return send(res);
         // XXX: support multiple questsions
@@ -78,6 +76,8 @@ E.start = opt=>{
           req.questions.length, name, type, query, req.header);
         if (!rdomain.find(r=>r.test(name)))
           return send(res);
+        // https://tools.ietf.org/html/rfc1035#section-4.1.1
+        res.header.aa = 1; // set authoritive answer
         switch (type){
         case Packet.TYPE.A: res.answers = res_type_a(name); break;
         case Packet.TYPE.NS: res.answers = res_type_ns(name); break;

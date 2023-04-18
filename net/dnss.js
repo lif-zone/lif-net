@@ -66,7 +66,7 @@ E.start = opt=>{
         // XXX: improve invalid requests handlign and try/catch to avoid crash
         let res = Packet.createResponseFromRequest(req);
         // https://tools.ietf.org/html/rfc1035#section-4.1.1
-        res.header.aa = 1;
+        res.header.aa = 1; // set authoritive answer
         if (!req.questions || !req.questions.length)
           return send(res);
         // XXX: support multiple questsions

@@ -6,19 +6,23 @@ import assert from 'assert';
 const E = {}, env = process.env;
 export default E;
 
-E.xexit_init = ()=>{
-  function xexit_on_err(err){ xerr.xexit(err); }
+// XXX: review xexit_init vs init
+E.xexit_init = cb=>{
+  cb = cb || function xexit_on_err(err){ xerr.xexit(err); };
+  // XXX: why not use xerr.set_exception_handler?
   xerr.on_exception = function(err){
     if (!(err instanceof TypeError || err instanceof ReferenceError
         || err instanceof assert.AssertionError)){
         return;
     }
     if (env.ZEXIT_ON_TYPEERROR===undefined || +env.ZEXIT_ON_TYPEERROR)
-      return xexit_on_err(err);
+      return cb(err);
     console.error('etask_typeerror '+err);
   };
-  if (!xutil.is_mocha())
-    process.on('uncaughtException', xexit_on_err);
+  if (!xutil.is_mocha()){
+    process.on('uncaughtException', cb);
+    process.on('unhandledRejection', cb);
+  }
 };
 
 E.init = ()=>{

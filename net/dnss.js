@@ -4,23 +4,36 @@ import dns2 from 'dns2';
 import etask from '../util/etask.js';
 import xerr from '../util/xerr.js';
 import escape from '../util/escape.js'; // XXX: fix vim coloring (and class)
-const {Packet, UDPClient} = dns2;
+const {Packet} = dns2;
 
-const E = {type_str: {}, class_str: {}};
+const E = {res_cache: {}};
 export default E;
 
-for (let type in Packet.TYPE)
-  E.type_str[Packet.TYPE[type]] = type;
-for (let c in Packet.CLASS)
-  E.class_str[Packet.CLASS[c]] = c;
+function res_type_a(name){
+  let type = Packet.TYPE.A, c = Packet.CLASS.IN;
+  let o = E.res_cache[name] = E.res_cache[name]||{};
+  return o[type] = o[type]||[{name, type, class: c, ttl: 300, address: E.ip}];
+}
 
-const dns_resolve = query=>etask(function*dns_resolve(){
-  // XXX: use UDPClient and fallack to TCPClient/HTTPClient (or in parallel)
-  let {name, type} = query, _class = query.class;
-  let resolve = UDPClient({dns: '8.8.8.8'}); // XXX: use multiple DNS servers
-  try { return (yield resolve(name, E.type_str[type], _class)).answers;
-  } catch(err){ xerr('dnss: error %o', err); } // XXX: send error
-});
+// XXX: allow to configure TTL
+function res_type_ns(name){
+  let type = Packet.TYPE.NS, c = Packet.CLASS.IN;
+  let o = E.res_cache[name] = E.res_cache[name]||{};
+  let ns1 = 'lif--dns1.'+name, ns2 = 'lif--dns2.'+name;
+  return o[type] = o[type]||[{name, type, class: c, ttl: 300, ns: ns1},
+    {name, type, class: c, ttl: 300, ns: ns2}];
+}
+
+function res_type_soa(name){
+  // http://tools.ietf.org/html/rfc1035#section-3.3.13
+  let type = Packet.TYPE.SOA, c = Packet.CLASS.IN;
+  let o = E.res_cache[name] = E.res_cache[name]||{};
+  let ns = 'lif--dns1.'+name;
+  // copy vals from google.com: dig @8.8.8.8 google.com SOA
+  return o[type] = o[type]||[{name, type, class: c, ttl: 300,
+    primary: ns, admin: ns, serial: 1, refresh: 900, retry: 900,
+    expiration: 1800, minimum: 60}];
+}
 
 // XXX stop dns:
 // sudo systemctl stop systemd-resolved
@@ -28,52 +41,49 @@ E.start = opt=>{
   if (E.server)
     throw new Error('dnss already started');
   let {port, domain, ip} = opt;
-  port = port||53;
-  domain = Array.isArray(domain) ? domain : [domain];
+  E.ip = ip; // XXX: support multi ip
+  E.port = port = port||53;
+  E.domain = domain = Array.isArray(domain) ? domain : [domain];
   let rdomain = domain.map(s=>{
     let r = escape.regex(s);
     return new RegExp('(^'+r+'$)|(\\.'+r+'$)', 'i');
   });
   // XXX: https support
   let server = E.server = dns2.createServer({udp: true, tcp: true,
-    handle: (request, send, rinfo)=>etask(function*dnss_handle(){
+    handle: (req, send, rinfo)=>etask(function*dnss_handle(){
       try {
         // XXX: improve invalid requests handlign and try/catch to avoid crash
-        let response = Packet.createResponseFromRequest(request);
-        if (!request.questions || !request.questions.length)
-          return send(response);
+        let res = Packet.createResponseFromRequest(req);
+        if (!req.questions || !req.questions.length)
+          return send(res);
         // XXX: support multiple questsions
-        let question = request.questions[0];
-        if (!question)
-          return send(response);
-        let {name, type} = question;
-        xerr.notice('XXX query len %s name %s type %s question %O request %O',
-          request.questions.length, name, type, question, request);
+        let query = req.questions[0];
+        if (!query)
+          return send(res);
+        let {name, type} = query;
+        xerr.notice('dns query len %s name %s type %s query %O h %O',
+          req.questions.length, name, type, query, req.header);
         if (!rdomain.find(r=>r.test(name))){
-          // simple dns client to have internet connectivity
-          response.answers = yield dns_resolve(question);
-          return send(response);
+          return send(res);
+          /* XXX: rm, simple dns client to have internet connectivity
+          res.answers = yield dns_resolve(query);
+          return send(res);
+          */
         }
         switch (type){
-        case Packet.TYPE.A:
-          xerr.notice('ddns TYPE.A');
-          response.answers.push({name, type: Packet.TYPE.A,
-            class: Packet.CLASS.IN, ttl: 300, address: ip});
-          break;
+        case Packet.TYPE.A: res.answers = res_type_a(name); break;
+        case Packet.TYPE.NS: res.answers = res_type_ns(name); break;
+        case Packet.TYPE.SOA: res.answers = res_type_soa(name); break;
         case Packet.TYPE.ANY:
-          xerr.notice('ddns TYPE.ANY');
-          response.answers.push({name, type: Packet.TYPE.A,
-            class: Packet.CLASS.IN, ttl: 300, address: ip});
-          response.answers.push({name, type: Packet.TYPE.NS,
-            class: Packet.CLASS.IN, ttl: 300, ns: 'lif--dns1.'+name});
-          response.answers.push({name, type: Packet.TYPE.NS,
-            class: Packet.CLASS.IN, ttl: 300, ns: 'lif--dns2.'+name});
+          res.answers = res_type_a(name);
+          res.answers = res.answers.concat(res_type_ns(name));
+          res.answers = res.answers.concat(res_type_soa(name));
           break;
         default: // XXX TODO
           xerr('ddns unsupported type %s', type);
         }
-        send(response);
-      } catch(err){ xerr('XXX dnss_handle error %s', err); }
+        send(res);
+      } catch(err){ xerr('dnss_handle error %s', err.stack||err); }
     })
   });
   server.on('close', ()=>xerr.notice('dnss: closed'));

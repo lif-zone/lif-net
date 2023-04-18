@@ -7,6 +7,7 @@ import dnss from '../net/dnss.js';
 import etask from '../util/etask.js';
 import xerr from '../util/xerr.js';
 import proc from '../util/proc.js';
+import conf from './conf.json' assert {type: 'json'};
 const cwd = process.cwd();
 
 proc.xexit_init(do_exit);
@@ -29,9 +30,9 @@ function http_start(port){
 
 const main = ()=>etask(function*main(){
   let dir = cwd.replace('/server', ''); // XXX: HACK
-  xerr.notice('run lif server cwd %s dir %s', cwd, dir);
-  dnss.start({ip: '127.0.0.1',
-    domain: ['lif.biz', 'lif.center', 'lif.company']});
+  xerr.notice('run lif server %s cwd %s dir %s',
+    conf.production ? 'PRODUCTION' : 'DEV', cwd, dir);
+  dnss.start({ip: conf.ip, domain: conf.domain});
   let app = http_start(80);
   app.use('/', express.static(dir));
   app.get('/', xxx_handler);

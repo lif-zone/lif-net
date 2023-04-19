@@ -1,0 +1,13 @@
+[Unit]
+Description=lif: LIF server.js daemon
+StartLimitInterval=1
+StartLimitBurst=10000
+
+[Service]
+Restart=always
+Environment=CURRENT_SYSTEMD_UNIT_NAME=%n
+Environment='NODE_ENV=production'
+StandardOutput=append:/var/log/lif_server.log
+StandardError=append:/var/log/lif_server.log
+SyslogIdentifier=initlog.%N
+ExecStart=/usr/local/bin/node --no-warnings --expose-internals --expose-gc /var/lif/server/server.js

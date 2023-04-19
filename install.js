@@ -144,3 +144,11 @@ const main = ()=>etask(function*main(){
 });
 
 main();
+
+/*
+sudo cp lif_server.service /etc/systemd/system
+sudo systemctl status example.service
+sudo systemctl daemon-reload
+sudo systemctl enable example.service
+
+

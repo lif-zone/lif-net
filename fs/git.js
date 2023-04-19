@@ -7,6 +7,7 @@ import date from '../util/date.js';
 import string from '../util/string.js';
 import xerr from '../util/xerr.js';
 import FS from './fs.js';
+import {valid_file, valid_dir} from './util.js';
 import util from '../util/util.js';
 import git_util from './git_util.js';
 import etask from '../util/etask.js';
@@ -628,11 +629,11 @@ export default class GIT extends FS {
     let iter = yield _this.ls_iter(cfid, bseq, seq, dir);
     for (; iter.curr; yield iter.next()){
       let f = iter.curr.path;
-      if (FS.valid_file(f)){
+      if (valid_file(f)){
         let o = yield _this.get_file_seq_data(cfid, bseq, seq, f);
         a.push({file: f, mode: o.data?.git?.mode,
           name: FS.split(f).name, type: 'blob', sha: o.data?.git?.oid});
-      } else if (FS.valid_dir(f)){
+      } else if (valid_dir(f)){
         let o = yield _this.get_dir_seq_data(cfid, bseq, seq, f);
         a.push({dir: f, mode: o.data?.git?.mode,
           name: FS.split(f).name, type: 'tree',

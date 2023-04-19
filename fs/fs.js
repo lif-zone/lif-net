@@ -7,6 +7,7 @@ import assert from 'assert';
 import util from '../util/util.js';
 import buf_util from '../net/buf_util.js';
 import DiffMatchAndPath from 'diff-match-patch';
+import {valid_file, valid_dir} from './util.js';
 const Diff = new DiffMatchAndPath();
 const b2s = buf_util.buf_to_str, s2b = buf_util.buf_from_str;
 
@@ -381,10 +382,6 @@ FS.open = opt=>etask(function*scroll_open(){
 });
 
 // XXX: need test + improve
-function valid_dir(dir){ return dir[0]=='/' && dir[dir.length-1]=='/'; }
-// XXX: need test + improve
-function valid_file(file){ return file[0]=='/' && file[file.length-1]!='/'; }
-// XXX: need test + improve
 function split(path){
   if (path=='/')
     return {path, parent: '', name: '/'};
@@ -423,7 +420,5 @@ function apply_diff(diff, base){
     base.toString())[0]);
 }
 
-FS.valid_dir = valid_dir;
-FS.valid_file = valid_file;
 FS.split = split;
 FS.parse_buf_ref = parse_buf_ref;

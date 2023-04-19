@@ -5,6 +5,7 @@ import fs from 'fs';
 import xtest from '../util/test_lib.js';
 import etask from '../util/etask.js';
 import xerr from '../util/xerr.js';
+import {valid_file, valid_dir} from './util.js';
 import {Buffer} from 'buffer';
 import crypto from '../util/crypto.js';
 import FS from './fs.js';
@@ -86,9 +87,9 @@ const cmd_add = t=>etask(function*cmd_add(){
       assert(buf, 'buf not found '+tt.r);
     } else {
       assert(!file && !dir, 'invalid arg '+tt.cmd+' in '+t.meta.s);
-      if (FS.valid_dir(tt.cmd))
+      if (valid_dir(tt.cmd))
         dir = tt.cmd;
-      else if (FS.valid_file(tt.cmd))
+      else if (valid_file(tt.cmd))
         file = tt.cmd;
       else
         assert.fail('invalid file/dir '+tt.cmd);
@@ -117,10 +118,10 @@ const cmd_mod = t=>etask(function*cmd_mod(){
     } else {
       assert(!file, 'invalid arg '+tt.cmd+' in '+t.meta.s);
       file = tt.cmd;
-      assert(FS.valid_file(file), 'invalid file '+file);
+      assert(valid_file(file), 'invalid file '+file);
     }
   }
-  assert(FS.valid_file(file), 'missing file');
+  assert(valid_file(file), 'missing file');
   yield fs.mod_file(file, buf, {branch});
 });
 
@@ -136,9 +137,9 @@ const cmd_rm = t=>etask(function*cmd_rm(){
       branch = null;
     else {
       assert(!file && !dir, 'invalid arg '+tt.cmd+' in '+t.meta.s);
-      if (FS.valid_dir(tt.cmd))
+      if (valid_dir(tt.cmd))
         dir = tt.cmd;
-      else if (FS.valid_file(tt.cmd))
+      else if (valid_file(tt.cmd))
         file = tt.cmd;
       else
         assert.fail('invalid file/dir '+tt.cmd);

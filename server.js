@@ -1,61 +1,57 @@
+#! /usr/local/bin/node
 // author: derry. coder: arik.
-'use strict';
-import nconf from 'nconf';
-import util from './util/util.js';
-import date from './util/date.js';
-import debug from './lib/debug.js';
-import dns_server from './lib/dns_server.js';
-import https_server from './lib/https_server.js';
-import peer_relay from './peer-relay/client.js';
-import crypto from 'crypto';
+import express from 'express';
+import http from 'http';
+import assert from 'assert';
+import dnss from './net/dnss.js';
+import etask from './util/etask.js';
+import xerr from './util/xerr.js';
+import proc from './util/proc.js';
+import conf from './conf.json' assert {type: 'json'};
+const cwd = process.cwd();
 
-function init(){
-  nconf.argv().env().file({file: '/var/lif/node_config.json'});
-  let id = nconf.get('node_id'), id2 = nconf.get('node_id2');
-  if (!id || !id2)
-  {
-    id = id || util.buf_to_str(crypto.randomBytes(20));
-    id2 = id2 || util.buf_to_str(crypto.randomBytes(20));
-    nconf.set('node_id', id);
-    nconf.set('node_id2', id2);
-    nconf.save();
+proc.xexit_init(do_exit);
+xerr.on_unhandled_exception = err=>assert.fail(err);
+
+function do_exit(err){
+  // XXX: improve error message and sepcify how to completely disable dns
+  if (/bind EADDRINUSE [0-9.]*:53/.test(err)){
+    xerr('*** dns port 53 already bind.\n*** stop local dns server:\n'+
+      'sudo systemctl stop systemd-resolved\n');
   }
-  console.log('lif server start');
-  // XXX: split into seperate process
-  dns_server.start(); // XXX: need dns_server.stop()
-  https_server.start({debug_get_log}); // XXX: need https_server.stop()
-  let node = new peer_relay({id, bootstrap: [], host: 'poc.lif.zone',
-    port: 3032});
-  let node2;
-  // XXX HACK: we run peer_relay in setTimeout because otherwise it will
-  // fail coonnecting to node because it didn't inilitized yet
-  setTimeout(()=>{
-    node2 = new peer_relay({id: id2, host: 'poc.lif.zone',
-      bootstrap: ['wss://poc.lif.zone:3032'], port: 3033});
-    debug.set_trace({node: node2, cb: add_to_log2});
-    add_to_log2('listen port 3033 '+util.buf_to_str(node2.id));
-  }, 1000);
-  debug.set_trace({node, cb: add_to_log});
-  add_to_log('listen port 3032 '+util.buf_to_str(node.id));
+  xerr.xexit(err);
 }
 
-let node_log=[], node_log2=[], max_length = 5000;
-function add_to_log(s){
-  let s2 = date.to_time_ms()+': '+s;
-  node_log.push(s2);
-  if (node_log.length > max_length)
-    node_log = node_log.splice(0, max_length/2);
-}
-function add_to_log2(s){
-  let s2 = date.to_time_ms()+': '+s;
-  node_log2.push(s2);
-  if (node_log2.length > max_length)
-    node_log2 = node_log2.splice(0, max_length/2);
-}
-function debug_get_log(port){
-  if (port==3033)
-    return node_log2;
-  return node_log;
+function http_start(port){
+  const app = express();
+  http.createServer(app).listen(port);
+  return app;
 }
 
-init();
+const main = ()=>etask(function*main(){
+  let dir = cwd.replace('/server', ''); // XXX: HACK
+  xerr.notice('run lif server %s cwd %s dir %s',
+    conf.production ? 'PRODUCTION' : 'DEV', cwd, dir);
+  dnss.start({ip: conf.ip, domain: conf.domain});
+  let app = http_start(80);
+  app.use('/', express.static(dir));
+  app.get('/', xxx_handler);
+});
+
+function xxx_handler(req, res){
+  res.send(`<html>
+    <body><div id=root>LIF</div></body>
+  <html>`);
+}
+
+main();
+
+/* XXX TODO
+2. save configuration at server/conf.json
+3. npm run install --> /var/lif/server
+4. questions during install to generate conf
+   install dir: /var/lif/server
+   server ip: try to get using what is myip service
+   domains:
+
+*/

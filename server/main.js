@@ -47,7 +47,6 @@ function xxx_handler(req, res){
 main();
 
 /* XXX TODO
-1. server/main.js
 2. save configuration at server/conf.json
 3. npm run install --> /var/lif/server
 4. questions during install to generate conf

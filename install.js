@@ -7,14 +7,17 @@ import proc from './util/proc.js';
 import etask from './util/etask.js';
 import string from './util/string.js';
 import date from './util/date.js';
+import util from './util/util.js';
 import url from './util/url.js';
 import {valid_file, valid_dir} from './fs/util.js';
 import {is_ipv4} from './util/net.js';
 import prompt from 'prompt'; // XXX: fix vim coloring
 const {is_valid_domain} = url;
 const {split_ws} = string;
+const {opt_array} = util;
 const cwd = process.cwd();
 const ts = date();
+const def_dst = '/var/lif/server';
 proc.xexit_init();
 
 // XXX: mv to util (and add fallback to other servers)
@@ -57,6 +60,13 @@ function conf_str(conf){ return JSON.stringify(conf, null, '  '); }
 
 const main = ()=>etask(function*main(){
   this.on('uncaught', err=>xerr.xexit(err));
+  let old_conf, old_conf_file = def_dst+'/conf.json';
+  let ip, domain;
+  if (fs.existsSync(old_conf_file)){
+    old_conf = (yield import(old_conf_file, {assert: {type: 'json'}})).default;
+    ip = opt_array(old_conf.ip);
+    domain = old_conf.domain;
+  }
   // XXX TODO: check preconditions (eg. node min version, free space)
   // XXX: read prev configuration and allow to keep old settings
   console.log('Install LIF Server');
@@ -69,14 +79,21 @@ const main = ()=>etask(function*main(){
     validator: validate_yes_no,
     description: 'Checkout latest LIF GIT repository (Y/N)'})).val);
   let dst = (yield prompt.get({name: 'val', type: 'string', required: true,
-    default: '/var/lif/server', validator: validate_dir,
+    default: def_dst, validator: validate_dir,
     description: 'Install dir'})).val;
-  let ip = yield et_ip;
+  let new_ip = yield et_ip;
+  if (new_ip){
+    if (ip && !ip.find(s=>s==new_ip)){
+      console.warn('NOTE: previous ip %s differnt than host ip %s',
+        ip, new_ip);
+    } else
+      ip = [new_ip];
+  }
   ip = split_ws((yield prompt.get({name: 'val', type: 'string', required: true,
-    default: ip||'', validator: validate_ip,
+    default: ip ? ip.join(' ') : '', validator: validate_ip,
     description: 'Server public IPs (space-seperated)'})).val);
-  let domain = split_ws((yield prompt.get({name: 'val', type: 'string',
-    required: true, validator: validate_domain,
+  domain = split_ws((yield prompt.get({name: 'val', type: 'string',
+    default: domain.join(' '), required: true, validator: validate_domain,
     description: 'Server domains (space-seperated)'})).val);
   if (dst.slice(-1)=='/')
     dst = dst.substr(0, dst.length-1);
@@ -85,10 +102,8 @@ const main = ()=>etask(function*main(){
   let prev = dst+'.prev';
   let tmp_conf_file = tmp+'/conf.json';
   let tmp_id_file = tmp+'/install_id';
-  xerr('XXX src %O', src);
-  xerr('XXX dst %O', dst);
-  xerr('XXX ip %O', ip);
-  xerr('XXX ip %O', domain);
+  console.log('Installing LIF server ip [%s] domain [%s] at %s',
+    ip.join(' '), domain.join(' '), dst);
   if (update){
     console.log('Checkout latest LIF GIT repository');
     execSync('git pull');

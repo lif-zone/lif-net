@@ -58,8 +58,36 @@ function gen_conf(old, opt){
 
 function conf_str(conf){ return JSON.stringify(conf, null, '  '); }
 
+function is_svc_running(svc){
+  try {
+    let log = execSync('/usr/bin/systemctl status lif_server');
+    return /\(running\)/.test(log);
+  } catch(err){}
+  return false;
+}
+
+function stop_svc(svc){
+  try {
+    execSync('/usr/bin/systemctl stop '+svc);
+    return 0;
+  } catch(err){ return err.status||true; }
+}
+
+function start_svc(svc){ execSync('/usr/bin/systemctl start '+svc); }
+
+function install_svc(svc, dst){
+  let s = fs.readFileSync(dst+'/'+svc+'.service').toString();
+  // XXX: name constarts for server.js default location
+  s = s.replace(/\/var\/lif\/server\/server.js/g, dst+'/server.js');
+  fs.writeFileSync('/etc/systemd/system/'+svc+'.service', s);
+  execSync('systemctl daemon-reload');
+  execSync('/usr/bin/systemctl enable '+svc);
+}
+
 const main = ()=>etask(function*main(){
+  // XXX: ask to disable dns and configure /etc/resolve.conf
   this.on('uncaught', err=>xerr.xexit(err));
+  let svc = 'lif_server';
   let old_conf, old_conf_file = def_dst+'/conf.json';
   let ip, domain;
   if (fs.existsSync(old_conf_file)){
@@ -128,8 +156,11 @@ const main = ()=>etask(function*main(){
   let conf = (yield import(tmp_conf_file, {assert: {type: 'json'}})).default;
   let conf_new = gen_conf(conf, {install_ts: date.to_sql_ms(ts), ip, domain});
   fs.writeFileSync(tmp_conf_file, conf_str(conf_new));
-  // XXX: stop service
-  console.log('XXX WIP - stop service');
+  if (is_svc_running(svc)){
+    console.log('Stop service %s', svc);
+    if (stop_svc(svc))
+      xerr.xexit('Failed top stop service '+svc);
+  }
   if (need_prev){
     console.log('Remove old prev dir %s', prev);
     fs.rmSync(prev, {recursive: true, force: true});
@@ -138,17 +169,11 @@ const main = ()=>etask(function*main(){
   }
   console.log('Move tmp dir to be new version %s', dst);
   fs.renameSync(tmp, dst);
-  // XXX: start service
-  console.log('XXX WIP - start service');
+  console.log('Install service %s', svc);
+  install_svc(svc, dst);
+  console.log('Start service %s', svc);
+  start_svc(svc);
   console.log();
 });
 
 main();
-
-/*
-sudo cp lif_server.service /etc/systemd/system
-sudo systemctl status example.service
-sudo systemctl daemon-reload
-sudo systemctl enable example.service
-
-

@@ -11,3 +11,6 @@ StandardOutput=append:/var/log/lif_server.log
 StandardError=append:/var/log/lif_server.log
 SyslogIdentifier=initlog.%N
 ExecStart=/usr/local/bin/node --no-warnings --expose-internals --expose-gc /var/lif/server/server.js
+
+[Install]
+WantedBy=multi-user.target

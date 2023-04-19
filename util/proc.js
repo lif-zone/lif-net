@@ -15,6 +15,9 @@ E.xexit_init = cb=>{
         || err instanceof assert.AssertionError)){
         return;
     }
+    // on node, fetch error reported as TypeError
+    if (err.message=='fetch failed')
+      return;
     if (env.ZEXIT_ON_TYPEERROR===undefined || +env.ZEXIT_ON_TYPEERROR)
       return cb(err);
     console.error('etask_typeerror '+err);

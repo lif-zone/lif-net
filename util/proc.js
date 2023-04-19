@@ -22,6 +22,7 @@ E.xexit_init = cb=>{
   if (!xutil.is_mocha()){
     process.on('uncaughtException', cb);
     process.on('unhandledRejection', cb);
+    xerr.on_unhandled_exception = cb;
   }
 };
 

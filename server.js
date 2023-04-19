@@ -2,7 +2,6 @@
 // author: derry. coder: arik.
 import express from 'express';
 import http from 'http';
-import assert from 'assert';
 import dnss from './net/dnss.js';
 import etask from './util/etask.js';
 import xerr from './util/xerr.js';
@@ -11,7 +10,6 @@ import conf from './conf.json' assert {type: 'json'};
 const cwd = process.cwd();
 
 proc.xexit_init(do_exit);
-xerr.on_unhandled_exception = err=>assert.fail(err);
 
 function do_exit(err){
   // XXX: improve error message and sepcify how to completely disable dns

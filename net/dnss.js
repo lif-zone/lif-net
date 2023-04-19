@@ -21,16 +21,21 @@ Packet.parse = function(buffer){
 
 function res_type_a(name){
   let type = Packet.TYPE.A, c = Packet.CLASS.IN;
-  let o = E.res_cache[name] = E.res_cache[name]||{};
-  return o[type] = o[type]||[{name, type, class: c, ttl: 300, address: E.ip}];
+  let o = E.res_cache[name] = E.res_cache[name]||{}, ret = [];
+  if (o[type])
+    return o[type];
+  E.ip.forEach(ip=>ret.push({name, type, class: c, ttl: 300, address: ip}));
+  return o[type] = ret;
 }
 
 // XXX: allow to configure TTL
 function res_type_ns(name){
   let type = Packet.TYPE.NS, c = Packet.CLASS.IN;
   let o = E.res_cache[name] = E.res_cache[name]||{};
+  if (o[type])
+    return o[type];
   let ns1 = 'lif--dns1.'+name, ns2 = 'lif--dns2.'+name;
-  return o[type] = o[type]||[{name, type, class: c, ttl: 300, ns: ns1},
+  return o[type] = [{name, type, class: c, ttl: 300, ns: ns1},
     {name, type, class: c, ttl: 300, ns: ns2}];
 }
 
@@ -38,10 +43,12 @@ function res_type_soa(name){
   // http://tools.ietf.org/html/rfc1035#section-3.3.13
   let type = Packet.TYPE.SOA, c = Packet.CLASS.IN;
   let o = E.res_cache[name] = E.res_cache[name]||{};
+  if (o[type])
+    return o[type];
   let ns = 'lif--dns1.'+name;
   // copy vals from google.com: dig @8.8.8.8 google.com SOA
   let serial = date.strftime('%Y%m%d00', new Date());
-  return o[type] = o[type]||[{name, type, class: c, ttl: 300,
+  return o[type] = [{name, type, class: c, ttl: 300,
     primary: ns, admin: ns, serial, refresh: 900, retry: 900,
     expiration: 1800, minimum: 60}];
 }
@@ -52,8 +59,10 @@ E.start = opt=>{
   if (E.server)
     throw new Error('dnss already started');
   let {port, domain, ip} = opt;
-  E.ip = ip; // XXX: support multi ip
+  // XXX: opt_array(ip, is_valid_ip)
+  E.ip = ip = Array.isArray(ip) ? ip : [ip];
   E.port = port = port||53;
+  // XXX: opt_array(domain, is_valid_domain) + cleanup other places
   E.domain = domain = Array.isArray(domain) ? domain : [domain];
   let rdomain = domain.map(s=>{
     let r = escape.regex(s);

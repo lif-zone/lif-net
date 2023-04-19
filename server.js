@@ -1,4 +1,4 @@
-#! /usr/local/bin/node
+#! /usr/local/bin/node --no-warnings
 // author: derry. coder: arik.
 import express from 'express';
 import http from 'http';
@@ -28,7 +28,7 @@ function http_start(port){
 }
 
 const main = ()=>etask(function*main(){
-  let dir = cwd.replace('/server', ''); // XXX: HACK
+  let dir = cwd;
   xerr.notice('run lif server %s cwd %s dir %s',
     conf.production ? 'PRODUCTION' : 'DEV', cwd, dir);
   dnss.start({ip: conf.ip, domain: conf.domain});

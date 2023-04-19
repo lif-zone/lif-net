@@ -1,5 +1,7 @@
-#! /usr/local/bin/node
+#! /usr/local/bin/node --no-warnings
 // author: derry. coder: arik.
+import fs from 'fs';
+import {execSync} from 'node:child_process';
 import xerr from './util/xerr.js';
 import proc from './util/proc.js';
 import etask from './util/etask.js';
@@ -10,6 +12,7 @@ import {is_ipv4} from './util/net.js';
 import prompt from 'prompt'; // XXX: fix vim coloring
 const {is_valid_domain} = url;
 const {split_ws} = string;
+const cwd = process.cwd();
 
 proc.xexit_init();
 
@@ -26,7 +29,9 @@ const get_my_ip = ()=>etask(function*get_my_ip(){
   return ip.ip;
 });
 
-function validate_dir(path){ return valid_dir(path)||valid_file(path); }
+function validate_dir(path){
+  return path!='/' && valid_dir(path)||valid_file(path);
+}
 
 function validate_ip(ip){
   ip = split_ws(ip||'');
@@ -38,13 +43,23 @@ function validate_domain(domain){
   return domain.length && !domain.find(s=>!is_valid_domain(s));
 }
 
+function is_yes(s){ return /^yes|y$/i.test(s.trim()); }
+function is_no(s){ return /^no|n$/i.test(s.trim()); }
+
+function validate_yes_no(s){ return is_yes(s) || is_no(s); }
+
 const main = ()=>etask(function*main(){
+  // XXX TODO: check preconditions (eg. node min version, free space)
   console.log('Install LIF Server');
   let et_ip = get_my_ip();
   yield prompt.start(); // XXX: fix vim coloring and for default
   // XXX: missing validator
   prompt.message = null;
-  let dir = (yield prompt.get({name: 'val', type: 'string', required: true,
+  let update = is_yes((yield prompt.get({name: 'val', type: 'string',
+    required: true, default: 'Yes',
+    validator: validate_yes_no,
+    description: 'Checkout latest LIF GIT repository (Y/N)'})).val);
+  let dst = (yield prompt.get({name: 'val', type: 'string', required: true,
     default: '/var/lif/server', validator: validate_dir,
     description: 'Install dir'})).val;
   let ip = yield et_ip;
@@ -54,9 +69,47 @@ const main = ()=>etask(function*main(){
   let domain = split_ws((yield prompt.get({name: 'val', type: 'string',
     required: true, validator: validate_domain,
     description: 'Server domains (space-seperated)'})).val);
-  xerr('XXX dir %O', dir);
+  if (dst.slice(-1)=='/')
+    dst = dst.substr(0, dst.length-1);
+  let src = cwd;
+  let tmp = dst+'.tmp';
+  let prev = dst+'.prev';
+  let conf_file = tmp+'/conf.json';
+  xerr('XXX src %O', src);
+  xerr('XXX dst %O', dst);
   xerr('XXX ip %O', ip);
   xerr('XXX ip %O', domain);
+  if (update){
+    console.log('Checkout latest LIF GIT repository');
+    execSync('git pull');
+    execSync('git checkout');
+  }
+  let need_prev = true;
+  if (!fs.existsSync(dst)){
+    console.log('Creating dir %s', dst);
+    fs.mkdirSync(dst, {recursive: true});
+    need_prev = false;
+  }
+  console.log('Build npm dependency');
+  execSync('npm install');
+  if (fs.existsSync(tmp)){
+    console.log('Remove tmp dir %s', tmp);
+    fs.rmSync(tmp, {recursive: true, force: true});
+  }
+  console.log('Copy src to tmp dir %s', tmp);
+  fs.cpSync(src, tmp, {force: true, recursive: true});
+  console.log('Create configuration file %s', conf_file);
+  let conf = yield import(conf_file, {assert: {type: 'json'}});
+  console.log('XXX %O', conf);
+  // XXX: update conf
+  // XXX: stop service
+  if (need_prev){
+    // XXX: mv curr to prev
+  }
+  // XXX: mv tmp to curr
+  console.log('Cleanup, rm tmp dir %s', tmp);
+  fs.rmSync(tmp, {recursive: true, force: true});
+  console.log();
 });
 
 main();

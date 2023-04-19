@@ -32,9 +32,11 @@ const main = ()=>etask(function*main(){
   let ip = yield et_ip;
   ip = (yield prompt.get({name: 'val', type: 'string', required: true,
     default: ip||'', description: 'Server public IPs (space-seperated)'})).val;
-
+  let domain = (yield prompt.get({name: 'val', type: 'string', required: true,
+    description: 'Server domains (space-seperated)'})).val;
   xerr('XXX dir %O', dir);
   xerr('XXX ip %O', ip);
+  xerr('XXX ip %O', domain);
 });
 
 main();

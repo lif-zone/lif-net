@@ -1,4 +1,4 @@
-#! /usr/local/bin/node --no-warnings
+#! /usr/bin/env -S node --no-warnings
 // author: derry. coder: arik.
 import express from 'express';
 import http from 'http';

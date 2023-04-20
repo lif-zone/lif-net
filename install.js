@@ -1,4 +1,4 @@
-#! /usr/local/bin/node --no-warnings
+#! /usr/bin/env -S node --no-warnings
 // author: derry. coder: arik.
 import fs from 'fs';
 import {execSync} from 'node:child_process';
@@ -96,6 +96,7 @@ const main = ()=>etask(function*main(){
     domain = old_conf.domain;
   }
   // XXX TODO: check preconditions (eg. node min version, free space)
+  // XXX nvm install v18.16.0
   // XXX: read prev configuration and allow to keep old settings
   console.log('Install LIF Server');
   let et_ip = get_my_ip();

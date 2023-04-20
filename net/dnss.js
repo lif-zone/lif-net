@@ -105,10 +105,10 @@ E.start = opt=>{
   server.on('close', ()=>xerr.notice('dnss: closed'));
   xerr.notice('dnss: listen on udp+tcp ports %s', port);
   server.listen({udp: port, tcp: port});
-
 };
 
-E.close = ()=>{
+E.stop = ()=>{
   E.server.close();
   E.server = undefined;
+  E.res_cache = {};
 };

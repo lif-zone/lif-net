@@ -107,9 +107,6 @@ const main = ()=>etask(function*main(){
     ip = opt_array(old_conf.ip);
     domain = old_conf.domain;
   }
-  // XXX TODO: check preconditions (eg. node min version, free space)
-  // XXX nvm install v18.16.0
-  // XXX: read prev configuration and allow to keep old settings
   console.log('Install LIF Server');
   let et_ip = get_my_ip();
   yield prompt.start(); // XXX: fix vim coloring and for default

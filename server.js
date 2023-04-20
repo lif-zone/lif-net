@@ -4,6 +4,7 @@ import express from 'express';
 import http from 'http';
 import dnss from './net/dnss.js';
 import etask from './util/etask.js';
+import date from './util/date.js';
 import xerr from './util/xerr.js';
 import proc from './util/proc.js';
 import conf from './conf.json' assert {type: 'json'};
@@ -11,9 +12,6 @@ const cwd = process.cwd();
 
 proc.xexit_init(do_exit);
 
-/*
-
-*/
 function do_exit(err){
   // XXX: improve error message and sepcify how to completely disable dns
   if (/bind E([A-Z]+) [0-9.]*:53/.test(err)){
@@ -52,8 +50,10 @@ const main = ()=>etask(function*main(){
 });
 
 function xxx_handler(req, res){
+  let ts = conf.install_ts;
+  let now = date.to_sql_ms(date());
   res.send(`<html>
-    <body><div id=root>LIF</div></body>
+    <body><div id=root>LIF install_ts ${ts} now ${now}</div></body>
   <html>`);
 }
 

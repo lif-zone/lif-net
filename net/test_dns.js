@@ -56,10 +56,11 @@ const cmd_dig = t=>etask(function*cmd_dnss(){
   if (exp)
     exp = exp.map(s=>rm_parentesis(s));
   let wait = this.wait();
-  exec('dig -p 10053 @127.0.0.1 '+name+' '+type+(tcp ? ' +tcp' : ''), null,
+  exec('dig -p 10053 @127.0.0.1 '+name+' '+type+(tcp ? ' +tcp' : ' +notcp'),
     (err, stdout, stderr)=>err ? wait.throw(err) : wait.continue(stdout));
   let output = yield wait;
   let a = output.split('\n'), i = a.indexOf(';; ANSWER SECTION:');
+  debugger;
   let ret = [];
   if (i!=-1){
     a = a.splice(i+1);

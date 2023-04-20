@@ -19,7 +19,7 @@ const {opt_array} = util;
 const cwd = process.cwd();
 const ts = date();
 const def_dst = '/var/lif/server';
-const NODE_MIN_VER = '19.6.0';
+const NODE_MIN_VER = '18.6.0';
 proc.xexit_init();
 
 // XXX: mv to util (and add fallback to other servers)
@@ -113,7 +113,6 @@ const main = ()=>etask(function*main(){
   console.log('Install LIF Server');
   let et_ip = get_my_ip();
   yield prompt.start(); // XXX: fix vim coloring and for default
-  // XXX: missing validator
   prompt.message = null;
   let node_ver = get_node_ver();
   if (ver_util.cmp(node_ver, NODE_MIN_VER)<0){

@@ -60,7 +60,7 @@ const cmd_dig = t=>etask(function*cmd_dnss(){
     (err, stdout, stderr)=>err ? wait.throw(err) : wait.continue(stdout));
   let output = yield wait;
   let a = output.split('\n'), i = a.indexOf(';; ANSWER SECTION:');
-  debugger;
+  let flags = a.find(s=>/;; flags: /.test(s));
   let ret = [];
   if (i!=-1){
     a = a.splice(i+1);
@@ -70,6 +70,7 @@ const cmd_dig = t=>etask(function*cmd_dnss(){
       ret = a.map(s=>s.replaceAll('\t', ' ').replaceAll('  ', ' '));
     }
   }
+  ret.unshift(flags.replace(';; ', ''));
   // XXX: test also headers and protocol type
   xerr.notice('%s', output);
   assert.deepEqual(ret, exp, 'dig output mismatch');
@@ -97,12 +98,15 @@ describe('dnss', function(){
   xtest.set_timeout(this, 5000);
   const t = (name, test)=>it(name, ()=>test_run(test));
   t('a', `dnss(ip:1.2.3.4 domain:lif.biz) dig(name:lif.biz type:A exp:[
+    (flags: qr aa rd ad; QUERY: 1, ANSWER: 1, AUTHORITY: 0, ADDITIONAL: 0)
     (lif.biz. 300 IN A 1.2.3.4)]) dnss_close`);
   t('ns', `dnss(ip:1.2.3.4 domain:lif.biz) dig(name:lif.biz type:NS exp:[
+    (flags: qr aa rd ad; QUERY: 1, ANSWER: 2, AUTHORITY: 0, ADDITIONAL: 0)
     (lif.biz. 300 IN NS lif--dns1.lif.biz.)
     (lif.biz. 300 IN NS lif--dns2.lif.biz.)])
     dnss_close`);
   t('any', `dnss(ip:1.2.3.4 domain:lif.biz) dig(name:lif.biz type:ANY exp:[
+    (flags: qr aa rd ad; QUERY: 1, ANSWER: 6, AUTHORITY: 0, ADDITIONAL: 0)
     (lif.biz. 300 IN A 1.2.3.4)
     (lif.biz. 300 IN NS lif--dns1.lif.biz.)
     (lif.biz. 300 IN NS lif--dns2.lif.biz.)
@@ -112,27 +116,39 @@ describe('dnss', function(){
     (lif--dns2.lif.biz. 300 IN A 1.2.3.4)])
     dnss_close`);
   t('sub', `dnss(ip:1.2.3.4 domain:lif.biz)
-    dig(name:x.lif.biz type:A exp:[(x.lif.biz. 300 IN A 1.2.3.4)])
-    dig(name:x2.lif.biz type:A exp:[(x2.lif.biz. 300 IN A 1.2.3.4)])
+    dig(name:x.lif.biz type:A exp:[
+    (flags: qr aa rd ad; QUERY: 1, ANSWER: 1, AUTHORITY: 0, ADDITIONAL: 0)
+    (x.lif.biz. 300 IN A 1.2.3.4)])
+    dig(name:x2.lif.biz type:A exp:[
+    (flags: qr aa rd ad; QUERY: 1, ANSWER: 1, AUTHORITY: 0, ADDITIONAL: 0)
+    (x2.lif.biz. 300 IN A 1.2.3.4)])
     dnss_close`);
-  t('other', `dnss(ip:1.2.3.4 domain:lif.biz) dig(name:xlif.biz type:A exp:[])
+  t('other', `dnss(ip:1.2.3.4 domain:lif.biz) dig(name:xlif.biz type:A exp:[
+    (flags: qr rd ad; QUERY: 1, ANSWER: 0, AUTHORITY: 0, ADDITIONAL: 0)])
     dnss_close`);
   t('multi', `dnss(ip:[1.2.3.4 5.6.7.8] domain:[lif.biz xxx.com])
     dig(name:lif.biz type:A exp:[
+      (flags: qr aa rd ad; QUERY: 1, ANSWER: 2, AUTHORITY: 0, ADDITIONAL: 0)
       (lif.biz. 300 IN A 1.2.3.4)
       (lif.biz. 300 IN A 5.6.7.8)])
     dig(name:xxx.com type:A exp:[
+      (flags: qr aa rd ad; QUERY: 1, ANSWER: 2, AUTHORITY: 0, ADDITIONAL: 0)
       (xxx.com. 300 IN A 1.2.3.4)
       (xxx.com. 300 IN A 5.6.7.8)])
     dig(name:abc.lif.biz type:A exp:[
+      (flags: qr aa rd ad; QUERY: 1, ANSWER: 2, AUTHORITY: 0, ADDITIONAL: 0)
       (abc.lif.biz. 300 IN A 1.2.3.4)
       (abc.lif.biz. 300 IN A 5.6.7.8)])
     dig(name:abc.xxx.com type:A exp:[
+      (flags: qr aa rd ad; QUERY: 1, ANSWER: 2, AUTHORITY: 0, ADDITIONAL: 0)
       (abc.xxx.com. 300 IN A 1.2.3.4)
       (abc.xxx.com. 300 IN A 5.6.7.8)])
-    dig(name:xlif.biz type:A exp:[])
-    dig(name:xxx.net type:A exp:[])
+    dig(name:xlif.biz type:A exp:[
+    (flags: qr rd ad; QUERY: 1, ANSWER: 0, AUTHORITY: 0, ADDITIONAL: 0)])
+    dig(name:xxx.net type:A exp:[
+    (flags: qr rd ad; QUERY: 1, ANSWER: 0, AUTHORITY: 0, ADDITIONAL: 0)])
     dnss_close`);
   t('tcp', `dnss(ip:1.2.3.4 domain:lif.biz) dig(name:lif.biz type:A tcp exp:[
+    (flags: qr aa rd ad; QUERY: 1, ANSWER: 1, AUTHORITY: 0, ADDITIONAL: 0)
     (lif.biz. 300 IN A 1.2.3.4)]) dnss_close`);
 });

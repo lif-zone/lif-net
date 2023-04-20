@@ -61,7 +61,7 @@ E.start = opt=>{
   if (E.server)
     throw new Error('dnss already started');
   let {port, domain, ip} = opt;
-  // XXX: opt_array(ip, is_valid_ip)
+  E.ip = opt_array(ip);
   E.port = port = port||53;
   E.domain = domain = opt_array(domain);
   let rdomain = domain.map(s=>{

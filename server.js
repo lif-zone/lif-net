@@ -14,8 +14,8 @@ proc.xexit_init(do_exit);
 
 function do_exit(err){
   // XXX: improve error message and sepcify how to completely disable dns
-  if (/bind E([A-Z]+) [0-9.]*:53/.test(err)){
-    xerr('*** cannot bind dns port 53 ***\n'+
+  if (/bind EADDRINUSE [0-9.]*:53/.test(err)){
+    xerr('*** cannot bind dns port 53 - EADDRINUSE ***\n'+
       'There is another application using port 53 (eg systemd-resolved).\n'+
       'You need to disable that application.\n'+
       '*** How to stop it?\n'+
@@ -29,6 +29,10 @@ function do_exit(err){
       '   nameserver 8.8.8.8 # replace 8.8.8.8 with your ISP ip\n'+
       '3. For local development also add to /etc/resolv.conf\n'+
       '   nameserver 127.0.0.1 # it must be the first nameserver\n');
+  }
+  else if (/bind EACCES [0-9.]*:53/.test(err)){
+    xerr('*** cannot bind dns port 53 - EACCES ***\n'+
+      'Run again with root permission (sudo)\n');
   }
   xerr.xexit(err);
 }

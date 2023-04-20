@@ -5,6 +5,8 @@ import etask from '../util/etask.js';
 import date from '../util/date.js';
 import xerr from '../util/xerr.js';
 import escape from '../util/escape.js';
+import util from '../util/util.js';
+const {opt_array} = util;
 const {Packet} = dns2;
 
 const E = {res_cache: {}};
@@ -60,10 +62,8 @@ E.start = opt=>{
     throw new Error('dnss already started');
   let {port, domain, ip} = opt;
   // XXX: opt_array(ip, is_valid_ip)
-  E.ip = ip = Array.isArray(ip) ? ip : [ip];
   E.port = port = port||53;
-  // XXX: opt_array(domain, is_valid_domain) + cleanup other places
-  E.domain = domain = Array.isArray(domain) ? domain : [domain];
+  E.domain = domain = opt_array(domain);
   let rdomain = domain.map(s=>{
     let r = escape.regex(s);
     return new RegExp('(^'+r+'$)|(\\.'+r+'$)', 'i');

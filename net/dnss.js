@@ -55,8 +55,6 @@ function res_type_soa(name){
     expiration: 1800, minimum: 60}];
 }
 
-// XXX stop dns:
-// sudo systemctl stop systemd-resolved
 E.start = opt=>{
   if (E.server)
     throw new Error('dnss already started');
@@ -68,8 +66,8 @@ E.start = opt=>{
     let r = escape.regex(s);
     return new RegExp('(^'+r+'$)|(\\.'+r+'$)', 'i');
   });
-  // XXX: verify doh (https) works
-  let server = E.server = dns2.createServer({udp: true, tcp: true, doh: true,
+  // XXX TODO: doh (dns of https)
+  let server = E.server = dns2.createServer({udp: true, tcp: true,
     handle: (req, send, rinfo)=>etask(function*dnss_handle(){
       try {
         let res = Packet.createResponseFromRequest(req);

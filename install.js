@@ -122,7 +122,8 @@ const main = ()=>etask(function*main(){
     default: ip ? ip.join(' ') : '', validator: validate_ip,
     description: 'Server public IPs (space-seperated)'})).val);
   domain = split_ws((yield prompt.get({name: 'val', type: 'string',
-    default: domain.join(' '), required: true, validator: validate_domain,
+    default: domain ? domain.join(' ') : '',
+    required: true, validator: validate_domain,
     description: 'Server domains (space-seperated)'})).val);
   if (dst.slice(-1)=='/')
     dst = dst.substr(0, dst.length-1);

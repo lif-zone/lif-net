@@ -4,6 +4,7 @@ import fs from 'fs';
 import {execSync} from 'node:child_process';
 import xerr from './util/xerr.js';
 import proc from './util/proc.js';
+import ver_util from './util/ver_util.js';
 import etask from './util/etask.js';
 import string from './util/string.js';
 import date from './util/date.js';
@@ -18,6 +19,7 @@ const {opt_array} = util;
 const cwd = process.cwd();
 const ts = date();
 const def_dst = '/var/lif/server';
+const NODE_MIN_VER = '19.6.0';
 proc.xexit_init();
 
 // XXX: mv to util (and add fallback to other servers)
@@ -85,6 +87,15 @@ function install_svc(svc, dst){
   execSync('/usr/bin/systemctl enable '+svc);
 }
 
+function get_node_ver(){
+  let ver;
+  try {
+    ver = string.split_ws(execSync('/usr/bin/env node --version')
+    .toString())[0].replace('v', '');
+  } catch(err){}
+  return ver;
+}
+
 const main = ()=>etask(function*main(){
   // XXX: ask to disable dns and configure /etc/resolve.conf
   this.on('uncaught', err=>xerr.xexit(err));
@@ -104,6 +115,12 @@ const main = ()=>etask(function*main(){
   yield prompt.start(); // XXX: fix vim coloring and for default
   // XXX: missing validator
   prompt.message = null;
+  let node_ver = get_node_ver();
+  if (ver_util.cmp(node_ver, NODE_MIN_VER)<0){
+    console.error('Node version too old %s, required >=%s', node_ver,
+      NODE_MIN_VER);
+    process.exit(1);
+  }
   let update = is_yes((yield prompt.get({name: 'val', type: 'string',
     required: true, default: 'Yes',
     validator: validate_yes_no,

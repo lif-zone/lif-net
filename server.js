@@ -16,14 +16,15 @@ proc.xexit_init(do_exit);
 */
 function do_exit(err){
   // XXX: improve error message and sepcify how to completely disable dns
-  if (/bind EADDRINUSE [0-9.]*:53/.test(err)){
-    xerr('*** cannot bind dns port 53 ***\n***
+  if (/bind E([A-Z]+) [0-9.]*:53/.test(err)){
+    xerr('*** cannot bind dns port 53 ***\n'+
       'There is another application using port 53 (eg systemd-resolved).\n'+
-      'You need to disable that application.\n'
+      'You need to disable that application.\n'+
       '*** How to stop it?\n'+
       'sudo systemctl stop systemd-resolved\n'+
       'sudo systemctl disable systemd-resolved\n'+
-      '\n*** Modify /etc/resolv.conf to enable local dns:\n'+
+      '\nNOTE: you may lose Internet connectivity after that change.\n'+
+      'To fix it modify /etc/resolv.conf to enable local dns:\n'+
       '1. get your ISP dns servers or check it out with\n'+
       '   resolvectl status\n'+
       '2. update /etc/resolv.conf with your ISP dns server:\n'+

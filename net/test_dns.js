@@ -42,27 +42,23 @@ const cmd_dig = t=>etask(function*cmd_dnss(){
   assert(!t.ctx, 'invalid name '+t.meta.s);
   assert(!t.l, 'invalid arg '+t.meta.s);
   assert(dnss.server, 'dnss not running');
-  let name, type, exp;
+  let name, type, exp, tcp;
   for (let curr=t.r, i=0; curr = parse_get_next(curr); i++){
     let tt = parse_exp_arg(curr.exp);
     switch (tt.cmd){
     case 'name': name = tt.r; break;
     case 'type': type = tt.r; break;
+    case 'tcp': tcp = true; break;
     case 'exp': exp = get_array_str(tt.r); break;
     default: assert.fail('invalid arg '+tt.cmd);
     }
   }
   if (exp)
     exp = exp.map(s=>rm_parentesis(s));
-  let wait = this.wait(), output;
-  exec('dig -p 10053 @127.0.0.1 '+name+' '+type, null,
-    function(error, stdout, stderr){
-      if (error)
-        return wait.throw(error);
-      output = stdout;
-      wait.continue();
-    });
-  yield wait;
+  let wait = this.wait();
+  exec('dig -p 10053 @127.0.0.1 '+name+' '+type+(tcp ? ' +tcp' : ''), null,
+    (err, stdout, stderr)=>err ? wait.throw(err) : wait.continue(stdout));
+  let output = yield wait;
   let a = output.split('\n'), i = a.indexOf(';; ANSWER SECTION:');
   let ret = [];
   if (i!=-1){
@@ -136,4 +132,6 @@ describe('dnss', function(){
     dig(name:xlif.biz type:A exp:[])
     dig(name:xxx.net type:A exp:[])
     dnss_close`);
+  t('tcp', `dnss(ip:1.2.3.4 domain:lif.biz) dig(name:lif.biz type:A tcp exp:[
+    (lif.biz. 300 IN A 1.2.3.4)]) dnss_close`);
 });

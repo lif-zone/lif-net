@@ -24,12 +24,12 @@ proc.xexit_init();
 const get_my_ip = ()=>etask(function*get_my_ip(){
   // XXX: need proper wget api
   let controller = new AbortController(), signal = controller.signal;
-  let ip, req = fetch('http://api.myip.com', {signal});
+  let ip, req = fetch('http://api64.ipify.org?format=json', {signal});
   this.alarm(5000, ()=>controller.abort());
   try { ip = yield (yield req).json(); }
   catch(err){}
   if (!ip?.ip)
-    return console.error('failed to get IP');
+    return console.error('\nfailed to get IP\n');
   return ip.ip;
 });
 

@@ -77,7 +77,8 @@ function start_svc(svc){ execSync('/usr/bin/systemctl start '+svc); }
 
 function install_svc(svc, dst){
   let s = fs.readFileSync(dst+'/'+svc+'.service').toString();
-  // XXX: name constarts for server.js default location
+  // XXX: use name constarts for server.js default location
+  // XXX: set WantedBy in the service with the output of systemctl get-default
   s = s.replace(/\/var\/lif\/server\/server.js/g, dst+'/server.js');
   fs.writeFileSync('/etc/systemd/system/'+svc+'.service', s);
   execSync('systemctl daemon-reload');

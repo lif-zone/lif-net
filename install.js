@@ -12,7 +12,7 @@ import util from './util/util.js';
 import url from './util/url.js';
 import {valid_file, valid_dir} from './fs/util.js';
 import {is_ipv4} from './util/net.js';
-import prompt from 'prompt'; // XXX: fix vim coloring
+import prompt from 'prompt';
 const {is_valid_domain} = url;
 const {split_ws} = string;
 const {opt_array} = util;
@@ -109,7 +109,7 @@ const main = ()=>etask(function*main(){
   }
   console.log('Install LIF Server');
   let et_ip = get_my_ip();
-  yield prompt.start(); // XXX: fix vim coloring and for default
+  yield prompt.start();
   prompt.message = null;
   let node_ver = get_node_ver();
   if (ver_util.cmp(node_ver, NODE_MIN_VER)<0){

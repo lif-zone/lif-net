@@ -119,10 +119,10 @@ hi def link javaScriptRegexpString	String
 hi def link javaScriptIdentifier	Identifier
 hi def link javaScriptLabel		Label
 hi def link javaScriptException		Exception
-hi def link javaScriptMessage		Keyword
+"hi def link javaScriptMessage		Keyword
 "hi def link javaScriptGlobal		Keyword
 hi def link javaScriptMember		Keyword
-hi def link javaScriptDeprecated	Exception 
+"hi def link javaScriptDeprecated	Exception
 hi def link javaScriptReserved		Keyword
 hi def link javaScriptDebug		Debug
 hi def link javaScriptConstant		Label

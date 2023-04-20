@@ -4,7 +4,7 @@ import dns2 from 'dns2';
 import etask from '../util/etask.js';
 import date from '../util/date.js';
 import xerr from '../util/xerr.js';
-import escape from '../util/escape.js'; // XXX: fix vim coloring (and class)
+import escape from '../util/escape.js';
 const {Packet} = dns2;
 
 const E = {res_cache: {}};

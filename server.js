@@ -47,7 +47,7 @@ const main = ()=>etask(function*main(){
   let dir = cwd;
   xerr.notice('run lif server %s cwd %s dir %s',
     conf.production ? 'PRODUCTION' : 'DEV', cwd, dir);
-  dnss.start({ip: conf.ip, domain: conf.domain});
+  dnss.start({ip: conf.ip, domain: conf.domain, ...conf.dnss});
   let app = http_start(80);
   app.use('/', express.static(dir));
   app.get('/', xxx_handler);

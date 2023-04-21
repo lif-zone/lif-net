@@ -8,6 +8,12 @@ import escape from '../util/escape.js';
 import util from '../util/util.js';
 const {opt_array} = util;
 const {Packet} = dns2;
+// based: dig @8.8.8.8 google.com SOA
+const DEF_TTL = 300;
+const DEF_TTL_REFRESH = 900;
+const DEF_TTL_RETRY = 900;
+const DEF_TTL_EXPIRATION = 1800;
+const DEF_TTL_MINIMUM = 60;
 
 const E = {res_cache: {}};
 export default E;
@@ -26,19 +32,18 @@ function res_type_a(name){
   let o = E.res_cache[name] = E.res_cache[name]||{}, ret = [];
   if (o[type])
     return o[type];
-  E.ip.forEach(ip=>ret.push({name, type, class: c, ttl: 300, address: ip}));
+  E.ip.forEach(ip=>ret.push({name, type, class: c, ttl: E.ttl, address: ip}));
   return o[type] = ret;
 }
 
-// XXX: allow to configure TTL
 function res_type_ns(name){
   let type = Packet.TYPE.NS, c = Packet.CLASS.IN;
   let o = E.res_cache[name] = E.res_cache[name]||{};
   if (o[type])
     return o[type];
   let ns1 = 'lif--dns1.'+name, ns2 = 'lif--dns2.'+name;
-  return o[type] = [{name, type, class: c, ttl: 300, ns: ns1},
-    {name, type, class: c, ttl: 300, ns: ns2}];
+  return o[type] = [{name, type, class: c, ttl: E.ttl, ns: ns1},
+    {name, type, class: c, ttl: E.ttl, ns: ns2}];
 }
 
 function res_type_soa(name){
@@ -48,9 +53,8 @@ function res_type_soa(name){
   if (o[type])
     return o[type];
   let ns = 'lif--dns1.'+name;
-  // copy vals from google.com: dig @8.8.8.8 google.com SOA
   let serial = date.strftime('%Y%m%d00', new Date());
-  return o[type] = [{name, type, class: c, ttl: 300,
+  return o[type] = [{name, type, class: c, ttl: E.ttl,
     primary: ns, admin: ns, serial, refresh: 900, retry: 900,
     expiration: 1800, minimum: 60}];
 }
@@ -62,12 +66,19 @@ E.start = opt=>{
   E.ip = opt_array(ip);
   E.port = port = port||53;
   E.domain = domain = opt_array(domain);
+  E.ttl = opt.ttl||DEF_TTL;
+  E.ttl_refresh = opt.ttl_refresh||DEF_TTL_REFRESH;
+  E.ttl_retry = opt.ttl_refresh||DEF_TTL_RETRY;
+  E.ttl_expiration = opt.ttl_expiration||DEF_TTL_EXPIRATION;
+  E.ttl_minimum = opt.ttl_refresh||DEF_TTL_MINIMUM;
+  E.notcp = opt.notcp;
+  E.noudp = opt.noudp;
   let rdomain = domain.map(s=>{
     let r = escape.regex(s);
     return new RegExp('(^'+r+'$)|(\\.'+r+'$)', 'i');
   });
   // XXX TODO: doh (dns of https)
-  let server = E.server = dns2.createServer({udp: true, tcp: true,
+  let server = E.server = dns2.createServer({udp: !E.noudp, tcp: !E.notcp,
     handle: (req, send, rinfo)=>etask(function*dnss_handle(){
       try {
         let res = Packet.createResponseFromRequest(req);

@@ -106,8 +106,7 @@ E.start = opt=>{
             res.answers = res.answers.concat(res_type_a('lif--dns2.'+name));
           }
           break;
-        default: // XXX TODO
-          xerr('dnss unsupported type %s', type);
+        default: xerr('dnss unsupported type %s', type); // XXX TODO
         }
         send(res);
       } catch(err){ xerr('dnss error %s', err.stack||err); }

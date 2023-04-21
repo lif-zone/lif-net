@@ -57,7 +57,10 @@ function xxx_handler(req, res){
   let ts = conf.install_ts;
   let now = date.to_sql_ms(date());
   res.send(`<html>
-    <body><div id=root>LIF install_ts ${ts} now ${now}</div></body>
+    <body>
+      <div id=root>LIF install_ts ${ts} now ${now}</div>
+      <pre>${JSON.stringify(conf, null, '  ')}</pre>
+      </body>
   <html>`);
 }
 

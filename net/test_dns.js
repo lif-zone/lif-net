@@ -2,7 +2,6 @@
 import assert from 'assert';
 import {exec} from 'node:child_process';
 import etask from '../util/etask.js';
-import xerr from '../util/xerr.js';
 import xtest from '../util/test_lib.js';
 import dnss from './dnss.js';
 // XXX: mv to storage/test_* to generic place
@@ -71,8 +70,6 @@ const cmd_dig = t=>etask(function*cmd_dnss(){
     }
   }
   ret.unshift(flags.replace(';; ', ''));
-  // XXX: test also headers and protocol type
-  xerr.notice('%s', output);
   assert.deepEqual(ret, exp, 'dig output mismatch');
 });
 

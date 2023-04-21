@@ -60,7 +60,7 @@ function xxx_handler(req, res){
     <body>
       <div id=root>LIF install_ts ${ts} now ${now}</div>
       <pre>${JSON.stringify(conf, null, '  ')}</pre>
-      </body>
+    </body>
   <html>`);
 }
 

@@ -100,6 +100,10 @@ describe('dnss', function(){
   t('a', `dnss(ip:1.2.3.4 domain:lif.biz) dig(name:lif.biz type:A exp:[
     (flags: qr aa rd ad; QUERY: 1, ANSWER: 1, AUTHORITY: 0, ADDITIONAL: 0)
     (lif.biz. 300 IN A 1.2.3.4)]) dnss_close`);
+  t('soa', `dnss(ip:1.2.3.4 domain:lif.biz) dig(name:lif.biz type:SOA exp:[
+    (flags: qr aa rd ad; QUERY: 1, ANSWER: 1, AUTHORITY: 0, ADDITIONAL: 0)
+    (lif.biz. 300 IN SOA lif--dns1.lif.biz. lif--dns1.lif.biz.
+      2000010100 900 900 1800 60)]) dnss_close`);
   t('ns', `dnss(ip:1.2.3.4 domain:lif.biz) dig(name:lif.biz type:NS exp:[
     (flags: qr aa rd ad; QUERY: 1, ANSWER: 2, AUTHORITY: 0, ADDITIONAL: 0)
     (lif.biz. 300 IN NS lif--dns1.lif.biz.)

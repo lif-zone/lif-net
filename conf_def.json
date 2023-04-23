@@ -1,10 +1,10 @@
 {
   "git_head": "",
   "install_ts": "",
-  "ver": "0.0.0",
+  "ver": "0.0.1",
   "production": false,
   "ip": ["127.0.0.1"],
-  "domain": ["lif.dev"],
+  "domain": ["lif.biz"],
   "dnss": {
     "port": 53,
     "ttl": 300,

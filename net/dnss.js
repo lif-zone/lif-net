@@ -16,7 +16,7 @@ const DEF_TTL_RETRY = 900;
 const DEF_TTL_EXPIRATION = 1800;
 const DEF_TTL_MINIMUM = 60;
 
-const E = {res_cache: {}};
+const E = {};
 export default E;
 
 const Packet_parse = Packet.parse;
@@ -47,6 +47,14 @@ function res_type_ns(name){
     {name, type, class: c, ttl: E.ttl, ns: ns2}];
 }
 
+function res_type_txt(name){
+  let data = E.txt[name];
+  if (!data)
+    return [];
+  let type = Packet.TYPE.TXT, c = Packet.CLASS.IN;
+  return [{name, type, class: c, ttl: E.ttl, data}];
+}
+
 function res_type_soa(name){
   // http://tools.ietf.org/html/rfc1035#section-3.3.13
   let type = Packet.TYPE.SOA, c = Packet.CLASS.IN;
@@ -64,6 +72,8 @@ E.start = opt=>{
   if (E.server)
     throw new Error('dnss already started');
   let {port, domain, ip} = opt;
+  E.res_cache = {};
+  E.txt = {};
   E.ip = opt_array(ip);
   E.port = port = opt.port||DEF_PORT;
   E.domain = domain = opt_array(domain);
@@ -88,7 +98,7 @@ E.start = opt=>{
           return send(res);
         }
         let [query] = req.questions, {name, type} = query;
-        xerr.notice('dns query len %s name %s type %s query %O h %O',
+        xerr.info('dns query len %s name %s type %s query %O h %O',
           req.questions.length, name, type, query, req.header);
         if (!rdomain.find(r=>r.test(name)))
           return send(res);
@@ -107,6 +117,7 @@ E.start = opt=>{
             res.answers = res.answers.concat(res_type_a('lif--dns2.'+name));
           }
           break;
+        case Packet.TYPE.TXT: res.answers = res_type_txt(name); break;
         default: xerr('dnss unsupported type %s', type); // XXX TODO
         }
         send(res);
@@ -121,5 +132,7 @@ E.start = opt=>{
 E.stop = ()=>{
   E.server.close();
   E.server = undefined;
-  E.res_cache = {};
 };
+
+// XXX: need test
+E.set_txt = (name, val)=>E.txt[name] = val;

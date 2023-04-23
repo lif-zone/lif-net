@@ -4,6 +4,7 @@ import express from 'express';
 import http from 'http';
 import assert from 'assert';
 import dnss from './net/dnss.js';
+import acme from './net/acme.js';
 import etask from './util/etask.js';
 import date from './util/date.js';
 import xerr from './util/xerr.js';
@@ -54,6 +55,7 @@ const main = ()=>etask(function*main(){
   let app = http_start(80);
   app.use('/', express.static(dir));
   app.get('/', xxx_handler);
+  acme.start({dnss, domain: conf.domain});
 });
 
 function xxx_handler(req, res){

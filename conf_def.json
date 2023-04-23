@@ -1,4 +1,6 @@
 {
+  "git_head": "",
+  "install_ts": "",
   "ver": "0.0.0",
   "production": false,
   "ip": ["127.0.0.1"],

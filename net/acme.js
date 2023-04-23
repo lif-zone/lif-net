@@ -20,12 +20,12 @@ const acme_start = ()=>etask(function*acme_start(){
   let acme = ACME.create({maintainerEmail: 'lif.zone.main@gmail.com',
     packageAgent: 'lif/v0.0.1',
     notify: notify_cb});
-  // XXX: yield acme.init('https://acme-staging-v02.api.letsencrypt.org/directory');
-  yield acme.init('https://acme-v02.api.letsencrypt.org/directory');
+  // XXX: yield acme.init('https://acme-v02.api.letsencrypt.org/directory');
+  yield acme.init('https://acme-staging-v02.api.letsencrypt.org/directory');
   let key_pair = yield Keypairs.generate({kty: 'EC', format: 'jwk'});
   xerr('XXX key_pair %O', key_pair);
   let csr = yield CSR.csr({jwk: key_pair.private, domains: ['lif.biz']});
-  xerr('XXX csr %O', csr);
+  xerr('XXX csr\n%s', csr);
   yield acme.accounts.create({subscriberEmail: 'lif.zone.main@gmail.com',
     agreeToTerms: true, accountKey: key_pair.private});
   // XXX: https://letsencrypt.org/docs/challenge-types/#dns-01-challenge
@@ -51,6 +51,7 @@ const acme_start = ()=>etask(function*acme_start(){
         xerr('XXX challenges get %s', JSON.stringify(opts, null, '  '));
         return etask(function*(){
           yield etask.sleep(1);
+          return true;
         });
       },
       set: opts=>{
@@ -62,13 +63,8 @@ const acme_start = ()=>etask(function*acme_start(){
         return etask(function*(){
           try {
             yield E.dnss.set_txt(ch.dnsPrefix+'.'+ch.dnsZone, txt);
-            xerr('XXX post %s', ch.url);
-            let res = yield fetch(ch.url, {method: 'POST',
-              headers: {'Content-Type': 'application/json'},
-              body: JSON.stringify({})});
-            let ret = res.json();
-            xerr('XXX got ret %O from %s', ret, ch.url);
             yield etask.sleep(1); // XXX: do we need it?
+            return true;
           } catch(err){
             xerr('XXX got error %O', err);
             throw err;

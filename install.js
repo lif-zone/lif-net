@@ -60,6 +60,12 @@ function gen_conf(old, opt){
 
 function conf_str(conf){ return JSON.stringify(conf, null, '  '); }
 
+function get_git_head(){
+  let s = execSync('git show-ref refs/heads/main');
+  let m = s.toString().match(/^([0-9a-f]+) .*/);
+  return m?.[1];
+}
+
 function is_svc_running(svc){
   try {
     let log = execSync('/usr/bin/systemctl status lif_server');
@@ -153,6 +159,9 @@ const main = ()=>etask(function*main(){
     execSync('git pull');
     execSync('git checkout');
   }
+  let git_head = yield get_git_head();
+  if (!git_head)
+      xerr.xexit('Failed to get git head');
   let need_prev = true;
   if (!fs.existsSync(dst)){
     console.log('Creating dir %s', dst);
@@ -170,7 +179,8 @@ const main = ()=>etask(function*main(){
   fs.writeFileSync(tmp_id_file, date.to_sql_ms(ts));
   console.log('Create configuration file %s', tmp_conf_file);
   let conf = (yield import(tmp_conf_file, {assert: {type: 'json'}})).default;
-  let conf_new = gen_conf(conf, {install_ts: date.to_sql_ms(ts), ip, domain});
+  let conf_new = gen_conf(conf, {git_head, install_ts: date.to_sql_ms(ts), ip,
+    domain});
   fs.writeFileSync(tmp_conf_file, conf_str(conf_new));
   if (is_svc_running(svc)){
     console.log('Stop service %s', svc);

@@ -9,6 +9,7 @@ import etask from './util/etask.js';
 import string from './util/string.js';
 import date from './util/date.js';
 import util from './util/util.js';
+import escape from './util/escape.js';
 import url from './util/url.js';
 import {valid_file, valid_dir} from './fs/util.js';
 import {is_ipv4} from './util/net.js';

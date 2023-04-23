@@ -20,7 +20,8 @@ const acme_start = ()=>etask(function*acme_start(){
   let acme = ACME.create({maintainerEmail: 'lif.zone.main@gmail.com',
     packageAgent: 'lif/v0.0.1',
     notify: notify_cb});
-  yield acme.init('https://acme-staging-v02.api.letsencrypt.org/directory');
+  // XXX: yield acme.init('https://acme-staging-v02.api.letsencrypt.org/directory');
+  yield acme.init('https://acme-v02.api.letsencrypt.org/directory');
   let key_pair = yield Keypairs.generate({kty: 'EC', format: 'jwk'});
   xerr('XXX key_pair %O', key_pair);
   let csr = yield CSR.csr({jwk: key_pair.private, domains: ['lif.biz']});

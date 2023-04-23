@@ -1,0 +1,17 @@
+- Create ssh key for your email and add it to git
+  cd ~/.ssh
+  # gen and save ssh key under ~/.ssh/<your_name>_github.id
+  ssh-keygen -t ed25519 -C "<your_email@example.com>"
+  eval "$(ssh-agent -s)"
+  ssh-add ~/.ssh/<your_name>_github.id
+
+- Add public key to github web
+  Browse to Settings -> SSH and GPG keys -> New SSH Key
+  (use ~/.ssh/<your_name>_github.id.pub)
+  https://github.com/settings/keys
+
+- How to clone git:
+  git clone git@github.com:xarikgilad/lif-zone-src.git
+
+- howto:
+https://docs.github.com/en/authentication/connecting-to-github-with-ssh/generating-a-new-ssh-key-and-adding-it-to-the-ssh-agent

@@ -14,6 +14,7 @@ function notify_cb(e){
   xerr('XXX got notify_cb %O', arguments);
 }
 
+// https://datatracker.ietf.org/doc/html/rfc8555
 const acme_start = ()=>etask(function*acme_start(){
 // XXX: me email/agent to eneric place
   let acme = ACME.create({maintainerEmail: 'lif.zone.main@gmail.com',
@@ -59,6 +60,11 @@ const acme_start = ()=>etask(function*acme_start(){
           ch.dnsZone, ch.dnsPrefix, txt);
         return etask(function*(){
           yield E.dnss.set_txt(ch.dnsPrefix+'.'+ch.dnsZone, txt);
+          let res = yield fetch(ch.url, {method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({})});
+          let ret = res.json();
+          xerr('XXX got ret %O from %s', ret, ch.url);
           yield etask.sleep(1); // XXX: do we need it?
         });
       },

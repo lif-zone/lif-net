@@ -125,7 +125,7 @@ const main = ()=>etask(function*main(){
     process.exit(1);
   }
   let update = is_yes((yield prompt.get({name: 'val', type: 'string',
-    required: true, default: 'Yes',
+    required: true, default: 'No',
     validator: validate_yes_no,
     description: 'Checkout latest LIF GIT repository (Y/N)'})).val);
   let dst = (yield prompt.get({name: 'val', type: 'string', required: true,

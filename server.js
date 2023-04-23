@@ -2,12 +2,13 @@
 // author: derry. coder: arik.
 import express from 'express';
 import http from 'http';
+import assert from 'assert';
 import dnss from './net/dnss.js';
 import etask from './util/etask.js';
 import date from './util/date.js';
 import xerr from './util/xerr.js';
 import proc from './util/proc.js';
-import conf from './conf.json' assert {type: 'json'};
+import conf from './util/conf.js';
 const cwd = process.cwd();
 
 proc.xexit_init(do_exit);
@@ -47,6 +48,8 @@ const main = ()=>etask(function*main(){
   let dir = cwd;
   xerr.notice('run lif server %s cwd %s dir %s',
     conf.production ? 'PRODUCTION' : 'DEV', cwd, dir);
+  assert(conf.ip, 'missing server ip, check conf.json');
+  assert(conf.domain, 'missing domain, check conf.json');
   dnss.start({ip: conf.ip, domain: conf.domain, ...conf.dnss});
   let app = http_start(80);
   app.use('/', express.static(dir));

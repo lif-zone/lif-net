@@ -9,6 +9,7 @@ import util from '../util/util.js';
 const {opt_array} = util;
 const {Packet} = dns2;
 // based: dig @8.8.8.8 google.com SOA
+const DEF_PORT = 53;
 const DEF_TTL = 300;
 const DEF_TTL_REFRESH = 900;
 const DEF_TTL_RETRY = 900;
@@ -64,7 +65,7 @@ E.start = opt=>{
     throw new Error('dnss already started');
   let {port, domain, ip} = opt;
   E.ip = opt_array(ip);
-  E.port = port = port||53;
+  E.port = port = opt.port||DEF_PORT;
   E.domain = domain = opt_array(domain);
   E.ttl = opt.ttl||DEF_TTL;
   E.ttl_refresh = opt.ttl_refresh||DEF_TTL_REFRESH;
@@ -113,7 +114,7 @@ E.start = opt=>{
     })
   });
   server.on('close', ()=>xerr.notice('dnss: closed'));
-  xerr.notice('dnss: listen on udp+tcp ports %s', port);
+  xerr.notice('dnss: listen on udp+tcp ports %s domains %s', port, domain);
   server.listen({udp: port, tcp: port});
 };
 

@@ -16,6 +16,7 @@ function notify_cb(e){
 
 // https://datatracker.ietf.org/doc/html/rfc8555
 const acme_start = ()=>etask(function*acme_start(){
+  this.on('uncaught', err=>xerr('XXX error %s', err.stack));
 // XXX: me email/agent to eneric place
   let acme = ACME.create({maintainerEmail: 'lif.zone.main@gmail.com',
     packageAgent: 'lif/v0.0.1',
@@ -23,15 +24,17 @@ const acme_start = ()=>etask(function*acme_start(){
   // XXX: yield acme.init('https://acme-v02.api.letsencrypt.org/directory');
   yield acme.init('https://acme-staging-v02.api.letsencrypt.org/directory');
   let key_pair = yield Keypairs.generate({kty: 'EC', format: 'jwk'});
+  let account_pair = yield Keypairs.generate({kty: 'EC', format: 'jwk'});
   xerr('XXX key_pair %O', key_pair);
+  xerr('XXX account_pair %O', account_pair);
   let csr = yield CSR.csr({jwk: key_pair.private, domains: ['lif.biz']});
   xerr('XXX csr\n%s', csr);
   yield acme.accounts.create({subscriberEmail: 'lif.zone.main@gmail.com',
-    agreeToTerms: true, accountKey: key_pair.private});
+    agreeToTerms: true, accountKey: account_pair.private});
   // XXX: https://letsencrypt.org/docs/challenge-types/#dns-01-challenge
   let cert = yield acme.certificates.create({
-    account: key_pair.kid,
-    accountKey: key_pair.private,
+    account: account_pair.kid,
+    accountKey: account_pair.private,
     serverKeypair: key_pair.private, // XXX: needed?
     agreeToTerms: true,
     csr,
@@ -79,6 +82,7 @@ const acme_start = ()=>etask(function*acme_start(){
         return etask(function*(){
           yield E.dnss.rm_txt(ch.dnsPrefix+'.'+ch.dnsZone);
           yield etask.sleep(1);
+          return true;
         });
       }
     }}

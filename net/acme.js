@@ -59,13 +59,19 @@ const acme_start = ()=>etask(function*acme_start(){
         xerr('XXX challenges set dnsZone %s dnsPrefix %s data %s',
           ch.dnsZone, ch.dnsPrefix, txt);
         return etask(function*(){
-          yield E.dnss.set_txt(ch.dnsPrefix+'.'+ch.dnsZone, txt);
-          let res = yield fetch(ch.url, {method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({})});
-          let ret = res.json();
-          xerr('XXX got ret %O from %s', ret, ch.url);
-          yield etask.sleep(1); // XXX: do we need it?
+          try {
+            yield E.dnss.set_txt(ch.dnsPrefix+'.'+ch.dnsZone, txt);
+            xerr('XXX post %s', ch.url);
+            let res = yield fetch(ch.url, {method: 'POST',
+              headers: {'Content-Type': 'application/json'},
+              body: JSON.stringify({})});
+            let ret = res.json();
+            xerr('XXX got ret %O from %s', ret, ch.url);
+            yield etask.sleep(1); // XXX: do we need it?
+          } catch(err){
+            xerr('XXX got error %O', err);
+            throw err;
+          }
         });
       },
       remove: opts=>{

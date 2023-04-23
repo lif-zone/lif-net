@@ -48,8 +48,6 @@ const acme_start = ()=>etask(function*acme_start(){
       get: opts=>{
         xerr('XXX challenges get %s', JSON.stringify(opts, null, '  '));
         return etask(function*(){
-          yield this.wait();
-          return;
           yield etask.sleep(1);
         });
       },
@@ -65,9 +63,12 @@ const acme_start = ()=>etask(function*acme_start(){
         });
       },
       remove: opts=>{
+        var ch = opts.challenge;
         xerr('XXX challenges remove %s', JSON.stringify(opts, null, '  '));
+        xerr('XXX challenges remove dnsZone %s dnsPrefix %s',
+          ch.dnsZone, ch.dnsPrefix);
         return etask(function*(){
-          yield this.wait();
+          yield E.dnss.rm_txt(ch.dnsPrefix+'.'+ch.dnsZone);
           yield etask.sleep(1);
         });
       }

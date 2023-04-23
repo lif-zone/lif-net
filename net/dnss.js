@@ -136,3 +136,4 @@ E.stop = ()=>{
 
 // XXX: need test
 E.set_txt = (name, val)=>E.txt[name] = val;
+E.rm_txt = (name, val)=>delete E.txt[name];

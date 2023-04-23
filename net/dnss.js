@@ -48,7 +48,7 @@ function res_type_ns(name){
 }
 
 function res_type_txt(name){
-  let data = E.txt[name];
+  let data = E.txt[name.toLowerCase()];
   if (!data)
     return [];
   let type = Packet.TYPE.TXT, c = Packet.CLASS.IN;
@@ -135,5 +135,5 @@ E.stop = ()=>{
 };
 
 // XXX: need test
-E.set_txt = (name, val)=>E.txt[name] = val;
-E.rm_txt = (name, val)=>delete E.txt[name];
+E.set_txt = (name, val)=>E.txt[name.toLowerCase()] = val;
+E.rm_txt = (name, val)=>delete E.txt[name.toLowerCase()];

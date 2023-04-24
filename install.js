@@ -128,8 +128,8 @@ const main = ()=>etask(function*main(){
     required: true, default: 'No',
     validator: validate_yes_no,
     description: 'Checkout latest LIF GIT repository (Y/N)'})).val);
-  let dst = (yield prompt.get({name: 'val', type: 'string', required: true,
-    default: lif_dir, validator: validate_dir,
+  let dst_root = (yield prompt.get({name: 'val', type: 'string',
+    required: true, default: lif_dir, validator: validate_dir,
     description: 'Install dir'})).val;
   let new_ip = yield et_ip;
   if (new_ip){
@@ -143,10 +143,13 @@ const main = ()=>etask(function*main(){
     default: ip ? ip.join(' ') : '', validator: validate_ip,
     description: 'Server public IPs (space-seperated)'})).val);
   domain = split_ws((yield prompt.get({name: 'val', type: 'string',
-    default: domain ? domain.join(' ') : '',
-    required: true, validator: validate_domain,
+    default: domain ? domain.join(' ') : '', required: true,
+    validator: validate_domain,
     description: 'Server domains (space-seperated)'})).val);
-  dst = (dst.slice(-1)=='/' ? dst : dst+'/')+'server';
+  if (dst_root.slice(-1)=='/')
+    dst_root = dst_root.substr(0, dst_root.length-1);
+  let keys_dir = dst_root+'/keys';
+  let dst = dst_root+'/server';
   let src = cwd;
   let tmp = dst+'.tmp';
   let prev = dst+'.prev';
@@ -163,6 +166,10 @@ const main = ()=>etask(function*main(){
   if (!git_head)
       xerr.xexit('Failed to get git head');
   let need_prev = true;
+  if (!fs.existsSync(keys_dir)){
+    console.log('Creating keys_dir %s', keys_dir);
+    fs.mkdirSync(keys_dir, {recursive: true});
+  }
   if (!fs.existsSync(dst)){
     console.log('Creating dir %s', dst);
     fs.mkdirSync(dst, {recursive: true});

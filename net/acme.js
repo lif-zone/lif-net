@@ -9,10 +9,10 @@ import util from '../util/util.js';
 const {opt_array} = util;
 const E = {};
 export default E;
-const email = 'lif.zone.main@gmail.com';
-const packageAgent = 'lif/v0.0.1';
+const email = 'lif.zone.main@gmail.com'; // XXX: mv to other place
 
-// acme.setLogger(message=>xerr.notice('acme2: log %s', message));
+if (false) // to enable debug
+  acme.setLogger(message=>xerr.notice('acme2: log %s', message));
 
 const get_account_key = ()=>etask(function*(){
   this.on('uncaught', err=>xerr.xexit('get_account_key %s', err.stack));
@@ -53,28 +53,25 @@ const save_cert = (domain, cert)=>etask(function*(){
 });
 
 
-// XXX: change to etask
-async function dns_add_cb(authz, challenge, keyAuthorization){
+const dns_add_cb = (auth, challenge, val)=>etask(function*(){
   if (challenge.type!='dns-01'){
     xerr('acme2: unexected types %s', challenge.type);
     throw new Error('XXX unexected type '+challenge.type);
   }
-  const dnsRecord = `_acme-challenge.${authz.identifier.value}`;
-  const recordValue = keyAuthorization;
-  xerr.notice('acme2: set %s %s', dnsRecord, recordValue);
-  E.dnss.set_txt(dnsRecord, recordValue);
-}
+  let host = '_acme-challenge.'+auth.identifier.value;
+  xerr.notice('acme2: set %s %s', host, val);
+  E.dnss.set_txt(host, val);
+});
 
-// XXX: change to etask
-async function dns_rm_cb(authz, challenge, keyAuthorization){
+const dns_rm_cb = (auth, challenge, val)=>etask(function*(){
   if (challenge.type!='dns-01'){
     xerr('acme2: unexected types %s', challenge.type);
     throw new Error('XXX unexected type '+challenge.type);
   }
-  const dnsRecord = `_acme-challenge.${authz.identifier.value}`;
-  xerr.notice('acme2: remove %s %s', dnsRecord);
-  E.dnss.rm_txt(dnsRecord);
-}
+  let host = '_acme-challenge.'+auth.identifier.value;
+  xerr.notice('acme2: remove %s %s', host);
+  E.dnss.rm_txt(host);
+});
 
 // https://datatracker.ietf.org/doc/html/rfc8555
 const acme_start = ()=>etask(function*acme_start(){

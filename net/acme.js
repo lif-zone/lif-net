@@ -101,9 +101,11 @@ E.start = opt=>{
   let domain = E.domain = opt_array(opt.domain);
   E.dnss = opt.dnss;
   E.keys_dir = opt.keys_dir;
+  E.ssl_dir = opt.ssl_dir;
   assert(domain.length, 'missing domain');
   assert(opt.dnss, 'missing dns server');
   assert(opt.keys_dir, 'missing keys_dir'); // XXX: verify valid dir
+  assert(opt.ssl_dir, 'missing ssl_dir'); // XXX: verify valid dir
   xerr.notice('acme ssl domains %s keys_dir %s', domain, E.keys_dir);
   E.et = acme_start();
 };

@@ -19,7 +19,7 @@ const {split_ws} = string;
 const {opt_array} = util;
 const cwd = process.cwd();
 const ts = date();
-const def_dst = '/var/lif/server';
+const lif_dir = '/var/lif';
 const NODE_MIN_VER = '18.6.0';
 proc.xexit_init();
 
@@ -107,7 +107,7 @@ const main = ()=>etask(function*main(){
   // XXX: ask to disable dns and configure /etc/resolve.conf
   this.on('uncaught', err=>xerr.xexit(err));
   let svc = 'lif_server';
-  let old_conf, old_conf_file = def_dst+'/conf.json';
+  let old_conf, old_conf_file = lif_dir+'/server/conf.json';
   let ip, domain;
   if (fs.existsSync(old_conf_file)){
     old_conf = (yield import(old_conf_file, {assert: {type: 'json'}})).default;
@@ -129,7 +129,7 @@ const main = ()=>etask(function*main(){
     validator: validate_yes_no,
     description: 'Checkout latest LIF GIT repository (Y/N)'})).val);
   let dst = (yield prompt.get({name: 'val', type: 'string', required: true,
-    default: def_dst, validator: validate_dir,
+    default: lif_dir, validator: validate_dir,
     description: 'Install dir'})).val;
   let new_ip = yield et_ip;
   if (new_ip){
@@ -146,8 +146,7 @@ const main = ()=>etask(function*main(){
     default: domain ? domain.join(' ') : '',
     required: true, validator: validate_domain,
     description: 'Server domains (space-seperated)'})).val);
-  if (dst.slice(-1)=='/')
-    dst = dst.substr(0, dst.length-1);
+  dst = (dst.slice(-1)=='/' ? dst : dst+'/')+'server';
   let src = cwd;
   let tmp = dst+'.tmp';
   let prev = dst+'.prev';

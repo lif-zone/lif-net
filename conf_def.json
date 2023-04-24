@@ -1,6 +1,7 @@
 {
   "git_head": "",
   "install_ts": "",
+  "install_dir": "/var/lif",
   "ver": "0.0.1",
   "production": false,
   "ip": ["127.0.0.1"],

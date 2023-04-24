@@ -78,7 +78,8 @@ const acme_start = ()=>etask(function*acme_start(){
   xerr.notice('acme2: create csr');
   const [, csr] = yield acme.crypto.createCsr({commonName: 'lif.company'},
     cert_key);
-  xerr.notice('acme2: client.auto');
+  // XXX: do it only if cert is older than 2m
+  xerr.notice('acme2: get cert');
   const cert = yield client.auto({csr, email, challengePriority: ['dns-01'],
     termsOfServiceAgreed: true, challengeCreateFn, challengeRemoveFn});
   xerr.notice('acme2: DONE cert:\n%s', cert.toString());

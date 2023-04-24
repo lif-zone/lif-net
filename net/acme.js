@@ -1,6 +1,5 @@
 // author: derry. coder: arik.
 'use strict';
-import ACME from 'acme';
 import acme from 'acme-client';
 import fs from 'fs';
 import assert from 'assert';
@@ -22,11 +21,7 @@ const packageAgent = 'lif/v0.0.1';
 
 // XXX: https://git.rootprojects.org/root/acme.js/src/branch/master/examples/README.md
 
-acme.setLogger(message=>xerr.notice('acme2: log %s', message));
-
-function notify(){
-  xerr('XXX notify %O', arguments);
-}
+// acme.setLogger(message=>xerr.notice('acme2: log %s', message));
 
 const load_key = (name, kty)=>etask(function*(){
   this.on('uncaught', err=>xerr.xexit('load_key %s %s', name, err.stack));
@@ -86,49 +81,10 @@ const acme_start = ()=>etask(function*acme_start(){
     challengePriority: ['dns-01'],
     termsOfServiceAgreed: true, challengeCreateFn, challengeRemoveFn});
   xerr.notice('acme2: DONE cert:\n%s', cert.toString());
-
   /*
   let accountKey = yield load_key('account_keypair', 'EC');
   let serverKey = yield load_key('server_keypair', 'RSA');
-  // XXX: var directoryUrl = 'https://acme-v02.api.letsencrypt.org/directory'
-  let directoryUrl = 'https://acme-staging-v02.api.letsencrypt.org/directory';
-  let acme = ACME.create({maintainerEmail, packageAgent, notify});
-  yield acme.init(directoryUrl);
-  let account = yield acme.accounts.create({agreeToTerms: true,
-    subscriberEmail, accountKey});
-  xerr.notice('acme: created account with id %s', account.key.kid);
-  let domains = ['lif.biz']; // XXX: encode punycode and get from E.domains
-  let encoding = 'der';
-  let typ = 'CERTIFICATE REQUEST';
-  let csrDer = yield CSR.csr({jwk: serverKey, domains, encoding});
-  let csr = PEM.packBlock({type: typ, bytes: csrDer});
-  let challenges = {
-    'dns-01': {
-      init: args=>etask(function*(){ return null; }),
-      zones: args=>etask(function*(){ return []; }),
-      set: args=>etask(function*(){
-        let ch = args.challenge, host = ch.dnsHost;
-        xerr.notice('acme: set %s %s %O', host,
-          ch.keyAuthorizationDigest, args);
-        E.dnss.set_txt(host, ch.keyAuthorizationDigest);
-      }),
-      get: args=>etask(function*(){
-        let ch = args.challenge, host = ch.dnsHost;
-        xerr.notice('acme: get %s %O', host, args);
-        return E.dnss.get_txt(host);
-      }),
-      remove: args=>etask(function*(){
-        let ch = args.challenge, host = ch.dnsHost;
-        xerr.notice('acme: remove %s %O', host, args);
-        E.dnss.rm_txt(host);
-      }),
-      propagationDelay: 10000
-    }};
-    xerr.notice('acme: validating domain authorization for %s', domains);
-    let pems = yield acme.certificates.create({account, accountKey,
-      csr, domains, challenges});
-    xerr.notice('acme: success, got pems %O', pems);
-    */
+  */
 });
 
 E.start = opt=>{

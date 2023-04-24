@@ -52,7 +52,8 @@ function res_type_txt(name){
   if (!data)
     return [];
   let type = Packet.TYPE.TXT, c = Packet.CLASS.IN;
-  return [{name, type, class: c, ttl: 10, data}];
+  // XXX: allow to set ttl per TXT
+  return [{name, type, class: c, ttl: 5, data}];
 }
 
 function res_type_soa(name){

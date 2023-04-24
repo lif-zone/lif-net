@@ -2,6 +2,7 @@
 // author: derry. coder: arik.
 import express from 'express';
 import fs from 'fs';
+import tls from 'tls';
 import http from 'http';
 import https from 'https';
 import assert from 'assert';
@@ -41,18 +42,22 @@ function do_exit(err){
   xerr.xexit(err);
 }
 
+function sni_cb(server_name, cb){
+  xerr.notice('server: sni_cb %s', server_name);
+  // XXX: use domain name without sub-level
+  try {
+    let opt = {
+      key: fs.readFileSync(conf.keys_dir+'/acme_cert_key_priv.pem'),
+      cert: fs.readFileSync(conf.ssl_dir+'/acme_star_'+server_name+'.crt')};
+    cb(null, tls.createSecureContext(opt));
+  } catch(err){ xerr('failed to read ssl cert for %s', server_name); }
+
+}
+
 function http_start(port, ssl_port){
   const app = express();
   http.createServer(app).listen(port);
-  // XXX: tempoary code
-  let opt;
-  try {
-    opt = {
-      key: fs.readFileSync(conf.keys_dir+'/acme_cert_key_priv.pem'),
-      cert: fs.readFileSync(conf.ssl_dir+'/acme_star_lif.company.crt')
-    };
-  } catch(err){ xerr('failed to read ssl cert'); }
-  https.createServer(opt, app).listen(ssl_port);
+  https.createServer({SNICallback: sni_cb}, app).listen(ssl_port);
   return app;
 }
 

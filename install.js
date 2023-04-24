@@ -149,6 +149,7 @@ const main = ()=>etask(function*main(){
   if (dst_root.slice(-1)=='/')
     dst_root = dst_root.substr(0, dst_root.length-1);
   let keys_dir = dst_root+'/keys';
+  let ssl_dir = dst_root+'/ssl';
   let dst = dst_root+'/server';
   let src = cwd;
   let tmp = dst+'.tmp';
@@ -170,6 +171,10 @@ const main = ()=>etask(function*main(){
     console.log('Creating keys_dir %s', keys_dir);
     fs.mkdirSync(keys_dir, {recursive: true});
   }
+  if (!fs.existsSync(ssl_dir)){
+    console.log('Creating ssl_dir %s', ssl_dir);
+    fs.mkdirSync(ssl_dir, {recursive: true});
+  }
   if (!fs.existsSync(dst)){
     console.log('Creating dir %s', dst);
     fs.mkdirSync(dst, {recursive: true});
@@ -187,7 +192,7 @@ const main = ()=>etask(function*main(){
   console.log('Create configuration file %s', tmp_conf_file);
   let conf = (yield import(tmp_conf_file, {assert: {type: 'json'}})).default;
   let conf_new = gen_conf(conf, {git_head, install_ts: date.to_sql_ms(ts), ip,
-    domain, keys_dir});
+    domain, keys_dir, ssl_dir});
   fs.writeFileSync(tmp_conf_file, conf_str(conf_new));
   if (is_svc_running(svc)){
     console.log('Stop service %s', svc);

@@ -87,7 +87,7 @@ const acme_start = ()=>etask(function*acme_start(){
     directoryUrl: acme.directory.letsencrypt.staging});
   xerr.notice('acme2: create csr %s', domain);
   const [, csr] = yield acme.crypto.createCsr({commonName: domain}, cert_key);
-  // XXX: do it only if cert is older than 2m
+  // XXX: do it only if cert is older than 2m + auto-renew timer
   xerr.notice('acme2: get cert %s', domain);
   const cert = yield client.auto({csr, email, challengePriority: ['dns-01'],
     termsOfServiceAgreed: true, dns_add_cb, dns_rm_cb});

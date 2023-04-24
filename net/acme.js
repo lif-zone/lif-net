@@ -52,7 +52,6 @@ const save_cert = (domain, cert)=>etask(function*(){
   yield fs.promises.writeFile(file, cert.toString(), 'ascii');
 });
 
-
 const dns_add_cb = (auth, challenge, val)=>etask(function*(){
   if (challenge.type!='dns-01'){
     xerr('acme2: unexected types %s', challenge.type);
@@ -79,18 +78,23 @@ const acme_start = ()=>etask(function*acme_start(){
   xerr.notice('acme2: create client');
   let account_key = yield get_account_key();
   let cert_key = yield get_cert_key();
-  let domain = 'lif.company'; // XXX: do it for all domains
-  const client = new acme.Client({accountKey: account_key,
-    directoryUrl: acme.directory.letsencrypt.staging});
-  xerr.notice('acme2: create csr %s', domain);
-  const [, csr] = yield acme.crypto.createCsr({commonName: domain}, cert_key);
-  // XXX: do it only if cert is older than 2m + auto-renew timer
-  xerr.notice('acme2: get cert %s', domain);
-  const cert = yield client.auto({csr, email, challengePriority: ['dns-01'],
-    termsOfServiceAgreed: true, challengeCreateFn: dns_add_cb,
-    challengeRemoveFn: dns_rm_cb});
-  xerr.notice('acme2: success, got cert %s', domain);
-  yield save_cert(domain, cert);
+  for (let i=0; i<E.domain.length; i++){
+    let domain = E.domain[i];
+    try {
+      const client = new acme.Client({accountKey: account_key,
+        directoryUrl: acme.directory.letsencrypt.staging});
+      xerr.notice('acme2: create csr %s', domain);
+      const [, csr] = yield acme.crypto.createCsr({commonName: domain},
+        cert_key);
+      // XXX: do it only if cert is older than 2m + auto-renew timer
+      xerr.notice('acme2: get cert %s', domain);
+      const cert = yield client.auto({csr, email, termsOfServiceAgreed: true,
+        challengePriority: ['dns-01'], challengeCreateFn: dns_add_cb,
+        challengeRemoveFn: dns_rm_cb});
+      xerr.notice('acme2: success, got cert %s', domain);
+      yield save_cert(domain, cert);
+    } catch(err){ xerr('acme2: failed issue cert %s %s', domain, err.stack); }
+  }
 });
 
 E.start = opt=>{

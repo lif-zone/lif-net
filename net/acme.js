@@ -44,8 +44,17 @@ const get_cert_key = ()=>etask(function*(){
   return key;
 });
 
+const save_cert = (domain, cert)=>etask(function*(){
+  this.on('uncaught', err=>xerr.xexit('save_cert %s', err.stack));
+  // XXX: escape domain
+  let file = E.ssl_dir+'/acme_star_'+domain+'.crt';
+  xerr.notice('acme: save ssl cert %s ', file);
+  yield fs.promises.writeFile(file, cert.toString(), 'ascii');
+});
+
+
 // XXX: change to etask
-async function challengeCreateFn(authz, challenge, keyAuthorization){
+async function dns_add_cb(authz, challenge, keyAuthorization){
   if (challenge.type!='dns-01'){
     xerr('acme2: unexected types %s', challenge.type);
     throw new Error('XXX unexected type '+challenge.type);
@@ -57,7 +66,7 @@ async function challengeCreateFn(authz, challenge, keyAuthorization){
 }
 
 // XXX: change to etask
-async function challengeRemoveFn(authz, challenge, keyAuthorization){
+async function dns_rm_cb(authz, challenge, keyAuthorization){
   if (challenge.type!='dns-01'){
     xerr('acme2: unexected types %s', challenge.type);
     throw new Error('XXX unexected type '+challenge.type);
@@ -73,16 +82,17 @@ const acme_start = ()=>etask(function*acme_start(){
   xerr.notice('acme2: create client');
   let account_key = yield get_account_key();
   let cert_key = yield get_cert_key();
+  let domain = 'lif.company'; // XXX: do it for all domains
   const client = new acme.Client({accountKey: account_key,
     directoryUrl: acme.directory.letsencrypt.staging});
-  xerr.notice('acme2: create csr');
-  const [, csr] = yield acme.crypto.createCsr({commonName: 'lif.company'},
-    cert_key);
+  xerr.notice('acme2: create csr %s', domain);
+  const [, csr] = yield acme.crypto.createCsr({commonName: domain}, cert_key);
   // XXX: do it only if cert is older than 2m
-  xerr.notice('acme2: get cert');
+  xerr.notice('acme2: get cert %s', domain);
   const cert = yield client.auto({csr, email, challengePriority: ['dns-01'],
-    termsOfServiceAgreed: true, challengeCreateFn, challengeRemoveFn});
-  xerr.notice('acme2: DONE cert:\n%s', cert.toString());
+    termsOfServiceAgreed: true, dns_add_cb, dns_rm_cb});
+  xerr.notice('acme2: success, got cert %s', domain);
+  yield save_cert(domain, cert);
 });
 
 E.start = opt=>{

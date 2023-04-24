@@ -1,7 +1,9 @@
 #! /usr/bin/env -S node --no-warnings
 // author: derry. coder: arik.
 import express from 'express';
+import fs from 'fs';
 import http from 'http';
+import https from 'https';
 import assert from 'assert';
 import dnss from './net/dnss.js';
 import acme from './net/acme.js';
@@ -39,9 +41,18 @@ function do_exit(err){
   xerr.xexit(err);
 }
 
-function http_start(port){
+function http_start(port, ssl_port){
   const app = express();
   http.createServer(app).listen(port);
+  // XXX: tempoary code
+  let opt;
+  try {
+    opt = {
+      key: fs.readFileSync(conf.keys_dir+'/acme_cert_key_priv.pem'),
+      cert: fs.readFileSync(conf.ssl_dir+'/acme_star_lif.company.crt')
+    };
+  } catch(err){ xerr('failed to read ssl cert'); }
+  https.createServer(opt, app).listen(ssl_port);
   return app;
 }
 
@@ -52,7 +63,7 @@ const main = ()=>etask(function*main(){
   assert(conf.ip, 'missing server ip, check conf.json');
   assert(conf.domain, 'missing domain, check conf.json');
   dnss.start({ip: conf.ip, domain: conf.domain, ...conf.dnss});
-  let app = http_start(80);
+  let app = http_start(80, 443);
   app.use('/', express.static(dir));
   app.get('/', xxx_handler);
   acme.start({dnss, domain: conf.domain, keys_dir: conf.keys_dir,

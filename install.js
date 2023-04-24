@@ -187,7 +187,7 @@ const main = ()=>etask(function*main(){
   console.log('Create configuration file %s', tmp_conf_file);
   let conf = (yield import(tmp_conf_file, {assert: {type: 'json'}})).default;
   let conf_new = gen_conf(conf, {git_head, install_ts: date.to_sql_ms(ts), ip,
-    domain});
+    domain, keys_dir});
   fs.writeFileSync(tmp_conf_file, conf_str(conf_new));
   if (is_svc_running(svc)){
     console.log('Stop service %s', svc);

@@ -6,38 +6,41 @@ import assert from 'assert';
 import etask from '../util/etask.js';
 import xerr from '../util/xerr.js';
 import util from '../util/util.js';
-// XXX: rm all @root dependencies
-import Keypairs from '@root/keypairs';
-import CSR from '@root/csr';
-import PEM from '@root/pem';
-// import Enc from '@root/encoding';
 const {opt_array} = util;
 const E = {};
 export default E;
-
-const maintainerEmail = 'lif.zone.main@gmail.com';
-const subscriberEmail = maintainerEmail;
+const email = 'lif.zone.main@gmail.com';
 const packageAgent = 'lif/v0.0.1';
-
-// XXX: https://git.rootprojects.org/root/acme.js/src/branch/master/examples/README.md
 
 // acme.setLogger(message=>xerr.notice('acme2: log %s', message));
 
-const load_key = (name, kty)=>etask(function*(){
-  this.on('uncaught', err=>xerr.xexit('load_key %s %s', name, err.stack));
-  assert(kty, 'missing key type');
-  let key_file = E.keys_dir+'/acme_'+name+'_priv.pem', pem;
+const get_account_key = ()=>etask(function*(){
+  this.on('uncaught', err=>xerr.xexit('get_account_key %s', err.stack));
+  let key_file = E.keys_dir+'/acme_account_key_priv.pem', pem;
   try {
-    xerr.notice('acme: load key %s from %s ', name, key_file);
+    xerr.notice('acme: load account_key from %s ', key_file);
     pem = yield fs.promises.readFile(key_file, 'ascii');
-  } catch(err){ xerr.warn('acme: key %s not found at %s ', name, key_file); }
+  } catch(err){ xerr.warn('acme: account_key not found at %s ', key_file); }
   if (pem)
-    return yield Keypairs.import({pem: pem});
-  let keypair = yield Keypairs.generate({kty, format: 'jwk'});
-  let key = keypair.private;
-  pem = yield Keypairs.export({jwk: key});
-  xerr.notice('acme: save key %s from %s ', name, key_file);
-  yield fs.promises.writeFile(key_file, pem, 'ascii');
+    return new Buffer(pem);
+  let key = yield acme.crypto.createPrivateKey();
+  xerr.notice('acme: save account_key %s ', key_file);
+  yield fs.promises.writeFile(key_file, key.toString(), 'ascii');
+  return key;
+});
+
+const get_cert_key = ()=>etask(function*(){
+  this.on('uncaught', err=>xerr.xexit('get_cert_key %s', err.stack));
+  let key_file = E.keys_dir+'/acme_cert_key_priv.pem', pem;
+  try {
+    xerr.notice('acme: load cert_key from %s ', key_file);
+    pem = yield fs.promises.readFile(key_file, 'ascii');
+  } catch(err){ xerr.warn('acme: cert_key not found at %s ', key_file); }
+  if (pem)
+    return new Buffer(pem);
+  let key = yield acme.crypto.createPrivateRsaKey();
+  xerr.notice('acme: save cert_key %s ', key_file);
+  yield fs.promises.writeFile(key_file, key.toString(), 'ascii');
   return key;
 });
 
@@ -60,7 +63,7 @@ async function challengeRemoveFn(authz, challenge, keyAuthorization){
     throw new Error('XXX unexected type '+challenge.type);
   }
   const dnsRecord = `_acme-challenge.${authz.identifier.value}`;
-  xerr.notice('acme2: remove %s %s', dnsRecord, recordValue);
+  xerr.notice('acme2: remove %s %s', dnsRecord);
   E.dnss.rm_txt(dnsRecord);
 }
 
@@ -68,23 +71,17 @@ async function challengeRemoveFn(authz, challenge, keyAuthorization){
 const acme_start = ()=>etask(function*acme_start(){
   this.on('uncaught', err=>xerr('XXX error %s', err.stack));
   xerr.notice('acme2: create client');
-  const client = new acme.Client({
-    directoryUrl: acme.directory.letsencrypt.staging,
-    accountKey: yield acme.crypto.createPrivateKey()
-  });
+  let account_key = yield get_account_key();
+  let cert_key = yield get_cert_key();
+  const client = new acme.Client({accountKey: account_key,
+    directoryUrl: acme.directory.letsencrypt.staging});
   xerr.notice('acme2: create csr');
-  const [key, csr] = yield acme.crypto.createCsr({commonName: 'lif.company'});
-  xerr.notice('acme2: CSR:\n%s', csr.toString());
-  xerr.notice('acme2: key:\n%s', key.toString());
+  const [, csr] = yield acme.crypto.createCsr({commonName: 'lif.company'},
+    cert_key);
   xerr.notice('acme2: client.auto');
-  const cert = yield client.auto({csr, email: maintainerEmail,
-    challengePriority: ['dns-01'],
+  const cert = yield client.auto({csr, email, challengePriority: ['dns-01'],
     termsOfServiceAgreed: true, challengeCreateFn, challengeRemoveFn});
   xerr.notice('acme2: DONE cert:\n%s', cert.toString());
-  /*
-  let accountKey = yield load_key('account_keypair', 'EC');
-  let serverKey = yield load_key('server_keypair', 'RSA');
-  */
 });
 
 E.start = opt=>{

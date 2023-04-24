@@ -55,7 +55,7 @@ const main = ()=>etask(function*main(){
   let app = http_start(80);
   app.use('/', express.static(dir));
   app.get('/', xxx_handler);
-  acme.start({dnss, domain: conf.domain});
+  acme.start({dnss, domain: conf.domain, keys_dir: conf.keys_dir});
 });
 
 function xxx_handler(req, res){

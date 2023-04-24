@@ -52,7 +52,7 @@ function res_type_txt(name){
   if (!data)
     return [];
   let type = Packet.TYPE.TXT, c = Packet.CLASS.IN;
-  return [{name, type, class: c, ttl: E.ttl, data}];
+  return [{name, type, class: c, ttl: 10, data}];
 }
 
 function res_type_soa(name){
@@ -135,5 +135,6 @@ E.stop = ()=>{
 };
 
 // XXX: need test
+E.get_txt = (name, val)=>E.txt[name.toLowerCase()];
 E.set_txt = (name, val)=>E.txt[name.toLowerCase()] = val;
 E.rm_txt = (name, val)=>delete E.txt[name.toLowerCase()];

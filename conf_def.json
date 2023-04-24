@@ -2,6 +2,7 @@
   "git_head": "",
   "install_ts": "",
   "install_dir": "/var/lif",
+  "keys_dir": "/var/lif/keys",
   "ver": "0.0.1",
   "production": false,
   "ip": ["127.0.0.1"],

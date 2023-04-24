@@ -90,7 +90,8 @@ const acme_start = ()=>etask(function*acme_start(){
   // XXX: do it only if cert is older than 2m + auto-renew timer
   xerr.notice('acme2: get cert %s', domain);
   const cert = yield client.auto({csr, email, challengePriority: ['dns-01'],
-    termsOfServiceAgreed: true, dns_add_cb, dns_rm_cb});
+    termsOfServiceAgreed: true, challengeCreateFn: dns_add_cb,
+    challengeRemoveFn: dns_rm_cb});
   xerr.notice('acme2: success, got cert %s', domain);
   yield save_cert(domain, cert);
 });

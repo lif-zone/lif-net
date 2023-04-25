@@ -85,10 +85,6 @@ E.start = opt=>{
   E.ttl_minimum = opt.ttl_refresh||DEF_TTL_MINIMUM;
   E.notcp = opt.notcp;
   E.noudp = opt.noudp;
-  let rdomain = domain.map(s=>{
-    let r = escape.regex(s);
-    return new RegExp('(^'+r+'$)|(\\.'+r+'$)', 'i');
-  });
   // XXX TODO: doh (dns of https)
   let server = E.server = dns2.createServer({udp: !E.noudp, tcp: !E.notcp,
     handle: (req, send, rinfo)=>etask(function*dnss_handle(){
@@ -101,7 +97,7 @@ E.start = opt=>{
         let [query] = req.questions, {name, type} = query;
         xerr.info('dns query len %s name %s type %s query %O h %O',
           req.questions.length, name, type, query, req.header);
-        if (!rdomain.find(r=>r.test(name)))
+        if (!is_our_domain(name))
           return send(res);
         // https://tools.ietf.org/html/rfc1035#section-4.1.1
         res.header.aa = 1; // set authoritive answer
@@ -134,6 +130,19 @@ E.stop = ()=>{
   E.server.close();
   E.server = undefined;
 };
+
+function get_our_domain(name){
+  let rdomain = E.rdomain || E.domain.map(s=>{
+    let r = escape.regex(s);
+    return {domain: s, regex: new RegExp('(^'+r+'$)|(\\.'+r+'$)', 'i')};
+  });
+  return rdomain.find(r=>r.regex.test(name))?.domain;
+}
+
+function is_our_domain(name){ return !!get_our_domain(name); }
+
+E.is_our_domain = is_our_domain;
+E.get_our_domain = get_our_domain;
 
 // XXX: need test
 E.get_txt = (name, val)=>E.txt[name.toLowerCase()];

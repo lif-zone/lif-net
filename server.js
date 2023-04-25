@@ -42,16 +42,30 @@ function do_exit(err){
   xerr.xexit(err);
 }
 
+const sni_cache = {};
 function sni_cb(server_name, cb){
-  xerr.notice('server: sni_cb %s', server_name);
-  // XXX: use domain name without sub-level
+  let domain = dnss.get_our_domain(server_name);
+  if (!domain){
+    xerr('server: ssl sni request for domain not ours %s', server_name);
+    return cb(Error('domain is not ours '+server_name), null);
+  }
   try {
-    let opt = {
-      key: fs.readFileSync(conf.keys_dir+'/acme_cert_key_priv.pem'),
-      cert: fs.readFileSync(conf.ssl_dir+'/acme_star_'+server_name+'.crt')};
-    cb(null, tls.createSecureContext(opt));
-  } catch(err){ xerr('failed to read ssl cert for %s', server_name); }
-
+    let cache = sni_cache[domain];
+    if (!cache){
+      xerr.notice('server: create ssl sni ctx for %s', domain);
+      // XXX: support to get ssl from conf
+      let file_key = conf.keys_dir+'/acme_cert_key_priv.pem';
+      let file_cert = conf.ssl_dir+'/acme_star_'+domain+'.crt';
+      // XXX: use async
+      cache = sni_cache[domain] = {key: fs.readFileSync(file_key),
+        cert: fs.readFileSync(file_cert)};
+      cache.tls_ctx = tls.createSecureContext(cache);
+    }
+    cb(null, cache.tls_ctx);
+  } catch(err){
+    xerr('server: failed to load ssl cert for %s', domain);
+    return cb(Error('failed to load ssl for '+domain), null);
+  }
 }
 
 function http_start(port, ssl_port){

@@ -115,7 +115,7 @@ E.start = opt=>{
           }
           break;
         case Packet.TYPE.TXT: res.answers = res_type_txt(name); break;
-        default: xerr('dnss unsupported type %s', type); // XXX TODO
+        default: xerr.debug('dnss unsupported type %s', type); // XXX TODO
         }
         send(res);
       } catch(err){ xerr('dnss error %s', err.stack||err); }

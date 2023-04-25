@@ -7,6 +7,7 @@ import http from 'http';
 import https from 'https';
 import assert from 'assert';
 import dnss from './net/dnss.js';
+import ssl from './net/ssl.js';
 import acme from './net/acme.js';
 import etask from './util/etask.js';
 import date from './util/date.js';
@@ -81,7 +82,8 @@ const main = ()=>etask(function*main(){
     conf.production ? 'PRODUCTION' : 'DEV', cwd, dir);
   assert(conf.ip, 'missing server ip, check conf.json');
   assert(conf.domain, 'missing domain, check conf.json');
-  dnss.start({ip: conf.ip, domain: conf.domain, ...conf.dnss});
+  yield dnss.start({ip: conf.ip, domain: conf.domain, ...conf.dnss});
+  yield ssl.start({});
   let app = http_start(80, 443);
   app.use('/', express.static(dir));
   app.get('/', xxx_handler);

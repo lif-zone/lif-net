@@ -69,7 +69,8 @@ const set_cert = (domain, file_cert, file_key, cert, key)=>etask(
   // XXX TODO: cert_o.checkPrivateKey
   // XXX TODO: check *.domain
   ctx = tls.createSecureContext({key, cert});
-  E.cert[domain] = {ts, file_cert, file_key, cert, key, ctx};
+  E.cert[domain] = {ts, file_cert, file_key, cert, key, valid_from, valid_to,
+    ctx};
   xerr.notice('ssl: set cert %s valid from %s to %s', domain,
     date.to_sql(valid_from), date.to_sql(valid_to));
 });

@@ -59,8 +59,8 @@ const set_cert = (domain, file_cert, file_key, cert, key)=>etask(
   let valid_from = date(cert_o.validFrom), valid_to = date(cert_o.validTo);
   let valid_for = cert_valid_for(valid_from, valid_to);
   if (!valid_for){
-    xerr('ssl: %s cert expired valid from %s to %s', domain,
-      date.to_sql(valid_from), date.to_sql(valid_to));
+    xerr('ssl: %s cert expired valid from %s to %s now %s', domain,
+      date.to_sql(valid_from), date.to_sql(valid_to), date.to_seq(ts));
   } else if (valid_for < E.renew_expire_lt){
     xerr.warn('ssl: %s cert expire soon valid from %s to %s', domain,
       date.to_sql(valid_from), date.to_sql(valid_to));
@@ -84,6 +84,7 @@ const acme_monitor = ()=>etask(function*acme_monitor(){
   this.on('uncaught', err=>xerr.xexit('ssl: %s', err.stack));
   xerr.notice('ssl: acme_monitor started');
   while (true){
+    xerr.notice('ssl: acme_monitor run');
     let sleep = E.renew_expire_lt;
     for (let i=0; i<E.domains.length; i++){
       let cert, domain = E.domains[i], info = E.cert[domain];
@@ -111,7 +112,8 @@ const acme_monitor = ()=>etask(function*acme_monitor(){
       catch(err){ xerr('ssl: failed save key %s %s', o.key, err); }
       yield set_cert(domain, o.cert, o.key, cert, E.acme_cert_key);
     }
-    xerr.notice('acme monitor sleep for %s', date.dur_to_str(sleep));
+    xerr.notice('acme monitor sleep for %s %sms', date.dur_to_str(sleep),
+      sleep);
     yield etask.sleep(sleep);
   }
 });
@@ -173,6 +175,7 @@ E.get_ctx = function(domain){
 // - test btc.lif.biz domains
 // - test ssl.js
 // - cleanup
+// - xerr log format (eg. ssl:...)
 // - allow to put more info to acme cert
 // - solution for ssl local dev
 // - ttl for txt response

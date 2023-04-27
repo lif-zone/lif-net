@@ -170,10 +170,9 @@ E.get_ctx = function(domain){
 };
 
 // XXX:
-// - allow hard-codrd ssl cert
-// - renew acme certificate if >1m or <1m + rate-limit on attempts
+// - test btc.lif.biz domains
+// - test ssl.js
+// - cleanup
+// - allow to put more info to acme cert
 // - solution for ssl local dev
 // - ttl for txt response
-// - test btc.lif.biz domains
-// - allow to put more info to acme cert
-// - test ssl.js

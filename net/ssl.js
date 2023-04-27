@@ -20,9 +20,10 @@ function get_acme_cert_files(domain){
     key: E.conf.ssl.keys_dir+'/acme_key_'+domain+'.pem'};
 }
 
+// XXX: need test
 function cert_valid_for(valid_from, valid_to){
   let ts = date();
-  if (!valid_from || valid_to)
+  if (!valid_from || !valid_to)
     return 0;
   if (valid_from > ts)
     return 0;

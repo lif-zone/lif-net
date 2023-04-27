@@ -2,8 +2,6 @@
   "git_head": "",
   "install_ts": "",
   "install_dir": "/var/lif",
-  "keys_dir": "/var/lif/keys",
-  "ssl_dir": "/var/lif/ssl",
   "ver": "0.0.1",
   "production": false,
   "ip": ["127.0.0.1"],
@@ -17,5 +15,17 @@
     "ttl_minimum": 60,
     "notcp": false,
     "noudp": false
+  },
+  "ssl": {
+    "enable": true,
+    "cert_dir": "/var/lif/ssl/cert",
+    "keys_dir": "/var/lif/ssl/keys",
+    "acme": {
+      "enable": true,
+      "timeout": "1min",
+      "retry": "5min"
+    },
+    "renew_expire_lt": "1mo",
+    "cert": {}
   }
 }

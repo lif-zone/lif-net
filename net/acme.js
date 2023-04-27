@@ -42,6 +42,7 @@ E.requet_cert = opt=>etask(function*requet_cert(){
   const cert = yield client.auto({csr, email, termsOfServiceAgreed: true,
     challengePriority: ['dns-01'], challengeCreateFn: dns_add_cb,
     challengeRemoveFn: dns_rm_cb});
+  xerr.notice('acme: got new cert for %s', domain);
   return cert;
 });
 

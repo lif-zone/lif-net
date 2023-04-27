@@ -1,8 +1,6 @@
 #! /usr/bin/env -S node --no-warnings
 // author: derry. coder: arik.
 import express from 'express';
-import fs from 'fs';
-import tls from 'tls';
 import http from 'http';
 import https from 'https';
 import assert from 'assert';
@@ -42,30 +40,20 @@ function do_exit(err){
   xerr.xexit(err);
 }
 
-const sni_cache = {};
 function sni_cb(server_name, cb){
   let domain = dnss.get_our_domain(server_name);
   if (!domain){
-    xerr('server: ssl sni request for domain not ours %s', server_name);
-    return cb(Error('domain is not ours '+server_name), null);
+    let err = 'domain not handled '+domain;
+    xerr('server: %s', err);
+    return cb(Error(err), null);
   }
-  try {
-    let cache = sni_cache[domain];
-    if (!cache){
-      xerr.notice('server: create ssl sni ctx for %s', domain);
-      // XXX: support to get ssl from conf
-      let file_key = conf.keys_dir+'/acme_cert_key_priv.pem';
-      let file_cert = conf.ssl_dir+'/acme_star_'+domain+'.crt';
-      // XXX: use async
-      cache = sni_cache[domain] = {key: fs.readFileSync(file_key),
-        cert: fs.readFileSync(file_cert)};
-      cache.tls_ctx = tls.createSecureContext(cache);
-    }
-    cb(null, cache.tls_ctx);
-  } catch(err){
-    xerr('server: failed to load ssl cert for %s', domain);
-    return cb(Error('failed to load ssl for '+domain), null);
+  let ctx = ssl.get_ctx(domain);
+  if (!ctx){
+    let err = 'failed to get ssl ctx for '+domain;
+    xerr('server: %s', err);
+    return cb(Error(err), null);
   }
+  cb(null, ctx);
 }
 
 function http_start(port, ssl_port){

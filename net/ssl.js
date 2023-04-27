@@ -35,7 +35,7 @@ const get_key = opt=>etask(function*get_key(){
   let file = E.conf.ssl.keys_dir+'/'+opt.file, pem;
   try {
     pem = yield fs.promises.readFile(file);
-  } catch(err){ xerr.notice('ssl: acme key not found at %s ', file); }
+  } catch(err){ xerr.warn('ssl: acme key not found at %s ', file); }
   if (pem)
     return new Buffer(pem);
   let key = yield opt.func();
@@ -106,9 +106,9 @@ const acme_monitor = ()=>etask(function*acme_monitor(){
       }
       let o = get_acme_cert_files(domain);
       try { yield fs.promises.writeFile(o.cert, cert.toString()); }
-      catch(err){ xerr('ssl: failed save cert %s', o.cert); }
+      catch(err){ xerr('ssl: failed save cert %s %s', o.cert, err); }
       try { yield fs.promises.writeFile(o.key, E.cert_key.toString()); }
-      catch(err){ xerr('ssl: failed save key %s', o.key); }
+      catch(err){ xerr('ssl: failed save key %s %s', o.key, err); }
       yield set_cert(domain, o.cert, o.key, cert, E.cert_key);
     }
     xerr.notice('acme monitor sleep for %s', date.dur_to_str(sleep));
@@ -150,7 +150,7 @@ E.start = opt=>etask(function*ssl_start(){
     if (conf.ssl.cert[domain])
       continue;
     try { yield load_cert(domain, get_acme_cert_files(domain)); }
-    catch(err){ xerr('ssl: failed load acme cert %s', err); }
+    catch(err){ xerr.warn('ssl: failed load acme cert %s', err); }
   }
   this.et = etask.wait();
   this.et.spawn(acme_monitor());

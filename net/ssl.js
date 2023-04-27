@@ -107,9 +107,9 @@ const acme_monitor = ()=>etask(function*acme_monitor(){
       let o = get_acme_cert_files(domain);
       try { yield fs.promises.writeFile(o.cert, cert.toString()); }
       catch(err){ xerr('ssl: failed save cert %s %s', o.cert, err); }
-      try { yield fs.promises.writeFile(o.key, E.cert_key.toString()); }
+      try { yield fs.promises.writeFile(o.key, E.acme_cert_key.toString()); }
       catch(err){ xerr('ssl: failed save key %s %s', o.key, err); }
-      yield set_cert(domain, o.cert, o.key, cert, E.cert_key);
+      yield set_cert(domain, o.cert, o.key, cert, E.acme_cert_key);
     }
     xerr.notice('acme monitor sleep for %s', date.dur_to_str(sleep));
     yield etask.sleep(sleep);
@@ -163,6 +163,11 @@ E.stop = ()=>etask(function*ssl_stop(){
   E.inited = false;
   E.cert = null;
 });
+
+E.get_ctx = function(domain){
+  assert(E.inited, 'ssl not inited');
+  return E.cert[domain]?.ctx;
+};
 
 // XXX:
 // - allow hard-codrd ssl cert

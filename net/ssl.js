@@ -60,7 +60,7 @@ const set_cert = (domain, file_cert, file_key, cert, key)=>etask(
   let valid_for = cert_valid_for(valid_from, valid_to);
   if (!valid_for){
     xerr('ssl: %s cert expired valid from %s to %s now %s', domain,
-      date.to_sql(valid_from), date.to_sql(valid_to), date.to_seq(ts));
+      date.to_sql(valid_from), date.to_sql(valid_to), date.to_sql(ts));
   } else if (valid_for < E.renew_expire_lt){
     xerr.warn('ssl: %s cert expire soon valid from %s to %s', domain,
       date.to_sql(valid_from), date.to_sql(valid_to));

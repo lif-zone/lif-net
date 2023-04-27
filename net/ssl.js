@@ -113,8 +113,7 @@ const acme_monitor = ()=>etask(function*acme_monitor(){
       catch(err){ xerr('ssl: failed save key %s %s', o.key, err); }
       yield set_cert(domain, o.cert, o.key, cert, E.acme_cert_key);
     }
-    xerr.notice('acme monitor sleep for %s %sms', date.dur_to_str(sleep),
-      sleep);
+    xerr.notice('acme monitor sleep for %s %sms', date.dur_to_str(sleep));
     yield etask.sleep(sleep);
   }
 });

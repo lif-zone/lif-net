@@ -98,6 +98,10 @@ const acme_monitor = ()=>etask(function*acme_monitor(){
       }
       xerr.notice('ssl: issue new acme cert for %s%s', domain, valid_for ?
         ' current will expire in '+valid_for/date.ms.DAY+' days' : '');
+      if (!E.conf.production){ // XXX: fixme
+        xerr('ssl: skip acme in dev env');
+        continue;
+      }
       try {
         cert = yield acme.requet_cert({domain, account_key: E.acme_account_key,
           cert_key: E.acme_cert_key, timeout: E.acme_timeout});
@@ -113,7 +117,14 @@ const acme_monitor = ()=>etask(function*acme_monitor(){
       catch(err){ xerr('ssl: failed save key %s %s', o.key, err); }
       yield set_cert(domain, o.cert, o.key, cert, E.acme_cert_key);
     }
-    xerr.notice('acme monitor sleep for %s %sms', date.dur_to_str(sleep));
+    xerr.notice('acme monitor sleep for %s', date.dur_to_str(sleep));
+    // XXX HACK: need proper solution
+    const max_sleep = 2**31-1000;
+    if (sleep > max_sleep){
+      xerr('XXX HACK: sleep max reached fix %s -> %s', date.dur_to_str(sleep),
+        date.dur_to_str(max_sleep));
+      sleep = max_sleep;
+    }
     yield etask.sleep(sleep);
   }
 });
@@ -136,8 +147,6 @@ E.start = opt=>etask(function*ssl_start(){
     yield load_cert(domain, conf.ssl.cert[domain]);
   if (!conf.ssl.acme.enable)
     return xerr.notice('ssl: acme disabled');
-  if (!conf.production)
-    return xerr('ssl: skip acme in dev env');
   E.acme_timeout = date.str_to_dur(E.conf.ssl.acme.timeout||'')||acme.TIMEOUT;
   E.acme_retry = date.str_to_dur(E.conf.ssl.acme.retry||'')||E.RETRY;
   xerr.notice('ssl: acme enabled renew_expire_lt %s timeout %s retry %s',
@@ -172,10 +181,19 @@ E.get_ctx = function(domain){
 };
 
 // XXX:
-// - test btc.lif.biz domains
-// - test ssl.js
+// - check setTimeout overflow (float/bigint supported?)
+// - test *.btc.lif.biz domains
 // - cleanup
-// - xerr log format (eg. ssl:...)
 // - allow to put more info to acme cert
-// - solution for ssl local dev
+// - solution for ssl local dev http://127.0.0.1:1234 (static+react+ajax)
+//   - define domain
+//   - create cert + instructions how to configure chrome
+//    - before domain purchase
+//    - before domain setup
+//    - when working localy with ip 127.0.0.1 (command-line)
+//    - when working with 192.168.0.1 ???
 // - ttl for txt response
+// $ npm install lif_node && ./lif_node/server.js niko
+// + run, sets IGD, sends json to lif.ninja/register?... --> int:
+//   49.lif.ninja -> PK(niko)
+//   niko.lif.ninja -> PK(niko)

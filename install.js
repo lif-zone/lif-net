@@ -1,4 +1,4 @@
-#! /usr/bin/env -S node --no-warnings
+#! /usr/bin/env -S node
 // author: derry. coder: arik.
 import fs from 'fs';
 import {execSync} from 'node:child_process';

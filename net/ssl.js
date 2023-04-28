@@ -183,7 +183,6 @@ E.get_ctx = function(domain){
 
 // XXX:
 // - check setTimeout overflow (float/bigint supported?)
-// - test *.btc.lif.biz domains
 // - cleanup
 // - allow to put more info to acme cert
 // - solution for ssl local dev http://127.0.0.1:1234 (static+react+ajax)

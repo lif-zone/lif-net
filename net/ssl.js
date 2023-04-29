@@ -197,3 +197,10 @@ E.get_ctx = function(domain){
 // + run, sets IGD, sends json to lif.ninja/register?... --> int:
 //   49.lif.ninja -> PK(niko)
 //   niko.lif.ninja -> PK(niko)
+//
+// lif.zone --> DNS Q server
+// - domain that asking and doesn't exist
+// - domain that existing and default
+// - domain that use dns entries (A, CNAME,...)
+// https://derry.lif.zone --> simple page to "buy" domain
+

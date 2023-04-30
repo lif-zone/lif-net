@@ -74,20 +74,27 @@ const main = ()=>etask(function*main(){
   // XXX: need dynamic reload on src change
   // XXX: use link rel='modulepreload'
   let app = http_start(80, 443);
+  app.use(function(req, res, next){
+    // XXX: set CORS
+    res.setHeader('Service-Worker-Allowed', '/');
+    next();
+  });
   app.use('/', express.static(dir));
   app.get('/', xxx_handler);
 });
 
 function xxx_handler(req, res){
   // XXX: if conf.production use react.production.min version
+  let map = {imports: {
+        react: '../node_modules/react/umd/react.development.js?'+
+          'lif_compile=umd_to_es6&lif_compile_opt=React',
+        'react-dom': '../node_modules/react-dom/umd/react-dom.development.js?'+
+          'lif_compile=umd_to_es6&lif_compile_opt=ReactDOM'
+      }
+  };
   res.send(`<html>
     <head>
-      <script type=importmap>
-      {"imports": {
-        "react": "../node_modules/react/umd/react.development.js",
-        "react-dom": "../node_modules/react-dom/umd/react-dom.development.js"
-      }}
-      </script>
+      <script type=importmap>${JSON.stringify(map)}</script>
       <script async type=module src=www/loader.js></script>
       <link rel=icon href=www/favicon.svg>
     </head>
@@ -97,12 +104,11 @@ function xxx_handler(req, res){
 
 main();
 
-/* XXX TODO
-2. save configuration at server/conf.json
-3. npm run install --> /var/lif/server
-4. questions during install to generate conf
-   install dir: /var/lif/server
-   server ip: try to get using what is myip service
-   domains:
-
+/* XXX derry:;
+- review how to loader react modules
+- local development: google-chrome --ignore-certificate-errors
+- properly handle service-worker during load of service-worker + update
+- lif_compile: umd_to_es6
+- importScript in sw
+- expose all source code under / (it includes also conf file)
 */

@@ -203,3 +203,16 @@ E.get_ctx = function(domain){
 // - domain that existing and default
 // - domain that use dns entries (A, CNAME,...)
 // https://derry.lif.zone --> simple page to "buy" domain
+// Service Worker and HTTPXmlRequest/fetch()
+// .lif .lif.*
+// arik.lif.zone/.lif/get-chunk-hfhdf
+// arik.lif.zone/.lif.sw.js --> loads LIF net engine
+// arik.lif.zone/.lif.index.html
+// arik.lif.zone/ html content type: redirect 302 to /.lif.index.html
+// you surf to arik.lif.zone. server gets HTML req, and responds 302
+//   /.lif.index.html
+// which loads /.lif.sw.js
+// sw.js loads the LIF networking engine, which currently supports websocket.
+// it opens a connection to the server: /.lif.ws (written in /.lif.sw.js)
+// (websocket URL...)
+// lif<->db

@@ -208,7 +208,7 @@ E.get_ctx = function(domain){
 // arik.lif.zone/.lif/get-chunk-hfhdf
 // arik.lif.zone/.lif.sw.js --> loads LIF net engine
 // arik.lif.zone/.lif.index.html
-// arik.lif.zone/ html content type: redirect 302 to /.lif.index.html
+// arik.lif.zone/ html content type: servce .lif.index.html
 // you surf to arik.lif.zone. server gets HTML req, and responds 302
 //   /.lif.index.html
 // which loads /.lif.sw.js

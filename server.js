@@ -62,6 +62,20 @@ function http_start(port, ssl_port){
   return app;
 }
 
+// XXX: check caching/other headers
+function index_html_handler(req, res){ res.sendFile(cwd+'/www/index.html'); }
+
+// XXX: check caching/other headers
+function sw_handler(req, res){ res.sendFile(cwd+'/www/sw.js'); }
+
+// XXX: check caching/other headers
+function favicon_handler(req, res){ res.sendFile(cwd+'/www/favicon.svg'); }
+
+// XXX: check caching/other headers
+function babel_handler(req, res){
+  res.sendFile(cwd+'//node_modules/@babel/standalone/babel.js');
+}
+
 const main = ()=>etask(function*main(){
   let dir = cwd;
   xerr.notice('run lif server %s cwd %s dir %s',
@@ -79,28 +93,12 @@ const main = ()=>etask(function*main(){
     res.setHeader('Service-Worker-Allowed', '/');
     next();
   });
-  app.use('/', express.static(dir));
-  app.get('/', xxx_handler);
+  app.get('/', index_html_handler);
+  app.get('/.lif.sw.js', sw_handler);
+  // XXX: review babel/favicon
+  app.get('/.lif.babel.js', babel_handler);
+  app.get('/.lif.favicon.svg', favicon_handler);
 });
-
-function xxx_handler(req, res){
-  // XXX: if conf.production use react.production.min version
-  let map = {imports: {
-        react: '../node_modules/react/umd/react.development.js?'+
-          'lif_compile=umd_to_es6&lif_compile_opt=React',
-        'react-dom': '../node_modules/react-dom/umd/react-dom.development.js?'+
-          'lif_compile=umd_to_es6&lif_compile_opt=ReactDOM'
-      }
-  };
-  res.send(`<html>
-    <head>
-      <script type=importmap>${JSON.stringify(map)}</script>
-      <script async type=module src=www/loader.js></script>
-      <link rel=icon href=www/favicon.svg>
-    </head>
-    <body style="margin:0;"></body>
-  </html>`);
-}
 
 main();
 

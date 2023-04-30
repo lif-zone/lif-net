@@ -1,0 +1,47 @@
+<html>
+	<head>
+		<link rel=icon href=/.lif.favicon.svg>
+		<script>
+			function window_error_handler(e){
+				console.error('index: window error %O', e);
+			}
+			window.addEventListener('error', window_error_handler);
+
+			async function load(){
+				try {
+					if (!navigator.serviceWorker)
+						throw new Error('serviceWorker not supported');
+					console.log('index: register sw');
+					await navigator.serviceWorker.register('/.lif.sw.js', {scope: '/'});
+					await navigator.serviceWorker.ready;
+					console.log('index: sw ready');
+					const launch = async()=>{
+						console.log('XXX index: ready to load site');
+					};
+					if (navigator.serviceWorker.controller)
+						await launch();
+					else
+						navigator.serviceWorker.addEventListener('controllerchange', launch);
+				} catch(error){
+					console.error('index: service worker registration failed', error);
+				}
+			}
+			load();
+			/* XXX: support react
+				// XXX: if conf.production use react.production.min version
+				let map = {imports: {
+							react: '../node_modules/react/umd/react.development.js?'+
+								'lif_compile=umd_to_es6&lif_compile_opt=React',
+							'react-dom': '../node_modules/react-dom/umd/react-dom.development.js?'+
+								'lif_compile=umd_to_es6&lif_compile_opt=ReactDOM'
+						}
+				};
+				script type=importmap>${JSON.stringify(map)}
+			*/
+
+
+		</script>
+	</head>
+	<body style="margin:0;"></body>
+</html>
+

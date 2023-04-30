@@ -203,4 +203,3 @@ E.get_ctx = function(domain){
 // - domain that existing and default
 // - domain that use dns entries (A, CNAME,...)
 // https://derry.lif.zone --> simple page to "buy" domain
-

@@ -7,7 +7,6 @@ import assert from 'assert';
 import dnss from './net/dnss.js';
 import ssl from './net/ssl.js';
 import etask from './util/etask.js';
-import date from './util/date.js';
 import xerr from './util/xerr.js';
 import proc from './util/proc.js';
 import conf from './util/conf.js';
@@ -77,14 +76,13 @@ const main = ()=>etask(function*main(){
 });
 
 function xxx_handler(req, res){
-  let ts = conf.install_ts;
-  let now = date.to_sql_ms(date());
   res.send(`<html>
-    <body>
-      <div id=root>LIF install_ts ${ts} now ${now}</div>
-      <pre>${JSON.stringify(conf, null, '  ')}</pre>
-    </body>
-  <html>`);
+    <head>
+      <script src=www/loader.js></script>
+      <link rel=icon href=www/favicon.svg>
+    </head>
+    <body></body>
+  </html>`);
 }
 
 main();

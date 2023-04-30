@@ -3,6 +3,11 @@
 // XXX: use sw to allow import React from 'react'
 // https://medium.com/disdj/react-jsx-es-module-imports-dynamic-too-in-browser-without-webpack-9cf39520f20f
 
+function window_error_handler(e){
+  console.error('loader: window error %O', e);
+}
+window.addEventListener('error', window_error_handler);
+
 // XXX: change to etask
 async function load(){
   try {

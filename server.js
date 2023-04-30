@@ -75,7 +75,7 @@ const main = ()=>etask(function*main(){
   // XXX: use link rel='modulepreload'
   let app = http_start(80, 443);
   app.use(function(req, res, next){
-    // XXX: set CORS
+    // XXX: set CORS/caching
     res.setHeader('Service-Worker-Allowed', '/');
     next();
   });
@@ -111,4 +111,5 @@ main();
 - lif_compile: umd_to_es6
 - importScript in sw
 - expose all source code under / (it includes also conf file)
+- remove obsolete util/url.js
 */

@@ -14,7 +14,7 @@ async function load(){
     console.log('loader: sw ready');
     const launch = async()=>{
       console.log('loader: load index.js');
-      let index = await import('./index.js');
+      let index = await import('./index.js?lif_compile=jsx');
       index.default();
     };
     // this launches the React app if the SW has been installed before or immediately after registration

@@ -1,15 +1,14 @@
 // author: derry. coder: arik.
 'use strict';
+self.importScripts('../node_modules/@babel/standalone/babel.js');
+const Babel = self.Babel;
 
 async function init(){
   try {
-    let xurl;
-    self.addEventListener('install', async()=>{
-      console.log('sw: install');
-    });
+    self.addEventListener('install', async()=>console.log('sw: install'));
     console.log('sw: init');
-    //this is needed to activate the worker immediately without reload
-    //@see https://developers.google.com/web/fundamentals/primers/service-workers/lifecycle#clientsclaim
+    // XXX: this is needed to activate the worker immediately without reload
+    // @see https://developers.google.com/web/fundamentals/primers/service-workers/lifecycle#clientsclaim
     self.addEventListener('activate',
       event=>event.waitUntil(self.clients.claim()));
     self.addEventListener('fetch', event=>{
@@ -26,7 +25,8 @@ async function init(){
         return;
       console.log('sw: fetch %s compile %s %s', url,
         lif_compile, lif_compile_opt);
-      switch(lif_compile){
+      // XXX: do we do it here or from fetch source? need cache
+      switch (lif_compile){
       case 'umd_to_es6':
         if (!lif_compile_opt)
           return console.error('sw: missing lif_compile_opt %s', url);
@@ -34,6 +34,14 @@ async function init(){
         event.respondWith(fetch(url).then(response=>response.text())
         .then(body=>new Response(body+'\n'+
           'export default window.'+lif_compile_opt+';', {
+          headers: new Headers({'Content-Type': 'application/javascript'})})));
+        break;
+      case 'jsx':
+        // XXX: handle errors + preserve original headers + caching
+        // XXX: plugins: ['proposal-dynamic-import']}
+        event.respondWith(fetch(url).then(response => response.text())
+        .then(body => new Response(Babel.transform(body,
+          {presets: ['react']}).code, {
           headers: new Headers({'Content-Type': 'application/javascript'})})));
         break;
       default:

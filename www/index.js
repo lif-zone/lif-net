@@ -7,5 +7,5 @@ export default function init(){
   let container = document.createElement('div');
   document.body.append(container);
   let root = ReactDOM.createRoot(container);
-  root.render('Hi LIF');
+  root.render(<div><b>Hi LIF</b></div>);
 }

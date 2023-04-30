@@ -19,6 +19,7 @@
     "isomorphic-git": "1.22.0",
     "indexeddbshim": "10.0.0",
     "random-access-idb": "1.2.2",
+    "@babel/standalone": "7.21.7",
     "@babel/preset-env": "7.16.5",
     "@babel/preset-react": "7.16.5",
     "@babel/plugin-transform-runtime": "7.18.10",

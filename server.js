@@ -70,15 +70,25 @@ const main = ()=>etask(function*main(){
   assert(conf.domain, 'missing domain, check conf.json');
   yield dnss.start({ip: conf.ip, domain: conf.domain, ...conf.dnss});
   yield ssl.start({dnss, conf});
+  // XXX: need config www
+  // XXX: need dynamic reload on src change
+  // XXX: use link rel='modulepreload'
   let app = http_start(80, 443);
   app.use('/', express.static(dir));
   app.get('/', xxx_handler);
 });
 
 function xxx_handler(req, res){
+  // XXX: if conf.production use react.production.min version
   res.send(`<html>
     <head>
-      <script src=www/loader.js></script>
+      <script type=importmap>
+      {"imports": {
+        "react": "../node_modules/react/umd/react.development.js",
+        "react-dom": "../node_modules/react-dom/umd/react-dom.development.js"
+      }}
+      </script>
+      <script async type=module src=www/loader.js></script>
       <link rel=icon href=www/favicon.svg>
     </head>
     <body></body>

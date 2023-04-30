@@ -98,7 +98,7 @@ function xxx_handler(req, res){
       <script async type=module src=www/loader.js></script>
       <link rel=icon href=www/favicon.svg>
     </head>
-    <body></body>
+    <body style="margin:0;"></body>
   </html>`);
 }
 

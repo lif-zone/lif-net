@@ -280,6 +280,9 @@ describe('sinon', function(){
         });
     });
     // XXX: review with derry
+    // check assert_no_etasks()
+    // check etask then_waiting
+    // cleanup _, d.js, when and util.extend
     it('xxx_next_tick', async()=>{
       seq(0);
       let p_resolve, p = new Promise(resolve=>p_resolve = resolve);

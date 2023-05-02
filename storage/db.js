@@ -2,13 +2,10 @@
 'use strict';
 import assert from 'assert';
 import etask from '../util/etask.js';
+import xutil from '../util/util.js';
 import * as idb from 'idb';
 import xerr from '../util/xerr.js';
-import setGlobalVars from 'indexeddbshim';
-setGlobalVars(null, {addNonIDBGlobals: true});
-global.ShimEventTarget.prototype.triggerErrorEvent =
-  (err, evt)=>xerr.xexit(err);
-global.DOMException = global.ShimDOMException;
+const is_node = typeof window==='undefined';
 
 function wrap_cb(cb){
   return function(){
@@ -20,6 +17,11 @@ function wrap_cb(cb){
 export default class DB {
   constructor(opt){ this.soul = opt.soul; }
   init = (opt={})=>etask({_: this}, function*db_init(){
+    if (!DB.inited && xutil.is_mocha()){
+      // XXX: use memoryDatabase: ':memory:'
+      yield DB.init({shim_conf: {checkOrigin: false, databaseBasePath: '/tmp',
+        deleteDatabaseFiles: true, useSQLiteIndexes: true}});
+    }
     let _this = this._;
     if (_this.inited)
       return xerr('db already inited');
@@ -171,7 +173,7 @@ export default class DB {
   delete_db = ()=>etask({_: this}, function*delete_db(){
     let _this = this._;
     assert(!_this.db, 'db is opened');
-    if (global.shimIndexedDB.__getConfig('memoryDatabase'))
+    if (global.shimIndexedDB?.__getConfig('memoryDatabase'))
       return;
     yield idb.deleteDB('lif_db'+_this.postfix);
   });
@@ -237,8 +239,8 @@ function query_to_str(store, query, dir){
   if (dir=='prev')
     e += ',rev';
   if (query){
-    let lower = limit_to_str(query.__lower);
-    let upper = limit_to_str(query.__upper);
+    let lower = limit_to_str(query.lower||query.__lower);
+    let upper = limit_to_str(query.upper||query.__upper);
     if (lower==upper)
       e += ',key=='+lower;
     else if (upper==='')
@@ -251,8 +253,26 @@ function query_to_str(store, query, dir){
   return e;
 }
 
+if (is_node){
+  // XXX HACK: find a better way to load it for now (without using async)
+  (async function(){
+    let setGlobalVars = (await import('indexeddbshim')).default;
+    await setGlobalVars(null, {addNonIDBGlobals: true});
+  })();
+}
+
 DB.MAX_DECL = 64*1024;
 DB.MAX_FRAME = 64*1024;
-DB.init = function(opt){ global.shimIndexedDB.__setConfig(opt.shim_conf); };
+DB.init = opt=>etask(function*db_init(){
+  assert(!DB.inited, 'DB already inited');
+  DB.inited = true;
+  if (!is_node)
+    return;
+  global.ShimEventTarget.prototype.triggerErrorEvent =
+    (err, evt)=>xerr.xexit(err);
+  global.DOMException = global.ShimDOMException;
+  global.shimIndexedDB.__setConfig(opt.shim_conf);
+});
+
 DB.query_to_str = query_to_str;
 DB.t = {};

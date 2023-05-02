@@ -7,7 +7,6 @@ import xtest from '../util/test_lib.js';
 import Scroll from './scroll.js';
 import Branch_table from './branch.js';
 import Index from './index.js';
-import DB from './db.js';
 import {r_str, r_from_str, r_parent, r_includes, r_eq, r_split}
   from './range.js';
 const {parse_get_next, parse_exp_arg_pair, parse_exp,
@@ -17,9 +16,6 @@ const {bint2int, bint, bseq_cmp, bseq_branch_new, bseq_branch_inc, bseq_inc,
   bseq_valid, bint_valid} = Branch_table;
 
 xtest.init();
-// XXX: use memoryDatabase: ':memory:'
-DB.init({shim_conf: {checkOrigin: false, databaseBasePath: '/tmp',
-  deleteDatabaseFiles: true, useSQLiteIndexes: true}});
 
 describe('range', ()=>{
   it('r_from_str', ()=>{
@@ -2064,9 +2060,7 @@ describe('scroll', function(){
           (0 v0 1) (0 v1 4) (0 v2 5) (1 v0 1) (1 v1 [4 2]) (1 v2 [5 3])
           (2 v0 []) (2 v1 2) (2 v2 3))`);
       t('conflict', `s.scroll(index:i) s.decl({i:v1}) s.decl({i:v2})
-        dbg
         s1.clone(s.M1) s1.decl({i:V2}) S..#(index index_table) scroll(s..M0) #
-        dbg
         tput(0 1  ) #(index={id:0 key:v1 seq:1}
                       index_table={id:0 cfid:0 bseqb:null name:i})
         tput(0 1 2) #index={id:0 key:v2 seq:2}

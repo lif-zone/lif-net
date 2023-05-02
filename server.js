@@ -97,6 +97,8 @@ const main = ()=>etask(function*main(){
   app.use('/.lif/src/', express.static(cwd));
   app.get('/.lif/test_util.html',
     (req, res)=>res.sendFile(cwd+'/www/test_util.html'));
+  app.get('/.lif/test_storage.html',
+    (req, res)=>res.sendFile(cwd+'/www/test_storage.html'));
   app.get('/', index_html_handler);
   app.get('/.lif.sw.js', sw_handler);
   // XXX: review babel/favicon

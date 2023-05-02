@@ -14,7 +14,6 @@ import git_util from './git_util.js';
 import buf_util from '../net/buf_util.js';
 import tparser from '../storage/test_parser.js';
 import DiffMatchAndPath from 'diff-match-patch';
-import DB from '../storage/db.js';
 const b2s = buf_util.buf_to_str, s2b = buf_util.buf_from_str;
 const Diff = new DiffMatchAndPath();
 const {parse_get_next, parse_exp, parse_exp_arg, rm_parentesis,
@@ -24,9 +23,6 @@ import {test_run, new_scroll, get_scroll, get_def, test_register,
   from '../storage/test_cmd.js';
 
 xtest.init();
-// XXX: use memoryDatabase: ':memory:'
-DB.init({shim_conf: {checkOrigin: false, databaseBasePath: '/tmp',
-  deleteDatabaseFiles: true, useSQLiteIndexes: true}});
 let t_buf, t_git_repo_dir;
 
 // XXX: mv to generic place and review with derry

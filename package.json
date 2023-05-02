@@ -3,7 +3,8 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "bundle": "browserify --debug util/test.js > util/test.bundle.js"
+    "bundle_test_util": "browserify --debug util/test.js > util/test.bundle.js",
+    "bundle_test_storage": "browserify --debug storage/test.js > storage/test.bundle.js"
   },
   "dependencies": {
     "yargs": "17.6.2",

@@ -798,7 +798,6 @@ E.prototype.then = function(on_res, on_err){
   if (this.tm_completed)
     return etask('then_completed', [function(){ return on_done(); }]);
   var then_wait = etask('then_wait', [function(){ return this.wait(); }]);
-  // XXX derry: why we need this.then_waiting?
   this.then_waiting.push(function(){
     try { then_wait.continue(on_done()); }
     catch(e){ then_wait.throw(e); }

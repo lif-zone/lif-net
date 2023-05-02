@@ -279,29 +279,6 @@ describe('sinon', function(){
             assert(cb.called);
         });
     });
-    // XXX: review with derry
-    // check assert_no_etasks()
-    // check etask then_waiting
-    // cleanup _, d.js, when and util.extend
-    it('xxx_next_tick', async()=>{
-      seq(0);
-      let p_resolve, p = new Promise(resolve=>p_resolve = resolve);
-      let et = etask(function*(){ yield etask.sleep(0); });
-      et.then(()=>{
-        seq(2);
-        setTimeout(()=>{
-          seq(4);
-          // XXX BUG: in browser: "root\n \\_ then_wait.0\n"
-          xtest.assert_no_etasks();
-          p_resolve();
-        });
-      });
-      seq(1);
-      await et;
-      seq(3);
-      await p;
-      seq(5);
-    });
     it('etask', etask.fn(function*(){
         let now = +date('2013-08-13 14:00:00');
         xsinon.clock_set({now, auto_inc: true, idle_time: 30});

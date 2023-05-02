@@ -264,6 +264,25 @@ E.assert_no_etasks = ()=>{
     assert.equal(ps, 'root\n', 'etask root not empty:\n'+ps);
 };
 
+E.assert_no_etasks = async()=>{
+    let ps = etask.ps({TIME: 0});
+    if (ps=='root')
+      return;
+    // in brower, mocha tests of the format it(xxx, etask(...) will faill:
+    // 1. mocha.runner will call setImmediate in etask.after() to invoke
+    // afterEach()
+    // 2. in browser, nextTick is implemented as setImmediate and as a result
+    // then_wait will no finish to cleanup and we will get it in etask.ps()
+    let p = new Promise(resolve=>{
+      setImmediate(()=>{
+        ps = etask.ps({TIME: 0});
+        assert.equal(ps, 'root\n', 'etask root not empty:\n'+ps);
+        resolve();
+      });
+    });
+    return p;
+};
+
 E.assert_etask_err = et=>etask(function*assert_etask_err(){
     try { yield et; }
     catch(e){ return; }

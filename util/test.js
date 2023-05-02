@@ -20,7 +20,7 @@ import assert from 'assert';
 import xsinon from './sinon.js';
 import sinon from 'sinon';
 import D from 'd.js'; // XXX: rm
-import _ from 'underscore';
+import _ from 'underscore'; // XXX: rm _
 import when from 'when'; // XXX: rm
 const is_node = typeof window==='undefined';
 xtest.init();

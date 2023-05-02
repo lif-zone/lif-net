@@ -8,12 +8,8 @@ import __xerr from './xerr.js';
 let xerr = __xerr;
 const is_node = typeof window==='undefined';
 var _process;
-// XXX derry: mv to util/process.js?
-// XXX derry: test fails in browser with
-// _process = {nextTick: function(fn){ setTimeout(fn, 0); }, env: {}};
-// _process = {nextTick: function(fn){ setImmediate(fn, 0); }, env: {}};
 if (!is_node)
- _process = {nextTick: function(fn){ Promise.resolve().then(fn); }, env: {}};
+  _process = {nextTick: function(fn){ setImmediate(fn); }, env: {}};
 else
   _process = process;
 

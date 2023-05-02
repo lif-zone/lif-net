@@ -99,6 +99,8 @@ const main = ()=>etask(function*main(){
     (req, res)=>res.sendFile(cwd+'/www/test_util.html'));
   app.get('/.lif/test_storage.html',
     (req, res)=>res.sendFile(cwd+'/www/test_storage.html'));
+  app.get('/.lif/test_net.html',
+    (req, res)=>res.sendFile(cwd+'/www/test_net.html'));
   app.get('/.lif/test_fs.html',
     (req, res)=>res.sendFile(cwd+'/www/test_fs.html'));
   app.get('/', index_html_handler);

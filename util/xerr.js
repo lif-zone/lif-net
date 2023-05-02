@@ -266,6 +266,25 @@ _xerr = function(l, args){
 };
 E._xerr = _xerr;
 
+E.xexit = function(args){
+  var stack;
+  if (err_has_stack(args)){
+    stack = args.stack;
+    _xerr(L.CRIT, [E.e2s(args)]);
+  }
+  else {
+    var e = new Error();
+    stack = e.stack;
+    _xerr(L.CRIT, arguments);
+  }
+  E.flush();
+  if ((args&&args.code)!='ERR_ASSERTION')
+    console.error('xerr.xexit was called', new Error().stack);
+  console.error('CRASH:\n'+stack);
+  debugger; // eslint-disable-line no-debugger
+  throw new Error('CRIT');
+};
+
 } // end of browser-xerr}
 
 E.register = function(cb){

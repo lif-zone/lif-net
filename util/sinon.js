@@ -43,7 +43,7 @@ function auto_inc(){
 }
 
 function idle_clear(){
-  orig.clearTimeout(timer);
+  orig.clearTimeout.call(global, timer);
   timer = null;
 }
 
@@ -57,7 +57,7 @@ function on_idle(){
 
 function timer_set(){
   idle_clear();
-  timer = orig.setTimeout(on_idle, idle_time);
+  timer = orig.setTimeout.call(global, on_idle, idle_time);
 }
 
 E.uninit = function(){
@@ -65,7 +65,7 @@ E.uninit = function(){
     if (!elem.obj)
       return;
     elem.funcs.forEach(function(func){
-      if (!elem.obj[func]._orig)
+      if (!elem.obj[func]?._orig)
         return;
       elem.obj[func] = elem.obj[func]._orig;
     });
@@ -193,10 +193,10 @@ E.clock_set = function(opt){
           // timer.callAt = clock.now +
           //   (timer.delay || (clock.duringTick ? 1 : 0));
           if (timer_funcs.includes(func)){
-              let ms = arguments[1]||0, ret = _orig.apply(this, arguments);
+            let ms = arguments[1]||0, ret = _orig.apply(this, arguments);
             if (clock.duringTick && !ms){
-              clock.timers[ret.id].callAt =
-              clock.timers[ret.id].createdAt+ms;
+              clock.timers[ret.id||ret].callAt =
+              clock.timers[ret.id||ret].createdAt+ms;
             }
             return ret;
           }

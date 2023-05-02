@@ -93,6 +93,10 @@ const main = ()=>etask(function*main(){
     res.setHeader('Service-Worker-Allowed', '/');
     next();
   });
+  // XXX: rm in production
+  app.use('/.lif/src/', express.static(cwd));
+  app.get('/.lif/test_util.html',
+    (req, res)=>res.sendFile(cwd+'/www/test_util.html'));
   app.get('/', index_html_handler);
   app.get('/.lif.sw.js', sw_handler);
   // XXX: review babel/favicon

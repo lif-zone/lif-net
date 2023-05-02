@@ -19,14 +19,22 @@ import events from './events.js';
 import assert from 'assert';
 import xsinon from './sinon.js';
 import sinon from 'sinon';
-import D from 'd.js';
+import D from 'd.js'; // XXX: rm
 import _ from 'underscore';
-import when from 'when';
+import when from 'when'; // XXX: rm
+const is_node = typeof window==='undefined';
 xtest.init();
 const seq = xtest.seq, ms = date.ms, assign = Object.assign;
 
 if (xutil.is_inspect())
   debugger; // eslint-disable-line no-debugger
+
+beforeEach(()=>xtest.assert_no_etasks());
+afterEach(()=>xtest.assert_no_etasks());
+
+function throw_exp(exp){
+  return is_node ? {message: exp} : actual=>actual?.message==exp;
+}
 
 describe('string', function(){
   it('cmp', ()=>{
@@ -131,7 +139,6 @@ describe('sinon', function(){
         };
     };
     describe('clock_set', ()=>{
-        afterEach(()=>xtest.assert_no_etasks());
         it('accepts an initial time', ()=>{
             let now = +date('2013-08-13 14:00:00');
             xsinon.clock_set({now});
@@ -272,6 +279,26 @@ describe('sinon', function(){
             assert(cb.called);
         });
     });
+    // XXX: review with derry
+    it('xxx_next_tick', async()=>{
+      seq(0);
+      let p_resolve, p = new Promise(resolve=>p_resolve = resolve);
+      let et = etask(function*(){ yield etask.sleep(0); });
+      et.then(()=>{
+        seq(2);
+        setTimeout(()=>{
+          seq(4);
+          // XXX BUG: in browser: "root\n \\_ then_wait.0\n"
+          xtest.assert_no_etasks();
+          p_resolve();
+        });
+      });
+      seq(1);
+      await et;
+      seq(3);
+      await p;
+      seq(5);
+    });
     it('etask', etask.fn(function*(){
         let now = +date('2013-08-13 14:00:00');
         xsinon.clock_set({now, auto_inc: true, idle_time: 30});
@@ -297,7 +324,8 @@ describe('sinon', function(){
     describe('sinon_patch', ()=>{
         let clock;
         beforeEach(()=>clock = xsinon.clock_set());
-        it('original_setTimeout', done=>clock._setTimeout(done, 2));
+        it('original_setTimeout',
+          done=>clock._setTimeout.call(global, done, 2));
     });
     describe('idle', ()=>{
         it('sinon', ()=>xtest.etask({seq: 6}, function*(){
@@ -406,7 +434,7 @@ describe('url', ()=>{
         let t = (url, exp)=>assert.strictEqual(
             xurl.rel_proto_to_abs(url), exp);
         t('http://www', 'http://www');
-        t('//www.com/', 'http://www.com/');
+        t('//www.com/', (is_node ? 'http:' : location.protocol)+'//www.com/');
     });
     it('get_path', ()=>{
         let t = (url, exp)=>assert.strictEqual(xurl.get_path(url), exp);
@@ -955,6 +983,7 @@ describe('url', ()=>{
             query: 'b=c&d=e&foo=bar.mp4',
         });
     });
+    if (is_node) // XXX: needed it browser? needed at all?
     it('qs_parse_bin', ()=>{
         let tqs = 'te%78t=%2b_test8.-~+%80&buf=%80, %ff';
         let obj2qs = {text: '+_test8.-~ \x80', buf: '\x80, \xff'};
@@ -1166,6 +1195,7 @@ let promise_test = (name, p)=>{
             t({ensure_return: true}, p.resolve(1),
                 [['then', 1], ['ensure'], ['p.then', undefined], done]);
         });
+        if (0) // XXX: obsolete, rm
         if (p!==p_api.D) // D does not support ensure
         it('promise_resolve7', done=>{
             t({then_return_res: true, ensure_throw: true}, p.resolve(1),
@@ -1199,6 +1229,7 @@ let promise_test = (name, p)=>{
 };
 
 promise_test('when', p_api.when);
+if (0) // XXX: obsolete, rm
 promise_test('d', p_api.D);
 promise_test('etask', etask);
 
@@ -2480,7 +2511,7 @@ describe('date', ()=>{
         t('%T', '18:51:45');
         t('%t', '\t');
         t('%U', '23');
-        if (0)
+        if (0) // XXX: FIXME
         t('%U', '24', new Date(+d + 5*ms.DAY));
         t('%u', '2');
         t('%v', '7-Jun-2011');
@@ -3118,8 +3149,7 @@ describe('events', ()=>{
         b.emit('event');
         assert.equal(count, 3);
     });
-    // XXX: should we fix this case in events.js?
-    if (0)
+    if (0) // XXX: should we fix this case in events.js?
     it('once_should_not_be_recursive', function(){
         var count_a = 0, count_b = 0, e = new events();
         var incr_a = function(){
@@ -3398,7 +3428,7 @@ describe('test_lib', ()=>{
     });
     it('cmd_single_invalid', ()=>{
       const t = (s, exp)=>assert.throws(
-        ()=>xtest.test_parse_cmd_single(s), {message: exp});
+        ()=>xtest.test_parse_cmd_single(s), throw_exp(exp));
       t('abcdefg)12345678', 'invalid abcdefg^^^)12345678');
       t(')', 'invalid ^^^)');
       t('(', 'invalid ^^^(');
@@ -3493,7 +3523,7 @@ describe('test_lib', ()=>{
     });
     it('cmd_multi_level_invalid', ()=>{
       const t = (s, exp)=>assert.throws(
-        ()=>xtest.test_parse_cmd_multi_level(s), {message: exp});
+        ()=>xtest.test_parse_cmd_multi_level(s), throw_exp(exp));
       t('a(', 'invalid a(^^^');
       t('a(b()', 'invalid a(b()^^^');
       t('a(b)(', 'invalid ^^^(');
@@ -3760,7 +3790,7 @@ describe('test_lib', ()=>{
     });
     it('parse_cmd_dir_invalid', ()=>{
       const t = (s, exp)=>{ assert.throws(()=>{ xtest.parse_cmd_dir(s); },
-        {message: exp}); };
+        throw_exp(exp)); };
       t('>', 'invalid ^^^>');
       t(',a>e', 'invalid ^^^,a>e');
       t('ab=c', 'invalid ab^^^=c');
@@ -3888,6 +3918,7 @@ describe('etask', function(){
         t({}, 0);
         t(function(){}, 0);
         t(etask([function(){}]), 0);
+        if (0) // XXX: obsolete, rm
         t(p_api.D.reject(), 0); // we only detect etasks
         t(p_api.when.reject(), 0); // we only detect etasks
         t(etask.err(), 1);
@@ -4898,8 +4929,8 @@ describe('etask', function(){
         assert.deepStrictEqual(ret, 'fail');
     }]));
     let assert_ps_res = (res, exp)=>{
-        res = res
-        .replace(/\([:/A-Za-z0-9/._-]*\/[a-z_]*.js:[0-9]*:[0-9]*\)/g, 'line');
+        res = res.replace(/\(.*:[0-9]*\)/g, 'line')
+        .replace(/Function\./g, '');
         assert.strictEqual(res, exp);
     };
     let assert_ps = (flags, exp)=>{
@@ -4962,8 +4993,13 @@ describe('etask', function(){
     }
     it('spawn_value', ()=>etask_spawn_val('abc'), v=>v=='abc');
     it('spawn_err', ()=>etask_spawn_val(etask.err(), v=>etask.is_err(v)));
-    it('spawn_promise', ()=>etask_spawn_val(p_api.p.resolve('abc'),
+    if (is_node){ // XXX: fixme on browser
+      it('spawn_promise', ()=>etask_spawn_val(p_api.p.resolve('abc'),
+          v=>v.retval=='abc'));
+    } else {
+      it('spawn_promise', async()=>etask_spawn_val(p_api.p.resolve('abc'),
         v=>v.retval=='abc'));
+    }
     it('spawn_completed', ()=>{
         let et = etask.wait();
         et.continue();

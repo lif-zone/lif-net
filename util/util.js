@@ -10,7 +10,7 @@ E._is_inspect;
 E.is_inspect = function(){
   if (E._is_inspect!==undefined)
     return E._is_inspect;
-  return E._is_inspect = !!process.execArgv.find(s=>/inspect/.test(s));
+  return E._is_inspect = !!process.execArgv?.find(s=>/inspect/.test(s));
 };
 
 E._is_mocha = undefined;

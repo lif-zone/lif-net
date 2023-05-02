@@ -13,6 +13,7 @@ import net from 'net';
 import _ from 'lodash';
 import big_object_diff from 'big-object-diff';
 const assign = Object.assign;
+const is_node = typeof window==='undefined';
 
 const E = {};
 export default E;
@@ -67,18 +68,23 @@ E.hook_assert = ()=>{
             msg, err.expected, err.actual, diff, err.operator);
         console.log(msg);
         debugger; // eslint-disable-line no-debugger
+        return msg;
     };
     Object.defineProperty(AssertionError.prototype, 'operator', {
       get: function(){ return this._operator; },
       set: function(x){
+          let msg;
           this._operator = x;
           if (E.assert_hook){
             E.assert_hook(this, print);
             return;
           }
-          try { print(this); }
+          try { msg = print(this); }
           catch(e){ console.trace('unknown assert error'); }
-          process.exit(1);
+          if (is_node)
+            process.exit(1);
+          else
+            throw new Error(msg||'assert error');
       },
     });
 };
@@ -255,7 +261,7 @@ E.seq_uninit = ()=>{
 
 E.assert_no_etasks = ()=>{
     let ps = etask.ps({TIME: 0});
-    assert(ps==='root\n', 'etask root not empty:\n'+ps);
+    assert.equal(ps, 'root\n', 'etask root not empty:\n'+ps);
 };
 
 E.assert_etask_err = et=>etask(function*assert_etask_err(){

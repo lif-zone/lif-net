@@ -1,0 +1,19 @@
+<html>
+	<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="https://unpkg.com/mocha/mocha.css" />
+	</head>
+	<body style="margin:0;">
+	<h1>LIF Test</h1>
+  <div id=mocha></div>
+    <script src=https://unpkg.com/chai/chai.js></script>
+    <script src=https://unpkg.com/mocha/mocha.js></script>
+    <script class=mocha-init>
+      mocha.setup({ui: 'bdd', bail: true, timeout: 50000});
+      mocha.checkLeaks();
+     </script>
+    <script src=/.lif/src/fs/test.bundle.js></script>
+		<script class="mocha-exec">mocha.run();</script>
+	</body>
+</html>
+

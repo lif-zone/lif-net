@@ -1,6 +1,5 @@
 'use strict'; /*eslint-env mocha*/
 import assert from 'assert';
-import {execSync} from 'node:child_process';
 import fs from 'fs';
 import xtest from '../util/test_lib.js';
 import etask from '../util/etask.js';
@@ -14,6 +13,8 @@ import git_util from './git_util.js';
 import buf_util from '../net/buf_util.js';
 import tparser from '../storage/test_parser.js';
 import DiffMatchAndPath from 'diff-match-patch';
+let execSync;
+const is_node = typeof window==='undefined';
 const b2s = buf_util.buf_to_str, s2b = buf_util.buf_from_str;
 const Diff = new DiffMatchAndPath();
 const {parse_get_next, parse_exp, parse_exp_arg, rm_parentesis,
@@ -251,6 +252,8 @@ const cmd_fs_cp = t=>etask(function*cmd_fs_cp(){
 });
 
 const cmd_git_cleanup = t=>etask(function*cmd_git_cleanup(){
+  if (!is_node) // XXX: TODO
+    return;
   fs.rmSync('/tmp/__lif_test', {recursive: true, force: true});
 });
 
@@ -699,6 +702,8 @@ function state_get_steps(filter, name, s){
 
 const test_start = ()=>etask(function*test_start(){
   t_buf = {};
+  if (is_node && !execSync)
+    execSync = (yield import('node:child_process')).execSync;
   yield cmd_git_cleanup();
 });
 
@@ -1273,6 +1278,8 @@ describe('git', function(){
         ' =dun1\n -----END PGP SIGNATURE-----\n \n');
     });
   });
+  if (!is_node) // XXX: TODO
+    return;
   describe('sync', ()=>{
     let _t_common = `$$mf(mode:100644) $$m0(mode:0) $$md(mode:040000)
       buf(d1:1) $$bm(branch:master)

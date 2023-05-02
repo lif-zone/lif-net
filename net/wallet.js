@@ -50,7 +50,8 @@ export default class Wallet {
       // websocket/wrtc level
       if (sign && !(sign instanceof Buffer) &&
         !(sign.data instanceof Uint8Array)){
-        sign = o.sign = new Uint8Array(sign.data);
+        sign = o.sign = sign instanceof Uint8Array ? sign :
+          new Uint8Array(sign.data);
       }
       return hcrypto.verify(this.hash_obj(o), sign, pub);
     } catch(err){ return false; }

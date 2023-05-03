@@ -9,7 +9,7 @@ proc.xexit_init();
 
 const start_lif_node = ()=>etask(function*start_lif_node(){
   // XXX: save node id
-  let node = new Node({bootstrap: ['wss://lif.biz']});
+  let node = new Node({bootstrap: ['wss://localhost']});
   xerr.notice('cli: node id %s', node.id.s);
   node.on('peer', id=>{
     xerr.notice('cli: connected to %s', id.s);

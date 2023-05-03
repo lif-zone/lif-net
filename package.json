@@ -7,7 +7,7 @@
     "bundle_test_storage": "browserify --debug storage/test.js > storage/test.bundle.js",
     "bundle_test_fs": "browserify --debug fs/test.js > fs/test.bundle.js",
     "bundle_test_net": "browserify --debug net/test.js > net/test.bundle.js",
-    "bundle_lif_client": "browserify --debug --standalone xxx net/node.js > www/lif_client.js"
+    "bundle_lif_node": "browserify --debug --standalone lif_node net/node.js > www/lif_node.js"
   },
   "dependencies": {
     "yargs": "17.6.2",

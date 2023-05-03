@@ -71,8 +71,7 @@ function index_html_handler(req, res){ res.sendFile(cwd+'/www/index.html'); }
 function sw_handler(req, res){ res.sendFile(cwd+'/www/sw.js'); }
 
 // XXX: check caching/other headers
-function lif_client_handler(req, res){
-  res.sendFile(cwd+'/www/lif_client.js'); }
+function lif_node_handler(req, res){ res.sendFile(cwd+'/www/lif_node.js'); }
 
 // XXX: check caching/other headers
 function favicon_handler(req, res){ res.sendFile(cwd+'/www/favicon.svg'); }
@@ -121,7 +120,7 @@ const main = ()=>etask(function*main(){
     (req, res)=>res.sendFile(cwd+'/www/test_fs.html'));
   app.get('/', index_html_handler);
   app.get('/.lif.sw.js', sw_handler);
-  app.get('/.lif/lif_client.js', lif_client_handler);
+  app.get('/.lif/lif_node.js', lif_node_handler);
   // XXX: review babel/favicon
   app.get('/.lif.babel.js', babel_handler);
   app.get('/.lif.favicon.svg', favicon_handler);

@@ -1,9 +1,9 @@
 {
   "ssl": {
     "cert": {
-      "lif.biz": {
-        "cert": "/var/lif/ssl/local/acme_star_lif.biz.crt",
-        "key": "/var/lif/ssl/local/acme_key_lif.biz.pem"
+      "localhost": {
+        "cert": "/var/lif/ssl/local/localhost.crt",
+        "key": "/var/lif/ssl/local/localhost.key"
       }
     }
 

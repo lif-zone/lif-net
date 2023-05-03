@@ -5,7 +5,7 @@
   "ver": "0.0.1",
   "production": false,
   "ip": ["127.0.0.1"],
-  "domain": ["lif.biz"],
+  "domain": ["localhost"],
   "dnss": {
     "port": 53,
     "ttl": 300,

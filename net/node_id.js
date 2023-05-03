@@ -24,8 +24,8 @@ constructor(id){
       this.s = '0'.repeat(CHARS-s.length)+s;
     }
     this.d = Number(BigInt('0x'+this.s.slice(0, 14))) / DIV;
-  } else if (Buffer.isBuffer(id)){
-    this._b = id;
+  } else if (Buffer.isBuffer(id) || id instanceof Uint8Array){
+    this._b = Buffer.isBuffer(id) ? id : Buffer.from(id);
     this.s = b2s(this._b);
     this.d = Number(BigInt('0x'+this.s.slice(0, 14))) / DIV;
   } else

@@ -6,6 +6,7 @@ import FibonacciHeap from 'js-fibonacci-heap';
 import NodeId from './node_id.js';
 import assert from 'assert';
 import etask from '../util/etask.js';
+import xerr from '../util/xerr.js';
 
 export default class NodeMap extends EventEmitter {
 constructor(){
@@ -193,7 +194,7 @@ constructor(opt){
   this.graph = {path: []};
 }
 set_conn(id, conn){ this.conn.set(id.s, conn); }
-del_conn(id){ throw new Error('XXX del_conn'); }
+del_conn(id){ xerr('XXX del_conn'); } // XXX: TODO
 get_conn(id){ return this.conn.get(id.s); }
 next(){
   let avl_node = this.avl.next(this.avl_node)||this.avl.at(0);

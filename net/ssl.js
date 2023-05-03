@@ -216,3 +216,13 @@ E.get_ctx = function(domain){
 // it opens a connection to the server: /.lif.ws (written in /.lif.sw.js)
 // (websocket URL...)
 // lif<->db
+
+// XXX arik tasks:
+// - fix sleep max ms BUG
+// - fix net client to use same encryption as scroll (rm hypercore crypto)
+// - save node id in persistent storage (scroll?)
+// - allow to configure all modules (https, dns, lif ws,...)
+// - node_map.js del_conn()
+// - need api to wait for connection ready (verfiy we open connection only
+//   after got ack from other side
+

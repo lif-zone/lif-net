@@ -6,10 +6,8 @@ import xutil from '../util/util.js';
 import {dbg_id, dbg_sd} from './util.js';
 import ws_util from '../util/ws.js';
 import NodeId from './node_id.js';
-import fs from 'fs';
-import https from 'https';
-import http from 'http';
-import xlog from '../util/xlog.js';
+import xerr from '../util/xerr.js';
+import xlog from '../util/xlog.js'; // XXX: rm
 const log = xlog('ws');
 // XXX HACK: need to add root ca certificate
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
@@ -17,7 +15,7 @@ export default WsConnector;
 
 inherits(WsConnector, EventEmitter);
 // XXX: use opts instead of id,port,host
-function WsConnector(id, port, host, is_http){
+function WsConnector(id, server){
   let _this = this;
   this.id = id;
   // XXX HACK: review tmp_id_n+channels - it's a quick hack to cleanup
@@ -27,23 +25,11 @@ function WsConnector(id, port, host, is_http){
   this.destroyed = false;
   this._wss = null;
   this.url = null;
-  if (port>=0){
-    // XXX create: move to nconf
-    const https_opts = {
-      port,
-      key: fs.readFileSync('/var/lif/ssl/STAR_lif_zone.key'),
-      cert: fs.readFileSync('/var/lif/ssl/STAR_lif_zone.crt')};
-    this.https_server = is_http ?
-      http.createServer(https_opts).listen(port, '0.0.0.0') :
-      https.createServer(https_opts).listen(port, '0.0.0.0');
-    this._wss = new ws_util.WebSocketServer({server: this.https_server});
+  if (server){
+    this._wss = new ws_util.WebSocketServer({server});
     this._wss.on('connection', onConnection);
     this._wss.on('listening', onListen);
-    if (port !== 0){
-      this.url = (is_http ? 'ws://' : 'wss://')+(host||'localhost')+':' + port;
-      log.notice('wss %s', this.url);
-      log.debug('%s wss %s', this.dbg_str(), this.url);
-    }
+    xerr.notice('ws: server started');
   }
 
   function onConnection(ws){ _this._onConnection(ws); }

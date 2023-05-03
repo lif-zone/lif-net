@@ -8,8 +8,6 @@ import xerr from '../util/xerr.js';
 import xescape from '../util/escape.js';
 import date from '../util/date.js';
 import etask from '../util/etask.js';
-import xlog from '../util/xlog.js';
-const log = xlog('req_handler');
 const assign = Object.assign;
 const RES_TIMEOUT = 20*date.ms.SEC;
 
@@ -61,7 +59,7 @@ class Res extends EventEmitter {
     if (!this.stream){
       type = 'res';
       if (seq)
-        return xerr('multiple call to res');
+        return xerr('multiple res req_id %s %s %s', req_id, type, cmd);
     } else
       type = opt.end||opt.close ? 'res_end' : !seq ? 'res_start' : 'res_next';
     if (!['res', 'res_end'].includes(type))
@@ -150,17 +148,19 @@ function req_handler_cb(lbuffer){
   let path = Array.from(lbuffer.path());
   path.reverse();
   req_handler.rt = {path};
-  let res = util.get(nodes, [id, 'req_id', req_id, 'res']);
+  let from_id = NodeId.from(msg.from).s;
+  let res = util.get(nodes, [id, from_id, 'req_id', req_id, 'res']);
   if (!res){
     if (!['req', 'req_start'].includes(type))
       return xerr('req not started '+type);
     if (seq!=0)
       return xerr('invalid req start seq '+seq);
     res = new Res({req_handler, from: msg.from, req_id, stream: type!='req'});
-    util.set(nodes, [id, 'req_id', req_id], {res});
+    // XXX: need cleanup
+    util.set(nodes, [id, from_id, 'req_id', req_id], {res});
   }
   if (res.ack.find(s=>s==seq)!==undefined)
-    log('duplicated seq '+seq);
+    xerr('duplicated seq '+seq);
   else
     res.ack.push(seq);
   if (msg.ack)

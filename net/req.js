@@ -6,10 +6,8 @@ import date from '../util/date.js';
 import xescape from '../util/escape.js';
 import etask from '../util/etask.js';
 import util from '../util/util.js';
-import xlog from '../util/xlog.js';
+import xerr from '../util/xerr.js';
 import NodeId from './node_id.js';
-import {dbg_sd, dbg_msg} from './util.js';
-const log = xlog('req');
 const assign = Object.assign;
 const REQ_TIMEOUT = 20*date.ms.SEC;
 
@@ -24,13 +22,12 @@ function res_handler(lbuffer){
     return;
   // XXX: if final response, remove from this.reqs
   if (!reqs[req_id]) // XXX: change to LERR
-    return log('req not found %s', req_id);
+    return xerr('req not found %s', req_id);
   if (!Number.isInteger(seq) || seq<0)
-    return log('invalid seq '+seq);
-  log.debug('msg %s', dbg_msg(msg));
+    return xerr('invalid seq '+seq);
   let req = reqs[req_id].req;
   if (req.ack.find(s=>s==seq)!==undefined)
-    log('duplicated seq '+seq);
+    xerr('duplicated seq '+seq);
   else
     req.ack.push(seq);
   if (type=='res')
@@ -113,8 +110,6 @@ export default class Req extends EventEmitter {
         s2=>new RegExp('^'+xescape.regex(''+s)+'$').test(s2)));
     } else
       this.ack = [];
-    log.debug('send %s %s %s %s:%s', dbg_sd(this.src, this.dst),
-      cmd, type, req_id, seq);
     let msg = {ts, fuzzy, type, req_id, seq, ack, cmd, body};
     if (rt)
       msg.rt = rt;

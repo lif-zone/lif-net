@@ -7,10 +7,8 @@ import NodeId from './node_id.js';
 import * as util from './util.js';
 import xutil from '../util/util.js';
 import NodeMap from './node_map.js';
-import {dbg_msg} from './util.js';
-import xlog from '../util/xlog.js';
+import {log_msg, dbg_msg} from './util.js';
 import LBuffer from './lbuffer.js';
-const log = xlog('router');
 const stringify = JSON.stringify;
 const DEF_RTT = 1000;
 
@@ -46,6 +44,7 @@ export default class Router extends EventEmitter {
     msg.from = this.id.s;
     msg.to = dst.s;
     msg.msgid = msgid; // XXX: need test that will fail is this is missing
+    log_msg('router: msg>', msg);
     let lbuffer = new LBuffer(msg); // XXX: WIP
     this._send(lbuffer);
   }
@@ -66,12 +65,12 @@ export default class Router extends EventEmitter {
     let rt = msg0.rt, path = rt?.path;
     let to = NodeId.from(msg.to), from = NodeId.from(msg.from), best;
     if (lbuffer.path().length >= this.maxHops)
-      return xerr('drop msg max hop reached');
+      return xerr('router: drop msg max hop reached');
     if (msg.fuzzy){
       range = lbuffer.range();
       if (path){
         if (!(channel = this.get_channel_from_path(path)))
-          return xerr('channel not found in route');
+          return xerr('router: channel not found in route');
         if (0) // XXX: decide if to enable
         if (['req', 'req_start'].includes(msg.type) && rt?.opt!='!'){
           let rtt_pb_o = this.id.rtt_pb_via(to,
@@ -152,16 +151,16 @@ export default class Router extends EventEmitter {
     }
     return {channel, lbuffer, fwd_rt};
   }
-  _on_msg(data, channel){
+  _on_msg = (data, channel)=>{
     let lbuffer = LBuffer.from(data), msg = lbuffer.msg();
     let msg0 = lbuffer.get_json(0), rt = msg0.rt, path = rt?.path;
     let msgid = msg.msgid;
     this.update_conn(lbuffer);
     this.emit('msg', lbuffer);
     if (!msgid && msg.type!='ack') // XXX: TODO ack
-      return log('invalid message msgid %s', dbg_msg(msg));
-    log.debug('channel-msg %s', dbg_msg(msg));
-    if (!path && msg.to==this.id.s){
+      return xerr('router: invalid message msgid %s', dbg_msg(msg));
+    log_msg('router: <msg', msg);
+    if (!path?.length && msg.to==this.id.s){
       assert(!this.pending_ack);
       if (msg.type!='ack')
         this.pending_ack = {channel, lbuffer, vv: true};
@@ -264,7 +263,7 @@ export default class Router extends EventEmitter {
     if (!Array.isArray(path) || !Array.isArray(rtt_a))
       return;
     if (path.length!=rtt_a.length)
-      return xerr('invalid path rtt');
+      return xerr('router: invalid path rtt');
     let ret = {};
     for (let i=0, prev=NodeId.from(this.id.s); i<path.length; i++){
       let curr = NodeId.from(path[i]), ids = [prev, curr];
@@ -351,8 +350,8 @@ export default class Router extends EventEmitter {
       {ts, prev_ts: ts, type, src: src0, dst: dst0};
     let seq_state = this.id.eq(NodeId.from(msg0.from)) ? 'out' : 'in';
     if (false && seq_o.state && seq_o.state!='in') // XXX: TODO
-      xerr('invalid seq state %s->%s', seq_o.state, seq_state);
-    if (seq_o.state=='ack'){
+      xerr('router: invalid seq state %s->%s', seq_o.state, seq_state);
+    if (seq_o.state=='ack'){ // XXX: TODO
       // xerr('invalid seq state %s->%s', seq_o.state, seq_state);
       return;
     }
@@ -367,10 +366,10 @@ export default class Router extends EventEmitter {
     if (!state) // XXX: change to ERR
       return xerr.notice('ack: req_id %s not found', req_id);
     if (!['<', '>'].includes(dir))
-      return xerr('ack: req_id %s invalid dir %s', req_id, dir);
+      return xerr('router: ack req_id %s invalid dir %s', req_id, dir);
     let seq_o = state[dir][seq];
     if (!seq_o)
-      return xerr('ack: req_id %s seq %s not found', req_id, seq);
+      return xerr('router: ack req_id %s seq %s not found', req_id, seq);
     if (dir=='>' && vv){
       if (['res', 'req_end', 'res_end'].includes(seq_o.type))
         state.state = 'close';
@@ -400,11 +399,11 @@ export default class Router extends EventEmitter {
     if (!xutil.is_mocha() || Router.t?.t_conf.msg_delay){
       seq_o.rtt = seq_o.ack_ts - seq_o.ts;
       if (!seq_o.rtt)
-        return xerr('invalid rtt');
+        return xerr('router: invalid rtt');
       let channel = this.get_channel_from_id(this.id.eq(seq_o.src) ?
         seq_o.dst : seq_o.src);
       if (!channel)
-        return xerr('channel not found');
+        return xerr('router: channel not found');
       let conn = this.node_map.update_conn({ids: [seq_o.src, seq_o.dst],
         rtt: seq_o.rtt, self: channel});
       channel.rtt = conn.rtt;

@@ -24,10 +24,11 @@ function WrtcConnector(id, router, wrtc){
   this._router.on('message', onMessage);
 
   function onMessage(msg){
+    if (msg.cmd!='signal')
+      return;
     if (!msg.body)
       return xerr('wrtc: missing body');
-    if (msg.cmd === 'signal')
-      _this._onSignal(msg.body.data, s2b(msg.from));
+    _this._onSignal(msg.body.data, s2b(msg.from));
   }
 }
 

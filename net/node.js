@@ -33,10 +33,7 @@ export default class Node extends EventEmitter {
       wrtc: this.wrtcConnector.supported}));
     this.ring_join_handler = new ReqHandler({node: this, cmd: 'ring_join'})
     .on('req', (msg, res)=>res.send({id: id.s}));
-    if (opt.port)
-      xerr.notice('net: listen on %s id %s', opt.port, id.s);
-    this.wsConnector = new Node.WsConnector(id.b, opt.port, opt.host,
-      opt.http);
+    this.wsConnector = new Node.WsConnector(id.b, opt.https_server);
     this.wsConnector.on('connection', channel=>this._onConnection(channel));
     this.wrtcConnector = new Node.WrtcConnector(id.b, this.router,
       opt.wrtc);
@@ -63,9 +60,9 @@ export default class Node extends EventEmitter {
       return;
     }
     _this.peers.add(channel);
+    _this.send_connect(NodeId.from(channel.id));
     _this.emit('connection', channel);
     _this.emit('peer', NodeId.from(channel.id));
-    _this.send_connect(NodeId.from(channel.id));
     return channel;
   }
   connect_wrtc(id){ return this.wrtcConnector.connect(id); }

@@ -16,8 +16,14 @@ export function dbg_id(id){
     return 'invalid_id';
   }
 }
-export function dbg_msg(msg){ return sprintf('%s %s %s %s:%s',
-  dbg_sd(msg.from, msg.to), msg.cmd, msg.type, msg.req_id, msg.seq); }
+
+export function dbg_msg(msg){ return sprintf('%s %s:%s %s',
+  msg.type+' '+(msg.cmd||''), msg.req_id, msg.seq, dbg_sd(msg.from, msg.to));
+}
+
+export function log_msg(s, msg){
+  xerr[msg.type=='ack' ? 'info' : 'notice']('%s %s', s, dbg_msg(msg));
+}
 
 export function dbg_sd(s, d){ return dbg_id(s)+'->'+dbg_id(d); }
 

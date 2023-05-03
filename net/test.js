@@ -21,7 +21,7 @@ import xerr from '../util/xerr.js';
 import Wallet from './wallet.js';
 import {EventEmitter} from 'events';
 import bigInt from 'big-integer';
-const assign = Object.assign;
+const assign = Object.assign; // XXX: rm
 const s2b = buf_util.buf_from_str;
 const stringify = JSON.stringify, is_number = xutil.is_number;
 const DEF_RTT = 100;
@@ -717,13 +717,20 @@ function get_ack(o){
   return ack;
 }
 
+class FakeHttpsServer extends EventEmitter {
+  constructor(opt){
+    super();
+    this.wss_url = opt.url;
+  }
+}
+
 class FakeNode extends EventEmitter {
   constructor(opt){
     super();
     this.wallet = new Wallet({keys: opt.keys});
     this.id = NodeId.from(opt.keys.pub);
     this.msg_id_n = 0;
-    this.wsConnector = new FakeWsConnector(this.id.b, opt.port, opt.host);
+    this.wsConnector = new FakeWsConnector(this.id.b, opt.https_server);
     this.wrtcConnector = new FakeWrtcConnector(this.id.b, null, opt.wrtc);
   }
   destroy(){}
@@ -731,14 +738,11 @@ class FakeNode extends EventEmitter {
 }
 
 class FakeWsConnector extends EventEmitter {
-  constructor(id, port, host){
+  constructor(id, https_server){
     super();
     this.id = id;
-    if (port || host){
-      assert(host, 'missing host');
-      assert(port, 'missing port');
-      this.url = 'wss://'+host+':'+port;
-    }
+    if (https_server)
+      this.url = https_server.wss_url;
   }
   connect = url=>etask({_: this}, function*connect(){
     let _this = this._;
@@ -1598,7 +1602,7 @@ function cmd_node(opt){
   assert(!wss || !node_from_url(wss.url), wss?.url+' already used');
   let node = new (fake ? FakeNode : Node)(assign(
     {keys: {priv: s2b(key.priv), pub: s2b(key.pub)}, bootstrap, wrtc},
-    wss));
+    wss && {https_server: new FakeHttpsServer(wss)}));
   node.t = {id: node.id.s, name, fake, wss};
   xerr.notice('new node %s id %%s', name, node.id.s);
   t_nodes[name] = node;
@@ -2320,16 +2324,9 @@ function cmd_res(opt){
   if (!call)
     return fake_emit(c, {type, req_id: id, seq, ack, cmd, body});
   if (!s.t.fake){
-    if (type=='res_end'){
-      if (close){
-        ReqHandler.t.nodes[s.id.s].req_id[id].res.send_close({seq, ack},
-          body);
-      } else {
-        ReqHandler.t.nodes[s.id.s].req_id[id].res.send_end({seq, ack},
-          body);
-      }
-    } else
-      ReqHandler.t.nodes[s.id.s].req_id[id].res.send({seq, ack}, body);
+    let o = ReqHandler.t.nodes[s.id.s][d.id.s].req_id[id];
+    o.res[type!='res_end' ? 'send' : close ? 'send_close' : 'send_end']({seq,
+      ack}, body);
   }
 }
 

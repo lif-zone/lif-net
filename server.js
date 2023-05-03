@@ -4,6 +4,7 @@ import express from 'express';
 import http from 'http';
 import https from 'https';
 import assert from 'assert';
+import Node from './net/node.js';
 import dnss from './net/dnss.js';
 import ssl from './net/ssl.js';
 import etask from './util/etask.js';
@@ -56,10 +57,11 @@ function sni_cb(server_name, cb){
 }
 
 function http_start(port, ssl_port){
-  const app = express();
-  http.createServer(app).listen(port);
-  https.createServer({SNICallback: sni_cb}, app).listen(ssl_port);
-  return app;
+  let app = express();
+  let http_server = http.createServer(app).listen(port);
+  let https_server = https.createServer({SNICallback: sni_cb}, app)
+  .listen(ssl_port);
+  return {app, http_server, https_server};
 }
 
 // XXX: check caching/other headers
@@ -69,6 +71,10 @@ function index_html_handler(req, res){ res.sendFile(cwd+'/www/index.html'); }
 function sw_handler(req, res){ res.sendFile(cwd+'/www/sw.js'); }
 
 // XXX: check caching/other headers
+function lif_client_handler(req, res){
+  res.sendFile(cwd+'/www/lif_client.js'); }
+
+// XXX: check caching/other headers
 function favicon_handler(req, res){ res.sendFile(cwd+'/www/favicon.svg'); }
 
 // XXX: check caching/other headers
@@ -76,7 +82,14 @@ function babel_handler(req, res){
   res.sendFile(cwd+'//node_modules/@babel/standalone/babel.js');
 }
 
+const start_lif_node = https_server=>etask(function*start_lif_node(){
+  // XXX: save node id
+  let node = new Node({https_server});
+  xerr.notice('lif node id %s', node.id.s);
+});
+
 const main = ()=>etask(function*main(){
+  this.on('uncaught', e=>xerr.xexit(e));
   let dir = cwd;
   xerr.notice('run lif server %s cwd %s dir %s',
     conf.production ? 'PRODUCTION' : 'DEV', cwd, dir);
@@ -87,7 +100,8 @@ const main = ()=>etask(function*main(){
   // XXX: need config www
   // XXX: need dynamic reload on src change
   // XXX: use link rel='modulepreload'
-  let app = http_start(80, 443);
+  let {app, https_server} = http_start(80, 443);
+  yield start_lif_node(https_server);
   app.use(function(req, res, next){
     // XXX: set CORS/caching
     res.setHeader('Service-Worker-Allowed', '/');
@@ -95,6 +109,8 @@ const main = ()=>etask(function*main(){
   });
   // XXX: rm in production
   app.use('/.lif/src/', express.static(cwd));
+  app.get('/.lif/test.html', (req, res)=>res.sendFile(cwd+'/www/test.html'));
+  // XXX: fix test files to include mocha from local include
   app.get('/.lif/test_util.html',
     (req, res)=>res.sendFile(cwd+'/www/test_util.html'));
   app.get('/.lif/test_storage.html',
@@ -105,6 +121,7 @@ const main = ()=>etask(function*main(){
     (req, res)=>res.sendFile(cwd+'/www/test_fs.html'));
   app.get('/', index_html_handler);
   app.get('/.lif.sw.js', sw_handler);
+  app.get('/.lif/lif_client.js', lif_client_handler);
   // XXX: review babel/favicon
   app.get('/.lif.babel.js', babel_handler);
   app.get('/.lif.favicon.svg', favicon_handler);

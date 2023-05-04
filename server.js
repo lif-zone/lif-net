@@ -12,6 +12,7 @@ import xerr from './util/xerr.js';
 import proc from './util/proc.js';
 import conf from './util/conf.js';
 const cwd = process.cwd();
+const dir = conf.production ? conf.install_dir+'/server' : cwd;
 
 proc.xexit_init(do_exit);
 
@@ -65,20 +66,20 @@ function http_start(port, ssl_port){
 }
 
 // XXX: check caching/other headers
-function index_html_handler(req, res){ res.sendFile(cwd+'/www/index.html'); }
+function index_html_handler(req, res){ res.sendFile(dir+'/www/index.html'); }
 
 // XXX: check caching/other headers
-function sw_handler(req, res){ res.sendFile(cwd+'/www/sw.js'); }
+function sw_handler(req, res){ res.sendFile(dir+'/www/sw.js'); }
 
 // XXX: check caching/other headers
-function lif_node_handler(req, res){ res.sendFile(cwd+'/www/lif_node.js'); }
+function lif_node_handler(req, res){ res.sendFile(dir+'/www/lif_node.js'); }
 
 // XXX: check caching/other headers
-function favicon_handler(req, res){ res.sendFile(cwd+'/www/favicon.svg'); }
+function favicon_handler(req, res){ res.sendFile(dir+'/www/favicon.svg'); }
 
 // XXX: check caching/other headers
 function babel_handler(req, res){
-  res.sendFile(cwd+'//node_modules/@babel/standalone/babel.js');
+  res.sendFile(dir+'//node_modules/@babel/standalone/babel.js');
 }
 
 const start_lif_node = https_server=>etask(function*start_lif_node(){
@@ -89,7 +90,6 @@ const start_lif_node = https_server=>etask(function*start_lif_node(){
 
 const main = ()=>etask(function*main(){
   this.on('uncaught', e=>xerr.xexit(e));
-  let dir = cwd;
   xerr.notice('run lif server %s cwd %s dir %s',
     conf.production ? 'PRODUCTION' : 'DEV', cwd, dir);
   assert(conf.ip, 'missing server ip, check conf.json');
@@ -107,17 +107,17 @@ const main = ()=>etask(function*main(){
     next();
   });
   // XXX: rm in production
-  app.use('/.lif/src/', express.static(cwd));
-  app.get('/.lif/test.html', (req, res)=>res.sendFile(cwd+'/www/test.html'));
+  app.use('/.lif/src/', express.static(dir));
+  app.get('/.lif/test.html', (req, res)=>res.sendFile(dir+'/www/test.html'));
   // XXX: fix test files to include mocha from local include
   app.get('/.lif/test_util.html',
-    (req, res)=>res.sendFile(cwd+'/www/test_util.html'));
+    (req, res)=>res.sendFile(dir+'/www/test_util.html'));
   app.get('/.lif/test_storage.html',
-    (req, res)=>res.sendFile(cwd+'/www/test_storage.html'));
+    (req, res)=>res.sendFile(dir+'/www/test_storage.html'));
   app.get('/.lif/test_net.html',
-    (req, res)=>res.sendFile(cwd+'/www/test_net.html'));
+    (req, res)=>res.sendFile(dir+'/www/test_net.html'));
   app.get('/.lif/test_fs.html',
-    (req, res)=>res.sendFile(cwd+'/www/test_fs.html'));
+    (req, res)=>res.sendFile(dir+'/www/test_fs.html'));
   app.get('/', index_html_handler);
   app.get('/.lif.sw.js', sw_handler);
   app.get('/.lif/lif_node.js', lif_node_handler);

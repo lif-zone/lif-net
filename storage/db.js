@@ -5,7 +5,7 @@ import etask from '../util/etask.js';
 import xutil from '../util/util.js';
 import * as idb from 'idb';
 import xerr from '../util/xerr.js';
-const is_node = typeof window==='undefined';
+const is_node = typeof navigator==='undefined';
 
 function wrap_cb(cb){
   return function(){

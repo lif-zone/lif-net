@@ -2,7 +2,7 @@
 'use strict';
 const E = date_get;
 export default E;
-const is_node = typeof window==='undefined';
+const is_node = typeof navigator==='undefined';
 E.sec = {
   NANO: 1/1e9,
   MS: 0.001,

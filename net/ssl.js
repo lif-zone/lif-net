@@ -218,11 +218,11 @@ E.get_ctx = function(domain){
 // lif<->db
 
 // XXX arik tasks:
-// - fix sleep max ms BUG
 // - fix net client to use same encryption as scroll (rm hypercore crypto)
 // - save node id in persistent storage (scroll?)
 // - allow to configure all modules (https, dns, lif ws,...)
 // - node_map.js del_conn()
 // - need api to wait for connection ready (verfiy we open connection only
 //   after got ack from other side
-
+// - how to handle bundling (in run-time, generate on first request)
+// - fix sleep max ms BUG

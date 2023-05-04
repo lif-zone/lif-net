@@ -170,7 +170,7 @@ WsChannel.prototype.destroy = function(){
 
 function getWebSocket(url){
   // XXX: rm special handling for browser
-  if (typeof window !== 'undefined' && window.WebSocket)
-    return new window.WebSocket(url);
+  if (typeof navigator !== 'undefined' && self.WebSocket)
+    return new self.WebSocket(url);
   return new ws_util.WS(url);
 }

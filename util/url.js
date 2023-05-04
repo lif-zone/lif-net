@@ -4,7 +4,7 @@ import qs from 'querystring';
 var assign = Object.assign;
 const E = {};
 export default E;
-const is_node = typeof window==='undefined';
+const is_node = typeof navigator==='undefined';
 
 function replace_slashes(url){ return url.replace(/\\/gi, '/'); }
 

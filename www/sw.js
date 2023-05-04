@@ -1,11 +1,25 @@
 // author: derry. coder: arik.
 'use strict';
+self.importScripts('/.lif/lif_node.js');
 self.importScripts('/.lif.babel.js');
 const Babel = self.Babel;
+const Node = lif_node.default
+
 async function init(){
+  console.log('sw: init');
   try {
+  console.log('sw: connect to LIF');
+  let node = new Node({bootstrap: ['wss://localhost']});
+    console.log('sw: node id %s', node.id.s);
+    node.on('peer', id=>{
+      console.log('sw: connected to %s', id.s);
+      setTimeout(()=>{
+        console.log('sw: >ping');
+        let req = node.ping(id.s, {});
+        req.on('res', msg=>console.log('sw: <ping_r'));
+      }, 1000);
+    });
     self.addEventListener('install', async()=>console.log('sw: install'));
-    console.log('sw: init');
     // XXX: this is needed to activate the worker immediately without reload
     // @see https://developers.google.com/web/fundamentals/primers/service-workers/lifecycle#clientsclaim
     self.addEventListener('activate',

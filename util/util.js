@@ -1,7 +1,7 @@
 // author: derry. coder: arik.
 'use strict';
 import node_util from 'util';
-const is_node = typeof window==='undefined';
+const is_node = typeof navigator==='undefined';
 
 const E = {};
 export default E;

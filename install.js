@@ -150,6 +150,7 @@ const main = ()=>etask(function*main(){
     dst_root = dst_root.substr(0, dst_root.length-1);
   let keys_dir = dst_root+'/ssl/keys';
   let cert_dir = dst_root+'/ssl/cert';
+  let git_dir = dst_root+'/git';
   let dst = dst_root+'/server';
   let src = cwd;
   let tmp = dst+'.tmp';
@@ -175,8 +176,12 @@ const main = ()=>etask(function*main(){
     console.log('Creating cert_dir %s', cert_dir);
     fs.mkdirSync(cert_dir, {recursive: true});
   }
+  if (!fs.existsSync(git_dir)){
+    console.log('Creating git_dir %s', git_dir);
+    fs.mkdirSync(git_dir, {recursive: true});
+  }
   if (!fs.existsSync(dst)){
-    console.log('Creating dir %s', dst);
+    console.log('Creating code dir %s', dst);
     fs.mkdirSync(dst, {recursive: true});
     need_prev = false;
   }

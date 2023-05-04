@@ -1,11 +1,2 @@
 {
-  "ssl": {
-    "cert": {
-      "localhost": {
-        "cert": "/var/lif/ssl/local/localhost.crt",
-        "key": "/var/lif/ssl/local/localhost.key"
-      }
-    }
-
-  }
 }

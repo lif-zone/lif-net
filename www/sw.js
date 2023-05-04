@@ -3,13 +3,14 @@
 self.importScripts('/.lif/lif_node.js');
 self.importScripts('/.lif.babel.js');
 const Babel = self.Babel;
-const Node = lif_node.default
+const Node = self.lif_node.default;
 
 async function init(){
   console.log('sw: init');
   try {
-  console.log('sw: connect to LIF');
-  let node = new Node({bootstrap: ['wss://localhost']});
+    let bootstrap = ['wss://'+location.host]; // XXX: let server configure it
+    console.log('sw: connect to LIF bootstrap %s', bootstrap.join(' '));
+    let node = new Node({bootstrap});
     console.log('sw: node id %s', node.id.s);
     node.on('peer', id=>{
       console.log('sw: connected to %s', id.s);

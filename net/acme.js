@@ -36,7 +36,7 @@ E.requet_cert = opt=>etask(function*requet_cert(){
   // XXX: how to cancel acme on timeout
   this.alarm(timeout, {throw: 'acme timeout'});
   const client = new acme.Client({accountKey: account_key,
-    directoryUrl: acme.directory.letsencrypt.staging});
+    directoryUrl: acme.directory.letsencrypt.production});
   const [, csr] = yield acme.crypto.createCsr({commonName: domain},
     cert_key);
   const cert = yield client.auto({csr, email, termsOfServiceAgreed: true,

@@ -226,3 +226,4 @@ E.get_ctx = function(domain){
 //   after got ack from other side
 // - how to handle bundling (in run-time, generate on first request)
 // - fix sleep max ms BUG
+// - fix json loading (don't use experimental feature)

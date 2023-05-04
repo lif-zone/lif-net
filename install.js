@@ -103,6 +103,13 @@ function get_node_ver(){
   return ver;
 }
 
+function create_dir(dir){
+  if (fs.existsSync(dir))
+    return;
+  console.log('Creating %s', dir);
+  fs.mkdirSync(dir, {recursive: true});
+}
+
 const main = ()=>etask(function*main(){
   // XXX: ask to disable dns and configure /etc/resolve.conf
   this.on('uncaught', err=>xerr.xexit(err));
@@ -150,7 +157,9 @@ const main = ()=>etask(function*main(){
     dst_root = dst_root.substr(0, dst_root.length-1);
   let keys_dir = dst_root+'/ssl/keys';
   let cert_dir = dst_root+'/ssl/cert';
-  let git_dir = dst_root+'/git';
+  let soul_dir = dst_root+'/soul';
+  let storage_dir = soul_dir+'/storage';
+  let git_dir = soul_dir+'/git';
   let dst = dst_root+'/server';
   let src = cwd;
   let tmp = dst+'.tmp';
@@ -168,23 +177,12 @@ const main = ()=>etask(function*main(){
   if (!git_head)
       xerr.xexit('Failed to get git head');
   let need_prev = true;
-  if (!fs.existsSync(keys_dir)){
-    console.log('Creating keys_dir %s', keys_dir);
-    fs.mkdirSync(keys_dir, {recursive: true});
-  }
-  if (!fs.existsSync(cert_dir)){
-    console.log('Creating cert_dir %s', cert_dir);
-    fs.mkdirSync(cert_dir, {recursive: true});
-  }
-  if (!fs.existsSync(git_dir)){
-    console.log('Creating git_dir %s', git_dir);
-    fs.mkdirSync(git_dir, {recursive: true});
-  }
-  if (!fs.existsSync(dst)){
-    console.log('Creating code dir %s', dst);
-    fs.mkdirSync(dst, {recursive: true});
-    need_prev = false;
-  }
+  create_dir(cert_dir);
+  create_dir(keys_dir);
+  create_dir(soul_dir);
+  create_dir(storage_dir);
+  create_dir(git_dir);
+  create_dir(dst);
   console.log('Build npm dependency');
   execSync('npm install');
   if (fs.existsSync(tmp)){

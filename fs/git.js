@@ -350,8 +350,11 @@ export default class GIT extends FS {
       let git_br = git_branches[i];
       yield git_api.checkout(config.gitdir ? {...config, ref: git_br} :
         {...config, ref: git_br, remote: 'origin'});
-      if (config.url)
-        yield git_api.fetch({...config});
+      if (config.url){
+        // XXX: need to rm author
+        yield git_api.pull({...config, author: {name: 'lif sync',
+          email: 'xxx@lif.zone'}});
+      }
       let log = yield git_api.log({...config, ref: git_br});
       let commits = [], map = {}, top = log[0].oid;
       for (let j=0, parent; j<log.length && (!j||parent); j++){
@@ -484,15 +487,15 @@ export default class GIT extends FS {
     if (type===undefined)
       return bseq_top.seq;
     let bseq = bseq_top.bseq;
+    let decl = _this.get_decl(_this.bseq_to_seq(cfid, bseq));
     while (true){
-      let decl = _this.get_decl(_this.bseq_to_seq(cfid, bseq));
       yield decl.load(cfid);
       if (decl.get_body(cfid)?.type==type)
         return decl.seq;
       let prev = yield decl.get_prev();
       if (!prev)
         return;
-      bseq = prev.bseq_get(cfid);
+      decl = prev;
     }
   }); }
   git_br_exists(cfid, git_br){ return etask({_: this}, function*git_br_exists()
@@ -712,7 +715,7 @@ GIT.create = (opt, d)=>etask(function*scroll_create(){
 });
 
 GIT.open = opt=>etask(function*scroll_open(){
-  assert(util.is_mocha()||!opt.soul, 'producion must use global soul');
+  assert(util.is_mocha()||opt.soul, 'producion must use global soul');
   let seq, h;
   if (typeof opt.M=='string')
     [seq, h] = [0, s2b(opt.M)];

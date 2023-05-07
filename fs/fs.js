@@ -365,7 +365,7 @@ FS.create = (opt, d)=>etask(function*scroll_create(){
 });
 
 FS.open = opt=>etask(function*scroll_open(){
-  assert(util.is_mocha()||!opt.soul, 'producion must use global soul');
+  assert(util.is_mocha()||opt.soul, 'producion must use global soul');
   let seq, h;
   if (typeof opt.M=='string')
     [seq, h] = [0, s2b(opt.M)];

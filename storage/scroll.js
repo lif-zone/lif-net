@@ -425,7 +425,7 @@ export default class Scroll extends EventEmitterAsync {
   constructor(opt){
     super();
     assert(opt.pub, 'missing pub key');
-    assert(util.is_mocha()||!opt.soul, 'producion must use global soul');
+    assert(util.is_mocha()||opt.soul, 'producion must use global soul');
     this.soul = opt.soul||Scroll.soul;
     this.pub = opt.pub;
     this.key = opt.key;
@@ -567,7 +567,17 @@ export default class Scroll extends EventEmitterAsync {
     }
     let decl = _this.get_decl(seq);
     decl.fbuf_get(cfid).set_frames_raw([header].concat(frames));
+    let roots = decl.M.roots;
+    for (let i=0; i<roots.length; i++){
+      let r = roots[i];
+      let d = _this.get_decl(r[1]);
+      yield d.load(cfid);
+    }
     yield decl.sign(cfid);
+    // XXX: this is needed because we just liseten on last root in Merkle_tree
+    // (add test for this scenario)
+    if (!decl.M.get_hash(cfid))
+      decl.M.calc_hash(cfid);
     yield _this.unlock();
     assert(decl.M.get_hash(cfid), 'failed to calc M'+decl.seq+' cfid '+cfid);
     return decl;
@@ -1254,6 +1264,7 @@ export default class Scroll extends EventEmitterAsync {
     return _this.emit_async('data', {data, seq, cfid, bseq});
   });
   get_branch_table(cfid){
+    assert(this.conflict.get(cfid), 'missing cfid '+cfid);
     let btable = this.branch.get(cfid);
     if (btable)
       return btable;
@@ -1263,21 +1274,22 @@ export default class Scroll extends EventEmitterAsync {
   }
   branch_exists(cfid, branch){ return !!this.get_branch_top(cfid, branch); }
   get_branch_top(cfid, branch){
-    return this.branch.get(cfid)?.get_branch_top(branch); }
+    return this.get_branch_table(cfid).get_branch_top(branch); }
   get_bseq_top(cfid, bseq){
-    return this.branch.get(cfid)?.get_bseq_top(bseq); }
+    return this.get_branch_table(cfid).get_bseq_top(bseq); }
   get_branch_bseq(cfid, branch){
-    return this.branch.get(cfid)?.get_branch(branch)?.bseq; }
-  get_branches(cfid, seq){ return this.branch.get(cfid)?.get_branches(seq); }
+    return this.get_branch_table(cfid).get_branch(branch)?.bseq; }
+  get_branches(cfid, seq){
+    return this.get_branch_table(cfid).get_branches(seq); }
   bseq_to_seq(cfid, bseq){
     assert(cfid!==undefined, 'invalid cfid');
     assert(bseq!==undefined, 'invalid bseq');
-    return this.branch.get(cfid)?.bseq_to_seq(bseq);
+    return this.get_branch_table(cfid).bseq_to_seq(bseq);
   }
   bseq_to_branch(cfid, bseq){
     assert(cfid!==undefined, 'invalid cfid');
     assert(bseq!==undefined, 'invalid bseq');
-    return this.branch.get(cfid)?.bseq_to_branch(bseq);
+    return this.get_branch_table(cfid).bseq_to_branch(bseq);
   }
   hash(buf){ return crypto.hash(this.crypt, buf); }
   hash_str(buf){ return b2s(crypto.hash(this.crypt, buf)); }
@@ -1493,13 +1505,19 @@ class Decl extends EventEmitterAsync {
       yield _this.from_static_cfid(cfid, o[cfid]);
     }
   }); }
+  is_loaded(cfid, opt={}){
+    let scroll = this.scroll;
+    if (!scroll.storage)
+      return true;
+    return scroll.storage.is_loaded(this, cfid, opt);
+  }
   load(cfid, opt={}){
     assert(cfid>=0, 'invalid cfid '+cfid);
     cfid = this.to_c(cfid);
     let scroll = this.scroll;
     if (!scroll.storage)
       return;
-    if (scroll.storage.is_loaded(this, cfid, opt))
+    if (this.is_loaded(cfid, opt))
       return;
     return etask({_: this}, function*load(){
       let _this = this._, need_lock;
@@ -1573,6 +1591,7 @@ class Merkel_node extends EventEmitterAsync {
     cfid = this.decl.to_c(cfid);
     let h_curr = this.cmap.get(cfid);
     if (h_curr){
+      if (!h_curr.equals(h))
       assert(h_curr.equals(h), 'hash changed');
       return h_curr;
     }
@@ -1651,7 +1670,7 @@ Scroll.create = (opt, d)=>etask(function*scroll_create(){
 });
 
 Scroll.open = opt=>etask(function*scroll_open(){
-  assert(util.is_mocha()||!opt.soul, 'producion must use global soul');
+  assert(util.is_mocha()||opt.soul, 'producion must use global soul');
   let seq, h;
   if (typeof opt.M=='string')
     [seq, h] = [0, s2b(opt.M)];

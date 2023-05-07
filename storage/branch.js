@@ -66,7 +66,7 @@ export default class Branch_table {
       return;
     return this.get_bseq_top(bo.bseq);
   }
-  get_bseq_top(bseq){ // XXX: need test
+  get_bseq_top(bseq){
     let top = this.bseqb_top.get(bseq_branch(bseq));
     if (top)
       return top;
@@ -240,7 +240,6 @@ export default class Branch_table {
     this._insert(bo);
     if (branch || this.cfid==0&&bo.seq==0)
       this.branch_name.set(branch, bo);
-    // XXX: need a test that fails if we don't call _update_top
     this._update_top(bseq_inc(bseq, size-1), seq+size-1);
   }
 }

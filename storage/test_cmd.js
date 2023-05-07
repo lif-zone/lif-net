@@ -1147,6 +1147,22 @@ const cmd_state_diff = t=>etask(function*cmd_state_diff(){
   db_query_index_log = [];
 });
 
+function check_get_bseq_top(name, l, r){
+  let scroll = get_scroll(name);
+  let o = parse_exp(l), c, bseq;
+  assert.equal(o.cmd, 'get_bseq_top', 'invalid check_get_bseq_top');
+  for (let curr=o.r; curr = parse_get_next(curr);){
+    let oo = parse_exp(curr.exp);
+    switch (oo.l){
+    case 'c': c = +oo.r; break;
+    case 'bseq': bseq = oo.r; break;
+    default: assert.fail('invalid check_get_bseq_top '+l);
+    }
+  }
+  let top = scroll.get_bseq_top(c, bseq);
+  assert.equal(top ? '(seq:'+top.seq+' bseq:'+top.bseq+')' : '!', r, l+'!='+r);
+}
+
 const cmd_state_check = t=>etask(function*cmd_state_check(){
   let name = t.ctx||get_def('left'), steps = '';
   let o = parse_exp(t.r), filter = o.cmd=='!' ? [o.r] : [o.l];
@@ -1154,6 +1170,8 @@ const cmd_state_check = t=>etask(function*cmd_state_check(){
     (o.cmd=='!' ? '!'+o.r : o.r);
   if (/^index_find\(.*\)$/.test(o.l))
     steps = o.l+'='+o.r;
+  if (/^get_bseq_top\(.*\)$/.test(o.l))
+    return check_get_bseq_top(name, o.l, o.r);
   let curr_state = {};
   curr_state[name] = {};
   yield state_next(name, curr_state, filter, steps);
@@ -1201,8 +1219,7 @@ const cmd_unload = (curr, t)=>etask(function cmd_unload(){
 const cmd_load_c = t=>etask(function*cmd_load_c(){
   let name = t.ctx||get_def('left'), scroll = get_scroll(name), o, data;
   for (let curr=t.r; curr = parse_get_next(curr);){
-    switch (curr.exp)
-    {
+    switch (curr.exp){
     case 'data': data = true; break;
     default: o = parse_cfid_seq(curr.exp);
     }

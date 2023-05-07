@@ -1561,11 +1561,20 @@ describe('scroll', function(){
       describe('db', function(){
         t('no_branch', `s..#(db_btable)
           soul.s.scroll(db) flush #db_btc0[0]={seq:0 bseq:0 size:1}
+            ##get_bseq_top(c:0 bseq:0)=(seq:0 bseq:0)
           decl(1) flush #db_btc0[0]={seq:0 bseq:0 size:2}
+            ##get_bseq_top(c:0 bseq:0)=(seq:1 bseq:1)
           decl(2) flush #db_btc0[0]={seq:0 bseq:0 size:3}
+            ##get_bseq_top(c:0 bseq:0)=(seq:2 bseq:2)
           decl(3) flush #db_btc0[0]={seq:0 bseq:0 size:4}
+            ##get_bseq_top(c:0 bseq:0)=(seq:3 bseq:3)
+            ##get_bseq_top(c:0 bseq:1)=(seq:3 bseq:3)
+            ##get_bseq_top(c:0 bseq:2)=(seq:3 bseq:3)
+            ##get_bseq_top(c:0 bseq:3)=(seq:3 bseq:3)
           Soul.db_copy(soul) S..#(bseq btable)
-          Soul.S.scroll(s..M0 db) #(btc0[0]={seq:0 bseq:0 size:4} bseq0=0)`);
+          Soul.S.scroll(s..M0 db) #(btc0[0]={seq:0 bseq:0 size:4} bseq0=0)
+            ##get_bseq_top(c:0 bseq:0)=(seq:3 bseq:3)
+            ##get_bseq_top(c:0 bseq:1-3.0)=!`);
         t('simple_branch', `s..#(db_btable)
           soul.s.scroll(db) flush #(db_btc0[0]={seq:0 bseq:0 size:1})
           decl(1) flush #(db_btc0[0]={seq:0 bseq:0 size:2})
@@ -1597,6 +1606,9 @@ describe('scroll', function(){
             db_btc0[1]={branch:b seq:2 bseq:1-1.0 size:3})
           decl(5 prev:1 branch:b2) flush #(bseq5=1-2.0
             db_btc0[2]={branch:b2 seq:5 bseq:1-2.0 size:1})
+            ##get_bseq_top(c:0 bseq:0)=(seq:1 bseq:1)
+            ##get_bseq_top(c:0 bseq:1-1.0)=(seq:4 bseq:1-1.2)
+            ##get_bseq_top(c:0 bseq:1-2.0)=(seq:5 bseq:1-2.0)
           S..#(bseq btable db_btable) S..# scroll(s..M0 db)
           tput(0)           #(bseq0=0 btc0[0]={seq:0 bseq:0 size:1}
                               db_btc0[0]={seq:0 bseq:0 size:1})
@@ -1623,6 +1635,12 @@ describe('scroll', function(){
           tput(0_1 2 d e f) flush #(bseq5c1=1-2.0
                               btc1[1]={branch:b2 seq:5 bseq:1-2.0 size:1}
                               db_btc1[1]={branch:b2 seq:5 bseq:1-2.0 size:1})
+            ##get_bseq_top(c:0 bseq:0)=(seq:1 bseq:1)
+            ##get_bseq_top(c:0 bseq:1-1.0)=(seq:3 bseq:1-1.1)
+            ##get_bseq_top(c:0 bseq:1-2.0)=(seq:5 bseq:1-2.1)
+            ##get_bseq_top(c:1 bseq:0)=(seq:1 bseq:1)
+            ##get_bseq_top(c:1 bseq:1-1.0)=(seq:4 bseq:1-1.2)
+            ##get_bseq_top(c:1 bseq:1-2.0)=(seq:5 bseq:1-2.0)
         `);
       });
     });
@@ -1861,6 +1879,14 @@ describe('scroll', function(){
             mem3={M3 m3 m2_3 m0_3}
             mem7={M7 sig7 D7 m7 m6_7 m4_7 m0_7} mem6={M6 sig6 D6 m6}
             mem9={M9 sig9 D9 m9 m8_9})`);
+        t('decl_with_partial_loaded_db', `conf(soul:manual)
+          soul.s..scroll(db d:1-10) flush Soul.db_copy(soul)
+          Soul.S.scroll(s..M0 db) S..#(mem_c mem) Soul2.S2.scroll(M0 db)
+          #(mem_c={0:M10} mem0={M0 m0 sig0 D0})
+          decl(11)
+          def(S..) #(mem_c={0:M11} mem7={M7 m7 sig7 D7 m0_7 m4_7 m6_7}
+            mem9={M9 m9 sig9 D9 m8_9} mem10={M10 m10 sig10 D10}
+            mem11={M11 m11 sig11 D11 m8_11 m10_11}) #`);
       });
       describe('db_data', ()=>{
         t('no_split', `s.scroll s.decl(data:32KB) S..#(db db_data)

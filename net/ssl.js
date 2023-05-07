@@ -219,6 +219,7 @@ E.get_ctx = function(domain){
 
 // XXX arik tasks:
 // - fix net client to use same encryption as scroll (rm hypercore crypto)
+//   - make it a soul with type:net?
 // - save node id in persistent storage (scroll?)
 // - allow to configure all modules (https, dns, lif ws,...)
 // - node_map.js del_conn()
@@ -227,3 +228,7 @@ E.get_ctx = function(domain){
 // - how to handle bundling (in run-time, generate on first request)
 // - fix sleep max ms BUG
 // - fix json loading (don't use experimental feature)
+// - cleanup
+//   - XXX server.js
+//   - rm fs.promises and wrap with proper etask api
+// - add test for branch.js _update_top when loading from db

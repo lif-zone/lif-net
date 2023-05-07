@@ -2901,6 +2901,45 @@ describe('scroll', function(){
           //  --/-n-n a-n-n-a find(n)
           decl({path:$1}) $$(/ /n /n /a /n /n /a)
           ##index_find(name:path dir:up cfid:0 bseq:7 key:/a)=[4 7]`);
+        t('mem_gap3_dn', `
+          // 0 1 2 3 4 5
+          // --a         find(max:1)
+          //     n n n n load(2-5)
+          // --a-n-n-n-n find(max:5)
+          s..scroll(index:path db)
+          $$a(id:0 key:/arik seq)
+          $$n(id:0 key:/niko seq)
+          decl({path:$1})
+          $$(${'/arik'+' /niko '.repeat(4)})
+          Soul.db_copy(s.soul)
+          S..#(db_query_index index index_table) Soul.S.scroll(s..M0 db)
+          #(index_table={id:0 cfid:0 bseqb:null name:path})
+          ##index_find(index:0 key:/arik max:2)=1
+          #(db_query=${q(1, 2, 1)} index=[{$a:1 dn:0 up:2}])
+          load_c(3) #index={$n:3}
+          load_c(4) #index={$n:4}
+          load_c(5) #index={$n:5}
+          ##index_find(index:0 key:/arik max:5)=1`);
+        t('mem_gap3_up', `
+          // 0 1 2 3 4 5
+          //           a find(min:5)
+          // --n n n n a load(1-4)
+          // --n n n n a find(min:1)
+          s..scroll(index:path db)
+          $$a(id:0 key:/arik seq)
+          $$n(id:0 key:/niko seq)
+          decl({path:$1})
+          $$(${'/niko '.repeat(4)+' /arik'})
+          Soul.db_copy(s.soul)
+          S..#(db_query_index index index_table) Soul.S.scroll(s..M0 db)
+          #(index_table={id:0 cfid:0 bseqb:null name:path})
+          ##index_find(index:0 dir:up key:/arik min:5)=5
+          #(db_query=[index,key==0_/arik_5 next] index=[{$a:5 dn:5 up:5}])
+          load_c(1) #index={$n:1}
+          load_c(2) #index={$n:2}
+          load_c(3) #index={$n:3}
+          load_c(4) #index={$n:4}
+          ##index_find(index:0 dir:up key:/arik min:4)=5`);
         // XXX: rename zzz --> niko
         t('zzz1_dir_dn', `${t_init9}
           //  0 1 2 3 4 5 6 7 8 9

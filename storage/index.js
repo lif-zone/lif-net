@@ -221,16 +221,17 @@ export default class Index {
     return iter;
   }); }
   find_iter(key, opt={}){
-    let _this = this, {min, max, dir} = opt, {cfid, scroll} = this;
+    let _this = this, {dir} = opt, {cfid, scroll} = this;
     dir = dir||'dn';
     assert(['up', 'dn'].includes(dir), 'invalid dir '+dir);
     if (!scroll.storage)
-      return this.find_mem_iter(key, {min, max, dir});
+      return this.find_mem_iter(key, opt);
     if (key===undefined) // XXX: need to update up/dn in memory
-      return this.find_db_iter(key, {min, max, dir});
+      return this.find_db_iter(key, opt);
     let co = scroll.conflict.get(cfid), _max, _min;
-    _min = min = min===undefined ? co.parent ? co.parent.seq+1 : 0 : min;
-    _max = max = max===undefined ? co.top.seq : max;
+    _min = opt.min===undefined ? co.parent ? co.parent.seq+1 : 0 : opt.min;
+    _max = opt.max===undefined ? co.top.seq : opt.max;
+    let min = _min, max = _max, db_min, db_max;
     let iter = {}, mem_iter, db_iter, prev, db_prev_edge, mem_prev_edge;
     const next_mem_iter = ()=>{
       if (db_iter)
@@ -238,12 +239,13 @@ export default class Index {
       mem_iter = mem_iter ? mem_iter.next() :
         _this.find_mem_iter(key, {min, max, dir});
       let curr = mem_iter.curr, section;
-      if (db_prev_edge && curr){
+      if (db_prev_edge!==undefined && curr){
         if (dir=='up')
-          [curr.dn, db_prev_edge] = [prev ? prev.seq : db_prev_edge, 0];
+          curr.dn = prev ? prev.seq : db_prev_edge;
         else
-          [curr.up, db_prev_edge] = [prev ? prev.seq : db_prev_edge, 0];
+          curr.up = prev ? prev.seq : db_prev_edge;
       }
+      db_prev_edge = undefined;
       if (curr){
         if (dir=='up'){
           if (prev && prev.up < curr.dn-1 &&
@@ -269,22 +271,25 @@ export default class Index {
       }
       if (dir=='up'){
         mem_prev_edge = min;
-        [min, max] = [prev ? prev.up+1 : min, curr ? curr.dn-1 : max];
+        [db_min, db_max] = [prev ? prev.up+1 : min, curr ? curr.dn-1 : max];
+        [min, max] = [curr ? curr.seq : _max+1, _max];
       }
       else {
         mem_prev_edge = max;
-        [min, max] = [curr ? curr.up+1 : min, prev ? prev.dn-1 : max];
+        [db_min, db_max] = [curr ? curr.up+1 : min, prev ? prev.dn-1 : max];
+        [min, max] = [_min, curr ? curr.seq : -1];
       }
-      if (section = scroll.get_section(cfid, max)){
-        max = section.seq-1;
+      if (section = scroll.get_section(cfid, db_max)){
+        db_max = section.seq-1;
         if (dir=='dn' && prev)
           prev.dn = section.seq;
       }
-      if (section = scroll.get_section(cfid, min)){
-        min = section.seq+section.size;
+      if (section = scroll.get_section(cfid, db_min)){
+        db_min = section.seq+section.size;
         if (dir=='up' && prev)
           prev.up = section.seq+section.size-1;
       }
+      db_prev_edge = dir=='up' ? db_min : db_max;
       mem_iter = null;
     };
     const next_db_iter = ()=>etask(function*next_db_iter(){
@@ -294,16 +299,14 @@ export default class Index {
         iter.db_flushed = true;
       }
       db_iter = db_iter ? yield db_iter.next() :
-        yield _this.find_db_iter(key, {min, max, dir});
+        yield _this.find_db_iter(key, {min: db_min, max: db_max, dir});
       if (!db_iter.curr){
         if (dir=='up'){
           if (prev)
             prev.up = max;
-          [min, max, db_prev_edge] = [max+1, _max, min];
         } else {
           if (prev)
             prev.dn = min;
-          [min, max, db_prev_edge] = [_min, min-1, max];
         }
         return db_iter = null;
       }
@@ -322,18 +325,14 @@ export default class Index {
       return prev = iter.curr = _this.avl.insert(curr).key;
     });
     iter.next = ()=>{
-      if (next_mem_iter())
-        return iter;
-      if (max<min)
-        return iter_ret(iter);
       return etask(function*index_find_iter_next(){
         while (true){
-          if (yield next_db_iter())
-            return iter;
-          if (max<min)
-            return iter_ret(iter);
           if (next_mem_iter())
             return iter;
+          if (db_max>=db_min){
+            if (yield next_db_iter())
+              return iter;
+          }
           if (max<min)
             return iter_ret(iter);
         }

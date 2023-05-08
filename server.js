@@ -90,14 +90,14 @@ function babel_handler(req, res){
 
 const lif_node_start = https_server=>etask(function*lif_node_start(){
   // XXX: save node id (in soul settings)?
-  let node = new Node({https_server});
+  let node = new Node({https_server}); // XXX: support wrtc
   xerr.notice('lif node id %s', node.id.s);
 });
 
 // XXX: mv to generic place
 const load_keypair = (file_key, file_pub)=>etask(function*load_keypair(){
   let key, pub;
-  // XXX: wrap fs api
+  // XXX: need fs api
   try { key = yield fs.promises.readFile(file_key, 'utf8'); }
   catch(err){ return xerr('server: failed to load key %s', file_key); }
   try { pub = yield fs.promises.readFile(file_pub, 'utf8'); }

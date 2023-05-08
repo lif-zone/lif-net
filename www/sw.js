@@ -1,6 +1,6 @@
 // author: derry. coder: arik.
 'use strict';
-self.importScripts('/.lif/lif_node.js');
+self.importScripts('/.lif/lif_node.bundle.js');
 self.importScripts('/.lif.babel.js');
 const Babel = self.Babel;
 const Node = self.lif_node.default;

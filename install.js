@@ -161,6 +161,7 @@ const main = ()=>etask(function*main(){
   let storage_dir = soul_dir+'/storage';
   let git_dir = soul_dir+'/git';
   let dst = dst_root+'/server';
+  let build_dir = dst+'/build';
   let src = cwd;
   let tmp = dst+'.tmp';
   let prev = dst+'.prev';
@@ -211,6 +212,7 @@ const main = ()=>etask(function*main(){
   }
   console.log('Move tmp dir to be new version %s', dst);
   fs.renameSync(tmp, dst);
+  create_dir(build_dir);
   console.log('Install service %s', svc);
   install_svc(svc, dst);
   console.log('Start service %s', svc);

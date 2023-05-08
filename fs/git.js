@@ -16,7 +16,8 @@ import buf_util from '../net/buf_util.js';
 import git_api from 'isomorphic-git';
 const b2s = buf_util.buf_to_str, s2b = buf_util.buf_from_str;
 
-function escape_fs(s){ return s.replaceAll('/', '_').replaceAll(':', '_'); }
+// XXX: mv to generic place
+function escape_url(s){ return s.replaceAll('/', '_').replaceAll(':', '_'); }
 
 const copy_commit_data_safe = (type, config, body, oid, commit)=>etask(
   function*copy_commit_data_safe()
@@ -103,7 +104,7 @@ function get_commit_raw(type, body){
   return Buffer.from(s);
 }
 
-export default class GIT extends FS {
+export default class Git extends FS {
   constructor(opt){
     super(opt);
     this.cache = {};
@@ -118,7 +119,7 @@ export default class GIT extends FS {
     if (!src)
       throw new Error('missing git src');
     let config = {fs, http, cache: _this.cache};
-    config.dir = opt.dir||'/tmp/lif_git_'+escape_fs(src);
+    config.dir = opt.dir||'/tmp/lif_git_'+escape_url(src);
     config.gitdir = opt.gitdir;
     if (opt.gitdir)
       yield git_api.init({...config});
@@ -182,7 +183,7 @@ export default class GIT extends FS {
     for (let oid in merge_queue){
       let git_br = merge_queue[oid];
       let seq = yield _this.find_one(oid, {dir: 'up',
-        name: 'com/mit_git_oid_all', cfid});
+        name: 'commit_git_oid_all', cfid});
       if (seq)
         continue;
       let commits = [];
@@ -676,7 +677,7 @@ export default class GIT extends FS {
   }); }
 }
 
-GIT.def_index = opt=>{
+Git.def_index = opt=>{
   return ['seal',
     {name: 'file', field: 'file', data: ['op', 'git.oid', 'git.mode']},
     {name: 'dir', field: 'dir', data: ['op', 'git.mode']},
@@ -701,12 +702,12 @@ GIT.def_index = opt=>{
       filter: {type: 'commit'}, data: 'git.oid'}];
 };
 
-GIT.create = (opt, d)=>etask(function*scroll_create(){
+Git.create = (opt, d)=>etask(function*scroll_create(){
   assert(d.git?.src, 'missing git src');
-  let git = new GIT(opt);
+  let git = new Git(opt);
   yield git.init();
   let s = {crypt: Scroll.supported_crypt[0], pub: b2s(opt.pub), ...d,
-    index: GIT.def_index()};
+    index: Git.def_index()};
   let head = s.git?.head||'main';
   yield git.decl({scroll: s});
   yield git.decl({type: 'git_br', op: 'add', git: {branch: head}});
@@ -714,7 +715,7 @@ GIT.create = (opt, d)=>etask(function*scroll_create(){
   return git;
 });
 
-GIT.open = opt=>etask(function*scroll_open(){
+Git.open = opt=>etask(function*scroll_open(){
   assert(util.is_mocha()||opt.soul, 'producion must use global soul');
   let seq, h;
   if (typeof opt.M=='string')
@@ -728,8 +729,9 @@ GIT.open = opt=>etask(function*scroll_open(){
   let soul = opt.soul||Scroll.soul, git = seq==0 && soul.get(h);
   if (git)
     return git;
-  git = new GIT(opt);
+  git = new Git(opt);
   yield git.init({M: h, seq});
   return git;
 });
 
+Git.escape_url = escape_url;

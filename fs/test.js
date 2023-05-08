@@ -8,7 +8,7 @@ import {valid_file, valid_dir} from './util.js';
 import {Buffer} from 'buffer';
 import crypto from '../util/crypto.js';
 import FS from './fs.js';
-import GIT from './git.js';
+import Git from './git.js';
 import git_util from './git_util.js';
 import buf_util from '../net/buf_util.js';
 import tparser from '../storage/test_parser.js';
@@ -189,8 +189,8 @@ const cmd_git = t=>etask(function*cmd_git(){
     scroll_decl.git.head = head;
   }
   yield new_scroll(name, M, null, t.prev?.ctx, db_opt, scroll_decl,
-    function create_func(opt, d){ return GIT.create(opt, d); },
-    function open_func(opt){ return GIT.open(opt); });
+    function create_func(opt, d){ return Git.create(opt, d); },
+    function open_func(opt){ return Git.open(opt); });
 });
 
 const cmd_sync = t=>etask(function*cmd_sync(){

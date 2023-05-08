@@ -234,6 +234,7 @@ E.get_ctx = function(domain){
 // - add test for branch.js _update_top when loading from db
 // - how to get list of scroll (eg. src=...)? index? scorll of scroll?
 // - server mocha from local don't use external cdn
+// - mv storage creation into new scroll to make api easier
 
 // server sync github/git1, it create scroll with root M0
 // after reboot, how to know M0 is the root of the scroll?

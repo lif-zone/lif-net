@@ -11,6 +11,8 @@ export default class Soul {
     this.soul = new Map();
     this.db = new DB({soul: this});
     this.name = opt.name;
+    this.conf = opt.conf;
+    this.keypair = opt.keypair;
     this.index_id_next = 0;
   }
   set(M0, scroll){

@@ -176,7 +176,7 @@ const soul_start = ()=>etask(function*soul_start(){
   yield DB.init({shim_conf: {checkOrigin: false, databaseBasePath: storage_dir,
     useSQLiteIndexes: true}});
   // XXX: need to save keypair in soul and a way to load/storre soul
-  let soul = new Soul({name: 'server'});
+  let soul = new Soul({name: 'server', conf: conf_soul, keypair});
   yield soul.db.init({postfix: soul.name});
   let storage = new Storage_handler({db: soul.db});
   let root = conf_soul.get('root'), settings;
@@ -184,44 +184,51 @@ const soul_start = ()=>etask(function*soul_start(){
     settings = yield Scroll.open({M: root, soul, ...keypair, storage});
     xerr.notice('server: load soul settings %s', root);
   } else {
-    settings = yield Scroll.create({soul, ...keypair, storage});
+    settings = yield Scroll.create({soul, ...keypair, storage},
+      {index: [{field: 'git.src', data: ['M']}]});
     yield settings.flush(); // XXX: do it autoatically on process exit
     xerr.notice('server: create soul settings %s', settings.name);
     yield conf_soul.set('root', settings.name);
   }
-  return; // XXX WIP
-  if (!conf.soul.git?.enable)
-    return xerr('server: git is disabled');
-  let git_dir = conf.soul.git.dir||dir+'/git';
-  xerr.notice('server: git is enabled at %s', git_dir);
-  let M, src = 'https://github.com/lif-rnd/test_site';
-  let git;
-  if (!M){
-    git = yield Git.create({soul, ...keypair, storage}, {git: {src}});
-    M = git.name;
-    xerr.notice('server: git clone scroll %s src %s', git.name, src);
-  } else {
-    git = yield Git.open({M, soul, ...keypair, storage});
-    xerr.notice('server: git load scroll %s src %s', M, src);
-  }
-  xerr.notice('server: git sync %s src %s top %s top_oid', M, src,
-    git.top.seq, yield git.get_git_br_top_oid(0, 'main'));
-  yield git.sync({dir: git_dir+'/lif-rnd_test_site'});
-  yield git.flush(); // XXX: do it autoatically on process exit
-  xerr.notice('server: git sync DONE %s src %s top %s top_oid', M, src,
-    git.top.seq, yield git.get_git_br_top_oid(0, 'main'));
+  return soul;
 });
 
-// XXX: WIP
-const start_git = ()=>etask(function*start_git(){
-  if (!conf.git?.enable)
-    return xerr.notice('server: git clone is disabled');
-  let dir = conf.git.dir;
-  xerr.notice('server: git clone is enabled dir %s', dir);
-  let a = opt_array(conf.git.clone);
+const start_git = soul=>etask(function*start_git(){
+  if (!conf.soul.git?.enable)
+    return xerr.notice('git: clone is disabled');
+  let settings = soul.get(soul.conf.get('root'));
+  let keypair = soul.keypair; // XXX: allow to scroll.create get it from soul
+  assert(settings, 'missing soul settings root');
+  let git_dir = conf.soul.git.dir||dir+'/git';
+  xerr.notice('git: clone is enabled at %s', git_dir);
+  let a = opt_array(conf.soul.git.clone), cfid = 0;
   for (let i=0; i<a.length; i++){
-    let src = a[i];
-    xerr.notice('server: git clone %s', src);
+    let src = a[i].toLowerCase(); // XXX: normalize
+    xerr.notice('git: clone %s', src);
+    // XXX: fix find_one_data api to auto-calc bseq if not provided
+    let bseq = settings.get_bseq_top(cfid, '0').bseq;
+    let git, o = yield settings.find_one_data(src, {dir: 'dn',
+      name: 'git.src', cfid, bseq}), M = o?.data.M;
+    let storage = new Storage_handler({db: soul.db});
+    if (!M){
+      git = yield Git.create({soul, ...keypair, storage}, {git: {src}});
+      M = git.name;
+      xerr.notice('git: clone scroll %s src %s', git.name, src);
+      yield git.flush();
+      // XXX derry: review and decide how to define deep links
+      // (and link to last seal)
+      yield settings.decl({git: {src}, M});
+      yield settings.flush();
+    } else {
+      git = yield Git.open({M, soul, ...keypair, storage});
+      xerr.notice('git: load scroll %s src %s', M, src);
+    }
+    xerr.notice('git: sync %s src %s top %s top_oid %s', M, src,
+      git.top.seq, yield git.get_git_br_top_oid(cfid, 'main'));
+    yield git.sync({dir: git_dir+'/'+Git.escape_url(src)});
+    yield git.flush(); // XXX: do it autoatically on process exit
+    xerr.notice('git: sync DONE %s src %s top %s top_oid %s', M, src,
+      git.top.seq, yield git.get_git_br_top_oid(cfid, 'main'));
   }
 });
 
@@ -232,7 +239,7 @@ const browserify_js = (target, files, opt={})=>etask(function*browserify_js(){
   if (browserify_map[key])
     return this.wait_ext(browserify_map[key]);
   let wait = browserify_map[key] = etask.wait();
-  xerr('browserfiy %s', target);
+  xerr.notice('server: browserfiy %s', target);
   fs.mkdirSync(build_dir, {recursive: true});
   var b = browserify(opt);
   b.add(files);
@@ -261,7 +268,7 @@ function test_serve(test){
 const main = ()=>etask(function*main(){
   assert(!server_et, 'server alredy running');
   this.on('uncaught', e=>xerr.xexit(e));
-  server_et = etask.wait();
+  server_et = this;
   xerr.notice('run lif server %s cwd %s dir %s',
     conf.production ? 'PRODUCTION' : 'DEV', cwd, dir);
   assert(conf.ip, 'missing server ip, check conf.json');
@@ -273,7 +280,8 @@ const main = ()=>etask(function*main(){
   // XXX: use link rel='modulepreload'
   let {app, https_server} = http_start(80, 443);
   yield lif_node_start(https_server);
-  yield soul_start();
+  let soul = yield soul_start();
+  server_et.spawn(start_git(soul));
   app.use(function(req, res, next){
     // XXX: set CORS/caching
     res.setHeader('Service-Worker-Allowed', '/');
@@ -302,6 +310,7 @@ const main = ()=>etask(function*main(){
   app.get('/.lif.favicon.svg', favicon_handler);
   yield browserify_js(build_dir+'/lif_node.bundle.js', [dir+'/net/node.js'],
     {debug: true, standalone: 'lif_node'});
+  return etask.wait();
 });
 
 main();

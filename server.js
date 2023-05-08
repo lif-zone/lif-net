@@ -60,22 +60,23 @@ function sni_cb(server_name, cb){
   if (!domain){
     let err = 'domain not handled '+domain;
     xerr('server: %s', err);
-    return cb(Error(err), null);
+    return cb(err, null);
   }
   let ctx = ssl.get_ctx(domain);
   if (!ctx){
     let err = 'failed to get ssl ctx for '+domain;
     xerr('server: %s', err);
-    return cb(Error(err), null);
+    return cb(err, null);
   }
   cb(null, ctx);
 }
 
-function http_start(port, ssl_port){
+function http_start(opt){
+  xerr.notice('server: start http %s https %s', opt.http, opt.https);
   let app = express();
-  let http_server = http.createServer(app).listen(port);
+  let http_server = http.createServer(app).listen(opt.http);
   let https_server = https.createServer({SNICallback: sni_cb}, app)
-  .listen(ssl_port);
+  .listen(opt.https);
   return {app, http_server, https_server};
 }
 
@@ -270,7 +271,7 @@ const main = ()=>etask(function*main(){
   // XXX: need dynamic reload on src change
   // XXX: use link rel='modulepreload'
   // XXX: allow to enable/disable http from conf
-  let {app, https_server} = http_start(80, 443);
+  let {app, https_server} = http_start({http: 80, https: 443});
   let soul = yield soul_start();
   yield lif_node_start(https_server);
   server_et.spawn(start_git(soul));

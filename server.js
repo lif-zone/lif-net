@@ -173,6 +173,7 @@ const soul_start = ()=>etask(function*soul_start(){
   yield soul.db.init({postfix: soul.name});
   let storage = new Storage_handler({db: soul.db}); // XXX: automatic in scroll
   let root = conf_soul.get('root'), settings;
+  // XXX: settings --> boot
   if (root){
     settings = yield Scroll.open({M: root, soul, ...keypair, storage});
     xerr.notice('server: load soul settings %s', root);
@@ -320,6 +321,9 @@ main();
 // - allow to put more info to acme cert
 // - allow to set ttl for txt response
 
+// LATER:
+// - wrtc+stun (after lif-chain)
+
 // From derry:
 // lif.zone --> DNS Q server
 // - domain that asking and doesn't exist
@@ -340,4 +344,14 @@ main();
 // (websocket URL...)
 // lif<->db
 
+// conf --> boot scroll --> dns csv --> arik.lif.zone domain --> domain storage
+// dns root M0
+// decl to 10: M0+10, M10, M10-tip
+// XXX tip is algorithm (eg. only tip that had no dispute in last 6m)
+// link also defined permissions (eg. this scroll is only for dns)
+// js bitcoin lib as base for lif-chain (find the best one)
+
+// lif.biz
+// services: dns,... (all old conf stuff)
+// how to find scroll of lif.biz site
 

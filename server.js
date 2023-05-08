@@ -106,18 +106,57 @@ const lif_node_start = https_server=>etask(function*lif_node_start(){
 // XXX: mv to generic place
 const load_keypair = (file_key, file_pub)=>etask(function*load_keypair(){
   let key, pub;
-  try { key = yield fs.promises.readFile(file_key, 'ascii'); }
+  try { key = yield fs.promises.readFile(file_key, 'utf8'); }
   catch(err){ return xerr('server: failed to load key %s', file_key); }
-  try { pub = yield fs.promises.readFile(file_pub, 'ascii'); }
+  try { pub = yield fs.promises.readFile(file_pub, 'utf8'); }
   catch(err){ return xerr('server: failed to load pub %s', file_pub); }
   return {key: s2b(key), pub: s2b(pub)};
 });
+
+// XXX: mv to generic place
+class Conf {
+constructor(file){ this.file = file; }
+
+init(){ return etask({_: this}, function*conf_init(){
+  let _this = this._, file = _this.file;
+  assert(!_this.inited, 'conf already inited '+file);
+  _this.inited = true;
+  try { yield fs.promises.access(file, fs.R_OK|fs.W_OK);
+  } catch(err){
+    xerr.notice('conf: create new %s', file);
+    _this.conf = {};
+    yield fs.promises.writeFile(file, _this.str(_this.conf), 'utf8');
+    return conf;
+  }
+  xerr.notice('conf: loading %s', file);
+  let s = yield fs.promises.readFile(file, 'utf8');
+  return _this.conf = JSON.parse(s);
+}); }
+
+save(){ return etask({_: this}, function*conf_save(){
+  let _this = this._;
+  // XXX: need to copy existing version and make this operation safe
+  yield fs.promises.writeFile(_this.file, _this.str(_this.conf), 'utf8');
+}); }
+
+get(path, val){ return util.get(this.conf, path); }
+
+set(path, val){ return etask({_: this}, function*conf_set(){
+  let _this = this._;
+  util.set(_this.conf, path, val);
+  yield _this.save(); // XXX: need to automatic flush
+}); }
+
+str(){ return JSON.stringify(this.conf, null, '  '); }
+}
 
 const soul_start = ()=>etask(function*soul_start(){
   if (!conf.soul?.enable)
     return xerr.notice('server: soul is disabled');
   xerr.notice('server: soul is enabled');
   let dir = conf.soul.dir||conf.dir+'/soul';
+  let conf_soul = new Conf(dir+'/conf.json');
+  yield conf_soul.init();
   let file_key = dir+'/priv.key', file_pub = dir+'/pub.key';
   let keypair = yield load_keypair(file_key, file_pub);
   if (keypair)
@@ -127,8 +166,8 @@ const soul_start = ()=>etask(function*soul_start(){
     keypair = yield crypto.keypair(crypt);
     xerr.notice('server: create new keypair pub %O at %s', b2s(keypair.pub),
       dir);
-    yield fs.promises.writeFile(file_pub, b2s(keypair.pub).toString());
-    yield fs.promises.writeFile(file_key, b2s(keypair.key).toString());
+    yield fs.promises.writeFile(file_pub, b2s(keypair.pub).toString(), 'utf8');
+    yield fs.promises.writeFile(file_key, b2s(keypair.key).toString(), 'utf8');
   }
   if (!conf.soul.storage?.enable)
     return xerr('server: storage is disabled');
@@ -139,13 +178,24 @@ const soul_start = ()=>etask(function*soul_start(){
   // XXX: need to save keypair in soul and a way to load/storre soul
   let soul = new Soul({name: 'server'});
   yield soul.db.init({postfix: soul.name});
+  let storage = new Storage_handler({db: soul.db});
+  let root = conf_soul.get('root'), settings;
+  if (root){
+    settings = yield Scroll.open({M: root, soul, ...keypair, storage});
+    xerr.notice('server: load soul settings %s', root);
+  } else {
+    settings = yield Scroll.create({soul, ...keypair, storage});
+    yield settings.flush(); // XXX: do it autoatically on process exit
+    xerr.notice('server: create soul settings %s', settings.name);
+    yield conf_soul.set('root', settings.name);
+  }
+  return; // XXX WIP
   if (!conf.soul.git?.enable)
     return xerr('server: git is disabled');
-  let storage = new Storage_handler({db: soul.db});
   let git_dir = conf.soul.git.dir||dir+'/git';
   xerr.notice('server: git is enabled at %s', git_dir);
-  let src = 'https://github.com/lif-rnd/test_site';
-  let M, git;
+  let M, src = 'https://github.com/lif-rnd/test_site';
+  let git;
   if (!M){
     git = yield Git.create({soul, ...keypair, storage}, {git: {src}});
     M = git.name;
@@ -154,13 +204,12 @@ const soul_start = ()=>etask(function*soul_start(){
     git = yield Git.open({M, soul, ...keypair, storage});
     xerr.notice('server: git load scroll %s src %s', M, src);
   }
-  xerr.notice('server: git sync %s src %s', M, src);
-  xerr.notice('server: sync START top %s top_oid %s', git.top.seq,
-    yield git.get_git_br_top_oid(0, 'main'));
+  xerr.notice('server: git sync %s src %s top %s top_oid', M, src,
+    git.top.seq, yield git.get_git_br_top_oid(0, 'main'));
   yield git.sync({dir: git_dir+'/lif-rnd_test_site'});
-  yield git.flush(); // XXX: also do it on process exit
-  xerr.notice('server: sync DONE top %s top_oid %s', git.top.seq,
-    yield git.get_git_br_top_oid(0, 'main'));
+  yield git.flush(); // XXX: do it autoatically on process exit
+  xerr.notice('server: git sync DONE %s src %s top %s top_oid', M, src,
+    git.top.seq, yield git.get_git_br_top_oid(0, 'main'));
 });
 
 // XXX: WIP

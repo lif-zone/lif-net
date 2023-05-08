@@ -27,5 +27,18 @@
     },
     "renew_expire_lt": "1mo",
     "cert": {}
+  },
+  "soul": {
+    "enable": true,
+    "dir": "/var/lif/soul",
+    "storage": {
+      "enable": true,
+      "dir": "/var/lif/soul/storage"
+    },
+    "git": {
+      "enable": true,
+      "dir": "/var/lif/soul/git",
+      "clone": ["https://github.com/lif-rnd/test_site"]
+    }
   }
 }

@@ -79,23 +79,14 @@ function http_start(port, ssl_port){
   return {app, http_server, https_server};
 }
 
-// XXX: check caching/other headers
+// XXX: check caching/other headers and wrap all nicely
 function index_html_handler(req, res){ res.sendFile(dir+'/www/index.html'); }
-
-// XXX: check caching/other headers
 function sw_handler(req, res){ res.sendFile(dir+'/www/sw.js'); }
-
-// XXX: check caching/other headers
 function lif_node_handler(req, res){
   res.sendFile(build_dir+'/lif_node.bundle.js'); }
-
-// XXX: check caching/other headers
 function favicon_handler(req, res){ res.sendFile(dir+'/www/favicon.svg'); }
-
-// XXX: check caching/other headers
 function babel_handler(req, res){
-  res.sendFile(dir+'//node_modules/@babel/standalone/babel.js');
-}
+  res.sendFile(dir+'//node_modules/@babel/standalone/babel.js'); }
 
 const lif_node_start = https_server=>etask(function*lif_node_start(){
   // XXX: save node id (in soul settings)?

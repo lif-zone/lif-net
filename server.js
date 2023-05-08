@@ -276,9 +276,9 @@ const main = ()=>etask(function*main(){
   assert(conf.domain, 'missing domain, check conf.json');
   yield dnss.start({ip: conf.ip, domain: conf.domain, ...conf.dnss});
   yield ssl.start({dnss, conf});
-  // XXX: need config www
   // XXX: need dynamic reload on src change
   // XXX: use link rel='modulepreload'
+  // XXX: allow to enable/disable http from conf
   let {app, https_server} = http_start(80, 443);
   let soul = yield soul_start();
   yield lif_node_start(https_server);
@@ -315,3 +315,37 @@ const main = ()=>etask(function*main(){
 });
 
 main();
+
+// TODO:
+// - fix net client to use same encryption as scroll (rm hypercore crypto)
+//   - save node id in persistent storage (scroll?)
+//   - fix node_map.js del_conn()
+//   - need api to wait for connection ready (verfiy we open connection only
+//     after got ack from other side
+// - fix json loading (don't use experimental feature) and use conf api
+// - cleanup all XXX in server.js
+// - BUG: setTimeout overflow (float/bigint supported?)
+// - allow to put more info to acme cert
+// - allow to set ttl for txt response
+
+// From derry:
+// lif.zone --> DNS Q server
+// - domain that asking and doesn't exist
+// - domain that existing and default
+// - domain that use dns entries (A, CNAME,...)
+// https://derry.lif.zone --> simple page to "buy" domain
+// Service Worker and HTTPXmlRequest/fetch()
+// .lif .lif.*
+// arik.lif.zone/.lif/get-chunk-hfhdf
+// arik.lif.zone/.lif.sw.js --> loads LIF net engine
+// arik.lif.zone/.lif.index.html
+// arik.lif.zone/ html content type: servce .lif.index.html
+// you surf to arik.lif.zone. server gets HTML req, and responds 302
+//   /.lif.index.html
+// which loads /.lif.sw.js
+// sw.js loads the LIF networking engine, which currently supports websocket.
+// it opens a connection to the server: /.lif.ws (written in /.lif.sw.js)
+// (websocket URL...)
+// lif<->db
+
+

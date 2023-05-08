@@ -98,7 +98,7 @@ function babel_handler(req, res){
 }
 
 const lif_node_start = https_server=>etask(function*lif_node_start(){
-  // XXX: save node id
+  // XXX: save node id (in soul settings)?
   let node = new Node({https_server});
   xerr.notice('lif node id %s', node.id.s);
 });
@@ -106,6 +106,7 @@ const lif_node_start = https_server=>etask(function*lif_node_start(){
 // XXX: mv to generic place
 const load_keypair = (file_key, file_pub)=>etask(function*load_keypair(){
   let key, pub;
+  // XXX: wrap fs api
   try { key = yield fs.promises.readFile(file_key, 'utf8'); }
   catch(err){ return xerr('server: failed to load key %s', file_key); }
   try { pub = yield fs.promises.readFile(file_pub, 'utf8'); }
@@ -144,7 +145,7 @@ get(path, val){ return util.get(this.conf, path); }
 set(path, val){ return etask({_: this}, function*conf_set(){
   let _this = this._;
   util.set(_this.conf, path, val);
-  yield _this.save(); // XXX: need to automatic flush
+  yield _this.save(); // XXX: need automatic flush
 }); }
 
 str(){ return JSON.stringify(this.conf, null, '  '); }
@@ -178,7 +179,7 @@ const soul_start = ()=>etask(function*soul_start(){
   // XXX: need to save keypair in soul and a way to load/storre soul
   let soul = new Soul({name: 'server', conf: conf_soul, keypair});
   yield soul.db.init({postfix: soul.name});
-  let storage = new Storage_handler({db: soul.db});
+  let storage = new Storage_handler({db: soul.db}); // XXX: automatic in scroll
   let root = conf_soul.get('root'), settings;
   if (root){
     settings = yield Scroll.open({M: root, soul, ...keypair, storage});
@@ -279,12 +280,12 @@ const main = ()=>etask(function*main(){
   // XXX: need dynamic reload on src change
   // XXX: use link rel='modulepreload'
   let {app, https_server} = http_start(80, 443);
-  yield lif_node_start(https_server);
   let soul = yield soul_start();
+  yield lif_node_start(https_server);
   server_et.spawn(start_git(soul));
   app.use(function(req, res, next){
     // XXX: set CORS/caching
-    res.setHeader('Service-Worker-Allowed', '/');
+    res.setHeader('Service-Worker-Allowed', '/'); // XXX: rm?
     next();
   });
   // XXX: rm in production

@@ -4,12 +4,14 @@ import Node from './node.js';
 import etask from '../util/etask.js';
 import xerr from '../util/xerr.js';
 import proc from '../util/proc.js';
+import crypto from '../util/crypto.js';
 
 proc.xexit_init();
 
 const start_lif_node = ()=>etask(function*start_lif_node(){
   // XXX: save node id
-  let node = new Node({bootstrap: ['wss://localhost']});
+  let keypair = yield crypto.keypair(crypto.crypt_def);
+  let node = new Node({bootstrap: ['wss://localhost'], ...keypair});
   xerr.notice('cli: node id %s', node.id.s);
   node.on('peer', id=>{
     xerr.notice('cli: connected to %s', id.s);

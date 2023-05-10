@@ -16,8 +16,10 @@ const DEF_RTT = 1000;
 export default class Router extends EventEmitter {
   constructor(opt){
     super();
-    let {channels, id, wallet} = opt;
-    this.wallet = wallet;
+    let {channels, id, crypt, key, pub} = opt;
+    this.crypt = crypt;
+    this.key = key;
+    this.pub = pub;
     this.id = id;
     this.msg_id_n = 0;
     this.concurrency = 1;

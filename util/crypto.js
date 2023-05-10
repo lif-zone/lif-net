@@ -95,3 +95,7 @@ E.hash = (crypt, buf)=>{
   }
 };
 
+E.supported_crypt = [{sig: 'secp256k1', hash: 'sha256', lif: 'lif1'},
+  {sig: 'ed25519', hash: 'blake2b', lif: 'lif1'}];
+
+E.crypt_def = E.supported_crypt[0];

@@ -91,7 +91,9 @@ function babel_handler(req, res){
 
 const lif_node_start = https_server=>etask(function*lif_node_start(){
   // XXX: save node id (in soul settings)?
-  let node = new Node({https_server}); // XXX: support wrtc
+  let keypair = yield crypto.keypair(crypto.crypt_def);
+  // XXX: support wrtc+stun
+  let node = new Node({https_server, ...keypair});
   xerr.notice('lif node id %s', node.id.s);
 });
 
@@ -343,6 +345,7 @@ main();
 // it opens a connection to the server: /.lif.ws (written in /.lif.sw.js)
 // (websocket URL...)
 // lif<->db
+// lif net client - support msg sign/verify
 
 // conf --> boot scroll --> dns csv --> arik.lif.zone domain --> domain storage
 // dns root M0

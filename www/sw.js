@@ -4,13 +4,17 @@ self.importScripts('/.lif/lif_node.bundle.js');
 self.importScripts('/.lif.babel.js');
 const Babel = self.Babel;
 const Node = self.lif_node.default;
+const crypto = Node.crypto;
 
+// XXX: use etask;
 async function init(){
   console.log('sw: init');
   try {
     let bootstrap = ['wss://'+location.host]; // XXX: let server configure it
     console.log('sw: connect to LIF bootstrap %s', bootstrap.join(' '));
-    let node = new Node({bootstrap});
+    // XXX: save node id (in soul settings)?
+    let keypair = await crypto.keypair(crypto.crypt_def);
+    let node = new Node({bootstrap, ...keypair});
     console.log('sw: node id %s', node.id.s);
     node.on('peer', id=>{
       console.log('sw: connected to %s', id.s);

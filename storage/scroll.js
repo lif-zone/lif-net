@@ -1692,8 +1692,7 @@ function support_crypt(crypt){
     o.hash==crypt.hash && o.lif==crypt.lif);
 }
 
-Scroll.supported_crypt = [{sig: 'secp256k1', hash: 'sha256', lif: 'lif1'},
-  {sig: 'ed25519', hash: 'blake2b', lif: 'lif1'}];
+Scroll.supported_crypt = crypto.supported_crypt;
 Scroll.support_crypt = support_crypt;
 Scroll.resolve_link = resolve_link;
 Scroll.hconcat = hconcat; // XXX need test

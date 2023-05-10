@@ -7,11 +7,11 @@ import NodeId from './node_id.js';
 import Channels from './channels.js';
 import Req from './req.js';
 import ReqHandler from './req_handler.js';
-import Wallet from './wallet.js';
 import WsConnector from './ws.js';
 import WrtcConnector from './wrtc.js';
 import xerr from '../util/xerr.js';
 import etask from '../util/etask.js';
+import crypto from '../util/crypto.js';
 const RING_NEIGHBOURS = 8;
 
 export default class Node extends EventEmitter {
@@ -19,13 +19,16 @@ export default class Node extends EventEmitter {
     super();
     if (!opt)
       opt = {};
-    this.wallet = new Wallet({keys: opt.keys});
-    let id = this.id = NodeId.from(this.wallet.keys.pub);
+    let {crypt, key, pub} = opt;
+    this.crypt = crypt = crypt||crypto.supported_crypt[0];
+    assert(key && pub, 'missing key/pub');
+    let id = this.id = NodeId.from(pub);
     // XXX: need cleanup for all internal structures
     this.pending = {};
     this.peers = new Channels();
     this.peers.on('removed', channel=>channel.destroy());
-    this.router = new Router({channels: this.peers, id, wallet: this.wallet});
+    this.router = new Router({channels: this.peers, id, key, pub,
+      crypt});
     this.ping_handler = new ReqHandler({node: this, cmd: 'ping'})
     .on('req', (msg, res)=>res.send('ping_r'));
     this.conn_handler = new ReqHandler({node: this, cmd: 'conn_info'})
@@ -160,3 +163,4 @@ export default class Node extends EventEmitter {
 Node.WsConnector = WsConnector;
 Node.WrtcConnector = WrtcConnector;
 Node.t = {};
+Node.crypto = crypto;

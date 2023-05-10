@@ -40,7 +40,6 @@
     "log-buffer": "0.0.3",
     "nconf": "0.11.3",
     "node-localstorage": "2.2.1",
-    "object-hash": "2.2.0",
     "query-string": "7.0.1",
     "random-access-memory": "4.0.0",
     "react": "18.2.0",

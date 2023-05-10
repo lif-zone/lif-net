@@ -18,7 +18,6 @@ import xsinon from '../util/sinon.js';
 import string from '../util/string.js';
 import xtest from '../util/test_lib.js';
 import xerr from '../util/xerr.js';
-import Wallet from './wallet.js';
 import {EventEmitter} from 'events';
 import bigInt from 'big-integer';
 const assign = Object.assign; // XXX: rm
@@ -727,8 +726,7 @@ class FakeHttpsServer extends EventEmitter {
 class FakeNode extends EventEmitter {
   constructor(opt){
     super();
-    this.wallet = new Wallet({keys: opt.keys});
-    this.id = NodeId.from(opt.keys.pub);
+    this.id = NodeId.from(opt.pub);
     this.msg_id_n = 0;
     this.wsConnector = new FakeWsConnector(this.id.b, opt.https_server);
     this.wrtcConnector = new FakeWrtcConnector(this.id.b, null, opt.wrtc);
@@ -1577,7 +1575,7 @@ function cmd_setup(opt){
 }
 
 function cmd_node(opt){
-  let {c} = opt, name, wss, wrtc, bootstrap, id, key;
+  let {c} = opt, name, wss, wrtc, bootstrap, id;
   let arg = xtest.test_parse_no_dir(c.arg);
   if (c.dir=='=')
     name = c.s;
@@ -1598,10 +1596,10 @@ function cmd_node(opt){
   assert(id, 'no id for '+name);
   assert(!t_ids[id.s], name+' id already used by '+t_ids[id.s]?.t.name);
   let fake = is_fake(name);
-  key = {pub: id.b, priv: '00'};
+  let pub = id.b, key = '00';
   assert(!wss || !node_from_url(wss.url), wss?.url+' already used');
   let node = new (fake ? FakeNode : Node)(assign(
-    {keys: {priv: s2b(key.priv), pub: s2b(key.pub)}, bootstrap, wrtc},
+    {key: s2b(key), pub: s2b(pub), bootstrap, wrtc},
     wss && {https_server: new FakeHttpsServer(wss)}));
   node.t = {id: node.id.s, name, fake, wss};
   xerr.notice('new node %s id %%s', name, node.id.s);
@@ -3408,48 +3406,6 @@ describe('api', function(){
       t('[1,2]\0ab', 'invalid buffer');
       t('[1,2]\0abcd', 'invalid buffer');
     });
-  });
-});
-
-describe('wallet', ()=>{
-  let keys = {priv: s2b('716b25e25964d9b1072035acc96f1b29d1d9196668ef52c49423'+
-    'e7fecb158be2'),
-    pub: s2b('020ece1895f758dded9b436f8ce4a2ae36f394f0ee27349046e84222b8b6e0'+
-      '12c8')};
-  let wallet = new Wallet({keys});
-  const t = (o, exp)=>assert.deepEqual(wallet.hash_passthrough(o), exp);
-  it('hash_obj', ()=>{
-    t({}, 'object:0:');
-    t({from: 'a'}, 'object:1:string:4:from:string:1:a,');
-    t({from: 'a', body: undefined},
-      'object:2:string:4:body:Null,string:4:from:string:1:a,');
-    t({path: []}, 'object:0:');
-    t({path: ['a']}, 'object:0:');
-    t({sign: 's'}, 'object:0:');
-  });
-  it('sign', ()=>{
-    const t = msg=>{
-      msg.sign = wallet.sign(msg);
-      assert(wallet.verify(msg));
-      assert(wallet.verify(msg, msg.sign));
-      assert(wallet.verify(msg, msg.sign, keys.pub));
-    };
-    t({});
-    t({path: []});
-    t({from: 'a'});
-  });
-  it('sign_fake', ()=>{
-    let keys = {priv: '00', pub: 'ff000000'};
-    let wallet = new Wallet({keys});
-    const t = msg=>{
-      msg.sign = wallet.sign(msg);
-       assert(wallet.verify(msg));
-       assert(wallet.verify(msg, msg.sign));
-       assert(wallet.verify(msg, msg.sign, keys.pub));
-    };
-    t({});
-    t({path: []});
-    t({from: 'a'});
   });
 });
 

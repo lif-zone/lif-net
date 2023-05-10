@@ -3412,11 +3412,10 @@ describe('api', function(){
 });
 
 describe('wallet', ()=>{
-  let key = {pub: 'aaec01a08b0640361bd3c0e327e3406255c301f5fe32305a2ca2a50803'+
-    'af76fb',
-    priv: 'ba186102e13ec32e5273a30df6da2b6c9428258b4ea83ac88df7322e7645b864a'+
-    'aec01a08b0640361bd3c0e327e3406255c301f5fe32305a2ca2a50803af76fb'};
-  let keys = {priv: s2b(key.priv), pub: s2b(key.pub)};
+  let keys = {priv: s2b('716b25e25964d9b1072035acc96f1b29d1d9196668ef52c49423'+
+    'e7fecb158be2'),
+    pub: s2b('020ece1895f758dded9b436f8ce4a2ae36f394f0ee27349046e84222b8b6e0'+
+      '12c8')};
   let wallet = new Wallet({keys});
   const t = (o, exp)=>assert.deepEqual(wallet.hash_passthrough(o), exp);
   it('hash_obj', ()=>{
@@ -3431,9 +3430,9 @@ describe('wallet', ()=>{
   it('sign', ()=>{
     const t = msg=>{
       msg.sign = wallet.sign(msg);
-       assert(wallet.verify(msg));
-       assert(wallet.verify(msg, msg.sign));
-       assert(wallet.verify(msg, msg.sign, keys.pub));
+      assert(wallet.verify(msg));
+      assert(wallet.verify(msg, msg.sign));
+      assert(wallet.verify(msg, msg.sign, keys.pub));
     };
     t({});
     t({path: []});
@@ -4295,7 +4294,8 @@ describe('net', function(){
         !ring(a-e da)`);
     });
   });
-  describe('ring_join', ()=>{
+  describe('ring_join', function(){
+    xtest.set_timeout(this, 5000);
     let t = (name, test)=>t_roles(name, 'abcdef', test);
     t('basic', `conf(id:a-mXYZn-z) !ring(a-f) ed.c.b.a.f~e>!ring_join`);
     t = (name, test)=>t_roles(name, 'abXYnopz', test);

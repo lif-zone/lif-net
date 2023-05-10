@@ -355,3 +355,6 @@ main();
 // services: dns,... (all old conf stuff)
 // how to find scroll of lif.biz site
 
+// format of boot scroll
+// how to edit boot scrool
+

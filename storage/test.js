@@ -1645,7 +1645,7 @@ describe('scroll', function(){
       });
     });
     describe('storage', function(){
-      this.timeout(5000);
+      xtest.set_timeout(this, 5000);
       // XXX: simplify storage testing with mem
       describe('mem', ()=>{
         t('seq0', `s.scroll S..# clone(s..)

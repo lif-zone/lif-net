@@ -11,6 +11,7 @@ import WsConnector from './ws.js';
 import WrtcConnector from './wrtc.js';
 import xerr from '../util/xerr.js';
 import etask from '../util/etask.js';
+import xutil from '../util/util.js';
 import crypto from '../util/crypto.js';
 const RING_NEIGHBOURS = 8;
 
@@ -19,7 +20,7 @@ export default class Node extends EventEmitter {
     super();
     if (!opt)
       opt = {};
-    let {crypt, key, pub} = opt;
+    let {crypt, key, pub} = opt, _this = this;
     this.crypt = crypt = crypt||crypto.supported_crypt[0];
     assert(key && pub, 'missing key/pub');
     let id = this.id = NodeId.from(pub);
@@ -29,6 +30,14 @@ export default class Node extends EventEmitter {
     this.peers.on('removed', channel=>channel.destroy());
     this.router = new Router({channels: this.peers, id, key, pub,
       crypt});
+    if (!xutil.is_mocha()){ // XXX: test is (and review behavior)
+      this.connect_handler = new ReqHandler({node: this,
+        cmd: 'connect'}).on('req', (msg, res)=>
+      {
+        _this.emit('connected', res.dst);
+        res.send_close();
+      });
+    }
     this.ping_handler = new ReqHandler({node: this, cmd: 'ping'})
     .on('req', (msg, res)=>res.send('ping_r'));
     this.conn_handler = new ReqHandler({node: this, cmd: 'conn_info'})

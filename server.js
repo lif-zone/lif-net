@@ -31,7 +31,6 @@ let server_et;
 proc.xexit_init(do_exit);
 
 function do_exit(err){
-  // XXX: improve error message and sepcify how to completely disable dns
   if (/bind EADDRINUSE [0-9.]*:53/.test(err)){
     xerr('*** cannot bind dns port 53 - EADDRINUSE ***\n'+
       'There is another application using port 53 (eg systemd-resolved).\n'+
@@ -312,11 +311,11 @@ const main = ()=>etask(function*main(){
 main();
 
 // TODO:
-// - fix net client to use same encryption as scroll (rm hypercore crypto)
+// - fix net client
 //   - save node id in persistent storage (scroll?)
-//   - fix node_map.js del_conn()
-//   - need api to wait for connection ready (verfiy we open connection only
-//     after got ack from other side
+//   - fix node_map.js del_conn() + test
+//   o review+test 'connected' event
+//   o support msg sign/verify
 // - fix json loading (don't use experimental feature) and use conf api
 // - cleanup all XXX in server.js
 // - BUG: setTimeout overflow (float/bigint supported?)
@@ -345,7 +344,6 @@ main();
 // it opens a connection to the server: /.lif.ws (written in /.lif.sw.js)
 // (websocket URL...)
 // lif<->db
-// lif net client - support msg sign/verify
 
 // conf --> boot scroll --> dns csv --> arik.lif.zone domain --> domain storage
 // dns root M0
@@ -354,10 +352,8 @@ main();
 // link also defined permissions (eg. this scroll is only for dns)
 // js bitcoin lib as base for lif-chain (find the best one)
 
-// lif.biz
-// services: dns,... (all old conf stuff)
-// how to find scroll of lif.biz site
-
-// format of boot scroll
+// format of boot scroll (multiple types in same scroll, json, fs,...)
 // how to edit boot scrool
+// text file -> scroll
+// json6
 

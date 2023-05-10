@@ -16,7 +16,7 @@ async function init(){
     let keypair = await crypto.keypair(crypto.crypt_def);
     let node = new Node({bootstrap, ...keypair});
     console.log('sw: node id %s', node.id.s);
-    node.on('peer', id=>{
+    node.on('connected', id=>{
       console.log('sw: connected to %s', id.s);
       setTimeout(()=>{
         console.log('sw: >ping');

@@ -13,13 +13,11 @@ const start_lif_node = ()=>etask(function*start_lif_node(){
   let keypair = yield crypto.keypair(crypto.crypt_def);
   let node = new Node({bootstrap: ['wss://localhost'], ...keypair});
   xerr.notice('cli: node id %s', node.id.s);
-  node.on('peer', id=>{
+  node.on('connected', id=>{
     xerr.notice('cli: connected to %s', id.s);
-    setTimeout(()=>{
-      xerr.notice('cli: >ping');
-      let req = node.ping(id.s, {});
-      req.on('res', msg=>xerr.notice('cli: <ping_r'));
-    }, 500);
+    xerr.notice('cli: >ping');
+    let req = node.ping(id.s, {});
+    req.on('res', msg=>xerr.notice('cli: <ping_r'));
   });
 });
 

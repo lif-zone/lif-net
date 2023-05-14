@@ -30,8 +30,6 @@ data = [ // KEYPATH h
 export default class Storage_handler {
   constructor(opt){
     let {db} = opt;
-    if (!db.inited)
-      throw new Error('db not inited');
     this.db = db;
     this.db_queue = [];
     this.listeners_decl = {};
@@ -46,6 +44,8 @@ export default class Storage_handler {
       throw new Error('storage_handler already inited');
     _this.inited = true;
     let scroll = _this.scroll = opt.scroll;
+    if (!db.inited)
+      yield db.init({postfix: scroll.soul.name||''});
     assert.strictEqual(scroll.top, null, 'scroll must be empty');
     assert.strictEqual(scroll.dmap.size, 0, 'scroll must be empty');
     assert.strictEqual(scroll.conflict.get(0).top, null,

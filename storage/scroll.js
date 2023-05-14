@@ -7,6 +7,7 @@ import util from '../util/util.js';
 import Branch_table from './branch.js';
 import Mem_map from './mem_map.js';
 import Index from './index.js';
+import Storage_handler from './storage.js';
 import etask from '../util/etask.js';
 import xerr from '../util/xerr.js';
 import enc from 'compact-encoding';
@@ -430,7 +431,8 @@ export default class Scroll extends EventEmitterAsync {
     this.pub = opt.pub||soul.keypair?.pub;
     this.key = opt.key||soul.keypair?.key;
     assert(this.pub, 'missing pub key');
-    this.storage = opt.storage;
+    this.storage = opt.storage || opt.db && soul.db ?
+      new Storage_handler({db: soul.db}) : undefined;
     this.crypt = opt.crypt||Scroll.supported_crypt[0];
     assert(support_crypt(this.crypt), 'unsupported crypt');
     this.prev_scroll = opt.prev_scroll;

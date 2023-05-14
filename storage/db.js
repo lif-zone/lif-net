@@ -268,6 +268,8 @@ DB.init = opt=>etask(function*db_init(){
   DB.inited = true;
   if (!is_node)
     return;
+  // XXX HACK: we need to sleep so shim be applied
+  yield etask.sleep(0);
   global.ShimEventTarget.prototype.triggerErrorEvent =
     (err, evt)=>xerr.xexit(err);
   global.DOMException = global.ShimDOMException;

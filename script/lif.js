@@ -37,7 +37,6 @@ const parse_decl = s=>etask(function*parse_decl(){
   return a;
 });
 
-
 const scroll_init = opt=>etask(function*scroll_init(){
   // XXX: simplify scorll api
   let keypair = yield Soul.read_keypair(opt.key, opt.pub);

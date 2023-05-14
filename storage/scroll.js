@@ -522,6 +522,7 @@ export default class Scroll extends EventEmitterAsync {
   to_scfid(cfid){ return this.conflict.get(cfid).db?.data.scfid; }
   decl(opt, frames){ return etask({_: this}, function*decl(){
     let _this = this._;
+    debugger;
     yield _this.lock();
     if (frames===undefined)
       [opt, frames] = [{cfid: 0}, opt];
@@ -1670,7 +1671,7 @@ Scroll.create = (opt, d)=>etask(function*scroll_create(){
   let scroll = new Scroll(opt);
   yield scroll.init();
   scroll.decl([{scroll: {crypt: Scroll.supported_crypt[0],
-    pub: b2s(opt.pub), ...d}}]);
+    pub: b2s(opt.pub||soul.keypair?.pub), ...d}}]);
   return scroll;
 });
 

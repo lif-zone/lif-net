@@ -16,7 +16,7 @@ import ssl from './net/ssl.js';
 import etask from './util/etask.js';
 import xerr from './util/xerr.js';
 import proc from './util/proc.js';
-import conf from './util/conf.js';
+import conf from './util/conf.js'; // XXX: rm
 import crypto from './util/crypto.js';
 import browserify from 'browserify';
 import util from './util/util.js';

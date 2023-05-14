@@ -101,6 +101,7 @@ class Frame_buffer extends EventEmitterAsync {
     this.crypt = crypt;
     this.set_frames_raw(frames);
   }
+  size(){ return this.frames?.length; }
   set_frames_raw(frames){
     if (this.frames)
       assert.deepEqual(this.frames, [{}], 'frames already populated');

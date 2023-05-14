@@ -21,7 +21,7 @@ import crypto from './util/crypto.js';
 import browserify from 'browserify';
 import util from './util/util.js';
 import buf_util from './net/buf_util.js';
-const s2b = buf_util.buf_from_str, b2s = buf_util.buf_to_str;
+const b2s = buf_util.buf_to_str;
 const {opt_array} = util;
 const cwd = process.cwd();
 const dir = conf.production ? conf.install_dir+'/server' : cwd;
@@ -97,17 +97,6 @@ const lif_node_start = https_server=>etask(function*lif_node_start(){
 });
 
 // XXX: mv to generic place
-const load_keypair = (file_key, file_pub)=>etask(function*load_keypair(){
-  let key, pub;
-  // XXX: need fs api
-  try { key = yield fs.promises.readFile(file_key, 'utf8'); }
-  catch(err){ return xerr('server: failed to load key %s', file_key); }
-  try { pub = yield fs.promises.readFile(file_pub, 'utf8'); }
-  catch(err){ return xerr('server: failed to load pub %s', file_pub); }
-  return {key: s2b(key), pub: s2b(pub)};
-});
-
-// XXX: mv to generic place
 class Conf {
 constructor(file){ this.file = file; }
 
@@ -151,8 +140,8 @@ const soul_start = ()=>etask(function*soul_start(){
   let dir = conf.soul.dir||conf.dir+'/soul';
   let conf_soul = new Conf(dir+'/conf.json');
   yield conf_soul.init();
-  let file_key = dir+'/priv.key', file_pub = dir+'/pub.key';
-  let keypair = yield load_keypair(file_key, file_pub);
+  let file_key = dir+'/priv.key', file_pub = dir+'/pub.key', keypair;
+  try { keypair = yield Soul.read_keypair(file_key, file_pub); } catch(err){}
   if (keypair)
     xerr.notice('server: using keypair pub %s from %s', b2s(keypair.pub), dir);
   else if (!keypair){
@@ -160,8 +149,7 @@ const soul_start = ()=>etask(function*soul_start(){
     keypair = yield crypto.keypair(crypt);
     xerr.notice('server: create new keypair pub %O at %s', b2s(keypair.pub),
       dir);
-    yield fs.promises.writeFile(file_pub, b2s(keypair.pub).toString(), 'utf8');
-    yield fs.promises.writeFile(file_key, b2s(keypair.key).toString(), 'utf8');
+    yield Soul.write_keypair(keypair, file_key, file_pub);
   }
   if (!conf.soul.storage?.enable)
     return xerr('server: storage is disabled');
@@ -169,7 +157,7 @@ const soul_start = ()=>etask(function*soul_start(){
   xerr.notice('server: storage is enabled at %s', storage_dir);
   yield DB.init({shim_conf: {checkOrigin: false, databaseBasePath: storage_dir,
     useSQLiteIndexes: true}});
-  // XXX: need to save keypair in soul and a way to load/storre soul
+  // XXX: need to save keypair in soul and a way to load/store soul
   let soul = new Soul({name: 'server', conf: conf_soul, keypair});
   yield soul.db.init({postfix: soul.name});
   let storage = new Storage_handler({db: soul.db}); // XXX: automatic in scroll
@@ -313,12 +301,13 @@ main();
 // TODO:
 // - fix net client
 //   - save node id in persistent storage (scroll?)
-//   - fix node_map.js del_conn() + test
+//   o fix node_map.js del_conn() + test
 //   o review+test 'connected' event
 //   o support msg sign/verify
 // - fix json loading (don't use experimental feature) and use conf api
 // - cleanup all XXX in server.js
 // - BUG: setTimeout overflow (float/bigint supported?)
+//   etask.setTimeout/setInterval
 // - allow to put more info to acme cert
 // - allow to set ttl for txt response
 
@@ -357,3 +346,46 @@ main();
 // text file -> scroll
 // json6
 
+// $ clif --key ~/key append 09ABCDE001 ~/scroll_boot.js
+/*
+[
+  {content: {
+    ssl: {
+      enable: true,
+      cert_dir: '/var/lif/ssl/cert', // XXX: how to link to cert in scroll?
+      acme: {enable: true},
+      renew_expire_lt: '1mo',
+    }
+  }
+]
+
+// $ clif --key ~/key cat 09ABCDE001 ~/scroll_boot.js
+// XXX --include: sig,...
+// XXX --raw
+[
+  [{seq: 0}, {content: {
+    ssl: {
+      enable: true,
+      cert_dir: '/var/lif/ssl/cert', // XXX: how to link to cert in scroll?
+      acme: {enable: true},
+      renew_expire_lt: '1mo',
+      xxx: '1'
+    }
+  }],
+  // anything below will e added to scroll
+  {content: {
+    ssl: {
+      enable: true,
+      cert_dir: '/var/lif/ssl/cert2',
+      acme: {enable: false},
+      renew_expire_lt: '2mo',
+    }
+  }
+]
+
+  // XXX: if --raw then content will be JSON.stringify of content
+  // [{seq], {type:json, content:'{"ssl":...}'}]
+  // or if >64K
+  // [{seq], {type:json, content: 1}, '{"ssl":...}']
+
+*/

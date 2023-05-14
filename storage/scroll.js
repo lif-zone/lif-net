@@ -425,11 +425,11 @@ function Map_get_one(){
 export default class Scroll extends EventEmitterAsync {
   constructor(opt){
     super();
-    assert(opt.pub, 'missing pub key');
     assert(util.is_mocha()||opt.soul, 'producion must use global soul');
-    this.soul = opt.soul||Scroll.soul;
-    this.pub = opt.pub;
-    this.key = opt.key;
+    let soul = this.soul = opt.soul||Scroll.soul;
+    this.pub = opt.pub||soul.keypair?.pub;
+    this.key = opt.key||soul.keypair?.key;
+    assert(this.pub, 'missing pub key');
     this.storage = opt.storage;
     this.crypt = opt.crypt||Scroll.supported_crypt[0];
     assert(support_crypt(this.crypt), 'unsupported crypt');

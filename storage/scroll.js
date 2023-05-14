@@ -525,11 +525,13 @@ export default class Scroll extends EventEmitterAsync {
       [opt, frames] = [{cfid: 0}, opt];
     if (typeof opt=='number')
       opt = {cfid: opt};
-    let {cfid, prev, bseq, group, link, branch} = opt;
+    let {cfid, prev, bseq, group, link, branch, ts} = opt;
     // XXX: assert some validty on bsec (that it free in branch table)
     cfid = cfid||0;
     let top = _this.conflict.get(cfid).top;
-    let seq = top ? top.seq+1 : 0, header = {seq, ts: Date.now()};
+    if (ts===undefined)
+      ts = Date.now();
+    let seq = top ? top.seq+1 : 0, header = {seq, ts};
     if (prev>0 && prev!=seq-1){
       assert(Number.isInteger(prev), 'invalid prev '+prev);
       header.prev = prev;

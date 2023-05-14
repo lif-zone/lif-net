@@ -707,7 +707,7 @@ Git.create = (opt, d)=>etask(function*scroll_create(){
   let git = new Git(opt);
   yield git.init();
   let s = {crypt: Scroll.supported_crypt[0],
-    pub: b2s(opt.pub||soul.keypair?.pub), ...d, index: Git.def_index()};
+    pub: b2s(opt.pub||opt.soul.keypair?.pub), ...d, index: Git.def_index()};
   let head = s.git?.head||'main';
   yield git.decl({scroll: s});
   yield git.decl({type: 'git_br', op: 'add', git: {branch: head}});

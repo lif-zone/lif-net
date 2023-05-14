@@ -359,7 +359,7 @@ FS.create = (opt, d)=>etask(function*scroll_create(){
   let fs = new FS(opt);
   yield fs.init();
   let s = {crypt: Scroll.supported_crypt[0],
-    pub: b2s(opt.pub||soul.keypair?.pub), ...d, index: FS.def_index(d)};
+    pub: b2s(opt.pub||opt.soul.keypair?.pub), ...d, index: FS.def_index(d)};
   yield fs.decl({scroll: s});
   return fs;
 });

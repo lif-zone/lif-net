@@ -9,7 +9,6 @@ import Node from './net/node.js';
 import Scroll from './storage/scroll.js';
 import Soul from './storage/soul.js';
 import DB from './storage/db.js';
-import Storage_handler from './storage/storage.js';
 import Git from './fs/git.js';
 import dnss from './net/dnss.js';
 import ssl from './net/ssl.js';
@@ -158,15 +157,13 @@ const soul_start = ()=>etask(function*soul_start(){
   yield DB.init({db_dir: storage_dir});
   // XXX: need to save keypair in soul and a way to load/store soul
   let soul = new Soul({name: 'server', conf: conf_soul, keypair});
-  yield soul.db.init({postfix: soul.name});
-  let storage = new Storage_handler({db: soul.db}); // XXX: automatic in scroll
   let root = conf_soul.get('root'), settings;
   // XXX: settings --> boot
   if (root){
-    settings = yield Scroll.open({M: root, soul, ...keypair, storage});
+    settings = yield Scroll.open({M: root, soul, ...keypair, db: true});
     xerr.notice('server: load soul settings %s', root);
   } else {
-    settings = yield Scroll.create({soul, ...keypair, storage},
+    settings = yield Scroll.create({soul, ...keypair, db: true},
       {index: [{field: 'git.src', data: ['M']}]});
     yield settings.flush(); // XXX: do it autoatically on process exit
     xerr.notice('server: create soul settings %s', settings.name);
@@ -191,9 +188,8 @@ const start_git = soul=>etask(function*start_git(){
     let bseq = settings.get_bseq_top(cfid, '0').bseq;
     let git, o = yield settings.find_one_data(src, {dir: 'dn',
       name: 'git.src', cfid, bseq}), M = o?.data.M;
-    let storage = new Storage_handler({db: soul.db});
     if (!M){
-      git = yield Git.create({soul, ...keypair, storage}, {git: {src}});
+      git = yield Git.create({soul, ...keypair, db: true}, {git: {src}});
       M = git.name;
       xerr.notice('git: clone scroll %s src %s', git.name, src);
       yield git.flush();
@@ -202,7 +198,7 @@ const start_git = soul=>etask(function*start_git(){
       yield settings.decl({git: {src}, M});
       yield settings.flush();
     } else {
-      git = yield Git.open({M, soul, ...keypair, storage});
+      git = yield Git.open({M, soul, ...keypair, db: true});
       xerr.notice('git: load scroll %s src %s', M, src);
     }
     xerr.notice('git: sync %s src %s top %s top_oid %s', M, src,

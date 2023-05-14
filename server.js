@@ -155,8 +155,7 @@ const soul_start = ()=>etask(function*soul_start(){
     return xerr('server: storage is disabled');
   let storage_dir = conf.soul.storage.dir||dir+'/storage';
   xerr.notice('server: storage is enabled at %s', storage_dir);
-  yield DB.init({shim_conf: {checkOrigin: false, databaseBasePath: storage_dir,
-    useSQLiteIndexes: true}});
+  yield DB.init({db_dir: storage_dir});
   // XXX: need to save keypair in soul and a way to load/store soul
   let soul = new Soul({name: 'server', conf: conf_soul, keypair});
   yield soul.db.init({postfix: soul.name});

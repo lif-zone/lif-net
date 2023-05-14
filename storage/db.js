@@ -271,7 +271,9 @@ DB.init = opt=>etask(function*db_init(){
   global.ShimEventTarget.prototype.triggerErrorEvent =
     (err, evt)=>xerr.xexit(err);
   global.DOMException = global.ShimDOMException;
-  global.shimIndexedDB.__setConfig(opt.shim_conf);
+  global.shimIndexedDB.__setConfig(opt.shim_conf || (opt.db_dir ?
+    {checkOrigin: false, databaseBasePath: opt.db_dir,
+    useSQLiteIndexes: true} : undefined));
 });
 
 DB.query_to_str = query_to_str;

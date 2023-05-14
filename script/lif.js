@@ -11,7 +11,6 @@ import crypto from '../util/crypto.js';
 import getopt from 'node-getopt';
 import Soul from '../storage/soul.js';
 import Scroll from '../storage/scroll.js';
-import Storage_handler from '../storage/storage.js';
 import DB from '../storage/db.js';
 const {opt_array} = util;
 let gopt;
@@ -39,22 +38,19 @@ const parse_decl = s=>etask(function*parse_decl(){
 
 const scroll_init = opt=>etask(function*scroll_init(){
   // XXX: simplify scorll api
+  yield DB.init({db_dir: opt.db_dir});
   let keypair = yield Soul.read_keypair(opt.key, opt.pub);
-  yield DB.init({shim_conf: {checkOrigin: false, databaseBasePath: opt.db_dir,
-    useSQLiteIndexes: true}});
   let soul = new Soul({name: opt.soul, keypair});
-  yield soul.db.init({postfix: soul.name});
-  let storage = new Storage_handler({db: soul.db});
-  return {soul, storage, keypair};
+  return {soul};
 });
 
 const scroll_new = (src, opt)=>etask(function*scroll_new(){
-  let {soul, keypair, storage} = yield scroll_init(opt);
+  let {soul} = yield scroll_init(opt);
   let s = yield fs.promises.readFile(src, 'utf8');
   let a = yield parse_decl(s);
   if (!a || !a[0] || !a[0].scroll)
     do_error(gopt, 'missing scroll decl at '+src+': '+s);
-  let scroll = yield Scroll.create({soul, ...keypair, storage}, a[0].scroll);
+  let scroll = yield Scroll.create({soul, db: true}, a[0].scroll);
   console.log('Created new scroll %s a %O', scroll.name, a);
 });
 
@@ -102,8 +98,8 @@ function decl_cat(decl, cfid, opt){
 
 const scroll_cat = (M, opt)=>etask(function*scroll_cat(){
   let cfid = 0;
-  let {soul, keypair, storage} = yield scroll_init(opt);
-  let scroll = yield Scroll.open({M, soul, ...keypair, storage});
+  let {soul} = yield scroll_init(opt);
+  let scroll = yield Scroll.open({M, soul, db: true});
   let top = scroll.conflict.get(cfid).top.seq;
   console.log('[');
   for (let i=0; i<=top; i++){
@@ -116,8 +112,8 @@ const scroll_cat = (M, opt)=>etask(function*scroll_cat(){
 
 const scroll_append = (M, src, opt)=>etask(function*scroll_append(){
   let cfid = 0;
-  let {soul, keypair, storage} = yield scroll_init(opt);
-  let scroll = yield Scroll.open({M, soul, ...keypair, storage});
+  let {soul} = yield scroll_init(opt);
+  let scroll = yield Scroll.open({M, soul, db: true});
   let s = yield fs.promises.readFile(src, 'utf8');
   let a = yield parse_decl(s);
   let top = scroll.conflict.get(cfid).top.seq;

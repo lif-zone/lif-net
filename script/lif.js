@@ -54,19 +54,28 @@ const scroll_new = (src, opt)=>etask(function*scroll_new(){
   console.log('Created new scroll %s a %O', scroll.name, a);
 });
 
-// XXX: mv to util
+// XXX: mv to util + test
 function json6_stringify(o){
-  let ret = '';
-  for (let name in o){
-    let val = o[name], type = typeof val;
-    let s = name+': ';
-    switch (type){
-    case 'number': s+= val; break;
-    case 'boolean': s+= val; break;
-    case 'string': s+= '`'+val.replaceAll('`', '\\`')+'`'; break;
-    case 'object': s+= json6_stringify(val); break;
-    default: do_error(gopt, 'unknown type '+type);
+  let ret = '', type = typeof o;
+  if (type=='number')
+    return ''+o;
+  if (type=='boolean')
+    return ''+o;
+  if (type=='string')
+    return '`'+o.replaceAll('`', '\\`')+'`';
+  if (Array.isArray(o)){
+    for (let i=0; i<o.length; i++){
+      let s = json6_stringify(o[i]);
+      ret += (ret ? ', ' : '')+s;
     }
+    ret = '['+ret+']';
+    return ret;
+  }
+  if (type!='object')
+    do_error(gopt, 'unknown type '+type);
+  for (let name in o){
+    let val = o[name];
+    let s = name+': '+json6_stringify(val);
     ret += (ret ? ', ' : '')+s;
   }
   ret = '{'+ret+'}';
@@ -135,7 +144,10 @@ const scroll_append = (M, src, opt)=>etask(function*scroll_append(){
    sudo ./lif.js --key ~/tmp/key1.key --pub ~/tmp/key1.pub  --db_dir /var/lif/soul/storage --soul lif_db_server new ~/tmp/scroll.txt
    sudo ./lif.js --key ~/tmp/key1.key --pub ~/tmp/key1.pub  --db_dir /var/lif/soul/storage --soul lif_db_server cat 6f11e33e2f4f7dde59f1c276073e1599d257628e092940b731fa1dfe29f99c6a > ~/tmp/out.js
    sudo ./lif.js --key ~/tmp/key1.key --pub ~/tmp/key1.pub  --db_dir /var/lif/soul/storage --soul lif_db_server append 6f11e33e2f4f7dde59f1c276073e1599d257628e092940b731fa1dfe29f99c6a ~/tmp/out.js
+   sudo ./lif.js --soul server new ~/tmp/scroll.txt
+   sudo ./lif.js --soul server cat fd835dd087ac68f43225a2a288d430da62388704ee140ee98d24fc980e761482
 */
+// XXX: need lif.js list
 const main = ()=>etask(function*main(){
   this.on('uncaught', e=>xerr.xexit(e));
   // XXX: allow simple usage by provide soul dir
@@ -150,6 +162,14 @@ const main = ()=>etask(function*main(){
       '  ./lif.js --key=[key] --pub=[pub] new [src_file]\n'
     ).parseSystem();
   let {argv, options} = gopt;
+  let lif_dir = '/var/lif2'; // XXX
+  let {key, pub, db_dir, soul} = options, soul_dir;
+  if (soul){
+    soul_dir = lif_dir+'/soul/'+soul;
+    key = key || soul_dir+'/'+soul+'.key';
+    pub = pub || soul_dir+'/'+soul+'.pub';
+    db_dir = db_dir || soul_dir+'/db';
+  }
   // XXX: need better cli api
   switch (argv[0]){
     case 'keypair':
@@ -160,27 +180,21 @@ const main = ()=>etask(function*main(){
     case 'new':
       if (!argv[1])
         do_error(gopt, 'Missing source file');
-      if (!options.key)
-        do_error(gopt, 'Missing private key');
-      if (!options.pub)
-        do_error(gopt, 'Missing public key');
-      if (!options.db_dir)
-        do_error(gopt, 'Missing db_dir path');
-      if (!options.soul)
+      if (!soul)
         do_error(gopt, 'Missing soul name');
-      yield scroll_new(argv[1], options);
+      yield scroll_new(argv[1], {soul, key, pub, db_dir});
       break;
     case 'cat':
       if (!argv[1])
         do_error(gopt, 'Missing scroll root');
-      yield scroll_cat(argv[1], options);
+      yield scroll_cat(argv[1], {soul, key, pub, db_dir});
       break;
     case 'append':
       if (!argv[1])
         do_error(gopt, 'Missing scroll root');
       if (!argv[2])
         do_error(gopt, 'Missing decl file');
-      yield scroll_append(argv[1], argv[2], options);
+      yield scroll_append(argv[1], argv[2], {soul, key, pub, db_dir});
       break;
     default: do_error(gopt, 'Unknown command '+argv[0]);
   }

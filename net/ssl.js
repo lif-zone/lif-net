@@ -99,7 +99,7 @@ const acme_monitor = ()=>etask(function*acme_monitor(){
       }
       xerr.notice('ssl: issue new acme cert for %s%s', domain, valid_for ?
         ' current will expire in '+valid_for/date.ms.DAY+' days' : '');
-      if (!E.conf.production){ // XXX: fixme
+      if (E.conf.dev){
         xerr('ssl: skip acme in dev env');
         continue;
       }
@@ -139,12 +139,13 @@ E.start = opt=>etask(function*ssl_start(){
   E.inited = true;
   E.cert = {};
   E.domains = domains;
-  E.renew_expire_lt = date.str_to_dur(conf.ssl.renew_expire_lt)||
-    E.RENEW_EXPIRE_LT;
+  E.renew_expire_lt = Math.max(date.str_to_dur(conf.ssl?.renew_expire_lt||'')
+    ||E.RENEW_EXPIRE_LT, date.ms.WEEK);
   if (!conf.ssl?.enable)
-    return xerr.notice('ssl: module disabled');
-  xerr.notice('ssl: module enabled');
-  for (let domain in conf.ssl.cert||{})
+    return xerr.notice('ssl: disabled');
+  xerr.notice('ssl: module enabled renew every %s',
+    date.dur_to_str(E.renew_expire_lt));
+  for (let domain in conf.ssl?.cert||{})
     yield load_cert(domain, conf.ssl.cert[domain]);
   if (!conf.ssl.acme.enable)
     return xerr.notice('ssl: acme disabled');

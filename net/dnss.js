@@ -23,7 +23,7 @@ const Packet_parse = Packet.parse;
 Packet.parse = function(buffer){
   try { return Packet_parse.call(Packet, buffer); }
   catch(err){
-    xerr('dnss failed to parse packet %s', err.stack);
+    xerr('dnss: failed to parse packet %s', err.stack);
     return new Packet();
   }
 };
@@ -71,8 +71,10 @@ function res_type_soa(name){
 
 E.start = opt=>{
   if (E.server)
-    throw new Error('dnss already started');
-  let {port, domain, ip} = opt;
+    throw new Error('dnss: already started');
+  let {port, domain, ip, enable} = opt;
+  if (!enable)
+    return xerr.notice('dnss: disabled');
   E.res_cache = {};
   E.txt = {};
   E.ip = opt_array(ip);
@@ -115,14 +117,14 @@ E.start = opt=>{
           }
           break;
         case Packet.TYPE.TXT: res.answers = res_type_txt(name); break;
-        default: xerr.debug('dnss unsupported type %s', type); // XXX TODO
+        default: xerr.debug('dnss: unsupported type %s', type); // XXX TODO
         }
         send(res);
-      } catch(err){ xerr('dnss error %s', err.stack||err); }
+      } catch(err){ xerr('dnss: error %s', err.stack||err); }
     })
   });
   server.on('close', ()=>xerr.notice('dnss: closed'));
-  xerr.notice('dnss: listen on udp+tcp ports %s domains %s', port, domain);
+  xerr.notice('dnss: listen on udp+tcp ports %s domain %s', port, domain);
   server.listen({udp: port, tcp: port});
 };
 

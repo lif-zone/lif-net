@@ -6,7 +6,7 @@ import https from 'https';
 import fs from 'fs';
 import assert from 'assert';
 import Node from './net/node.js';
-import Scroll from './storage/scroll.js';
+import Scroll_conf from './storage/conf.js';
 import Soul from './storage/soul.js';
 import DB from './storage/db.js';
 import Git from './fs/git.js';
@@ -15,16 +15,12 @@ import ssl from './net/ssl.js';
 import etask from './util/etask.js';
 import xerr from './util/xerr.js';
 import proc from './util/proc.js';
-import conf from './util/conf.js'; // XXX: rm
-import crypto from './util/crypto.js';
 import browserify from 'browserify';
 import util from './util/util.js';
 import buf_util from './net/buf_util.js';
 const b2s = buf_util.buf_to_str;
 const {opt_array} = util;
 const cwd = process.cwd();
-const dir = conf.production ? conf.install_dir+'/server' : cwd;
-const build_dir = dir+'/build';
 let server_et;
 
 proc.xexit_init(do_exit);
@@ -69,29 +65,52 @@ function sni_cb(server_name, cb){
   cb(null, ctx);
 }
 
-function http_start(opt){
+const http_start = opt=>etask({_: this}, function*http_start(){
   xerr.notice('server: start http %s https %s', opt.http, opt.https);
+  let {app_dir, build_dir} = opt;
   let app = express();
   let http_server = http.createServer(app).listen(opt.http);
   let https_server = https.createServer({SNICallback: sni_cb}, app)
   .listen(opt.https);
+  // XXX: check caching/other headers and wrap all nicely
+  // XXX: rm in production
+  app.get('/.lif/test.html',
+    (req, res)=>res.sendFile(app_dir+'/www/test.html'));
+  // XXX: fix test files to include mocha from local include
+  app.get('/.lif/test_util.html',
+    (req, res)=>res.sendFile(app_dir+'/www/test_util.html'));
+  app.get('/.lif/test_storage.html',
+    (req, res)=>res.sendFile(app_dir+'/www/test_storage.html'));
+  app.get('/.lif/test_net.html',
+    (req, res)=>res.sendFile(app_dir+'/www/test_net.html'));
+  app.get('/.lif/test_fs.html',
+    (req, res)=>res.sendFile(app_dir+'/www/test_fs.html'));
+  app.get('/.lif/build/util_test.bundle.js',
+    test_serve('util/test.js', app_dir, build_dir));
+  app.get('/.lif/build/net_test.bundle.js',
+    test_serve('net/test.js', app_dir, build_dir));
+  app.get('/.lif/build/storage_test.bundle.js',
+    test_serve('storage/test.js', app_dir, build_dir));
+  app.get('/.lif/build/fs_test.bundle.js',
+    test_serve('fs/test.js', app_dir, build_dir));
+  // XXX: use link rel='modulepreload'
+  app.get('/', (req, res)=>res.sendFile(app_dir+'/www/index.html'));
+  app.get('/.lif.sw.js', (req, res)=>res.sendFile(app_dir+'/www/sw.js'));
+  app.get('/.lif/lif_node.bundle.js',
+    (req, res)=>res.sendFile(build_dir+'/lif_node.bundle.js'));
+  // XXX: review babel/favicon
+  app.get('/.lif.babel.js', (req, res)=>
+    res.sendFile(app_dir+'//node_modules/@babel/standalone/babel.js'));
+  app.get('/.lif.favicon.svg',
+    (req, res)=>res.sendFile(app_dir+'/www/favicon.svg'));
+  this.spawn(browserify_js(build_dir, build_dir+'/lif_node.bundle.js',
+    [app_dir+'/net/node.js'], {debug: true, standalone: 'lif_node'}));
   return {app, http_server, https_server};
-}
+});
 
-// XXX: check caching/other headers and wrap all nicely
-function index_html_handler(req, res){ res.sendFile(dir+'/www/index.html'); }
-function sw_handler(req, res){ res.sendFile(dir+'/www/sw.js'); }
-function lif_node_handler(req, res){
-  res.sendFile(build_dir+'/lif_node.bundle.js'); }
-function favicon_handler(req, res){ res.sendFile(dir+'/www/favicon.svg'); }
-function babel_handler(req, res){
-  res.sendFile(dir+'//node_modules/@babel/standalone/babel.js'); }
-
-const lif_node_start = https_server=>etask(function*lif_node_start(){
-  // XXX: save node id (in soul settings)?
-  let keypair = yield crypto.keypair(crypto.crypt_def);
+const lif_node_start = (soul, https_server)=>etask(function*lif_node_start(){
   // XXX: support wrtc+stun
-  let node = new Node({https_server, ...keypair});
+  let node = new Node({https_server, ...soul.keypair});
   xerr.notice('lif node id %s', node.id.s);
 });
 
@@ -108,7 +127,6 @@ init(){ return etask({_: this}, function*conf_init(){
     xerr.notice('conf: create new %s', file);
     _this.conf = {};
     yield fs.promises.writeFile(file, _this.str(_this.conf), 'utf8');
-    return conf;
   }
   xerr.notice('conf: loading %s', file);
   let s = yield fs.promises.readFile(file, 'utf8');
@@ -132,53 +150,40 @@ set(path, val){ return etask({_: this}, function*conf_set(){
 str(){ return JSON.stringify(this.conf, null, '  '); }
 }
 
-const soul_start = ()=>etask(function*soul_start(){
-  if (!conf.soul?.enable)
-    return xerr.notice('server: soul is disabled');
-  xerr.notice('server: soul is enabled');
-  let dir = conf.soul.dir||conf.dir+'/soul';
-  let conf_soul = new Conf(dir+'/conf.json');
-  yield conf_soul.init();
-  let file_key = dir+'/priv.key', file_pub = dir+'/pub.key', keypair;
-  try { keypair = yield Soul.read_keypair(file_key, file_pub); } catch(err){}
-  if (keypair)
-    xerr.notice('server: using keypair pub %s from %s', b2s(keypair.pub), dir);
-  else if (!keypair){
-    let crypt = Scroll.supported_crypt[0];
-    keypair = yield crypto.keypair(crypt);
-    xerr.notice('server: create new keypair pub %O at %s', b2s(keypair.pub),
-      dir);
-    yield Soul.write_keypair(keypair, file_key, file_pub);
-  }
-  if (!conf.soul.storage?.enable)
-    return xerr('server: storage is disabled');
-  let storage_dir = conf.soul.storage.dir||dir+'/storage';
-  xerr.notice('server: storage is enabled at %s', storage_dir);
-  yield DB.init({db_dir: storage_dir});
-  // XXX: need to save keypair in soul and a way to load/store soul
-  let soul = new Soul({name: 'server', conf: conf_soul, keypair});
-  let root = conf_soul.get('root'), settings;
-  // XXX: settings --> boot
-  if (root){
-    settings = yield Scroll.open({M: root, soul, ...keypair, db: true});
-    xerr.notice('server: load soul settings %s', root);
-  } else {
-    settings = yield Scroll.create({soul, ...keypair, db: true},
-      {index: [{field: 'git.src', data: ['M']}]});
-    yield settings.flush(); // XXX: do it autoatically on process exit
-    xerr.notice('server: create soul settings %s', settings.name);
-    yield conf_soul.set('root', settings.name);
-  }
+const get_boot_scroll = opt=>etask(function*get_boot_scroll(){
+  let {dir, soul_name, boot_root} = opt;
+  assert(dir, 'missing boot dir');
+  assert(soul_name, 'missing soul soul_name');
+  assert(boot_root, 'missing boot_root');
+  let soul_dir = dir+'/soul/'+soul_name;
+  let soul = yield soul_init({name: soul_name, soul_dir});
+  let boot = yield Scroll_conf.open({M: boot_root, soul, db: true});
+  assert(boot.top.seq>0, 'boot scroll is empty');
+  xerr.notice('boot: using boot scroll %s\n'+
+    'script/lif.js --soul %s cat %s', boot.name, soul_name, boot_root);
+  return boot;
+});
+
+const soul_init = opt=>etask(function*soul_init(){
+  let {name, soul_dir} = opt;
+  let file_key = soul_dir+'/'+name+'.key';
+  let file_pub = soul_dir+'/'+name+'.pub';
+  let keypair = yield Soul.read_keypair(file_key, file_pub);
+  let soul = new Soul({name: 'server', keypair});
+  let db_dir = soul_dir+'/db';
+  yield DB.init({db_dir});
+  xerr.notice('soul: init pub %s at %s', b2s(keypair.pub), soul_dir);
   return soul;
 });
 
 const start_git = soul=>etask(function*start_git(){
+  let conf = {}; // XXX TODO
   if (!conf.soul.git?.enable)
     return xerr.notice('git: clone is disabled');
   let settings = soul.get(soul.conf.get('root'));
   let keypair = soul.keypair; // XXX: allow to scroll.create get it from soul
   assert(settings, 'missing soul settings root');
-  let git_dir = conf.soul.git.dir||dir+'/git';
+  let git_dir = conf.soul.git.dir; // XXX ||dir+'/git';
   xerr.notice('git: clone is enabled at %s', git_dir);
   let a = opt_array(conf.soul.git.clone), cfid = 0;
   for (let i=0; i<a.length; i++){
@@ -211,7 +216,8 @@ const start_git = soul=>etask(function*start_git(){
 });
 
 const browserify_map = {};
-const browserify_js = (target, files, opt={})=>etask(function*browserify_js(){
+const browserify_js = (build_dir, target, files, opt={})=>
+  etask(function*browserify_js(){
   // XXX: hack. need better memory map and also don't generate if in disk)
   let key = target+JSON.stringify(opt);
   if (browserify_map[key])
@@ -234,11 +240,11 @@ const browserify_js = (target, files, opt={})=>etask(function*browserify_js(){
   return wait;
 });
 
-function test_serve(test){
+function test_serve(test, app_dir, build_dir){
   return (req, res)=>etask(function*(){
     let file = test.replaceAll('/', '_').replace('.js', '.bundle.js');
-    yield browserify_js(build_dir+'/'+file,
-      [dir+'/'+test], {debug: true});
+    yield browserify_js(build_dir, build_dir+'/'+file,
+      [app_dir+'/'+test], {debug: true});
     res.sendFile(build_dir+'/'+file);
   });
 }
@@ -247,47 +253,32 @@ const main = ()=>etask(function*main(){
   assert(!server_et, 'server alredy running');
   this.on('uncaught', e=>xerr.xexit(e));
   server_et = this;
-  xerr.notice('run lif server %s cwd %s dir %s',
-    conf.production ? 'PRODUCTION' : 'DEV', cwd, dir);
-  assert(conf.ip, 'missing server ip, check conf.json');
-  assert(conf.domain, 'missing domain, check conf.json');
+  let init_conf_file = cwd+'/conf.json';
+  xerr.notice('boot: init conf %s', init_conf_file);
+  let init_conf = new Conf(init_conf_file);
+  yield init_conf.init();
+  let dir = init_conf.get('dir');
+  let boot = yield get_boot_scroll({dir, soul_name: init_conf.get('soul_name'),
+    boot_root: init_conf.get('boot')});
+  let soul = boot.soul;
+  let conf = yield boot.get('');
+  let domain = opt_array(conf.domain);
+  let ip = opt_array(conf.ip);
+  let dev = !!conf.dev; // XXX: chnage default to production (conf.dev)
+  xerr.notice('boot: startup mode %s domain: %s ip: %s',
+    dev ? 'DEV' : 'PROD', domain.join(','), ip.join(','));
+  assert(ip?.length, 'missing server ip, check conf.json');
+  assert(domain?.length, 'missing domain, check conf.json');
   yield dnss.start({ip: conf.ip, domain: conf.domain, ...conf.dnss});
   yield ssl.start({dnss, conf});
-  // XXX: need dynamic reload on src change
-  // XXX: use link rel='modulepreload'
+  let app_dir = dev ? cwd : dir+'/server';
+  let build_dir = dev ? cwd+'/build' : dir+'/build';
   // XXX: allow to enable/disable http from conf
-  let {app, https_server} = http_start({http: 80, https: 443});
-  let soul = yield soul_start();
-  yield lif_node_start(https_server);
-  server_et.spawn(start_git(soul));
-  app.use(function(req, res, next){
-    // XXX: set CORS/caching
-    res.setHeader('Service-Worker-Allowed', '/'); // XXX: rm?
-    next();
-  });
-  // XXX: rm in production
-  app.get('/.lif/test.html', (req, res)=>res.sendFile(dir+'/www/test.html'));
-  // XXX: fix test files to include mocha from local include
-  app.get('/.lif/test_util.html',
-    (req, res)=>res.sendFile(dir+'/www/test_util.html'));
-  app.get('/.lif/test_storage.html',
-    (req, res)=>res.sendFile(dir+'/www/test_storage.html'));
-  app.get('/.lif/test_net.html',
-    (req, res)=>res.sendFile(dir+'/www/test_net.html'));
-  app.get('/.lif/test_fs.html',
-    (req, res)=>res.sendFile(dir+'/www/test_fs.html'));
-  app.get('/.lif/build/util_test.bundle.js', test_serve('util/test.js'));
-  app.get('/.lif/build/net_test.bundle.js', test_serve('net/test.js'));
-  app.get('/.lif/build/storage_test.bundle.js', test_serve('storage/test.js'));
-  app.get('/.lif/build/fs_test.bundle.js', test_serve('fs/test.js'));
-  app.get('/', index_html_handler);
-  app.get('/.lif.sw.js', sw_handler);
-  app.get('/.lif/lif_node.bundle.js', lif_node_handler);
-  // XXX: review babel/favicon
-  app.get('/.lif.babel.js', babel_handler);
-  app.get('/.lif.favicon.svg', favicon_handler);
-  yield browserify_js(build_dir+'/lif_node.bundle.js', [dir+'/net/node.js'],
-    {debug: true, standalone: 'lif_node'});
+  let {https_server} = yield http_start({http: 80, https: 443,
+    app_dir, build_dir});
+  yield lif_node_start(soul, https_server);
+  if (0) // XXX TODO
+    server_et.spawn(start_git(soul));
   return etask.wait();
 });
 
@@ -335,52 +326,3 @@ main();
 // XXX tip is algorithm (eg. only tip that had no dispute in last 6m)
 // link also defined permissions (eg. this scroll is only for dns)
 // js bitcoin lib as base for lif-chain (find the best one)
-
-// format of boot scroll (multiple types in same scroll, json, fs,...)
-// how to edit boot scrool
-// text file -> scroll
-// json6
-
-// $ clif --key ~/key append 09ABCDE001 ~/scroll_boot.js
-/*
-[
-  {content: {
-    ssl: {
-      enable: true,
-      cert_dir: '/var/lif/ssl/cert', // XXX: how to link to cert in scroll?
-      acme: {enable: true},
-      renew_expire_lt: '1mo',
-    }
-  }
-]
-
-// $ clif --key ~/key cat 09ABCDE001 ~/scroll_boot.js
-// XXX --include: sig,...
-// XXX --raw
-[
-  [{seq: 0}, {content: {
-    ssl: {
-      enable: true,
-      cert_dir: '/var/lif/ssl/cert', // XXX: how to link to cert in scroll?
-      acme: {enable: true},
-      renew_expire_lt: '1mo',
-      xxx: '1'
-    }
-  }],
-  // anything below will e added to scroll
-  {content: {
-    ssl: {
-      enable: true,
-      cert_dir: '/var/lif/ssl/cert2',
-      acme: {enable: false},
-      renew_expire_lt: '2mo',
-    }
-  }
-]
-
-  // XXX: if --raw then content will be JSON.stringify of content
-  // [{seq], {type:json, content:'{"ssl":...}'}]
-  // or if >64K
-  // [{seq], {type:json, content: 1}, '{"ssl":...}']
-
-*/

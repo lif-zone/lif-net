@@ -145,6 +145,8 @@ E.set_buffered = function(on, max_size){
 };
 
 E.flush = function(){
+  if (!E.buffered)
+    return;
   if (!E.log.length)
     return;
   console.error(E.log.join('\n'));
@@ -210,6 +212,7 @@ E._xerr = _xerr;
 
 E.xexit = function(args){
   var stack;
+  E.flush();
   if (err_has_stack(args)){
     stack = args.stack;
     __xerr(L.CRIT, [E.e2s(args)]);
@@ -219,10 +222,10 @@ E.xexit = function(args){
     stack = e.stack;
     __xerr(L.CRIT, arguments);
   }
-  E.flush();
   if ((args&&args.code)!='ERR_ASSERTION')
     console.error('xerr.xexit was called', new Error().stack);
-  console.error('CRASH:\n'+stack);
+  if (args.stack!==stack)
+    console.error('CRASH:\n'+stack);
   debugger; // eslint-disable-line no-debugger
   _process.exit(1);
 };
@@ -268,6 +271,7 @@ E._xerr = _xerr;
 
 E.xexit = function(args){
   var stack;
+  E.flush();
   if (err_has_stack(args)){
     stack = args.stack;
     _xerr(L.CRIT, [E.e2s(args)]);
@@ -277,10 +281,10 @@ E.xexit = function(args){
     stack = e.stack;
     _xerr(L.CRIT, arguments);
   }
-  E.flush();
   if ((args&&args.code)!='ERR_ASSERTION')
     console.error('xerr.xexit was called', new Error().stack);
-  console.error('CRASH:\n'+stack);
+  if (args.stack!==stack)
+    console.error('CRASH:\n'+stack);
   debugger; // eslint-disable-line no-debugger
   throw new Error('CRIT');
 };

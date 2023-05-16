@@ -33,7 +33,7 @@ E.get_host_without_tld = function(host){
   return host.replace(/^([^.]+)\.[^.]{2,3}(\.[^.]{2,3})?$/, '$1');
 };
 
-// XXX josh: move to email.js:get_domain
+// XXX move to email.js:get_domain
 E.get_domain_email = function(email){
   var match = email.toLowerCase().match(/^[a-z0-9_.\-+]+@(.*)$/);
   return match && match[1];
@@ -144,14 +144,14 @@ E.is_valid_url = function(url){
 E.is_valid_domain = function(domain){
   return /^([a-z0-9]([a-z0-9-_]*[a-z0-9])?\.)+[a-z]{2,63}$/.test(domain); };
 
-// XXX josh: move to email.js:is_valid
+// XXX: move to email.js:is_valid
 E.is_valid_email = function(email){
   var re = /^[a-z0-9_\-+]+(?:\.[a-z0-9_\-+]+)*@(.*)$/;
   var n = email.toLowerCase().match(re);
   return !!(n && E.is_valid_domain(n[1]));
 };
 
-// XXX dmitriie: move to email.js:is_alias
+// XXX: move to email.js:is_alias
 E.is_alias_email = function(email){
   if (!E.is_valid_email(email))
     return false;
@@ -159,7 +159,7 @@ E.is_alias_email = function(email){
   return !!(n && /.+\+.+/.test(n[1]));
 };
 
-// XXX dmitriie: move to email.js:get_main
+// XXX: move to email.js:get_main
 E.get_main_email = function(email){
   if (!E.is_valid_email(email))
     return;

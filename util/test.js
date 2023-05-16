@@ -1,5 +1,8 @@
 // author: derry. coder: arik.
 'use strict'; /*eslint-env mocha*/
+import net from 'net';
+import fs from 'fs';
+import path from 'path';
 import etask from './etask.js';
 import date from './date.js';
 import xutil from './util.js';
@@ -8,6 +11,9 @@ import ver_util from './ver_util.js';
 import conv from './conv.js';
 import xtest from './test_lib.js';
 import xerr from './xerr.js';
+import file from './file.js';
+import efile from './efile.js';
+import buf_pool from './buf_pool.js';
 import xurl from './url.js';
 import url from 'url';
 import sprintf from './sprintf.js';
@@ -23,6 +29,8 @@ import D from 'd.js'; // XXX: rm
 import _ from 'underscore'; // XXX: rm _
 import when from 'when'; // XXX: rm
 const is_node = typeof navigator==='undefined';
+const qw = string.qw;
+const tdir = '/tmp/test_util.'+Math.random();
 xtest.init();
 const seq = xtest.seq, ms = date.ms, assign = Object.assign;
 
@@ -47,6 +55,57 @@ describe('string', function(){
     t('aA', 'aa', -1);
     t('abcd', 'abCd', 1);
   });
+  it('split_trim', ()=>{
+    let t = (s, sep, a)=>assert.deepStrictEqual(
+      string.split_trim(s, sep), a);
+    t('', / /, []);
+    t('  ', / /, []);
+    t(' a ', / /, ['a']);
+    t(' aa  bb ', / /, ['aa', 'bb']);
+    t(' aa  bb ', ' ', ['aa', 'bb']);
+    t(' aa,,  bb, ', ',', [' aa', '  bb', ' ']);
+  });
+  it('split_ws', ()=>{
+    let t = (s, a)=>{
+      assert.deepStrictEqual(string.split_ws(s), a);
+      assert.deepStrictEqual(string.qw(s), a);
+    };
+    t('', []);
+    t('  ', []);
+    t(' a ', ['a']);
+    t(' aa \r\n\t bb ', ['aa', 'bb']);
+  });
+  it('es6_str', ()=>{
+    let foo = 1, bar = 'z', qux = ' q u x ';
+    function tt(){ return string.es6_str(arguments); }
+    let t = (res, exp)=>assert.deepStrictEqual(res, exp);
+    t(tt``, '');
+    t(tt` aa \r\n\t bb `, ' aa \r\n\t bb ');
+    t(tt`${foo}`, '1');
+    t(tt`a${foo}b`, 'a1b');
+    t(tt`  ${foo}  `, '  1  ');
+    t(tt`${foo} ${bar}`, '1 z');
+    t(tt`a${qux}b`, 'a q u x b');
+    t(tt`a${['x', 'y']}b`, 'ax,yb');
+    t(tt`a${['x', 'y'].join('+')}b`, 'ax+yb');
+  });
+  it('qw', ()=>{
+    let qw = string.qw;
+    let foo = 1, bar = 'z', qux = ' q u x ';
+    let t = (res, exp)=>assert.deepStrictEqual(res, exp);
+    t(qw``, []);
+    t(qw`  `, []);
+    t(qw` a `, ['a']);
+    t(qw` aa \r\n\t bb `, ['aa', 'bb']);
+    t(qw`${foo}`, ['1']);
+    t(qw`a${foo}b`, ['a1b']);
+    t(qw`  ${foo}  `, ['1']);
+    t(qw`${foo}${bar}`, ['1z']);
+    t(qw`${foo} ${bar}`, ['1', 'z']);
+    t(qw`${qux}`, ['q', 'u', 'x']);
+    t(qw`a${qux}b`, ['a', 'q', 'u', 'x', 'b']);
+    t(qw(['a', 'b']), ['a', 'b']);
+  });
 });
 
 describe('conv', ()=>{
@@ -58,6 +117,236 @@ describe('conv', ()=>{
         t(fn2('a', 'b'), 'a-b');
         t(fn2('a', 'b'), 'a-b');
         t(fn2('1', '2'), '1-2');
+    });
+    it('scaled_number', ()=>{
+        let t = (num, str, opt)=>
+            assert.strictEqual(conv.scaled_number(num, opt), str, ''+num);
+        t(undefined, '');
+        t(NaN, 'x');
+        t(NaN, 'Z', {nan: 'Z'});
+        t(Infinity, '\u221e');
+        t(-Infinity, '-\u221e');
+        t(0, '0');
+        t(1, '1');
+        t(100, '100');
+        t(0.1231, '0.123');
+        t(0.1239, '0.124');
+        t(1.135, '1.14');
+        t(10.15, '10.2');
+        t(99.6, '99.6');
+        t(99.95, '100');
+        t(100.51, '101');
+        t(998.5, '999');
+        t(999.5, '999');
+        t(999.9, '999', {scale: ''});
+        t(1000.5, '1000', {scale: ''});
+        t(1000.9, '1000', {scale: ''});
+        t(1001.9, '1001', {scale: ''});
+        t(0.0001234, '0');
+        t(0.001234, '0.001');
+        t(12.345e3, '12.3K');
+        t(12.345e3, '12.3 K', {space: true});
+        t(1.234567e6, '1.23M');
+        t(1.235678901e9, '1.24G');
+        t(78.9123e12, '78.9T');
+        t(0, '0', {scale: 'K'});
+        t(1000, '1K', {scale: 'K'});
+        t(1005, '1K', {scale: 'K'});
+        t(1005.9, '1.01K', {scale: 'K'});
+        t(1006, '1.01K', {scale: 'K'});
+        t(1009, '1.01K', {scale: 'K'});
+        t(0.012345e6, '0.012M', {scale: 'M'});
+        t(1234567, '1234567', {scale: ''});
+        t(78912.3e9, '78912G', {scale: 'G'});
+        t(1395, '0', {scale: 'G'});
+        t(1, '1s', {per: 's'});
+        t(200, '200s', {per: 's'});
+        t(1000, '1Ks', {per: 's'});
+        t(1000000, '1Ms', {per: 's'});
+        t(1, '1ms', {per: 'ms'});
+        t(200, '200ms', {per: 'ms'});
+        t(1000, '1s', {per: 'ms'});
+        t(1000000, '1Ks', {per: 'ms'});
+        t(0, '0s', {per: 's'});
+        t(-0.1231, '-0.123');
+        t(-0.0001234, '0');
+        t(12.345e3, '12.3K');
+        t(-12.345e3, '-12.3K');
+        t(-1.235678901e9, '-1.24G');
+        t(1.4, '1.4');
+        t(1.40, '1.4');
+        t(1200, '1.2K');
+        t(1040000, '1.04M');
+        t(4400000, '4.4M');
+        t(4400040000, '4.4G');
+        t(14e-1, '1.4');
+        t(140e-2, '1.4');
+        t(1.2e3, '1.2K');
+        t(104e4, '1.04M');
+        t(44e5, '4.4M');
+        t(440004e4, '4.4G');
+        t(-1.4, '-1.4');
+        t(-1.40, '-1.4');
+        t(-1200, '-1.2K');
+        t(-1040000, '-1.04M');
+        t(-4400000, '-4.4M');
+    });
+    it('scaled_number_no_units', ()=>{
+        const t = (num, str, opt)=>{
+            opt = assign(opt||{}, {units: false});
+            assert.strictEqual(conv.scaled_number(num, opt), str, ''+num);
+        };
+        t(undefined, '');
+        t(NaN, 'x');
+        t(NaN, 'Z', {nan: 'Z'});
+        t(Infinity, '\u221e');
+        t(-Infinity, '-\u221e');
+        t(0, '0');
+        t(1, '1');
+        t(100, '100');
+        t(0.1231, '0.123');
+        t(0.1239, '0.124');
+        t(1.135, '1.14');
+        t(10.15, '10.2');
+        t(99.6, '99.6');
+        t(99.95, '100');
+        t(100.51, '101');
+        t(998.5, '999');
+        t(999.5, '999');
+        t(999.9, '999', {scale: ''});
+        t(1000.5, '1000', {scale: ''});
+        t(1000.9, '1000', {scale: ''});
+        t(1001.9, '1001', {scale: ''});
+        t(0.0001234, '0');
+        t(0.001234, '0.001');
+        t(12.345e3, '12.3');
+        t(12.345e3, '12.3', {space: true});
+        t(1.234567e6, '1.23');
+        t(1.235678901e9, '1.24');
+        t(78.9123e12, '78.9');
+        t(0, '0', {scale: 'K'});
+        t(1000, '1', {scale: 'K'});
+        t(1005, '1', {scale: 'K'});
+        t(1005.9, '1.01', {scale: 'K'});
+        t(1006, '1.01', {scale: 'K'});
+        t(1009, '1.01', {scale: 'K'});
+        t(0.012345e6, '0.012', {scale: 'M'});
+        t(1234567, '1234567', {scale: ''});
+        t(78912.3e9, '78912', {scale: 'G'});
+        t(1395, '0', {scale: 'G'});
+        t(1, '1s', {per: 's'});
+        t(200, '200s', {per: 's'});
+        t(1000, '1s', {per: 's'});
+        t(1000000, '1s', {per: 's'});
+        t(1, '1ms', {per: 'ms'});
+        t(200, '200ms', {per: 'ms'});
+        t(1000, '1s', {per: 'ms'});
+        t(1000000, '1s', {per: 'ms'});
+        t(0, '0s', {per: 's'});
+        t(-0.1231, '-0.123');
+        t(-0.0001234, '0');
+        t(12.345e3, '12.3');
+        t(-12.345e3, '-12.3');
+        t(-1.235678901e9, '-1.24');
+        t(1.4, '1.4');
+        t(1.40, '1.4');
+        t(1200, '1.2');
+        t(1040000, '1.04');
+        t(4400000, '4.4');
+        t(4400040000, '4.4');
+        t(14e-1, '1.4');
+        t(140e-2, '1.4');
+        t(1.2e3, '1.2');
+        t(104e4, '1.04');
+        t(44e5, '4.4');
+        t(440004e4, '4.4');
+        t(-1.4, '-1.4');
+        t(-1.40, '-1.4');
+        t(-1200, '-1.2');
+        t(-1040000, '-1.04');
+        t(-4400000, '-4.4');
+    });
+    it('scaled_number_1024', ()=>{
+        let t = (size, exp_1024, exp_1024_5)=>{
+            assert.strictEqual(
+                conv.scaled_number(size, {base: 1024}), exp_1024);
+            assert.strictEqual(
+                conv.scaled_number(size, {base: 1024, ratio: 0.5}),
+                exp_1024_5||exp_1024);
+        };
+        t(1, '1');
+        t(10, '10');
+        t(100, '100');
+        t(1000, '1000', '0.977K');
+        t(1024, '1K');
+        t(10000, '9.77K');
+        t(100000, '97.7K');
+        t(1000000, '977K', '0.954M');
+        t(1024*1024, '1M');
+        t(10000000, '9.54M');
+        t(100000000, '95.4M');
+        t(1000000000, '954M', '0.931G');
+        t(1024*1024*1024, '1G');
+        t(2147483647, '2G');
+        t(10000000000, '9.31G');
+        t(100000000000, '93.1G');
+        t(1024*1024*1024*1024, '1T');
+        t(1000000000000, '931G', '0.909T');
+        t(10000000000000, '9.09T');
+        t(100000000000000, '90.9T');
+        t(1000000000000000, '909T', '0.888P');
+        t(1024*1024*1024*1024*1024, '1P');
+        t(9007199254740991, '8P');
+        t(10000000000000000, '8.88P');
+        t(100000000000000000, '88.8P');
+        t(1000000000000000000, '888P');
+        t(1000*1024*1024*1024*1024*1024, '1000P');
+        t(1024*1024*1024*1024*1024*1024, '1024P');
+    });
+    it('scaled_number_scale', ()=>{
+        let t = (num, opt, result)=>{
+            opt.is_scale = true;
+            assert.strictEqual(conv.scaled_number(num, opt), result);
+        };
+        t(0, {scale: ''}, 1);
+        t(0, {scale: 'K'}, 1000);
+        t(0, {scale: 'M'}, 1000000);
+        t(0, {scale: 'G'}, 1000000000);
+        t(0, {scale: 'T'}, 1000000000000);
+        t(0, {scale: 'P'}, 1000000000000000);
+        t(0, {scale: '', base: 1024}, 1);
+        t(0, {scale: 'K', base: 1024}, 1024);
+        t(0, {scale: 'M', base: 1024}, 1024*1024);
+        t(0, {scale: 'G', base: 1024}, 1024*1024*1024);
+        t(0, {scale: 'T', base: 1024}, 1024*1024*1024*1024);
+        t(0, {scale: 'P', base: 1024}, 1024*1024*1024*1024*1024);
+        t(2, {}, 1);
+        t(3456, {}, 1000);
+        t(789000123, {}, 1000000);
+        t(1e12-1, {}, 1000000000);
+        t(1e12, {}, 1000000000000);
+        t(1e18-1, {}, 1000000000000000);
+        t(1023, {base: 1024}, 1);
+        t(512*1024, {base: 1024}, 1024);
+        t(1024*1024, {base: 1024}, 1024*1024);
+        t(1024*1024*1024+17, {base: 1024}, 1024*1024*1024);
+        t(1024*1024*1024*1024*1023, {base: 1024}, 1024*1024*1024*1024);
+        t(1e18, {base: 1024}, 1024*1024*1024*1024*1024);
+        t(789000123, {ratio: 0.5}, 1000000000);
+        t(512*1024, {ratio: 0.5, base: 1024}, 1024*1024);
+    });
+    it('scaled_bytes', ()=>{
+        let mock_conv = sinon.mock(conv);
+        mock_conv.expects('scaled_number').once().withExactArgs(42,
+            {base: 1000});
+        conv.scaled_bytes(42);
+        mock_conv.expects('scaled_number').once().withExactArgs(42,
+            {base: 1000, space: true});
+        conv.scaled_bytes(42, {space: true});
+        mock_conv.expects('scaled_number').once().withExactArgs(42,
+            {base: 1024});
+        conv.scaled_bytes(42, {base: 1024});
+        mock_conv.verify();
     });
 });
 
@@ -6015,3 +6304,1118 @@ describe('etask', function(){
     });
 });
 
+describe('buf_pool', ()=>{
+    it('alloc', ()=>assert.strictEqual(buf_pool.alloc(3).length, 3));
+    it('free_reuse', ()=>{
+        let buf = buf_pool.alloc(1);
+        buf_pool.free(buf);
+        assert.strictEqual(buf_pool.alloc(1), buf);
+    });
+    describe('free_cut', ()=>{
+        beforeEach(()=>xsinon.clock_set({now: 100}));
+        afterEach(()=>xsinon.uninit());
+        const ttl = 50;
+        it('reuse', ()=>{
+            const max_free = 5;
+            let pool = buf_pool.create(max_free, ttl);
+            let bufs = new Array(10).fill(0).map(()=>pool.alloc(1));
+            let last_buf = bufs.pop();
+            bufs.forEach(pool.free, pool);
+            xsinon.tick(ttl+1);
+            pool.free(last_buf);
+            bufs.push(last_buf);
+            let _bufs = new Array(10).fill(0).map(()=>pool.alloc(1));
+            let int = _.intersection(bufs, _bufs);
+            assert.equal(int.length, max_free);
+        });
+        it('balance', ()=>{
+            let pool = buf_pool.create(100, ttl);
+            let bufs = [...new Array(100).fill(1).map(s=>pool.alloc(s)),
+                ...new Array(200).fill(2).map(s=>pool.alloc(s))];
+            let last_buf = bufs.pop();
+            bufs.forEach(pool.free, pool);
+            assert.equal(pool.free_size, 100*1+199*2);
+            assert.equal(pool.pool[1].free.length, 100);
+            assert.equal(pool.pool[2].free.length, 199);
+            xsinon.tick(ttl+1);
+            pool.free(last_buf);
+            assert.equal(pool.free_size, 100,
+                'total size of free buffers should be 100');
+            assert.equal(pool.pool[1].free.length, 20);
+            assert.equal(pool.pool[2].free.length, 40);
+        });
+    });
+});
+
+const file_test_cleanup = ()=>{
+  file.unlink('test.tmp');
+  fs.rmSync('test_dir', {recursive: true, force: true});
+  fs.rmSync('test_efile', {recursive: true, force: true});
+  fs.rmSync('copy_rcp', {recursive: true, force: true});
+  fs.rmSync('copy_rdir', {recursive: true, force: true});
+  fs.rmSync(tdir+'find_dir', {recursive: true, force: true});
+  fs.rmSync(tdir, {recursive: true, force: true});
+};
+
+describe('file', ()=>{
+    let tmp_filename = 'test.tmp';
+    beforeEach(()=>{
+      file_test_cleanup();
+      fs.mkdirSync(tdir, {recursive: true});
+    });
+    afterEach(file_test_cleanup);
+    let throwing_safe_test = is_safe=>{
+        let F = fn=>file[fn+(is_safe ? '' : '_e')];
+        let assert_err = (fn, args, err, ret)=>{
+            fn = F(fn);
+            if (is_safe)
+            {
+                let r = fn(...args);
+                assert.deepStrictEqual(r, ret);
+                if (err instanceof RegExp)
+                    assert(err.test(file.errno));
+                else
+                    assert.deepStrictEqual(file.errno, err);
+            }
+            else
+            {
+                let err_re = new RegExp(err);
+                assert.throws(fn.bind(...[null].concat(args)), err_re);
+            }
+        };
+        it('read', ()=>{
+            let t = (data, exp)=>{
+                file.write_e(tmp_filename, data);
+                assert.deepStrictEqual(F('read')(tmp_filename), exp);
+            };
+            t('', '');
+            t('a', 'a');
+            t('ab\ncd\ne', 'ab\ncd\ne');
+            assert_err('read', ['not_exist'], 'ENOENT', null);
+        });
+        it('fread_cb', ()=>{
+            let size = file.read_buf_size;
+            let data = new Array(size*2+12).map((f, idx)=>idx%10).join('');
+            file.write_e(tmp_filename, data);
+            let t = (data, arr_read, arr_pos, c)=>{
+                let count = 0, res = '';
+                let func = (buf, read, pos)=>{
+                    assert.strictEqual(arr_read[count], read);
+                    assert.strictEqual(arr_pos[count], pos);
+                    res += buf.slice(0, read);
+                    count++;
+                    if (c && count>c)
+                        return true;
+                };
+                let fd = fs.openSync(tmp_filename, 'r');
+                try { assert(F('fread_cb')(fd, 0, size, 0, func)); }
+                finally { fs.closeSync(fd); }
+                assert.strictEqual(res, data);
+            };
+            t(data, [size, size, data.length-size*2], [0, size, size*2]);
+            t(data.slice(0, size*2), [size, size], [0, size, size*2], 1);
+        });
+        it('read_cb', ()=>{
+            let size = file.read_buf_size;
+            let data = new Array(size*2+12).map((f, idx)=>idx%10).join('');
+            file.write_e(tmp_filename, data);
+            let t = data=>{
+                let res = '';
+                assert(F('read_cb')(tmp_filename, 0, size, 0, (buf, read)=>
+                    res += buf.slice(0, read)));
+                assert.strictEqual(res, data);
+            };
+            t(data);
+            assert_err('read_cb', ['not_exists'], 'ENOENT', false);
+            assert_err('read_cb', ['/cannot/create'], 'ENOENT', false);
+        });
+        describe('read_line_cb', ()=>{
+            let t = (input, expected)=>()=>{
+                file.write_e(tmp_filename, input);
+                let actual = [];
+                F('read_line_cb')(tmp_filename, ln=>void actual.push(ln),
+                    {buf_size: 5});
+                assert.deepStrictEqual(actual, expected);
+            };
+            it('basic', t('foo\nbar\nbuz\n', ['foo', 'bar', 'buz']));
+            it('no trailing \\n', t('foo\nbar\nbuz', ['foo', 'bar', 'buz']));
+            it('\\n first', t('\nfoo\nbar\n', ['', 'foo', 'bar']));
+            it('supports \\r', t('foo\r\nbar\nbuz\n', ['foo', 'bar', 'buz']));
+            it('unicode', t('αβγ\nδεζ\nηθι', ['αβγ', 'δεζ', 'ηθι']));
+            it('partial buffer read', ()=>{
+                let chunks = ['foo\nbar', '\n', 'buz'];
+                sinon.stub(fs, 'readSync', (fd, buffer, offset, length)=>{
+                    let chunk;
+                    if (!(chunk = chunks.shift()))
+                        return 0;
+                    assert(length>chunk.length);
+                    buffer.write(chunk, offset);
+                    return chunk.length;
+                });
+                file.touch_e(tmp_filename);
+                let lines = [];
+                F('read_line_cb')(tmp_filename, ln=>void lines.push(ln));
+                assert.deepStrictEqual(lines, ['foo', 'bar', 'buz']);
+                fs.readSync.restore();
+            });
+            it('break on true', ()=>{
+                file.write_e(tmp_filename, 'foo\nbar');
+                let lines = [];
+                F('read_line_cb')(tmp_filename, ln=>{
+                    lines.push(ln);
+                    return true;
+                });
+                assert.deepStrictEqual(lines, ['foo']);
+            });
+        });
+        it('read_line', ()=>{
+            let t = (data, exp)=>{
+                file.write_e(tmp_filename, data);
+                assert.strictEqual(F('read_line')(tmp_filename), exp);
+            };
+            let prev = file.read_buf_size;
+            file.read_buf_size = 5;
+            t('a', 'a');
+            t('nab\ncd\ne', 'nab');
+            t('rab\r\ncd\r\ne', 'rab');
+            t('nabcde\ncd\ne', 'nabcde');
+            t('nmabcdef\ncd\ne', 'nmabcdef');
+            t('abcde', 'abcde');
+            t('abcdef', 'abcdef');
+            t('nabcdef\n', 'nabcdef');
+            t('rabcdef\r\n', 'rabcdef');
+            file.read_buf_size = prev;
+            assert_err('read_line', ['not_exist'], 'ENOENT', null);
+        });
+        it('read_lines', ()=>{
+            let t = (data, exp)=>{
+                file.write_e(tmp_filename, data);
+                assert.deepStrictEqual(F('read_lines')(tmp_filename), exp);
+            };
+            t('', []);
+            t('a', ['a']);
+            t('ab\ncd\ne', ['ab', 'cd', 'e']);
+            t('ab\ncd\ne\n', ['ab', 'cd', 'e']);
+            t('ab\ncd\ne\n\n', ['ab', 'cd', 'e', '']);
+            t('ab\r\ncd\r\ne\n\n', ['ab', 'cd', 'e', '']);
+            assert_err('read_lines', ['not_exist'], 'ENOENT', null);
+        });
+        it('fread', ()=>{
+            let t = (data, exp, start, size, buf_size, enc)=>{
+                file.write_e(tmp_filename, data);
+                let fd = fs.openSync(tmp_filename, 'r');
+                let prev_read_buf_size = file.read_buf_size;
+                file.read_buf_size = buf_size||prev_read_buf_size;
+                let params = [fd, start, size];
+                if (enc)
+                    params.push({encoding: enc});
+                assert.deepStrictEqual(F('fread').apply(null, params), exp);
+                file.read_buf_size = prev_read_buf_size;
+                fs.close(fd);
+            };
+            t('', '');
+            t('a', 'a');
+            t('ab\ncd\ne', 'ab\ncd\ne');
+            t('ab\ncd\ne', 'd\ne', 4);
+            t('ab\ncd\ne', 'ab', 0, 2);
+            t('ab\ncd\ne', 'd\n', 4, 2);
+            t('foobarbuz', 'foobar', 0, 6, 4); // size>buf_size
+            t('αβγδεζηθι', 'Î±Î²Î³', 0, 6, 3, 'binary');
+            t('αβγδεζηθι', 'αβγδεζηθι', 0, 18, 3);
+            t('a', '', 0, 0);
+            assert_err('fread', [-1], /EBADF|ENOENT|ERR_OUT_OF_RANGE/, null);
+        });
+        it('write', ()=>{
+            let t = (data, exp)=>{
+                assert(file.write_e(tmp_filename, data));
+                assert.deepStrictEqual(F('read')(tmp_filename), exp);
+            };
+            t('', '');
+            t(1, '1');
+            t(Buffer.from([1, 2, 3]), '\u0001\u0002\u0003');
+            assert_err('write', ['/cannot/create', 'noent'], 'ENOENT', false);
+        });
+        it('write_atomic', ()=>{
+            let t = (data, exp)=>{
+                assert(file.write_atomic_e(tmp_filename, data));
+                assert.deepStrictEqual(F('read')(tmp_filename), exp);
+            };
+            t('', '');
+            t(1, '1');
+            t(Buffer.from([1, 2, 3]), '\u0001\u0002\u0003');
+            assert_err('write', ['/cannot/create', 'noent'], 'ENOENT', false);
+        });
+        it('write_lines', ()=>{
+            let t = (data, exp)=>{
+                assert(file.write_lines_e(tmp_filename, data));
+                assert.deepStrictEqual(F('read')(tmp_filename), exp);
+            };
+            t('', '\n');
+            t(1, '1\n');
+            t([], '');
+            t(['abc'], 'abc\n');
+            t(['abc', 'def'], 'abc\ndef\n');
+        });
+        it('append', ()=>{
+            let t = (before, data)=>{
+                file.write_e(tmp_filename, before);
+                assert(F('append')(tmp_filename, data));
+                assert.deepStrictEqual(file.read_e(tmp_filename), before+data);
+            };
+            t('', '', '');
+            t('a', '', 'a');
+            t('a ', 1, 'a 1');
+            t('a ', '23\n', 'a 23\n');
+            t('a ', Buffer.from([1, 2, 3]), 'a \u0001\u0002\u0003');
+            assert_err('append', ['/cannot/create', 'noent'], 'ENOENT', false);
+        });
+        it('head', ()=>{
+            let t = (data, size, exp)=>{
+                file.write_e(tmp_filename, data);
+                assert.strictEqual(F('head')(tmp_filename, size), exp);
+            };
+            t('abcd', 3, 'abc');
+            assert_err('tail', ['not_exist'], 'ENOENT', null);
+        });
+        it('tail', ()=>{
+            let t = (data, count, exp)=>{
+                file.write_e(tmp_filename, data);
+                assert.strictEqual(F('tail')(tmp_filename, count), exp);
+            };
+            t('abcd', 3, 'bcd');
+            let ld = new Array(file.read_buf_size);
+            ld = ld.join('abc');
+            t(ld, null, ld.substr(ld.length-file.read_buf_size));
+            assert_err('tail', ['not_exist'], 'ENOENT', null);
+        });
+        it('size', ()=>{
+            let t = (data, exp)=>{
+                file.write_e(tmp_filename, data);
+                assert.deepStrictEqual(F('size')(tmp_filename), exp);
+            };
+            t('', 0);
+            t('a', 1);
+            t('ab\ncd\ne', 7);
+            assert_err('size', ['not_exist'], 'ENOENT', null);
+        });
+        it('mtime', ()=>{
+            let t = (data, exp)=>{
+                assert.strictEqual(F('mtime')(data), exp); };
+            file.write_e(tmp_filename, '');
+            t(tmp_filename, +fs.statSync(tmp_filename).mtime);
+            assert_err('mtime', ['not_exist'], 'ENOENT', -1);
+        });
+        it('mkdirp', ()=>{
+            let t = (dir, mode, root)=>{
+                mode = mode||0o777;
+                let made = file.mkdirp_e(dir, mode);
+                assert(made);
+                // must return first created dir
+                assert(dir.startsWith(made));
+                let bits = parseInt(mode, 8);
+                assert.strictEqual(fs.statSync(dir).mode & bits, bits);
+                file.rm_rf_e(made);
+            };
+            file.rm_rf_e('/tmp/mkdirp_test');
+            t('/tmp/mkdirp_test', 0o777);
+            t('/tmp/mkdirp_test/test2/test3', 0o755);
+            t('/tmp/mkdirp_test/a/b/c/d/_/r/e/c/u/r/s/i/v/e/_/m/k/d/i/r/_'+
+                '/f/a/i/l/e/d/_/w/i/t/h/_/t/h/i/s/');
+            let filename = '/tmp/mkdir_file';
+            file.touch_e(filename);
+            assert.throws(()=>t(filename+'/cannot/create'), /ENOTDIR/);
+            file.unlink_e(filename);
+            assert.throws(()=>t('/proc/cannot_create'), /EACCES|ENOENT/);
+            assert_err('mkdirp', ['/cannot/create'], 'EACCES', null);
+        });
+        it('unlink', ()=>{
+            assert_err('unlink', ['/this/file/does-not/exist'], 'ENOENT',
+                false);
+            file.write_e(tmp_filename, 'abc');
+            assert(F('unlink')(tmp_filename));
+            assert_err('unlink', [tmp_filename], 'ENOENT', false);
+            // Unlink dir
+            file.mkdirp_e('test_dir');
+            assert_err('unlink', ['test_dir'], /EISDIR|EPERM/, false);
+            file.rm_rf_e('test_dir');
+            assert_err('unlink', ['test_dir'], 'ENOENT', false);
+        });
+        it('rmdir', ()=>{
+            file.touch_e(tmp_filename);
+            file.mkdirp_e('/tmp/rmdir_test');
+            assert_err('rmdir', [tmp_filename], 'ENOTDIR', false);
+            assert_err('rmdir', ['/this/dir/does-not/exist'], 'ENOENT', false);
+            assert.strictEqual(F('rmdir')('/tmp/rmdir_test'), true);
+            file.unlink_e(tmp_filename);
+        });
+        it('touch', etask.fn(function*(){
+            assert(F('touch')(tmp_filename));
+            assert(file.exists(tmp_filename));
+            assert_err('touch', ['/cannot/create'], 'ENOENT', false);
+            F('touch')(tmp_filename);
+            file.file_changed(tmp_filename);
+            yield etask.sleep(10);
+            F('touch')(tmp_filename);
+            assert(file.file_changed(tmp_filename));
+        }));
+        it('copy', ()=>{
+            let cp = 'copy_file';
+            let dcp = 'dst_file';
+            file.unlink(cp);
+            file.unlink(dcp);
+            let t = (src, dst, data, opt, cmp)=>{
+                cmp = cmp||{};
+                cmp.mode = cmp.mode||0o666;
+                if (typeof data=='string')
+                   file.write_e(src, data, {mode: cmp.mode});
+                try {
+                    assert(file.copy_e(src, dst, opt));
+                    if (file.is_dir(dst))
+                        dst += '/'+path.basename(src);
+                    let statd = fs.statSync(dst);
+                    // XXX: check if mode of dst file is correct after umask
+                    assert.strictEqual(statd.mode & 0o777,
+                        cmp.mode & ~process.umask());
+                    if (cmp.user)
+                        assert.strictEqual(statd.uid, cmp.user);
+                    if (cmp.group)
+                        assert.strictEqual(statd.gid, cmp.group);
+                } finally {
+                    file.unlink(src);
+                    file.unlink(dst);
+                }
+            };
+            t(cp, dcp, '');
+            t(cp, dcp, 'some data');
+            t(cp, dcp, 'more\ndata\n');
+            t(cp, dcp, 'data', {}, {mode: 0o777});
+            assert_err('copy', ['/file', dcp], 'ENOENT', false);
+            assert.throws(()=>t(cp, '/file', 'wrong'), /EACCES/);
+            assert_err('copy', ['/bin', dcp], 'EISDIR', false);
+            let dcd = dcp+'_dir';
+            file.rm_rf_e(dcd);
+            assert.throws(()=>t(cp, dcd+'/file', 'data'), /ENOENT/);
+            t(cp, dcd+'/file', 'data', {mkdirp: 1}, {mode: 0});
+            t(cp, dcd+'/', 'data');
+            t(cp, dcd, 'data');
+            t(cp, dcp, 'data', {mode: 0o444}, {mode: 0o444});
+            if (0) // XXX: fixme
+            t(cp, dcp, 'data', {group: 10001},
+                {mode: 0o444, user: process.getuid(),
+                group: process.getgid()});
+            file.unlink(cp);
+            file.unlink(dcp);
+            file.rm_rf_e(dcd);
+        });
+        it('copy_r_e', ()=>{
+            let d = 'copy_r';
+            file.write_e(d+'dir/file', '', {mkdirp: true});
+            file.write_e(d+'dir/a/file', '', {mkdirp: true});
+            file.write_e(d+'dir/a/exfile', '', {mkdirp: true});
+            file.copy_r_e(d+'dir', d+'cp', {exclude: /exfile$/});
+            assert.deepStrictEqual(file.find_e(d+'cp').sort(),
+                [d+'cp/a/file', d+'cp/file']);
+        });
+        it('link', ()=>{
+            let ls = 'link_src', ld = 'link_dst';
+            file.unlink(ls);
+            file.unlink(ld);
+            file.rm_rf_e(ld+'d');
+            let t = (src, dst, opt)=>{
+                assert(F('link')(src, dst, opt));
+                assert(file.exists(dst));
+                assert(file.is_file(dst));
+            };
+            file.write_e(ls, 'data');
+            t(ls, ld);
+            t(ls, ld+'d/dir/file', {mkdirp: 1});
+            file.unlink_e(ls);
+            file.unlink_e(ld);
+            file.rm_rf_e(ld+'d');
+        });
+        it('link_r', ()=>{
+            let ls = 'link_srcd', ld = 'link_dstd';
+            file.rm_rf(ls);
+            file.rm_rf(ld);
+            let t = (src, dst, opt)=>{
+                assert(F('link_r')(src, dst, opt));
+                let files = file.find(src, {strip: src+'/', dirs: true});
+                files.forEach(f=>{
+                    let s = src+'/'+f;
+                    let d = dst+'/'+f;
+                    if (file.is_dir(s))
+                        assert(file.is_dir(d));
+                    else if (file.is_file(s))
+                        assert.deepStrictEqual(fs.statSync(s), fs.statSync(d));
+                });
+            };
+            file.write(ls+'/1/2/3', '', {mkdirp: 1});
+            file.write(ls+'/2/3/1', '', {mkdirp: 1});
+            t(ls, ld);
+            file.rm_rf(ls);
+            file.rm_rf(ld);
+        });
+        it('symlink', ()=>{
+            let ls = file.absolutize('slink_src', tdir);
+            let ld = file.absolutize('slink_dst', tdir);
+            file.unlink(ls);
+            file.unlink(ld);
+            file.rm_rf_e(ld+'d');
+            let t = (src, dst, opt)=>{
+                assert(F('symlink')(src, dst, opt));
+                let stat = fs.lstatSync(dst);
+                assert(stat.isSymbolicLink());
+                assert.strictEqual(src, fs.readlinkSync(dst));
+            };
+            assert_err('symlink', [ls, ld], 'ENOENT', false);
+            file.write_e(ls, 'data');
+            t(ls, ld);
+            assert_err('symlink', [ls, ld], 'EEXIST', false);
+            t(ls, ld, {unlink: 1});
+            assert_err('symlink', [ls, ld+'d/dir/file'], 'ENOENT', false);
+            t(ls, ld+'d/dir/file', {mkdirp: 1});
+            file.rm_rf_e(ld+'d');
+            file.unlink_e(ls);
+            file.unlink_e(ld);
+        });
+        it('find', ()=>{
+            let tmp_dir = 'find_dir';
+            let fp = p=>tdir+'/'+tmp_dir+p;
+            let tmp_path = fp(''), tmp_path2 = fp('2');
+            file.rm_rf(tmp_path);
+            file.rm_rf(tmp_path2);
+            let t = (opt, ret)=>
+                assert.deepStrictEqual(F('find')(tmp_path, opt), ret);
+            file.write_e(tmp_path+'/1/2/3', '', {mkdirp: 1});
+            file.write_e(tmp_path+'/1/3', '', {mkdirp: 1});
+            file.write_e(tmp_path+'/1/a.x', '', {mkdirp: 1});
+            file.write_e(tmp_path2+'/5/3', '', {mkdirp: 1});
+            file.symlink_e(tmp_path2, tmp_path+'/1/4', {unlink: 1});
+            t({}, qw`/1/2/3 /1/3 /1/a.x`.map(fp));
+            t({dirs: true, strip: tmp_path}, ['/1', '/1/2', '/1/2/3',
+                '/1/3', '/1/4', '/1/a.x']);
+            t({follow_symlinks: true, strip: tmp_path}, ['/1/2/3',
+                '/1/3', '/1/4/5/3', '/1/a.x']);
+            t({match: /\.x$/}, qw`/1/a.x`.map(fp));
+            t({match: /\/2\//, dirs: true}, qw`/1/2/3`.map(fp));
+            t({exclude: /\/2\//}, qw`/1/3 /1/a.x`.map(fp));
+            assert_err('find', [tmp_path+'/2', {match: /./}], 'ENOENT', null);
+            assert_err('find', ['./not_exist', {}], 'ENOENT', null);
+            file.rm_rf(tmp_path);
+            file.rm_rf(tmp_path2);
+        });
+        it('find_cb', ()=>{
+            let d = tdir+'/find_dir/';
+            let files = [d+'a/b/file', d+'a/file'].sort();
+            for (let f of files)
+                file.write_e(f, '', {mkdirp: true});
+            file.mkdirp(d+'a/c');
+            let ret = [];
+            F('find')(d, {cb: f=>ret.push(f)});
+            assert.deepStrictEqual(ret.sort(), files);
+        });
+        it('readdir', ()=>{
+            let tmp_dir = tdir+'/td';
+            file.rm_rf(tmp_dir);
+            file.write_e(tmp_dir+'/1', '', {mkdirp: 1});
+            file.write_e(tmp_dir+'/2', '');
+            assert.deepStrictEqual(F('readdir')(tmp_dir).sort(), ['1', '2']);
+            assert_err('readdir', [tmp_dir+'/z'], 'ENOENT', []);
+            assert_err('readdir', [tmp_dir+'/1'], 'ENOTDIR', []);
+            file.rm_rf(tmp_dir);
+        });
+        it('readdir_filter', ()=>{
+            let tmp_dir = tdir+'/tdf';
+            file.rm_rf(tmp_dir);
+            file.mkdirp(tmp_dir+'/d1');
+            file.mkdirp(tmp_dir+'/d2');
+            file.write_e(tmp_dir+'/f1', '');
+            file.write_e(tmp_dir+'/f2', '');
+            assert.deepStrictEqual(F('readdir')(tmp_dir).sort(),
+                ['d1', 'd2', 'f1', 'f2']);
+            assert.deepStrictEqual(F('readdir')(tmp_dir, {}).sort(),
+                ['d1', 'd2', 'f1', 'f2']);
+            assert.deepStrictEqual(F('readdir')(tmp_dir, {dirs: 1}).sort(),
+                ['d1', 'd2']);
+            assert.deepStrictEqual(F('readdir')(tmp_dir, {files: 1}).sort(),
+                ['f1', 'f2']);
+            assert.deepStrictEqual(F('readdir')(tmp_dir, {dirs: 1, files: 1})
+                .sort(), ['d1', 'd2', 'f1', 'f2']);
+        });
+        describe('readdir_r', ()=>{
+            it('basic', ()=>{
+                let tmp_dir = tdir+'/tdr';
+                file.rm_rf(tmp_dir);
+                file.write_e(tmp_dir+'/dir/file', '', {mkdirp: true});
+                file.write_e(tmp_dir+'/dir/a/file', '', {mkdirp: true});
+                assert.deepStrictEqual(F('readdir_r')(tmp_dir).sort(),
+                    ['dir/a/file', 'dir/file']);
+            });
+            it('opt.exclude', ()=>{
+                let tmp_dir = tdir+'/tdre';
+                file.rm_rf(tmp_dir);
+                file.write_e(tmp_dir+'/dir/file', '', {mkdirp: true});
+                file.write_e(tmp_dir+'/dir/a/file', '', {mkdirp: true});
+                file.write_e(tmp_dir+'/dir/a/ignored', '', {mkdirp: true});
+                assert.deepStrictEqual(F('readdir_r')(tmp_dir,
+                    {exclude: /ignored$/}).sort(), ['dir/a/file', 'dir/file']);
+            });
+        });
+        it('realpath', ()=>{
+            let prev = process.cwd();
+            process.chdir(tdir);
+            let filename = 'f1';
+            file.touch(filename);
+            assert.strictEqual(file.realpath(filename),
+              process.cwd()+'/'+filename);
+            assert.strictEqual(file.realpath(null), null);
+            assert.strictEqual(file.realpath('\0'), null);
+            file.unlink(filename);
+            process.chdir(prev);
+        });
+    };
+    describe('throwing', ()=>throwing_safe_test(0));
+    describe('safe', ()=>throwing_safe_test(1));
+    it('exists', ()=>{
+        let t = (filename, exp)=>assert.strictEqual(
+            file.exists(filename), exp);
+        t('.', true);
+        t('..', true);
+        t('does_not_exist', false);
+        t('test.js', true);
+        t('./test.js', true);
+    });
+    it('is_file', ()=>{
+        let t = (filename, exp)=>assert.strictEqual(
+            file.is_file(filename), exp);
+        t('.', false);
+        t('..', false);
+        t('does_not_exist', false);
+        t('test.js', true);
+        t('./test.js', true);
+    });
+    it('is_dir', ()=>{
+        let t = (dir, exp)=>assert.strictEqual(
+            file.is_dir(dir), exp);
+        t('.', true);
+        t('..', true);
+        t('does_not_exist', false);
+        t('test.js', false);
+        t('./test.js', false);
+    });
+    it('is_subdir', ()=>{
+        let t = (root, sub, exp)=>assert.strictEqual(
+            file.is_subdir(root, sub), exp);
+        t('', '', true);
+        t('', 'project', true);
+        t('', '/project', true);
+        t('/', '/', true);
+        t('project', 'project', true);
+        t('/', '/project', true);
+        t('project', 'project/', true);
+        t('project/', 'project/', true);
+        t('project', 'project/tools', true);
+        t('project/', 'project/tools', true);
+        t('/', 'project', false);
+        t('project/', 'project', false);
+        t('/project1', '/project2', false);
+        t('project', 'project1', false);
+        t('project/', 'project1', false);
+        t('project/', 'project1/', false);
+        t('/project/tools', '/project/tools-addons', false);
+    });
+    it('is_symlink', ()=>{
+        let t = (dir, exp)=>assert.strictEqual(file.is_symlink(dir), exp);
+        t('.', false);
+        t('does_not_exist', false);
+        file.symlink('test.js', tmp_filename);
+        t(tmp_filename, true);
+    });
+    it('is_chardev', ()=>{
+        let t = (filename, exp)=>assert.strictEqual(
+            file.is_chardev(filename), exp);
+        t('.', false);
+        t('test.js', false);
+        t('does_not_exist', false);
+        t('/dev/zero', true);
+    });
+    it('is_socket', ()=>{
+        let t = (filename, exp)=>assert.strictEqual(
+            file.is_socket(filename), exp);
+        t('.', false);
+        t('test.js', false);
+        t('does_not_exist', false);
+        let srv = net.createServer().listen('./foobar.socket');
+        t('./foobar.socket', true);
+        srv.close();
+    });
+    it('is_exec', ()=>{
+        let t = (filename, exp)=>assert.strictEqual(
+            file.is_exec(filename), exp);
+        t('.', true);
+        t('./test.js', false);
+        t('does_not_exist', false);
+        t('/bin/bash', true);
+    });
+    it('file_changed', etask.fn(function*(){
+        this.finally(()=>file.unlink(tmp_filename));
+        file.write(tmp_filename, 'test');
+        // first call: changed
+        assert(file.file_changed(tmp_filename));
+        assert(!file.file_changed(tmp_filename));
+        yield etask.sleep(10);
+        file.write(tmp_filename, 'test2');
+        assert(file.file_changed(tmp_filename));
+    }));
+    it('is_absolute', ()=>{
+        let t = (s, r)=>assert(file.is_absolute(s)==r);
+        t('/file', true);
+        t('file/not/absolute', false);
+        t('C:/dir', true);
+        t('win\\like', false);
+    });
+    it('absolutize', ()=>{
+        let t = (s, d1, d2, r)=>assert(file.absolutize(s, d1, d2)==r);
+        t('/file', '/x', '', '/file');
+        t('file', '/dir', '', '/dir/file');
+        t('file', '/dir', '/', '/dir/file');
+        let cp = '/tmp';
+        let cpf = cp+'/'+tmp_filename;
+        file.touch(cpf);
+        t(tmp_filename, '/', cp, cpf);
+        file.unlink(cpf);
+    });
+    it('normalize', ()=>{
+        let t = (p, r)=>assert(file.normalize(p)==r);
+        t('file', 'file');
+        t('file/dir', 'file/dir');
+        t('file//dir', 'file/dir');
+        t('file///dir', 'file/dir');
+        t('file/./dir', 'file/dir');
+        t('./dir', 'dir');
+        t('dir/./', 'dir/');
+        t('dir/.', 'dir');
+        t('pre/dir/../file', 'pre/file');
+        t('dir/..', '.');
+        t('../dir', '../dir');
+    });
+});
+
+describe('efile', ()=>{
+    beforeEach(()=>{
+      file_test_cleanup();
+      fs.mkdirSync(tdir, {recursive: true});
+    });
+    afterEach(file_test_cleanup);
+    let d = 'test_efile/';
+    let prev_efile_log = efile.log;
+    let srv;
+    before(()=>efile.log = false);
+    after(()=>efile.log = prev_efile_log);
+    before(()=>file.rm_rf(d));
+    beforeEach(()=>file.mkdirp(d));
+    afterEach(()=>{
+        if (srv)
+        {
+            srv.close();
+            srv.unref();
+        }
+        file.rm_rf(d);
+    });
+    it('open_e', etask.fn(function*(){
+        file.write_e(d+'file', 'hello');
+        let fd = yield efile.open_e(d+'file', 'r');
+        assert.strictEqual(file.fread_e(fd), 'hello');
+    }));
+    it('open', etask.fn(function*(){
+        assert.strictEqual(yield efile.open(d+'unexisting', 'r'), null); }));
+    it('write_e', etask.fn(function*(){
+        yield efile.write_e(d+'file', 'hello');
+        assert.strictEqual(file.read(d+'file'), 'hello');
+    }));
+    it('write', etask.fn(function*(){
+        assert.strictEqual(
+            yield efile.write(d+'unexisting/file', ''), false);
+    }));
+    it('rename_e', etask.fn(function*(){
+        file.touch(d+'file');
+        yield efile.rename_e(d+'file', d+'renamed');
+        assert(file.exists(d+'renamed'));
+    }));
+    it('rename', etask.fn(function*(){
+        assert.strictEqual(
+            yield efile.rename(d+'unexisting', d+'renamed'), false);
+    }));
+    it('unlink_e', etask.fn(function*(){
+        file.touch(d+'file');
+        yield efile.unlink_e(d+'file');
+        assert(!file.exists(d+'file'));
+    }));
+    it('unlink', etask.fn(function*(){
+        assert.strictEqual(yield efile.unlink(d+'unexisting'), false); }));
+    it('mkdir_e', etask.fn(function*(){
+        yield efile.mkdir_e(d+'dir');
+        assert(file.is_dir(d+'dir'));
+    }));
+    it('mkdir', etask.fn(function*(){
+        assert.strictEqual(yield efile.unlink(d+'unexisting/a'), false); }));
+    describe('mkdirp_e', ()=>{
+        it('basic', etask.fn(function*(){
+            yield efile.mkdirp_e(d+'dir/a');
+            assert(file.is_dir(d+'dir/a'));
+        }));
+        it('existing', etask.fn(function*(){
+            file.mkdirp_e(d+'dir/a');
+            yield efile.mkdirp_e(d+'dir/a'); // should not throw
+        }));
+    });
+    it('mkdirp', etask.fn(function*(){
+        file.touch(d+'file');
+        assert.strictEqual(yield efile.mkdirp(d+'file/a'), false);
+    }));
+    it('mkdirp_file_e', etask.fn(function*(){
+        yield efile.mkdirp_file_e(d+'dir/a/file');
+        assert(!file.exists(d+'dir/a/file'));
+        assert(file.is_dir(d+'dir/a'));
+    }));
+    it('mkdirp_file', etask.fn(function*(){
+        file.touch(d+'file');
+        assert.strictEqual(yield efile.mkdirp_file(d+'file/a/file'), false);
+    }));
+    it('readdir_e', etask.fn(function*(){
+        file.touch(d+'file');
+        assert.deepStrictEqual(yield efile.readdir_e(d), ['file']);
+    }));
+    it('readdir', etask.fn(function*(){
+        assert.deepStrictEqual(yield efile.readdir(d+'unexisting'), []); }));
+    it('rmdir_e', etask.fn(function*(){
+        file.mkdirp(d+'dir');
+        yield efile.rmdir_e(d+'dir');
+        assert(!file.exists(d+'dir'));
+    }));
+    it('rmdir', etask.fn(function*(){
+        assert.strictEqual(yield efile.rmdir(d+'unexisting'), false); }));
+    describe('fwrite_e', ()=>{
+        let swrite = efile.write_buf_size, sread = efile.read_buf_size;
+        beforeEach(()=>efile.write_buf_size = 3);
+        afterEach(()=>{
+            efile.write_buf_size = swrite;
+            efile.read_buf_size = sread;
+        });
+        it('basic', etask.fn(function*(){
+            let fd = fs.openSync(d+'file', 'w+');
+            yield efile.fwrite_e(fd, Buffer.from('hello'));
+            assert.strictEqual(file.read(d+'file'), 'hello');
+        }));
+        // XXX: find way to reproduce partial write without stub
+        it('partial buffer write', etask.fn(function*(){
+            let orig_write = fs.write;
+            let fd = fs.openSync(d+'file', 'w+');
+            let reads = [];
+            sinon.stub(fs, 'write', (fd, buf, offset, len, pos, cb)=>{
+                orig_write(fd, buf, offset, len, pos, cb);
+                reads.push(buf.slice(offset, offset+len).toString());
+            });
+            yield efile.fwrite_e(fd, Buffer.from('hello'), 0);
+            yield efile.fwrite_e(fd, Buffer.from('hello'), 0, 2);
+            fs.write.restore();
+            assert.strictEqual(file.read(d+'file'), 'hello');
+            assert.deepStrictEqual(reads, ['hel', 'lo', 'he', 'll', 'o']);
+        }));
+    });
+    it('fwrite', etask.fn(function*(){
+        assert.strictEqual(yield efile.fwrite(-1, Buffer.from('hello')),
+            false);
+    }));
+    it('fread_chunk_e', etask.fn(function*(){
+        file.write(d+'file', 'hello');
+        let fd = fs.openSync(d+'file', 'r'), buf = Buffer.alloc(5);
+        yield efile.fread_chunk_e(fd, buf, 0, buf.length, 0);
+        assert.strictEqual(buf.compare(Buffer.from('hello')), 0);
+    }));
+    it('fread_chunk', etask.fn(function*(){
+        assert.strictEqual(
+            yield efile.fread_chunk(-1, Buffer.alloc(1), 0, 1, 0), null);
+    }));
+    it('read_e', etask.fn(function*(){
+        file.write(d+'file', 'hello');
+        assert.strictEqual(yield efile.read_e(d+'file'), 'hello');
+    }));
+    it('read', etask.fn(function*(){
+        assert.strictEqual(yield efile.read(d+'unexisting'), null); }));
+    it('copy_e', etask.fn(function*(){
+        file.write(d+'file', 'hello');
+        yield efile.copy_e(d+'file', d+'copy');
+        assert.strictEqual(file.read(d+'copy'), 'hello');
+    }));
+    it('read_cb_e', etask.fn(function*(){
+        file.write_e(d+'file', 'hello world');
+        let data = '';
+        let prev_read_buf_size = efile.read_buf_size;
+        efile.read_buf_size = 3;
+        yield efile.read_cb_e(d+'file', 0, buf=>void(data += buf));
+        efile.read_buf_size = prev_read_buf_size;
+        assert.strictEqual(data, 'hello world');
+    }));
+    it('read_cb', etask.fn(function*(){
+        assert.strictEqual(yield efile.read_cb(d+'unexisting'), false); }));
+    describe('read_line_e', ()=>{
+        let t = (inp, out)=>etask.fn(function*(){
+            file.write_e(d+file, inp);
+            assert.strictEqual(yield efile.read_line_e(d+file), out);
+        });
+        it('basic', t('foo\nbar\n', 'foo'));
+        it('supports \\r', t('foo\r\nbar\n', 'foo'));
+        it('no trailing \\n', t('foo', 'foo'));
+        it('unicode', t('αβγ\nδεζ\nηθι', 'αβγ'));
+    });
+    it('read_line', etask.fn(function*(){
+        assert.strictEqual(yield efile.read_line(d+'unexisting'), null); }));
+    describe('read_lines_e', ()=>{
+        let t = (inp, out)=>etask.fn(function*(){
+            file.write_e(d+file, inp);
+            assert.deepStrictEqual(yield efile.read_lines_e(d+file), out);
+        });
+        it('basic', t('foo\nbar\n', ['foo', 'bar']));
+        it('supports \\r', t('foo\r\nbar\n', ['foo', 'bar']));
+        it('no trailing \\n', t('foo\nbar', ['foo', 'bar']));
+        it('unicode', t('αβγ\nδεζ\nηθι', ['αβγ', 'δεζ', 'ηθι']));
+    });
+    it('read_lines', etask.fn(function*(){
+        assert.strictEqual(yield efile.read_lines(d+'unexisting'), null); }));
+    describe('read_line_cb_e', ()=>{
+        let t = (inp, out)=>etask.fn(function*(){
+            file.write_e(d+'file', inp);
+            let actual = [];
+            yield efile.read_line_cb_e(d+'file', ln=>void actual.push(ln),
+                {buf_size: 5});
+            assert.deepStrictEqual(actual, out);
+        });
+        it('basic', t('foo\nbar\nbuz\n', ['foo', 'bar', 'buz']));
+        it('no trailing \\n', t('foo\nbar\nbuz', ['foo', 'bar', 'buz']));
+        it('\\n first', t('\nfoo\nbar\n', ['', 'foo', 'bar']));
+        it('supports \\r', t('foo\r\nbar\nbuz\n', ['foo', 'bar', 'buz']));
+        it('unicode', t('αβγ\nδεζ\nηθι', ['αβγ', 'δεζ', 'ηθι']));
+        it('partial buffer read', etask.fn(function*(){
+            let chunks = ['foo\nbar', '\n', 'buz'];
+            sinon.stub(efile, 'fread_chunk_e', (fd, buffer, offset, length)=>{
+                let chunk;
+                if (!(chunk = chunks.shift()))
+                    return 0;
+                assert(length>chunk.length);
+                buffer.write(chunk, offset);
+                return chunk.length;
+            });
+            file.touch_e(d+'file');
+            let lines = [];
+            yield efile.read_line_cb_e(d+'file', ln=>void lines.push(ln));
+            assert.deepStrictEqual(lines, ['foo', 'bar', 'buz']);
+            efile.fread_chunk_e.restore();
+        }));
+        it('break on true', etask.fn(function*(){
+            file.write_e(d+'file', 'foo\nbar');
+            let lines = [];
+            yield efile.read_line_cb_e(d+'file', ln=>{
+                lines.push(ln);
+                return true;
+            });
+            assert.deepStrictEqual(lines, ['foo']);
+        }));
+        it('etask cb', etask.fn(function*(){
+            file.write_e(d+'file', 'foo\nbar\nbuz\n');
+            let lines = [];
+            yield efile.read_line_cb_e(d+'file', ln=>etask(function*(){
+                yield etask.sleep(1);
+                lines.push(ln);
+                return ln=='bar';
+            }));
+            assert.deepStrictEqual(lines, ['foo', 'bar']);
+        }));
+    });
+    it('read_line_cb', etask.fn(function*(){
+        assert.strictEqual(yield efile.read_line_cb(d+'unexisting'), false);
+    }));
+    describe('head_e', ()=>{
+        let t = (inp, size, out)=>etask.fn(function*(){
+            file.write_e(d+'file', inp);
+            assert.strictEqual(yield efile.head_e(d+'file', size), out);
+        });
+        it('basic', t('foobar', 3, 'foo'));
+        it('oversize', t('foobar', 999, 'foobar'));
+        it('unicode', t('αβγδεζηθι', 6, 'αβγ'));
+        it('size>buf_size', etask.fn(function*(){
+            let prev_read_buf_size = efile.read_buf_size;
+            efile.read_buf_size = 4;
+            file.write_e(d+'file', 'foobarbuz');
+            assert.strictEqual(yield efile.head_e(d+'file', 6), 'foobar');
+            efile.read_buf_size = prev_read_buf_size;
+        }));
+    });
+    it('head', etask.fn(function*(){
+        assert.strictEqual(yield efile.head(d+'unexisting'), null); }));
+    describe('tail_e', ()=>{
+        let t = (inp, size, out)=>etask.fn(function*(){
+            file.write_e(d+'file', inp);
+            assert.strictEqual(yield efile.tail_e(d+'file', size), out);
+        });
+        it('basic', t('foobar', 3, 'bar'));
+        it('oversize', t('foobar', 999, 'foobar'));
+        it('unicode', t('αβγδεζηθι', 6, 'ηθι'));
+    });
+    it('tail', etask.fn(function*(){
+        assert.strictEqual(yield efile.tail(d+'unexisting'), null); }));
+    it('size_e', etask.fn(function*(){
+        file.write_e(d+'file', 'hello');
+        assert.strictEqual(yield efile.size_e(d+'file'), 5);
+    }));
+    it('size', etask.fn(function*(){
+        assert.strictEqual(yield efile.size(d+'unexisting'), null); }));
+    it('rm_rf_e', etask.fn(function*(){
+        file.write_e(d+'a/file', '', {mkdirp: true});
+        file.write_e(d+'a/b/file', '', {mkdirp: true});
+        yield efile.rm_rf_e(d+'a');
+        assert(!file.exists(d+'a'));
+    }));
+    it('find_e', etask.fn(function*(){
+        let files = [d+'a/b/file', d+'a/file'].sort();
+        for (let f of files)
+            file.write_e(f, '', {mkdirp: true});
+        file.mkdirp(d+'a/c');
+        assert.deepStrictEqual((yield efile.find_e(d)).sort(), files);
+        let empty_dirs = [];
+        assert.deepStrictEqual((yield efile.find_e(d, {empty_dirs})).sort(),
+            files);
+        assert.deepStrictEqual(empty_dirs, [d+'a/c']);
+    }));
+    it('find', etask.fn(function*(){
+        assert.strictEqual(yield efile.find(d+'unexisting'), null); }));
+    it('mtime_e', etask.fn(function*(){
+        file.touch_e(d+'file');
+        assert.strictEqual(yield efile.mtime_e(d+'file'),
+            file.mtime_e(d+'file'));
+    }));
+    it('mtime', etask.fn(function*(){
+        assert.strictEqual(yield efile.mtime(d+'unexisting'), -1); }));
+    it('write_lines_e', etask.fn(function*(){
+        let lines = ['a', 'b', 'c'];
+        yield efile.write_lines_e(d+'file', lines);
+        assert.deepStrictEqual(file.read_lines_e(d+'file'), lines);
+    }));
+    it('write_lines', etask.fn(function*(){
+        assert.strictEqual(
+            yield efile.write_lines(d+'unexisting/file'), false);
+    }));
+    it('append_e', etask.fn(function*(){
+        file.write_e(d+'file', 'foo');
+        yield efile.append_e(d+'file', 'bar');
+        assert.strictEqual(file.read_e(d+'file'), 'foobar');
+    }));
+    it('append', etask.fn(function*(){
+        assert.strictEqual(
+            yield efile.append(d+'unexisting/file', 'hello'), false);
+    }));
+    describe('exists', ()=>{
+        it('existing', etask.fn(function*(){
+            file.touch_e(d+'file');
+            assert(yield efile.exists(d+'file'));
+        }));
+        it('unexisting', etask.fn(function*(){
+            assert(!(yield efile.exists(d+'unexisting'))); }));
+    });
+    it('link_e', etask.fn(function*(){
+        file.write_e(d+'file', 'hello');
+        yield efile.link_e(d+'file', d+'ln');
+        assert.strictEqual(file.read_e(d+'ln'), 'hello');
+    }));
+    it('link', etask.fn(function*(){
+        assert.strictEqual(yield efile.link(d, d+'unexisting/ln'), false); }));
+    describe('link_r_e', ()=>{
+        it('basic', etask.fn(function*(){
+            file.write_e(d+'dir/file', '', {mkdirp: true});
+            file.write_e(d+'dir/a/file', '', {mkdirp: true});
+            yield efile.link_r_e(d+'dir', d+'ln');
+            assert.deepStrictEqual(file.find_e(d+'ln').sort(),
+                [d+'ln/a/file', d+'ln/file']);
+        }));
+        it('opt.exclude', etask.fn(function*(){
+            file.write_e(d+'dir/file', '', {mkdirp: true});
+            file.write_e(d+'dir/a/file', '', {mkdirp: true});
+            file.write_e(d+'dir/a/ignored', '', {mkdirp: true});
+            yield efile.link_r_e(d+'dir', d+'ln', {exclude: /ignored$/});
+            assert.deepStrictEqual(file.find_e(d+'ln').sort(),
+                [d+'ln/a/file', d+'ln/file']);
+        }));
+        it('opt.follow_symlinks', etask.fn(function*(){
+            file.mkdirp_e(d+'dir');
+            file.symlink_e(d+'dir', d+'dir_ln');
+            yield efile.link_r_e(d+'dir_ln', d+'ln', {follow_symlinks: true});
+            assert(!file.is_symlink(d+'ln'));
+        }));
+    });
+    it('link_r', etask.fn(function*(){
+        assert.strictEqual(
+            yield efile.link_r(d+'unexisting/a', d+'ln', {no_copy: true}),
+            false);
+    }));
+    it('touch_e', etask.fn(function*(){
+        yield efile.touch_e(d+'file');
+        let mtime = file.mtime(d+'file');
+        yield etask.sleep(10);
+        yield efile.touch_e(d+'file');
+        assert(mtime<file.mtime(d+'file'));
+    }));
+    it('touch', etask.fn(function*(){
+        assert.strictEqual(yield efile.touch(d+'unexisting/file'), false); }));
+    it('stat_e', etask.fn(function*(){
+        file.touch_e(d+'file');
+        assert((yield efile.stat_e(d+'file')).isFile());
+    }));
+    it('stat', etask.fn(function*(){
+        assert.strictEqual(yield efile.stat(d+'unexisting'), null); }));
+    it('lstat_e', etask.fn(function*(){
+        file.touch_e(d+'file');
+        file.symlink_e(d+'file', d+'ln');
+        assert((yield efile.lstat_e(d+'ln')).isSymbolicLink());
+    }));
+    it('lstat', etask.fn(function*(){
+        assert.strictEqual(yield efile.lstat(d+'unexisting'), null); }));
+    describe('is_exec', ()=>{
+        it('/usr/bin/env', etask.fn(function*(){
+            assert(yield efile.is_exec('/usr/bin/env')); }));
+        it('regular file', etask.fn(function*(){
+            file.touch_e(d+'file');
+            assert(!(yield efile.is_exec(d+'file')));
+        }));
+        it('unexisting', etask.fn(function*(){
+            assert(!(yield efile.is_exec(d+'unexisting'))); }));
+    });
+    let stat_helper_t = (helper_name, true_for)=>describe(helper_name, ()=>{
+        let t = (type, target)=>{
+            let expected = true_for.includes(type);
+            it(expected+' for '+type, etask.fn(function*(){
+                file.touch_e(d+'file');
+                file.symlink_e(d+'file', d+'file_ln');
+                file.mkdirp_e(d+'dir');
+                file.symlink_e(d+'dir', d+'dir_ln');
+                file.symlink_e('/dev/zero', d+'dev_zero_ln');
+                srv = net.createServer().listen(d+'socket');
+                file.symlink_e(d+'socket', d+'socket_ln');
+                assert.strictEqual(yield efile[helper_name](target), expected);
+            }));
+        };
+        t('file', d+'file');
+        t('file_ln', d+'file_ln');
+        t('dir', d+'dir');
+        t('dir_ln', d+'dir_ln');
+        t('chardev', '/dev/zero');
+        t('chardev_ln', d+'dev_zero_ln');
+        t('socket', d+'socket');
+        t('socket_ln', d+'socket_ln');
+    });
+    stat_helper_t('is_file', qw`file file_ln`);
+    stat_helper_t('is_dir', qw`dir dir_ln`);
+    stat_helper_t('is_chardev', qw`chardev chardev_ln`);
+    stat_helper_t('is_socket', qw`socket socket_ln`);
+    stat_helper_t('is_symlink', qw`file_ln dir_ln chardev_ln socket_ln`);
+    // XXX: add tests for readlink_e and realpath_e
+});

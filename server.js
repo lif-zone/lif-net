@@ -230,7 +230,6 @@ const main = ()=>etask(function*main(){
     throw err;
   }
   let dir = init_conf.get('dir');
-  let ssl_dir = dir+'/ssl';
   let boot = yield get_boot_scroll({dir, soul_name: init_conf.get('soul'),
     boot_root: init_conf.get('boot')});
   let soul = boot.soul;
@@ -238,6 +237,7 @@ const main = ()=>etask(function*main(){
   let domain = opt_array(conf.domain);
   let ip = opt_array(conf.ip);
   let dev = !!conf.dev;
+  let ssl_dir = dir+'/ssl';
   xerr.notice('boot: startup mode %s domain: %s ip: %s',
     dev ? 'DEV' : 'PROD', domain.join(','), ip.join(','));
   assert(ip?.length, 'missing server ip, check conf.json');

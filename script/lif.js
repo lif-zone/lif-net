@@ -17,9 +17,20 @@ import Scroll from '../storage/scroll.js';
 import DB from '../storage/db.js';
 const {opt_array} = util;
 const cwd = process.cwd();
-let gopt;
-
 proc.xexit_init();
+let gopt = getopt.create([
+  ['K', 'key=ARG', 'path to private key'],
+  ['P', 'pub=ARG', 'path to public key'],
+  ['', 'dev', 'dev mode'],
+  ['', 'force', 'force'],
+  ['', 'soul=ARG', 'name of soul'],
+  ['', 'db_dir=ARG', 'path to sqlite dir'],
+  ]).bindHelp(
+    'Usage:\n'+
+    '   lif.js init --dev --force\n'+
+    '   lif.js keypair [dst_file]\n'+
+    '   lif.js --key=[key] --pub=[pub] new [src_file]\n'
+  ).parseSystem();
 
 function do_error(gopt, msg){
   if (msg)
@@ -220,19 +231,6 @@ const _scroll_append = (scroll, a)=>etask(function*_scroll_append(){
 const main = ()=>etask(function*main(){
   this.on('uncaught', e=>xerr.xexit(e));
   // XXX: allow simple usage by provide soul dir
-  gopt = getopt.create([
-    ['K', 'key=ARG', 'path to private key'],
-    ['P', 'pub=ARG', 'path to public key'],
-    ['', 'dev', 'dev mode'],
-    ['', 'force', 'force'],
-    ['', 'soul=ARG', 'name of soul'],
-    ['', 'db_dir=ARG', 'path to sqlite dir'],
-    ]).bindHelp(
-      'Usage:\n'+
-      '   lif.js init --dev --force\n'+
-      '   lif.js keypair [dst_file]\n'+
-      '   lif.js --key=[key] --pub=[pub] new [src_file]\n'
-    ).parseSystem();
   let {argv, options} = gopt;
   let {key, pub, db_dir, soul, dev, force} = options, soul_dir;
   let lif_dir = dev ? '/var/lif.dev' : '/var/lif';

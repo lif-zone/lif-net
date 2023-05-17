@@ -118,12 +118,14 @@ const lif_node_start = (soul, https_server)=>etask(function*lif_node_start(){
 class Conf {
 constructor(file){ this.file = file; }
 
-init(){ return etask({_: this}, function*conf_init(){
+init(opt={}){ return etask({_: this}, function*conf_init(){
   let _this = this._, file = _this.file;
   assert(!_this.inited, 'conf already inited '+file);
   _this.inited = true;
   try { yield fs.promises.access(file, fs.R_OK|fs.W_OK);
   } catch(err){
+    if (!opt.create)
+      throw err;
     xerr.notice('conf: create new %s', file);
     _this.conf = {};
     yield fs.promises.writeFile(file, _this.str(_this.conf), 'utf8');

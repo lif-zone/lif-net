@@ -6,6 +6,7 @@ import https from 'https';
 import fs from 'fs';
 import assert from 'assert';
 import Node from './net/node.js';
+import Conf from './util/conf.js';
 import Scroll_conf from './storage/conf.js';
 import Soul from './storage/soul.js';
 import DB from './storage/db.js';
@@ -113,44 +114,6 @@ const lif_node_start = (soul, https_server)=>etask(function*lif_node_start(){
   let node = new Node({https_server, ...soul.keypair});
   xerr.notice('lif node id %s', node.id.s);
 });
-
-// XXX: mv to generic place
-class Conf {
-constructor(file){ this.file = file; }
-
-init(opt={}){ return etask({_: this}, function*conf_init(){
-  let _this = this._, file = _this.file;
-  assert(!_this.inited, 'conf already inited '+file);
-  _this.inited = true;
-  try { yield fs.promises.access(file, fs.R_OK|fs.W_OK);
-  } catch(err){
-    if (!opt.create)
-      throw err;
-    xerr.notice('conf: create new %s', file);
-    _this.conf = {};
-    yield fs.promises.writeFile(file, _this.str(_this.conf), 'utf8');
-  }
-  xerr.notice('conf: loading %s', file);
-  let s = yield fs.promises.readFile(file, 'utf8');
-  return _this.conf = JSON.parse(s);
-}); }
-
-save(){ return etask({_: this}, function*conf_save(){
-  let _this = this._;
-  // XXX: need to copy existing version and make this operation safe
-  yield fs.promises.writeFile(_this.file, _this.str(_this.conf), 'utf8');
-}); }
-
-get(path, val){ return util.get(this.conf, path); }
-
-set(path, val){ return etask({_: this}, function*conf_set(){
-  let _this = this._;
-  util.set(_this.conf, path, val);
-  yield _this.save(); // XXX: need automatic flush
-}); }
-
-str(){ return JSON.stringify(this.conf, null, '  '); }
-}
 
 const get_boot_scroll = opt=>etask(function*get_boot_scroll(){
   let {dir, soul_name, boot_root} = opt;

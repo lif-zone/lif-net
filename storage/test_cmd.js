@@ -602,7 +602,7 @@ export const new_scroll = (name, M, prev_scroll, sname, db_opt,
   if (M){
     assert(!scroll_decl, 'cannot modify scroll_decl in clone');
     scroll = yield (open_func||Scroll.open)({soul, key: t_keypair.key,
-      pub: t_keypair.pub, M, storage});
+      pub: t_keypair.pub, M, storage, create: true});
   }
   else {
     scroll = yield (create_func||Scroll.create)({soul, key: t_keypair.key,

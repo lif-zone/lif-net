@@ -39,11 +39,11 @@ export default class Storage_handler {
     });
   }
   init(opt){ return etask({_: this}, function*init(){
-    let _this = this._, db = _this.db, M = opt.M;
+    let _this = this._, db = _this.db, M = opt.M, {create, scroll} = opt;
     if (_this.inited)
       throw new Error('storage_handler already inited');
     _this.inited = true;
-    let scroll = _this.scroll = opt.scroll;
+    _this.scroll = scroll;
     if (!db.inited)
       yield db.init({postfix: scroll.soul.name||''});
     assert.strictEqual(scroll.top, null, 'scroll must be empty');
@@ -55,7 +55,8 @@ export default class Storage_handler {
     scroll.on('decl', _this.on_decl);
     if (M){
       yield scroll.lock();
-      yield _this.load_conflict(M);
+      if (!(yield _this.load_conflict(M)) && !create)
+        throw new Error('scroll not found');
       yield _this.load_branch();
       yield scroll.unlock();
     }
@@ -269,11 +270,12 @@ export default class Storage_handler {
       'scroll must be empty');
     let c = yield _this.load_conflict_static(M);
     if (!c)
-      return;
+      return false;
     yield scroll.conflict_from_static(c, (o, co)=>{
       assert(o.db.data.scfid>=0, 'missing scfid');
       co.db = o.db;
     });
+    return true;
   }); }
   load_branch(){ return etask({_: this}, function*load_branch(){
     this.on('uncaught', e=>xerr.xexit(e));

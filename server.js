@@ -7,6 +7,7 @@ import fs from 'fs';
 import assert from 'assert';
 import Node from './net/node.js';
 import Conf from './util/conf.js';
+import efile from './util/efile.js';
 import Scroll_conf from './storage/conf.js';
 import Soul from './storage/soul.js';
 import DB from './storage/db.js';
@@ -219,17 +220,23 @@ const main = ()=>etask(function*main(){
   this.on('uncaught', e=>xerr.xexit(e));
   server_et = this;
   let init_conf_file = cwd+'/conf.json';
+  if (!(yield efile.exists(init_conf_file)))
+    init_conf_file = '/var/lif.dev/conf.json';
   xerr.notice('boot: init conf %s', init_conf_file);
   let init_conf = new Conf(init_conf_file);
-  yield init_conf.init();
+  try { yield init_conf.init(); }
+  catch(err){
+    xerr.notice('boot: %s not found\nRun: script/lif.js init --dev');
+    throw err;
+  }
   let dir = init_conf.get('dir');
-  let boot = yield get_boot_scroll({dir, soul_name: init_conf.get('soul_name'),
+  let boot = yield get_boot_scroll({dir, soul_name: init_conf.get('soul'),
     boot_root: init_conf.get('boot')});
   let soul = boot.soul;
   let conf = yield boot.get('');
   let domain = opt_array(conf.domain);
   let ip = opt_array(conf.ip);
-  let dev = !!conf.dev; // XXX: chnage default to production (conf.dev)
+  let dev = !!conf.dev;
   xerr.notice('boot: startup mode %s domain: %s ip: %s',
     dev ? 'DEV' : 'PROD', domain.join(','), ip.join(','));
   assert(ip?.length, 'missing server ip, check conf.json');

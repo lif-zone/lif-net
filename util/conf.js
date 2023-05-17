@@ -12,17 +12,20 @@ constructor(file){ this.file = file; }
 
 init(opt={}){ return etask({_: this}, function*conf_init(){
   let _this = this._, file = _this.file;
+  let verbose = opt.verbose===undefined ? true : !!opt.verbose;
   assert(!_this.inited, 'conf already inited '+file);
   _this.inited = true;
   try { yield fs.promises.access(file, fs.R_OK|fs.W_OK);
   } catch(err){
     if (!opt.create)
       throw err;
-    xerr.notice('conf: create new %s', file);
+    if (verbose)
+      xerr.notice('conf: create new %s', file);
     _this.conf = {};
     yield fs.promises.writeFile(file, _this.str(_this.conf), 'utf8');
   }
-  xerr.notice('conf: loading %s', file);
+  if (verbose)
+    xerr.notice('conf: loading %s', file);
   let s = yield fs.promises.readFile(file, 'utf8');
   return _this.conf = JSON.parse(s);
 }); }

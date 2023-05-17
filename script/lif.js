@@ -1,18 +1,22 @@
 #! /usr/bin/env node
 // author: derry. coder: arik.
 import fs from 'fs';
+import path from 'path';
 import json6 from 'json-6';
 import etask from '../util/etask.js';
 import xerr from '../util/xerr.js';
 import date from '../util/date.js';
 import util from '../util/util.js';
+import efile from '../util/efile.js';
 import proc from '../util/proc.js';
+import Conf from '../util/conf.js';
 import crypto from '../util/crypto.js';
 import getopt from 'node-getopt';
 import Soul from '../storage/soul.js';
 import Scroll from '../storage/scroll.js';
 import DB from '../storage/db.js';
 const {opt_array} = util;
+const cwd = process.cwd();
 let gopt;
 
 proc.xexit_init();
@@ -27,8 +31,8 @@ function do_error(gopt, msg){
 const keypair_create = (file_key, file_pub)=>etask(function*keypair_create(){
   let keypair = yield crypto.keypair(crypto.crypt_def);
   yield Soul.write_keypair(keypair, file_key, file_pub);
-  console.log('Private key saved at: %s', file_key);
-  console.log('Public key saved at: %s', file_pub);
+  console.log('Private key: %s', file_key);
+  console.log('Public key: %s', file_pub);
 });
 
 const parse_decl = s=>etask(function*parse_decl(){
@@ -36,22 +40,64 @@ const parse_decl = s=>etask(function*parse_decl(){
   return a;
 });
 
+const lif_init = (lif_dir, opt)=>etask(function*lif_init(){
+  let {dev, force} = opt;
+  lif_dir = lif_dir ? lif_dir : dev ? '/var/lif.dev' : '/var/lif';
+  let conf_file = lif_dir+'/conf.json';
+  let def_file = cwd+'/'+(dev ? 'conf_dev.json6' : 'conf_prod.json6');
+  let name = opt.soul||'server';
+  let soul_dir = lif_dir+'/soul/'+name;
+  let db_dir = soul_dir+'/db';
+  let key = soul_dir+'/'+name+'.key';
+  let pub = soul_dir+'/'+name+'.pub';
+  console.log('Init %s %s', dev ? 'DEV' : 'PRODUCTION', lif_dir);
+  if (yield efile.exists(lif_dir)){
+    if (!force)
+      throw new Error(lif_dir+' exists, use --force');
+    // XXX: need file/efile.tmp_file api
+    let tmp = '/tmp/'+path.basename(lif_dir)+'.prev'+
+      (''+Math.random()).replace('0.', '.');
+    console.log('Saving prev version at %s', tmp);
+    yield efile.rename_e(lif_dir, tmp);
+  }
+  yield efile.mkdirp_e(lif_dir);
+  yield efile.mkdirp_e(soul_dir);
+  yield efile.mkdirp_e(db_dir);
+  yield keypair_create(key, pub);
+  let soul = yield scroll_init({soul: name, db_dir, key, pub});
+  let scroll = yield Scroll.create({soul, db: true},
+    {scroll: {desc: 'boot configuration'}});
+  let conf = new Conf(conf_file);
+  yield conf.init({create: true, verbose: false});
+  yield conf.set('dir', lif_dir);
+  yield conf.set('soul', name);
+  yield conf.set('boot', scroll.name);
+  console.log('Conf: %s', conf_file);
+  console.log('Boot: %s', scroll.name);
+  let s = yield fs.promises.readFile(def_file, 'utf8');
+  let a = yield parse_decl(s);
+  yield _scroll_append(scroll, a);
+  yield scroll.flush();
+});
+
 const scroll_init = opt=>etask(function*scroll_init(){
   // XXX: simplify scorll api
   yield DB.init({db_dir: opt.db_dir});
   let keypair = yield Soul.read_keypair(opt.key, opt.pub);
   let soul = new Soul({name: opt.soul, keypair});
-  return {soul};
+  return soul;
 });
 
 const scroll_new = (src, opt)=>etask(function*scroll_new(){
-  let {soul} = yield scroll_init(opt);
+  let soul = yield scroll_init(opt);
   let s = yield fs.promises.readFile(src, 'utf8');
-  let a = yield parse_decl(s);
-  if (!a || !a[0] || !a[0].scroll)
+  let a = opt_array(yield parse_decl(s));
+  let {body} = parse_row(a[0]);
+  if (!body?.scroll)
     do_error(gopt, 'missing scroll decl at '+src+': '+s);
-  let scroll = yield Scroll.create({soul, db: true}, a[0].scroll);
+  let scroll = yield Scroll.create({soul, db: true}, body.scroll);
   console.log('Created new scroll %s a %O', scroll.name, a);
+  yield scroll.flush();
 });
 
 // XXX: mv to util + test
@@ -107,7 +153,7 @@ function decl_cat(decl, cfid, opt){
 
 const scroll_cat = (M, opt)=>etask(function*scroll_cat(){
   let cfid = 0;
-  let {soul} = yield scroll_init(opt);
+  let soul = yield scroll_init(opt);
   let scroll = yield Scroll.open({M, soul, db: true});
   let top = scroll.conflict.get(cfid).top.seq;
   console.log('[');
@@ -120,23 +166,38 @@ const scroll_cat = (M, opt)=>etask(function*scroll_cat(){
 });
 
 const scroll_append = (M, src, opt)=>etask(function*scroll_append(){
-  let cfid = 0;
-  let {soul} = yield scroll_init(opt);
+  let soul = yield scroll_init(opt);
   let scroll = yield Scroll.open({M, soul, db: true});
   let s = yield fs.promises.readFile(src, 'utf8');
   let a = yield parse_decl(s);
-  let top = scroll.conflict.get(cfid).top.seq;
+  yield _scroll_append(scroll, a);
+  yield scroll.flush();
+});
+
+function parse_row(row){
+  row = opt_array(row);
+  let header, body;
+  if (row.length==1)
+    [header, body] = [{}, row[0]];
+  else if (row.length==2)
+    [header, body] = row;
+  else
+    do_error(gopt, 'invalid row: '+json6_stringify(row));
+  return {header, body};
+}
+
+const _scroll_append = (scroll, a)=>etask(function*_scroll_append(){
+  let cfid = 0, top = scroll.conflict.get(cfid).top.seq;
   for (let i=0; i<a.length; i++){
-    if (a[i]?.length!=2)
-      do_error(gopt, 'only header+body is upported');
-    let {seq, ts} = a[i][0];
+    let {header, body} = parse_row(a[i]);
+    let {seq, ts} = header;
     if (seq<=top)
       continue;
     if (seq>top+1)
       do_error(gopt, 'missing decl '+(seq-1));
     if (ts!=undefined)
       do_error(gopt, 'custom ts not supported '+ts); // XXX: parse ts
-    yield scroll.decl({ts}, a[i][1]);
+    yield scroll.decl(header, body);
   }
 });
 
@@ -154,6 +215,8 @@ const main = ()=>etask(function*main(){
   gopt = getopt.create([
     ['K', 'key=ARG', 'path to private key'],
     ['P', 'pub=ARG', 'path to public key'],
+    ['', 'dev', 'dev mode'],
+    ['', 'force', 'force'],
     ['', 'soul=ARG', 'name of soul'],
     ['', 'db_dir=ARG', 'path to sqlite dir'],
     ]).bindHelp(
@@ -162,14 +225,14 @@ const main = ()=>etask(function*main(){
       '  ./lif.js --key=[key] --pub=[pub] new [src_file]\n'
     ).parseSystem();
   let {argv, options} = gopt;
-  let lif_dir = '/var/lif2'; // XXX
-  let {key, pub, db_dir, soul} = options, soul_dir;
-  if (soul){
-    soul_dir = lif_dir+'/soul/'+soul;
-    key = key || soul_dir+'/'+soul+'.key';
-    pub = pub || soul_dir+'/'+soul+'.pub';
-    db_dir = db_dir || soul_dir+'/db';
-  }
+  let {key, pub, db_dir, soul, dev, force} = options, soul_dir;
+  let lif_dir = dev ? '/var/lif.dev' : '/var/lif';
+  soul = soul||'server';
+  soul_dir = lif_dir+'/soul/'+soul;
+  key = key || soul_dir+'/'+soul+'.key';
+  pub = pub || soul_dir+'/'+soul+'.pub';
+  db_dir = db_dir || soul_dir+'/db';
+  console.log('lif dir: %s soul %s db %s', lif_dir, soul, db_dir);
   // XXX: need better cli api
   switch (argv[0]){
     case 'keypair':
@@ -177,6 +240,7 @@ const main = ()=>etask(function*main(){
         do_error(gopt, 'Missing destination file');
       yield keypair_create(argv[1]+'.key', argv[1]+'.pub');
       break;
+    case 'init': yield lif_init(argv[1], {dev, force}); break;
     case 'new':
       if (!argv[1])
         do_error(gopt, 'Missing source file');
@@ -187,6 +251,8 @@ const main = ()=>etask(function*main(){
     case 'cat':
       if (!argv[1])
         do_error(gopt, 'Missing scroll root');
+      if (!soul)
+        do_error(gopt, 'Missing soul name');
       yield scroll_cat(argv[1], {soul, key, pub, db_dir});
       break;
     case 'append':
@@ -194,6 +260,8 @@ const main = ()=>etask(function*main(){
         do_error(gopt, 'Missing scroll root');
       if (!argv[2])
         do_error(gopt, 'Missing decl file');
+      if (!soul)
+        do_error(gopt, 'Missing soul name');
       yield scroll_append(argv[1], argv[2], {soul, key, pub, db_dir});
       break;
     default: do_error(gopt, 'Unknown command '+argv[0]);

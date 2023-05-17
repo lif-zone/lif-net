@@ -1,5 +1,9 @@
 {
-  "ssl": {
+  dev: true,
+  ip: '127.0.0.1',
+  domain: 'localhost',
+  /* XXX: WIP
+  ssl: {
     "cert": {
       "localhost": {
         "cert": "/var/lif/ssl/local/localhost.crt",
@@ -8,4 +12,5 @@
     }
 
   }
+  */
 }

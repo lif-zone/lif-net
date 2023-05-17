@@ -450,7 +450,8 @@ export default class Scroll extends EventEmitterAsync {
     if (M)
       _this.name = b2s(M);
     assert(!M || seq==0 || !_this.storage, 'cannot use sotage if seq>0');
-    yield _this.storage?.init({scroll: _this, M: b2s(M)});
+    yield _this.storage?.init({scroll: _this, M: b2s(M),
+      create: opt.create});
     _this.M_get(0).on('hash', e=>etask(function*init_on_hash(){
       assert.strictEqual(e.cfid, 0, 'seq0 must be on cfid 0');
       yield _this._init_index_table(true);
@@ -1688,7 +1689,7 @@ Scroll.open = opt=>etask(function*scroll_open(){
   if (scroll)
     return scroll;
   scroll = new Scroll(opt);
-  yield scroll.init({M: h, seq});
+  yield scroll.init({M: h, seq, create: opt.create});
   return scroll;
 });
 

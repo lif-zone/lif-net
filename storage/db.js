@@ -26,6 +26,7 @@ export default class DB {
     if (_this.inited)
       return xerr('db already inited');
     _this.inited = true;
+    assert(opt.postfix, 'missing db name postfix');
     _this.postfix = opt.postfix ? '_'+opt.postfix : '';
     _this.max_frame = opt.max_frame||DB.MAX_FRAME;
     _this.max_decl = opt.max_decl||DB.MAX_DECL;

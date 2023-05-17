@@ -134,6 +134,8 @@ E.stop = ()=>{
 };
 
 function get_our_domain(name){
+  if (!E.domain)
+    return;
   let rdomain = E.rdomain || E.domain.map(s=>{
     let r = escape.regex(s);
     return {domain: s, regex: new RegExp('(^'+r+'$)|(\\.'+r+'$)', 'i')};

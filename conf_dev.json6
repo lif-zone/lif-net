@@ -2,15 +2,14 @@
   dev: true,
   ip: '127.0.0.1',
   domain: 'localhost',
-  /* XXX: WIP
+  dnss: {enable: true},
   ssl: {
-    "cert": {
-      "localhost": {
-        "cert": "/var/lif/ssl/local/localhost.crt",
-        "key": "/var/lif/ssl/local/localhost.key"
+    enable: true,
+    cert: {
+      localhost: {
+        cert: '/var/lif.dev/ssl/localhost/localhost.crt',
+        key: '/var/lif.dev/ssl/localhost/localhost.key',
       }
     }
-
-  }
-  */
+  },
 }

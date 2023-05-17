@@ -147,7 +147,7 @@ E.start = opt=>etask(function*ssl_start(){
     date.dur_to_str(E.renew_expire_lt));
   for (let domain in conf.ssl?.cert||{})
     yield load_cert(domain, conf.ssl.cert[domain]);
-  if (!conf.ssl.acme.enable)
+  if (!conf.ssl.acme?.enable)
     return xerr.notice('ssl: acme disabled');
   E.acme_timeout = date.str_to_dur(E.conf.ssl.acme.timeout||'')||acme.TIMEOUT;
   E.acme_retry = date.str_to_dur(E.conf.ssl.acme.retry||'')||E.RETRY;

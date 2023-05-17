@@ -47,6 +47,7 @@ const lif_init = (lif_dir, opt)=>etask(function*lif_init(){
   let def_file = cwd+'/'+(dev ? 'conf_dev.json6' : 'conf_prod.json6');
   let name = opt.soul||'server';
   let soul_dir = lif_dir+'/soul/'+name;
+  let ssl_dir = lif_dir+'/ssl';
   let db_dir = soul_dir+'/db';
   let key = soul_dir+'/'+name+'.key';
   let pub = soul_dir+'/'+name+'.pub';
@@ -63,7 +64,15 @@ const lif_init = (lif_dir, opt)=>etask(function*lif_init(){
   yield efile.mkdirp_e(lif_dir);
   yield efile.mkdirp_e(soul_dir);
   yield efile.mkdirp_e(db_dir);
+  yield efile.mkdirp_e(ssl_dir);
   yield keypair_create(key, pub);
+  if (dev){
+    yield efile.mkdirp_e(ssl_dir+'/localhost');
+    yield efile.copy_e(cwd+'/script/localhost.crt',
+      ssl_dir+'/localhost/localhost.crt');
+    yield efile.copy_e(cwd+'/script/localhost.key',
+      ssl_dir+'/localhost/localhost.key');
+  }
   let soul = yield scroll_init({soul: name, db_dir, key, pub});
   let scroll = yield Scroll.create({soul, db: true},
     {scroll: {desc: 'boot configuration'}});

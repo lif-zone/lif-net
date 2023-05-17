@@ -125,8 +125,7 @@ const get_boot_scroll = opt=>etask(function*get_boot_scroll(){
   let soul = yield soul_init({name: soul_name, soul_dir});
   let boot = yield Scroll_conf.open({M: boot_root, soul, db: true});
   assert(boot.top.seq>0, 'boot scroll is empty');
-  xerr.notice('boot: using boot scroll %s\n'+
-    'script/lif.js --soul %s cat %s', boot.name, soul_name, boot_root);
+  xerr.notice('boot: using boot scroll %s');
   return boot;
 });
 
@@ -219,7 +218,8 @@ const main = ()=>etask(function*main(){
   assert(!server_et, 'server alredy running');
   this.on('uncaught', e=>xerr.xexit(e));
   server_et = this;
-  let init_conf_file = cwd+'/conf.json';
+  let init_conf_file = /^\/var\/lif\//.test(cwd) ?
+    '/var/lif/conf.json' : '/var/lif.dev/conf.json';
   if (!(yield efile.exists(init_conf_file)))
     init_conf_file = '/var/lif.dev/conf.json';
   xerr.notice('boot: init conf %s', init_conf_file);
@@ -230,6 +230,7 @@ const main = ()=>etask(function*main(){
     throw err;
   }
   let dir = init_conf.get('dir');
+  let ssl_dir = dir+'/ssl';
   let boot = yield get_boot_scroll({dir, soul_name: init_conf.get('soul'),
     boot_root: init_conf.get('boot')});
   let soul = boot.soul;
@@ -242,9 +243,9 @@ const main = ()=>etask(function*main(){
   assert(ip?.length, 'missing server ip, check conf.json');
   assert(domain?.length, 'missing domain, check conf.json');
   yield dnss.start({ip: conf.ip, domain: conf.domain, ...conf.dnss});
-  yield ssl.start({dnss, conf});
-  let app_dir = dev ? cwd : dir+'/server';
-  let build_dir = dev ? cwd+'/build' : dir+'/build';
+  yield ssl.start({ssl_dir, dnss, conf});
+  let app_dir = cwd;
+  let build_dir = cwd+'/build';
   // XXX: allow to enable/disable http from conf
   let {https_server} = yield http_start({http: 80, https: 443,
     app_dir, build_dir});

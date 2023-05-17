@@ -44,7 +44,7 @@ const lif_init = (lif_dir, opt)=>etask(function*lif_init(){
   let {dev, force} = opt;
   lif_dir = lif_dir ? lif_dir : dev ? '/var/lif.dev' : '/var/lif';
   let conf_file = lif_dir+'/conf.json';
-  let def_file = cwd+'/'+(dev ? 'conf_dev.json6' : 'conf_prod.json6');
+  let def_file = cwd+'/'+(dev ? 'conf_dev.json6' : 'conf_def.json6');
   let name = opt.soul||'server';
   let soul_dir = lif_dir+'/soul/'+name;
   let ssl_dir = lif_dir+'/ssl';
@@ -58,7 +58,7 @@ const lif_init = (lif_dir, opt)=>etask(function*lif_init(){
     // XXX: need file/efile.tmp_file api
     let tmp = '/tmp/'+path.basename(lif_dir)+'.prev'+
       (''+Math.random()).replace('0.', '.');
-    console.log('Saving prev version at %s', tmp);
+    console.log('Saving prev version: %s', tmp);
     yield efile.rename_e(lif_dir, tmp);
   }
   yield efile.mkdirp_e(lif_dir);
@@ -67,11 +67,10 @@ const lif_init = (lif_dir, opt)=>etask(function*lif_init(){
   yield efile.mkdirp_e(ssl_dir);
   yield keypair_create(key, pub);
   if (dev){
-    yield efile.mkdirp_e(ssl_dir+'/localhost');
-    yield efile.copy_e(cwd+'/script/localhost.crt',
-      ssl_dir+'/localhost/localhost.crt');
-    yield efile.copy_e(cwd+'/script/localhost.key',
-      ssl_dir+'/localhost/localhost.key');
+    yield efile.copy_e(cwd+'/script/star_localhost.crt',
+      ssl_dir+'/star_localhost.crt');
+    yield efile.copy_e(cwd+'/script/star_localhost.key',
+      ssl_dir+'/star_localhost.key');
   }
   let soul = yield scroll_init({soul: name, db_dir, key, pub});
   let scroll = yield Scroll.create({soul, db: true},
@@ -103,7 +102,7 @@ const scroll_new = (src, opt)=>etask(function*scroll_new(){
   let a = opt_array(yield parse_decl(s));
   let {body} = parse_row(a[0]);
   if (!body?.scroll)
-    do_error(gopt, 'missing scroll decl at '+src+': '+s);
+    do_error(gopt, 'missing scroll decl '+src+': '+s);
   let scroll = yield Scroll.create({soul, db: true}, body.scroll);
   console.log('Created new scroll %s a %O', scroll.name, a);
   yield scroll.flush();

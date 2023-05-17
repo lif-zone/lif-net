@@ -16,8 +16,8 @@ E.RENEW_EXPIRE_LT = date.ms.MONTH;
 E.RETRY = 5*date.ms.MIN;
 
 function get_acme_cert_files(domain){
-  return {cert: E.conf.ssl.cert_dir+'/acme_star_'+domain+'.crt',
-    key: E.conf.ssl.keys_dir+'/acme_key_'+domain+'.pem'};
+  return {cert: E.conf.ssl_dir+'/acme_star_'+domain+'.crt',
+    key: E.conf.ssl.ssl_dir+'/acme_star_'+domain+'.key'};
 }
 
 // XXX: need test
@@ -135,6 +135,7 @@ E.start = opt=>etask(function*ssl_start(){
   assert(!E.inited, 'ssl already inited');
   assert(E.dnss = opt.dnss, 'missing dnss');
   assert(E.conf = opt.conf, 'missing conf');
+  assert(E.ssl_dir = opt.ssl_dir, 'missing ssl_dir');
   let conf = E.conf, domains = opt_array(conf.domain);
   E.inited = true;
   E.cert = {};

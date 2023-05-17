@@ -7,8 +7,8 @@
     enable: true,
     cert: {
       localhost: {
-        cert: '/var/lif.dev/ssl/localhost/localhost.crt',
-        key: '/var/lif.dev/ssl/localhost/localhost.key',
+        cert: '/var/lif.dev/ssl/star_localhost.crt',
+        key: '/var/lif.dev/ssl/star_localhost.key',
       }
     }
   },

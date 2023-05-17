@@ -2,11 +2,6 @@
   dnss: {enable: true},
   ssl: {
     enable: true,
-    acme: {
-      enable: true,
-      timeout: '1min',
-      retry: '5min'
-    },
-    renew_expire_lt: '1mo',
+    acme: {enable: true},
   },
 }

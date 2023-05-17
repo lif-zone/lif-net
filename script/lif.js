@@ -230,8 +230,9 @@ const main = ()=>etask(function*main(){
     ['', 'db_dir=ARG', 'path to sqlite dir'],
     ]).bindHelp(
       'Usage:\n'+
-      '  ./lif.js keypair [dst_file]\n'+
-      '  ./lif.js --key=[key] --pub=[pub] new [src_file]\n'
+      '   lif.js init --dev --force\n'+
+      '   lif.js keypair [dst_file]\n'+
+      '   lif.js --key=[key] --pub=[pub] new [src_file]\n'
     ).parseSystem();
   let {argv, options} = gopt;
   let {key, pub, db_dir, soul, dev, force} = options, soul_dir;

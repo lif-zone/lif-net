@@ -1,27 +1,23 @@
 #! /usr/bin/env -S node
 // author: derry. coder: arik.
-import fs from 'fs';
+import fs from 'fs'; // XXX: rm, use efile api
 import {execSync} from 'node:child_process';
-import xerr from './util/xerr.js';
-import efile from './util/efile.js';
-import proc from './util/proc.js';
-import ver_util from './util/ver_util.js';
-import etask from './util/etask.js';
-import Conf from './util/conf.js';
-import string from './util/string.js';
-import date from './util/date.js';
-import util from './util/util.js';
-import Soul from './storage/soul.js';
-import Scroll_conf from './storage/conf.js';
-import DB from './storage/db.js';
-import escape from './util/escape.js';
-import buf_util from './net/buf_util.js';
+import xerr from '../util/xerr.js';
+import efile from '../util/efile.js';
+import proc from '../util/proc.js';
+import ver_util from '../util/ver_util.js';
+import etask from '../util/etask.js';
+import Conf from '../util/conf.js';
+import string from '../util/string.js';
+import util from '../util/util.js';
+import Soul from '../storage/soul.js';
+import Scroll_conf from '../storage/conf.js';
+import DB from '../storage/db.js';
+import escape from '../util/escape.js';
 import getopt from 'node-getopt';
-const b2s = buf_util.buf_to_str;
 const {split_trim} = string;
 const {opt_array} = util;
 const cwd = process.cwd();
-const ts = date();
 const NODE_MIN_VER = '18.6.0';
 proc.xexit_init();
 let gopt = getopt.create([
@@ -41,15 +37,9 @@ const get_my_ip = ()=>etask(function*get_my_ip(){
   try { ip = yield (yield req).json(); }
   catch(err){}
   if (!ip?.ip)
-    return console.error('\nfailed to get IP\n');
+    return console.error('*** Failed to get IP');
   return ip.ip;
 });
-
-function get_git_head(){
-  let s = execSync('git show-ref refs/heads/main');
-  let m = s.toString().match(/^([0-9a-f]+) .*/);
-  return m?.[1];
-}
 
 function is_svc_running(svc){
   try {
@@ -96,7 +86,6 @@ const soul_init = opt=>etask(function*soul_init(){
   let soul = new Soul({name: 'server', keypair});
   let db_dir = soul_dir+'/db';
   yield DB.init({db_dir});
-  xerr.notice('soul: init pub %s at %s', b2s(keypair.pub), soul_dir);
   return soul;
 });
 
@@ -141,17 +130,26 @@ const main = ()=>etask(function*main(){
   }
   console.log('Load conf %s', conf_file);
   let conf = new Conf(conf_file);
-  yield conf.init();
+  yield conf.init({verbose: false});
   let boot = yield get_boot_scroll({dir: lif_dir,
     soul_name: conf.get('soul'), boot_root: conf.get('boot')});
-  if (!ip.length)
-    ip = [yield et_ip];
+  console.log('Boot scroll %s', boot.name);
+  if (!ip.length){
+    let _ip = yield et_ip;
+    if (_ip)
+      ip = [_ip];
+  }
   let prev_ip = opt_array(yield boot.get('ip'));
   let need_ip = !util.equal_deep(ip, prev_ip);
   let prev_domain = opt_array(yield boot.get('domain'));
   let need_domain = !util.equal_deep(domain, prev_domain);
   if (!domain.length && !prev_domain.length){ // XXX: wrap with do_exit
     console.error('Missing --domain');
+    gopt.showHelp();
+    process.exit(1);
+  }
+  if (!ip.length && !prev_ip?.length){
+    console.error('Missing --ip');
     gopt.showHelp();
     process.exit(1);
   }
@@ -191,7 +189,6 @@ const main = ()=>etask(function*main(){
   }
   console.log('Move %s -> %s', tmp_dir, dst_dir);
   yield efile.rename_e(tmp_dir, dst_dir);
-  return;
   console.log('Install service %s', svc);
   install_svc(svc, dst_dir);
   console.log('Start service %s', svc);

@@ -6358,6 +6358,8 @@ const file_test_cleanup = ()=>{
 };
 
 describe('file', ()=>{
+    if (!is_node)
+      return;
     let tmp_filename = 'test.tmp';
     beforeEach(()=>{
       file_test_cleanup();
@@ -7002,6 +7004,8 @@ describe('file', ()=>{
 });
 
 describe('efile', ()=>{
+    if (!is_node)
+      return;
     beforeEach(()=>{
       file_test_cleanup();
       fs.mkdirSync(tdir, {recursive: true});

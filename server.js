@@ -209,7 +209,7 @@ function test_serve(test, app_dir, build_dir){
   return (req, res)=>etask(function*(){
     let file = test.replaceAll('/', '_').replace('.js', '.bundle.js');
     yield browserify_js(build_dir, build_dir+'/'+file,
-      [app_dir+'/'+test], {debug: true});
+      [app_dir+'/'+test], {debug: true, ignoreMissing: true});
     res.sendFile(build_dir+'/'+file);
   });
 }

@@ -16,8 +16,8 @@ E.RENEW_EXPIRE_LT = date.ms.MONTH;
 E.RETRY = 5*date.ms.MIN;
 
 function get_acme_cert_files(domain){
-  return {cert: E.conf.ssl_dir+'/acme_star_'+domain+'.crt',
-    key: E.conf.ssl.ssl_dir+'/acme_star_'+domain+'.key'};
+  return {cert: E.ssl_dir+'/acme_star_'+domain+'.crt',
+    key: E.ssl_dir+'/acme_star_'+domain+'.key'};
 }
 
 // XXX: need test
@@ -33,7 +33,7 @@ function cert_valid_for(valid_from, valid_to){
 }
 
 const get_key = opt=>etask(function*get_key(){
-  let file = E.conf.ssl.keys_dir+'/'+opt.file, pem;
+  let file = E.ssl_dir+'/'+opt.file, pem;
   try {
     pem = yield fs.promises.readFile(file);
   } catch(err){ xerr.warn('ssl: acme key not found at %s ', file); }

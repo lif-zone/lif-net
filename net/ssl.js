@@ -90,7 +90,7 @@ const acme_monitor = ()=>etask(function*acme_monitor(){
     let sleep = E.renew_expire_lt;
     for (let i=0; i<E.domains.length; i++){
       let cert, domain = E.domains[i], info = E.cert[domain];
-      if (E.conf.ssl.cert[domain])
+      if (E.conf.ssl.cert?.[domain])
         continue;
       let valid_for = cert_valid_for(info?.valid_from, info?.valid_to);
       if (valid_for > E.renew_expire_lt){
@@ -137,16 +137,16 @@ E.start = opt=>etask(function*ssl_start(){
   assert(E.conf = opt.conf, 'missing conf');
   assert(E.ssl_dir = opt.ssl_dir, 'missing ssl_dir');
   let conf = E.conf, domains = opt_array(conf.domain);
+  if (!conf.ssl?.enable)
+    return xerr.notice('ssl: disabled');
   E.inited = true;
   E.cert = {};
   E.domains = domains;
-  E.renew_expire_lt = Math.max(date.str_to_dur(conf.ssl?.renew_expire_lt||'')
+  E.renew_expire_lt = Math.max(date.str_to_dur(conf.ssl.renew_expire_lt||'')
     ||E.RENEW_EXPIRE_LT, date.ms.WEEK);
-  if (!conf.ssl?.enable)
-    return xerr.notice('ssl: disabled');
   xerr.notice('ssl: module enabled renew every %s',
     date.dur_to_str(E.renew_expire_lt));
-  for (let domain in conf.ssl?.cert||{})
+  for (let domain in conf.ssl.cert||{})
     yield load_cert(domain, conf.ssl.cert[domain]);
   if (!conf.ssl.acme?.enable)
     return xerr.notice('ssl: acme disabled');
@@ -161,7 +161,7 @@ E.start = opt=>etask(function*ssl_start(){
   xerr.notice('ssl: load acme certificates');
   for (let i=0; i<domains.length; i++){
     let domain = domains[i];
-    if (conf.ssl.cert[domain])
+    if (conf.ssl.cert?.[domain])
       continue;
     try { yield load_cert(domain, get_acme_cert_files(domain)); }
     catch(err){ xerr.warn('ssl: failed load acme cert %s', err); }

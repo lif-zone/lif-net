@@ -126,12 +126,9 @@ const main = ()=>etask(function*main(){
       if (!argv[0])
         do_error(gopt, 'Missing file/dir');
       return git_ci(argv);
-    case 'diff':
-      return git_diff(argv);
-    case 'cvsdiff':
-      return git_cvsdiff(argv);
-    case 'add':
-      return git_add(argv);
+    case 'diff': return git_diff(argv);
+    case 'cvsdiff': return git_cvsdiff(argv);
+    case 'add': return git_add(argv);
     case 'rm':
       if (!argv[0])
         do_error(gopt, 'Missing file/dir');

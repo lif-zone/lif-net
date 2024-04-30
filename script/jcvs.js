@@ -4,7 +4,7 @@ import etask from '../util/etask.js';
 import xerr from '../util/xerr.js';
 import proc from '../util/proc.js';
 import getopt from 'node-getopt';
-import {execSync} from 'node:child_process';
+import {execSync, exec} from 'node:child_process';
 
 /* XXX TODO
 jcvs co git@github.com:xarikgilad/lif-zone-src.git -d lif
@@ -55,6 +55,8 @@ let gopt = getopt.create([
     'Usage:\n'+
     '  jcvs co repository -d [dir]\n'+
     '  jcvs cvsup\n'+
+    '  jcvs ci [file|dir]\n'+
+    '  jcvs commit [file|dir]\n'+
     '  cvsup\n'
   ).parseSystem();
 
@@ -78,11 +80,18 @@ function do_error(gopt, msg){
   process.exit(1);
 }
 
-function git_cvsup(gopt, msg){
+function git_cvsup(){
   execSync('git pull');
   let ret = execSync('git status -s');
   console.log(ret.toString());
 }
+
+const git_ci = argv=>etask(function*git_ci(){
+  xerr('git commit '+argv.join(' '));
+  execSync('git commit '+argv.join(' '), {stdio: 'inherit'});
+  xerr('done');
+  execSync('git push');
+});
 
 const main = ()=>etask(function*main(){
   this.on('uncaught', e=>xerr.xexit(e));
@@ -90,11 +99,17 @@ const main = ()=>etask(function*main(){
   if (!is_git())
     return run_cvs();
   let cmd = argv[0];
+  argv.shift();
   switch (cmd){
     case 'cvsup':
-      if (argv[1])
+      if (argv[0])
         do_error(gopt, 'Invalid argument');
       return git_cvsup();
+    case 'ci':
+    case 'commit':
+      if (!argv[0])
+        do_error(gopt, 'Missing file/dir');
+      return git_ci(argv);
   default: do_error(gopt, 'Unknown command for GIT: '+cmd);
   }
 });

@@ -87,12 +87,9 @@ function git_cvsup(){
 }
 
 const git_ci = argv=>etask(function*git_ci(){
-  try { execSync('git commit '+argv.join(' '), {stdio: 'inherit'}); }
-  catch(err){
-    xerr('XXX err.message %O', err.message);
-    xerr('XXX err %O', err);
-    throw err;
-  }
+  let ret;
+  try { ret = execSync('git commit '+argv.join(' '), {stdio: 'inherit'}); }
+  catch(err){ return; }
   execSync('git push');
 });
 

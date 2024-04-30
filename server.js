@@ -258,17 +258,16 @@ const main = ()=>etask(function*main(){
 main();
 
 // TODO:
-// - fix net client
-//   - save node id in persistent storage (scroll?)
-//   o fix node_map.js del_conn() + test
-//   o review+test 'connected' event
-//   o support msg sign/verify
-// - fix json loading (don't use experimental feature) and use conf api
-// - cleanup all XXX in server.js
 // - BUG: setTimeout overflow (float/bigint supported?)
+// - replace all fs.promises with efile api
 //   etask.setTimeout/setInterval
 // - allow to put more info to acme cert
 // - allow to set ttl for txt response
+// - fix net client
+//   o fix node_map.js del_conn() + test
+//   o review+test 'connected' event
+//   o support msg sign/verify
+// - cleanup all XXX in server.js
 
 // LATER:
 // - wrtc+stun (after lif-chain)

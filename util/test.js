@@ -471,6 +471,37 @@ describe('sinon', function(){
                 t('2013-08-13 14:11:00');
             });
         });
+        // XXX review test and setTiemout overlofw implementation
+        it('xxx-etask.setTimeout', ()=>{
+            try {
+                xsinon.clock_set({now: '1970-01-01 00:00:00.001',
+                    auto_inc: true, idle_time: 30});
+                let t = exp=>assert.strictEqual(+date(exp), Date.now());
+                let ms = etask.setTimeout_max+10, wait = etask.wait();
+                etask.setTimeout(()=>{
+                  t(+date('1970-01-01 00:00:00.001')+ms);
+                  wait.continue();
+                  xsinon.uninit();
+                }, ms);
+                t('1970-01-01 00:00:00.001');
+                return wait;
+            } catch(err){
+              xerr('XXX %O', err);
+            }
+        });
+        if (0) // XXX review test and setTiemout overlofw implementation
+        it('xxx-etask.sleep', ()=>{
+            xsinon.clock_set({now: '1970-01-01 00:00:00.001',
+                auto_inc: true, idle_time: 30});
+            let t = exp=>assert.strictEqual(+date(exp), Date.now());
+            return etask(function*(){
+                t('1970-01-01 00:00:00.001');
+                let xxx = 100*1000*1000*ms.DAY-1;
+                yield etask.sleep(xxx);
+                t(date(+date(1)+xxx));
+                xsinon.uninit();
+            });
+        });
         it('affects date.monotonic', ()=>{
             xsinon.clock_set({now: 100});
             assert.strictEqual(date.monotonic(), 100);

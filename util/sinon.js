@@ -3,7 +3,8 @@
 import sinon from 'sinon';
 import assert from 'assert';
 import etask from './etask.js';
-import xutil from './util.js';
+import util from './util.js';
+import xerr from './xerr.js';
 import date from './date.js';
 import events from './events.js';
 
@@ -15,6 +16,7 @@ var clock_restore;
 var clock_tick;
 var clock;
 const IDLE_TIME = 1;
+const max_timeout = 2147483647;
 var idle_time;
 let timer_funcs = ['setTimeout', 'setInterval', 'setImmediate'];
 var event_funcs = [
@@ -194,6 +196,8 @@ E.clock_set = function(opt){
           //   (timer.delay || (clock.duringTick ? 1 : 0));
           if (timer_funcs.includes(func)){
             let ms = arguments[1]||0, ret = _orig.apply(this, arguments);
+            if (ms>max_timeout)
+              xerr('timeout overflow %s > %s', ms, max_timeout);
             if (clock.duringTick && !ms){
               clock.timers[ret.id||ret].callAt =
               clock.timers[ret.id||ret].createdAt+ms;
@@ -227,5 +231,5 @@ E.create_sandbox = function(opt){
   return sandbox;
 };
 E.is_fake_clock = function(){ return clock!==undefined; };
-if (xutil.is_mocha())
+if (util.is_mocha())
   afterEach(function(){ return E.uninit(); });

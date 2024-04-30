@@ -1374,3 +1374,42 @@ E.shutdown = function(){
     e.return();
   }
 };
+E.setTimeout_id = 0;
+E.setTimeout_max = 2147483647;
+class setTimeout_timer {
+  constructor(ms){
+    this.id = ++E.setTimeout_id;
+    this.ms = ms;
+  }
+}
+E.setTimeout = function etask_setTimeout(cb, ms){
+  if (!ms || ms <= E.setTimeout_max)
+    return setTimeout(cb, ms);
+  function timer_cb(){
+    let _ms = Math.min(timer.ms, E.setTimeout_max);
+    if (_ms){
+      timer.timer = setTimeout(timer_cb, _ms);
+      timer.ms -= _ms;
+      return;
+    }
+    cb.call(this);
+    delete E.setTimeout.timers[timer.id];
+  }
+  E.setTimeout.timers = E.setTimeout.timers||{};
+  let timer = new setTimeout_timer(ms);
+  timer.timer = setTimeout(timer_cb, E.setTimeout_max);
+  timer.ms -= E.setTimeout_max;
+  E.setTimeout.timers[timer.id] = timer;
+  return timer;
+};
+
+E.clearTimeout = function(timer){
+  if (!timer instanceof setTimeout_timer)
+    return clearTimeout(timer);
+  timer = E.setTimeout.timers[timer.id];
+  if (!timer)
+    return;
+  clearTimeout(timer.timer);
+  delete E.setTimeout.timers[timer.id];
+};
+

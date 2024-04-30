@@ -4,7 +4,7 @@ import etask from '../util/etask.js';
 import xerr from '../util/xerr.js';
 import proc from '../util/proc.js';
 import getopt from 'node-getopt';
-import {exec, execSync} from 'node:child_process';
+import {execSync} from 'node:child_process';
 
 /* XXX TODO
 jcvs co git@github.com:xarikgilad/lif-zone-src.git -d lif
@@ -31,10 +31,10 @@ c jcvs up file/dir
 + jcvs ci file/dir
 
 # add file/dir
-jcvs add file/dir
++ jcvs add file/dir
 
 # rm file/dir
-jcvs rm file/dir
++ jcvs rm file/dir
 
 # lint
 zlint file/dir
@@ -63,7 +63,8 @@ let gopt = getopt.create([
     '  jcvs commit [file|dir]\n'+
     '  jcvs diff [file|dir]\n'+
     '  jcvs add [file|dir]\n'+
-    '  jcvs rm [file|dir]\n'
+    '  jcvs rm [file|dir]\n'+
+    '  jcvs zlint [file|dir]\n'
   ).parseSystem();
 
 function is_git(){
@@ -109,9 +110,14 @@ function git_add(argv){ execSync('git add '+argv.join(' ')); }
 
 function git_rm(argv){ execSync('git rm '+argv.join(' ')); }
 
+function git_zlint(argv){
+  try { execSync('eslint '+(argv.length ? argv.join(' ') : '.')); }
+  catch(err){ console.log('%s', err.stdout.toString()); }
+}
+
 const main = ()=>etask(function*main(){
   this.on('uncaught', e=>xerr.xexit(e));
-  let {argv, options} = gopt;
+  let {argv} = gopt;
   if (!is_git())
     return run_cvs();
   let cmd = argv[0];
@@ -133,6 +139,7 @@ const main = ()=>etask(function*main(){
       if (!argv[0])
         do_error(gopt, 'Missing file/dir');
       return git_rm(argv);
+    case 'zlint': return git_zlint(argv);
   default: do_error(gopt, 'Unknown command for GIT: '+cmd);
   }
 });

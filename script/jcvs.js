@@ -29,8 +29,8 @@ c jcvs up file/dir (not supported in GIT)
 - :CVSAnnotate
 - rgrep
 - rt
-
-# install
+- what to do if not git? cvsdiff/zlint/cvsup doesn't exist on LIF VM
+- simple install script (no prev copy for backup, very hacky implementation)
 # check zlint eslint configuration
 # add instructions for server debug
 # add instructions for web debug

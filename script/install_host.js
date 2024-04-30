@@ -17,13 +17,17 @@ const main = ()=>etask(function*main(){
   src = src.replace('\r', '').replace('\n', '');
   let dst = '/var/lif.host';
   console.log('Installing host tools on %s', dst);
+  execSync_safe('rm -rf '+dst);
+  execSync_safe('rm /usr/local/bin/jcvs');
+  execSync_safe('rm /usr/local/bin/cvsup');
+  execSync_safe('rm /usr/local/bin/cvsdiff');
+  execSync_safe('rm /usr/local/bin/zlint');
   execSync_safe('mkdir '+dst);
   execSync('cp -rf '+src+'/* '+dst+'/');
-  execSync('npm install /var/lif.host');
-  execSync_safe('chmod +x '+dst+'/script/jcvs.js');
   execSync_safe('ln -sn '+dst+'/script/jcvs.js /usr/local/bin/jcvs');
-  execSync_safe('ln -sn '+dst+'/script/jcvs.js /usr/local/bin/cvsdiff');
-  execSync_safe('ln -sn '+dst+'/script/jcvs.js /usr/local/bin/zdiff');
+  execSync_safe('ln -sn '+dst+'/script/cvsup.js /usr/local/bin/cvsup');
+  execSync_safe('ln -sn '+dst+'/script/cvsdiff.js /usr/local/bin/cvsdiff');
+  execSync_safe('ln -sn '+dst+'/script/zlint.js /usr/local/bin/zlint');
 });
 
 main();

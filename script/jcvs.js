@@ -16,7 +16,7 @@ jcvs co home -d home
 jcvs diff file/dir
 
 # update and show modified file status
-cvsup
++ cvsup
 
 # update file/dir
 jcvs up file/dir
@@ -26,8 +26,7 @@ cvsdiff file
  -D "2 weeks ago"
  -D "2024-10-13 13:52"
 
-# commit
-jcvs ci file/dir
++ jcvs ci file/dir
 
 # add file/dir
 jcvs add file/dir
@@ -57,6 +56,7 @@ let gopt = getopt.create([
     '  jcvs cvsup\n'+
     '  jcvs ci [file|dir]\n'+
     '  jcvs commit [file|dir]\n'+
+    '  jcvs diff [file|dir]\n'+
     '  cvsup\n'
   ).parseSystem();
 
@@ -92,6 +92,11 @@ const git_ci = argv=>etask(function*git_ci(){
   execSync('git push');
 });
 
+function git_diff(argv){
+  let ret = execSync('git diff -U0 -p '+argv.join(' '));
+  console.log(ret.toString());
+}
+
 const main = ()=>etask(function*main(){
   this.on('uncaught', e=>xerr.xexit(e));
   let {argv, options} = gopt;
@@ -109,6 +114,10 @@ const main = ()=>etask(function*main(){
       if (!argv[0])
         do_error(gopt, 'Missing file/dir');
       return git_ci(argv);
+    case 'diff':
+      if (!argv[0])
+        do_error(gopt, 'Missing file/dir');
+      return git_diff(argv);
   default: do_error(gopt, 'Unknown command for GIT: '+cmd);
   }
 });

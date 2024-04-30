@@ -4,7 +4,7 @@ import etask from '../util/etask.js';
 import xerr from '../util/xerr.js';
 import proc from '../util/proc.js';
 import getopt from 'node-getopt';
-import {execSync, exec} from 'node:child_process';
+import {exec, execSync} from 'node:child_process';
 
 /* XXX TODO
 jcvs co git@github.com:xarikgilad/lif-zone-src.git -d lif
@@ -87,9 +87,9 @@ function git_cvsup(){
 }
 
 const git_ci = argv=>etask(function*git_ci(){
-  xerr('git commit '+argv.join(' '));
   try { execSync('git commit '+argv.join(' '), {stdio: 'inherit'}); }
   catch(err){
+    xerr('XXX err.message %O', err.message);
     xerr('XXX err %O', err);
     throw err;
   }

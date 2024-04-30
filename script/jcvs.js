@@ -12,38 +12,26 @@ jcvs co git@github.com:xarikgilad/home.git -d home
 jcvs co lif -d lif
 jcvs co home -d home
 
-# update and show modified file status
 + cvsup
-
-# update file/dir
-c jcvs up file/dir
-
-# command line diff
-+ jcvs diff file/dir
- -D "2 weeks ago"
- -D "2024-10-13 13:52"
-
-# gvim diff
-+ cvsdiff file
- -D "2 weeks ago"
- -D "2024-10-13 13:52"
-
+* jcvs diff file/dir
+ + jcvs diff
+ - cvs diff -D "2 weeks ago"
+ - cvs diff -D "2024-10-13 13:52"
+* gvim diff
+  + cvsdiff file
+  - cvsdif -D "2 weeks ago"
+  - cvsdiff -D "2024-10-13 13:52"
 + jcvs ci file/dir
-
-# add file/dir
 + jcvs add file/dir
-
-# rm file/dir
 + jcvs rm file/dir
++ zlint file/dir
+c jcvs up file/dir (not supported in GIT)
+- :CVSAnnotate
+- rgrep
+- rt
 
-# lint
-zlint file/dir
-
-# gvim menu
-:CVSAnnotate
-
-# rgrep
-
+# install
+# check zlint eslint configuration
 # add instructions for server debug
 # add instructions for web debug
 # rename xerr -> zerr

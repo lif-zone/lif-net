@@ -12,17 +12,19 @@ jcvs co git@github.com:xarikgilad/home.git -d home
 jcvs co lif -d lif
 jcvs co home -d home
 
-# command line diff
-jcvs diff file/dir
-
 # update and show modified file status
 + cvsup
 
 # update file/dir
-jcvs up file/dir
+c jcvs up file/dir
+
+# command line diff
++ jcvs diff file/dir
+ -D "2 weeks ago"
+ -D "2024-10-13 13:52"
 
 # gvim diff
-cvsdiff file
++ cvsdiff file
  -D "2 weeks ago"
  -D "2024-10-13 13:52"
 
@@ -53,11 +55,15 @@ let gopt = getopt.create([
   ]).bindHelp(
     'Usage:\n'+
     '  jcvs co repository -d [dir]\n'+
+    '  cvsup\n'+
     '  jcvs cvsup\n'+
+    '  cvsdiff [file|dir]\n'+
+    '  jcvs cvsdiff [file|dir]\n'+
     '  jcvs ci [file|dir]\n'+
     '  jcvs commit [file|dir]\n'+
     '  jcvs diff [file|dir]\n'+
-    '  cvsup\n'
+    '  jcvs add [file|dir]\n'+
+    '  jcvs rm [file|dir]\n'
   ).parseSystem();
 
 function is_git(){
@@ -97,6 +103,12 @@ function git_diff(argv){
   console.log(ret.toString());
 }
 
+function git_cvsdiff(argv){ execSync('git difftool '+argv.join(' ')); }
+
+function git_add(argv){ execSync('git add '+argv.join(' ')); }
+
+function git_rm(argv){ execSync('git rm '+argv.join(' ')); }
+
 const main = ()=>etask(function*main(){
   this.on('uncaught', e=>xerr.xexit(e));
   let {argv, options} = gopt;
@@ -115,9 +127,15 @@ const main = ()=>etask(function*main(){
         do_error(gopt, 'Missing file/dir');
       return git_ci(argv);
     case 'diff':
+      return git_diff(argv);
+    case 'cvsdiff':
+      return git_cvsdiff(argv);
+    case 'add':
+      return git_add(argv);
+    case 'rm':
       if (!argv[0])
         do_error(gopt, 'Missing file/dir');
-      return git_diff(argv);
+      return git_rm(argv);
   default: do_error(gopt, 'Unknown command for GIT: '+cmd);
   }
 });

@@ -221,11 +221,19 @@ const _scroll_append = (scroll, a)=>etask(function*_scroll_append(){
 });
 
 /* XXX: examples:
-   sudo ./lif.js --key ~/tmp/key1.key --pub ~/tmp/key1.pub  --db_dir /var/lif/soul/storage --soul lif_db_server new ~/tmp/scroll.txt
-   sudo ./lif.js --key ~/tmp/key1.key --pub ~/tmp/key1.pub  --db_dir /var/lif/soul/storage --soul lif_db_server cat 6f11e33e2f4f7dde59f1c276073e1599d257628e092940b731fa1dfe29f99c6a > ~/tmp/out.js
-   sudo ./lif.js --key ~/tmp/key1.key --pub ~/tmp/key1.pub  --db_dir /var/lif/soul/storage --soul lif_db_server append 6f11e33e2f4f7dde59f1c276073e1599d257628e092940b731fa1dfe29f99c6a ~/tmp/out.js
+   sudo ./lif.js --key ~/tmp/key1.key --pub ~/tmp/key1.pub  --db_dir
+     /var/lif/soul/storage --soul lif_db_server new ~/tmp/scroll.txt
+   sudo ./lif.js --key ~/tmp/key1.key --pub ~/tmp/key1.pub
+     --db_dir /var/lif/soul/storage --soul lif_db_server cat
+     6f11e33e2f4f7dde59f1c276073e1599d257628e092940b731fa1dfe29f99c6a
+     > ~/tmp/out.js
+   sudo ./lif.js --key ~/tmp/key1.key --pub ~/tmp/key1.pub  --db_dir
+     /var/lif/soul/storage --soul lif_db_server append
+     6f11e33e2f4f7dde59f1c276073e1599d257628e092940b731fa1dfe29f99c6a
+     ~/tmp/out.js
    sudo ./lif.js --soul server new ~/tmp/scroll.txt
-   sudo ./lif.js --soul server cat fd835dd087ac68f43225a2a288d430da62388704ee140ee98d24fc980e761482
+   sudo ./lif.js --soul server cat
+     fd835dd087ac68f43225a2a288d430da62388704ee140ee98d24fc980e761482
 */
 // XXX: need lif.js list
 const main = ()=>etask(function*main(){

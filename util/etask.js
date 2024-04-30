@@ -1404,7 +1404,7 @@ E.setTimeout = function etask_setTimeout(cb, ms){
 };
 
 E.clearTimeout = function(timer){
-  if (!timer instanceof setTimeout_timer)
+  if (!(timer instanceof setTimeout_timer))
     return clearTimeout(timer);
   timer = E.setTimeout.timers[timer.id];
   if (!timer)

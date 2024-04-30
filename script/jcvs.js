@@ -43,16 +43,11 @@ let gopt = getopt.create([
   ]).bindHelp(
     'Usage:\n'+
     '  jcvs co repository -d [dir]\n'+
-    '  cvsup\n'+
-    '  jcvs cvsup\n'+
-    '  cvsdiff [file|dir]\n'+
-    '  jcvs cvsdiff [file|dir]\n'+
     '  jcvs ci [file|dir]\n'+
     '  jcvs commit [file|dir]\n'+
     '  jcvs diff [file|dir]\n'+
     '  jcvs add [file|dir]\n'+
-    '  jcvs rm [file|dir]\n'+
-    '  jcvs zlint [file|dir]\n'
+    '  jcvs rm [file|dir]\n',
   ).parseSystem();
 
 function is_git(){
@@ -75,12 +70,6 @@ function do_error(gopt, msg){
   process.exit(1);
 }
 
-function git_cvsup(){
-  execSync('git pull');
-  let ret = execSync('git status -s');
-  console.log(ret.toString());
-}
-
 const git_ci = argv=>etask(function*git_ci(){
   try { execSync('git commit '+argv.join(' '), {stdio: 'inherit'}); }
   catch(err){ return; }
@@ -92,16 +81,9 @@ function git_diff(argv){
   console.log(ret.toString());
 }
 
-function git_cvsdiff(argv){ execSync('git difftool '+argv.join(' ')); }
-
 function git_add(argv){ execSync('git add '+argv.join(' ')); }
 
 function git_rm(argv){ execSync('git rm '+argv.join(' ')); }
-
-function git_zlint(argv){
-  try { execSync('eslint '+(argv.length ? argv.join(' ') : '.')); }
-  catch(err){ console.log('%s', err.stdout.toString()); }
-}
 
 const main = ()=>etask(function*main(){
   this.on('uncaught', e=>xerr.xexit(e));
@@ -111,23 +93,17 @@ const main = ()=>etask(function*main(){
   let cmd = argv[0];
   argv.shift();
   switch (cmd){
-    case 'cvsup':
-      if (argv[0])
-        do_error(gopt, 'Invalid argument');
-      return git_cvsup();
     case 'ci':
     case 'commit':
       if (!argv[0])
         do_error(gopt, 'Missing file/dir');
       return git_ci(argv);
     case 'diff': return git_diff(argv);
-    case 'cvsdiff': return git_cvsdiff(argv);
     case 'add': return git_add(argv);
     case 'rm':
       if (!argv[0])
         do_error(gopt, 'Missing file/dir');
       return git_rm(argv);
-    case 'zlint': return git_zlint(argv);
   default: do_error(gopt, 'Unknown command for GIT: '+cmd);
   }
 });

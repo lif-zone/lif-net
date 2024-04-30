@@ -11,6 +11,7 @@ function execSync_safe(){
 }
 
 const main = ()=>etask(function*main(){
+  this.on('uncaught', e=>xerr.xexit(e));
   // XXX: save copy of previous install dir (copy logic from install.js)
   let src = execSync('git rev-parse --show-toplevel').toString();
   src = src.replace('\r', '').replace('\n', '');

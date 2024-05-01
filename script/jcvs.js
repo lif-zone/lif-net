@@ -34,7 +34,7 @@ git clone git@github.com:xarikgilad/lif-zone-src.git
 + simple install script (no prev copy for backup, very hacky implementation)
 - add instructions for server debug
 - add instructions for web debug
-- rename xerr -> zerr
+- rename xerr -> zerr; xexit > zexit
 */
 
 proc.xexit_init();

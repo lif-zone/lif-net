@@ -7,9 +7,11 @@ import getopt from 'node-getopt';
 import {execSync} from 'node:child_process';
 
 proc.xexit_init();
-let gopt = getopt.create([]).bindHelp(
+let gopt = getopt.create([['D', '=', 'date']]).bindHelp(
     'Usage:\n'+
-    '  cvsdiff [file|dir]\n'
+    '  cvsdiff [file|dir]\n'+
+    '  cvsdiff -D "2 month ago" [file|dir]\n'+
+    '  cvsdiff -D "2024-01-30 13:00" [file|dir]\n'
   ).parseSystem();
 
 function is_git(){
@@ -25,14 +27,19 @@ function run_cvs(){
   return execSync(a.join(' '));
 }
 
-function git_cvsdiff(argv){ execSync('git difftool '+argv.join(' ')); }
+function git_cvsdiff(argv, options){
+  let d = '';
+  if (options.D)
+    d = '`git rev-list -n 1 --before="'+options.D+'" main`';
+  execSync('git difftool '+d+' '+argv.join(' '));
+}
 
 const main = ()=>etask(function*main(){
   this.on('uncaught', e=>xerr.xexit(e));
-  let {argv} = gopt;
+  let {argv, options} = gopt;
   if (!is_git())
     return run_cvs();
-  return git_cvsdiff(argv);
+  return git_cvsdiff(argv, options);
 });
 
 main();

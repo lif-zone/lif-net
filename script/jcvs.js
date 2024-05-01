@@ -12,6 +12,7 @@ jcvs co git@github.com:xarikgilad/home.git -d home
 jcvs co lif -d lif
 jcvs co home -d home
 
+// git rev-list -n 1 --before="2023-07-27 13:37" main
 + cvsup
 * jcvs diff file/dir
  + jcvs diff
@@ -30,24 +31,27 @@ c jcvs up file/dir (not supported in GIT)
 - rgrep
 - rt
 - what to do if not git? cvsdiff/zlint/cvsup doesn't exist on LIF VM
-- simple install script (no prev copy for backup, very hacky implementation)
-# check zlint eslint configuration
-# add instructions for server debug
-# add instructions for web debug
-# rename xerr -> zerr
++ simple install script (no prev copy for backup, very hacky implementation)
+- check zlint eslint configuration
+- add instructions for server debug
+- add instructions for web debug
+- rename xerr -> zerr
 */
 
 proc.xexit_init();
 let gopt = getopt.create([
   ['d', 'd=directory', ''],
+  ['D', '=', 'date'],
   ]).bindHelp(
     'Usage:\n'+
     '  jcvs co repository -d [dir]\n'+
     '  jcvs ci [file|dir]\n'+
     '  jcvs commit [file|dir]\n'+
-    '  jcvs diff [file|dir]\n'+
     '  jcvs add [file|dir]\n'+
-    '  jcvs rm [file|dir]\n',
+    '  jcvs rm [file|dir]\n'+
+    '  jcvs diff [file|dir]\n'+
+    '  jcvs diff -D "2 month ago" [file|dir]\n'+
+    '  jcvs diff -D "2024-01-30 13:00" [file|dir]\n'
   ).parseSystem();
 
 function is_git(){
@@ -76,8 +80,11 @@ const git_ci = argv=>etask(function*git_ci(){
   execSync('git push');
 });
 
-function git_diff(argv){
-  let ret = execSync('git diff -U0 -p '+argv.join(' '));
+function git_diff(argv, options){
+  let d = '';
+  if (options.D)
+    d = '`git rev-list -n 1 --before="'+options.D+'" main`';
+  let ret = execSync('git diff -U0 -p '+d+' '+argv.join(' '));
   console.log(ret.toString());
 }
 
@@ -87,7 +94,7 @@ function git_rm(argv){ execSync('git rm '+argv.join(' ')); }
 
 const main = ()=>etask(function*main(){
   this.on('uncaught', e=>xerr.xexit(e));
-  let {argv} = gopt;
+  let {argv, options} = gopt;
   if (!is_git())
     return run_cvs();
   let cmd = argv[0];
@@ -98,7 +105,7 @@ const main = ()=>etask(function*main(){
       if (!argv[0])
         do_error(gopt, 'Missing file/dir');
       return git_ci(argv);
-    case 'diff': return git_diff(argv);
+    case 'diff': return git_diff(argv, options);
     case 'add': return git_add(argv);
     case 'rm':
       if (!argv[0])

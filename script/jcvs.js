@@ -7,12 +7,7 @@ import getopt from 'node-getopt';
 import {execSync} from 'node:child_process';
 
 /* XXX TODO
-jcvs co git@github.com:xarikgilad/lif-zone-src.git -d lif
-jcvs co git@github.com:xarikgilad/home.git -d home
-jcvs co lif -d lif
-jcvs co home -d home
-
-// git rev-list -n 1 --before="2023-07-27 13:37" main
+git clone git@github.com:xarikgilad/lif-zone-src.git
 + cvsup
 + jcvs diff file/dir
   + jcvs diff
@@ -29,10 +24,11 @@ jcvs co home -d home
 + jcvs add file/dir
 + jcvs rm file/dir
 + zlint file/dir
-o jcvs up file/dir (not supported in GIT)
 + :CVSAnnotate
 + rgrep
-o rt
+? rt
+? add -v to commands to show actual command being executed?
+? jcvs up file/dir (not supported in GIT)
 - what to do if not git? cvsdiff/zlint/cvsup doesn't exist on LIF VM
 + simple install script (no prev copy for backup, very hacky implementation)
 - add instructions for server debug
@@ -51,6 +47,7 @@ let gopt = getopt.create([
     '  jcvs commit [file|dir]\n'+
     '  jcvs add [file|dir]\n'+
     '  jcvs rm [file|dir]\n'+
+    '  jcvs di [file|dir]\n'+
     '  jcvs diff [file|dir]\n'+
     '  jcvs diff -D "2 month ago" [file|dir]\n'+
     '  jcvs diff -D "2024-01-30 13:00" [file|dir]\n'+
@@ -109,7 +106,9 @@ const main = ()=>etask(function*main(){
       if (!argv[0])
         do_error(gopt, 'Missing file/dir');
       return git_ci(argv);
-    case 'diff': return git_diff(argv, options);
+    case 'di':
+    case 'diff':
+      return git_diff(argv, options);
     case 'add': return git_add(argv);
     case 'rm':
       if (!argv[0])

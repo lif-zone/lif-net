@@ -33,8 +33,6 @@ const main = ()=>etask(function*main(){
   console.log('\nINSTALL VIM Plugins:\n'+
     '  Add to ~/.vimrc at the end of the file:\n'+
     '  runtime vimrc_lif.vim');
-
-
 });
 
 main();

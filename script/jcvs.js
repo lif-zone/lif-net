@@ -13,15 +13,16 @@ jcvs co lif -d lif
 jcvs co home -d home
 
 // git rev-list -n 1 --before="2023-07-27 13:37" main
+? support diff -D "2 weeks ago" -D "1 weeks ago"
 + cvsup
-* jcvs diff file/dir
++ jcvs diff file/dir
  + jcvs diff
- - cvs diff -D "2 weeks ago"
- - cvs diff -D "2024-10-13 13:52"
-* gvim diff
+ + cvs diff -D "2 weeks ago"
+ + cvs diff -D "2024-10-13 13:52"
++ gvim diff
   + cvsdiff file
-  - cvsdif -D "2 weeks ago"
-  - cvsdiff -D "2024-10-13 13:52"
+  + cvsdif -D "2 weeks ago"
+  + cvsdiff -D "2024-10-13 13:52"
 + jcvs ci file/dir
 + jcvs add file/dir
 + jcvs rm file/dir
@@ -41,7 +42,7 @@ c jcvs up file/dir (not supported in GIT)
 proc.xexit_init();
 let gopt = getopt.create([
   ['d', 'd=directory', ''],
-  ['D', '=', 'date'],
+  ['D', '=+', 'date'],
   ]).bindHelp(
     'Usage:\n'+
     '  jcvs co repository -d [dir]\n'+
@@ -51,7 +52,8 @@ let gopt = getopt.create([
     '  jcvs rm [file|dir]\n'+
     '  jcvs diff [file|dir]\n'+
     '  jcvs diff -D "2 month ago" [file|dir]\n'+
-    '  jcvs diff -D "2024-01-30 13:00" [file|dir]\n'
+    '  jcvs diff -D "2024-01-30 13:00" [file|dir]\n'+
+    '  jcvs diff -D "2 month ago" -D "3 month ago" [file|dir]\n'
   ).parseSystem();
 
 function is_git(){
@@ -81,10 +83,11 @@ const git_ci = argv=>etask(function*git_ci(){
 });
 
 function git_diff(argv, options){
-  let d = '';
-  if (options.D)
-    d = '`git rev-list -n 1 --before="'+options.D+'" main`';
-  let ret = execSync('git diff -U0 -p '+d+' '+argv.join(' '));
+  let rev = '';
+  if (options.D && options.D.length){
+    options.D.forEach(d=>rev+=' `git rev-list -n 1 --before="'+d+'" main` ');
+  }
+  let ret = execSync('git diff -U0 -p '+rev+' '+argv.join(' '));
   console.log(ret.toString());
 }
 

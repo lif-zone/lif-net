@@ -7,8 +7,7 @@ import {execSync} from 'node:child_process';
 proc.xexit_init();
 
 function execSync_safe(){
-  try { execSync.apply(this, arguments); } catch(err){}
-}
+  try { execSync.apply(this, arguments); } catch(err){} }
 
 const main = ()=>etask(function*main(){
   this.on('uncaught', e=>xerr.xexit(e));
@@ -22,12 +21,20 @@ const main = ()=>etask(function*main(){
   execSync_safe('rm /usr/local/bin/cvsup');
   execSync_safe('rm /usr/local/bin/cvsdiff');
   execSync_safe('rm /usr/local/bin/zlint');
+  execSync_safe('rm /usr/local/bin/zdiff');
   execSync_safe('mkdir '+dst);
   execSync('cp -rf '+src+'/* '+dst+'/');
   execSync_safe('ln -sn '+dst+'/script/jcvs.js /usr/local/bin/jcvs');
   execSync_safe('ln -sn '+dst+'/script/cvsup.js /usr/local/bin/cvsup');
   execSync_safe('ln -sn '+dst+'/script/cvsdiff.js /usr/local/bin/cvsdiff');
+  execSync_safe('ln -sn '+dst+'/script/cvsdiff.js /usr/local/bin/zdiff');
   execSync_safe('ln -sn '+dst+'/script/zlint.js /usr/local/bin/zlint');
+  execSync('cp -rf '+src+'/script/vimrc_lif.vim /etc/vim/');
+  console.log('\nINSTALL VIM Plugins:\n'+
+    '  Add to ~/.vimrc at the end of the file:\n'+
+    '  runtime vimrc_lif.vim');
+
+
 });
 
 main();

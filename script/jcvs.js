@@ -13,27 +13,28 @@ jcvs co lif -d lif
 jcvs co home -d home
 
 // git rev-list -n 1 --before="2023-07-27 13:37" main
-? support diff -D "2 weeks ago" -D "1 weeks ago"
 + cvsup
 + jcvs diff file/dir
- + jcvs diff
- + cvs diff -D "2 weeks ago"
- + cvs diff -D "2024-10-13 13:52"
+  + jcvs diff
+  + cvs diff -D "2 weeks ago"
+  + cvs diff -D "2 weeks ago" -D "3 weeks ago"
+  + cvs diff -D "2024-10-13 13:52"
 + gvim diff
   + cvsdiff file
   + cvsdif -D "2 weeks ago"
+  + cvsdiff -D "2 weeks ago" -D "3 weeks ago"
   + cvsdiff -D "2024-10-13 13:52"
++ zdiff
 + jcvs ci file/dir
 + jcvs add file/dir
 + jcvs rm file/dir
 + zlint file/dir
-c jcvs up file/dir (not supported in GIT)
-- :CVSAnnotate
-- rgrep
-- rt
+o jcvs up file/dir (not supported in GIT)
++ :CVSAnnotate
++ rgrep
+o rt
 - what to do if not git? cvsdiff/zlint/cvsup doesn't exist on LIF VM
 + simple install script (no prev copy for backup, very hacky implementation)
-- check zlint eslint configuration
 - add instructions for server debug
 - add instructions for web debug
 - rename xerr -> zerr

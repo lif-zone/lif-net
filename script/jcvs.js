@@ -29,6 +29,7 @@ git clone git@github.com:xarikgilad/lif-zone-src.git
 ? rt
 ? add -v to commands to show actual command being executed?
 ? jcvs up file/dir (not supported in GIT)
+- improve help/usage (copy from spark)
 - what to do if not git? cvsdiff/zlint/cvsup doesn't exist on LIF VM
 + simple install script (no prev copy for backup, very hacky implementation)
 - add instructions for server debug

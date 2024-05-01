@@ -104,7 +104,7 @@ const main = ()=>etask(function*main(){
     case 'ci':
     case 'commit':
       if (!argv[0])
-        do_error(gopt, 'Missing file/dir');
+        do_error(gopt, '*** missing [file/dir] eg: jcvs ci .\n');
       return git_ci(argv);
     case 'di':
     case 'diff':
@@ -112,7 +112,7 @@ const main = ()=>etask(function*main(){
     case 'add': return git_add(argv);
     case 'rm':
       if (!argv[0])
-        do_error(gopt, 'Missing file/dir');
+        do_error(gopt, '*** missing [file/dir]\n');
       return git_rm(argv);
   default: do_error(gopt, 'Unknown command for GIT: '+cmd);
   }

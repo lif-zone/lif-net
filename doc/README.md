@@ -1,3 +1,10 @@
+LIF - Install development env
+=============================
+1. git clone git@github.com:xarikgilad/lif-zone-src.git
+2. cd lif-zone-src
+3. npm install
+4. sudo script/install_host.js
+
 LIF - Instal stand alone node server
 ====================================
 

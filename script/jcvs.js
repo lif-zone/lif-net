@@ -32,6 +32,7 @@ git clone git@github.com:xarikgilad/lif-zone-src.git
 - improve help/usage (copy from spark)
 - what to do if not git? cvsdiff/zlint/cvsup doesn't exist on LIF VM
 + simple install script (no prev copy for backup, very hacky implementation)
+? zmocha
 - add instructions for server debug
 - add instructions for web debug
 - rename xerr -> zerr; xexit > zexit

@@ -8,23 +8,22 @@ import {execSync} from 'node:child_process';
 
 /* XXX TODO
 git clone git@github.com:xarikgilad/lif-zone-src.git
-+ cvsup
-+ jcvs diff file/dir
-  + jcvs diff
-  + cvs diff -D "2 weeks ago"
-  + cvs diff -D "2 weeks ago" -D "3 weeks ago"
-  + cvs diff -D "2024-10-13 13:52"
-+ gvim diff
-  + cvsdiff file
-  + cvsdif -D "2 weeks ago"
-  + cvsdiff -D "2 weeks ago" -D "3 weeks ago"
-  + cvsdiff -D "2024-10-13 13:52"
-+ zdiff
-+ jcvs ci file/dir
-+ jcvs add file/dir
-+ jcvs rm file/dir
-+ zlint file/dir
-+ :CVSAnnotate
+- jgit co|checkout
+- jgit up|update (cvsup)
+- jgit up|update -D "2 weeks ago"
+* jgit di|diff file|dir.
+  + jgit diff -D "2 weeks ago"
+  + jgit diff -D "2 weeks ago" -D "3 weeks ago"
+  + jgit diff -D "2024-10-13 13:52"
++ jgit ddi|ddiff file|dir|. (gvimdiff zdiff)
+  + jgit ddi -D "2 weeks ago" file
+  + jgit ddi -D "2 weeks ago" -D "3 weeks ago" file
+  + jgit ddi -D "2024-10-13 13:52" file
++ jgit ci file|dir|.
++ jgit add file|dir|.
++ jgit rm file|dir|.
++ jlint file|dir|.
++ :GITAnnotate (CVSAnnotate)
 + rgrep
 ? rt
 ? add -v to commands to show actual command being executed?
@@ -67,7 +66,7 @@ function run_cvs(){
   let a = Array.from(process.argv);
   if (/\bnode$/.test(a[0]))
     a.shift();
-  return execSync(a.join(' '));
+  return execSync(A(a));
 }
 
 function do_error(gopt, msg){
@@ -91,9 +90,12 @@ function git_diff(argv, options){
   console.log(ret.toString());
 }
 
-function git_add(argv){ execSync('git add '+argv.join(' ')); }
+function A(args){
+  return args.join(' '); // do something better in the future
+}
+function git_add(argv){ execSync('git add '+A(argv)); }
 
-function git_rm(argv){ execSync('git rm '+argv.join(' ')); }
+function git_rm(argv){ execSync('git rm '+A(argv)); }
 
 const main = ()=>etask(function*main(){
   this.on('uncaught', e=>xerr.xexit(e));

@@ -10,6 +10,6 @@
 	tool = "gvimdiff"
 	context = 0
 [difftool]
-  prompt = false
+        prompt = false
 [core]
 	pager = cat

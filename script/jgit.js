@@ -85,9 +85,8 @@ const git_ci = argv=>etask(function*git_ci(){
 
 function git_diff(argv, options){
   let rev = '';
-  if (options.D && options.D.length){
+  if (options.D && options.D.length)
     options.D.forEach(d=>rev+=' `git rev-list -n 1 --before="'+d+'" main` ');
-  }
   let ret = execSync('git diff -U0 -p '+rev+' '+argv.join(' '));
   console.log(ret.toString());
 }
@@ -100,7 +99,7 @@ const main = ()=>etask(function*main(){
   this.on('uncaught', e=>xerr.xexit(e));
   let {argv, options} = gopt;
   if (!is_git())
-    return run_cvs();
+    throw 'not a GIT repository';
   let cmd = argv[0];
   argv.shift();
   switch (cmd){

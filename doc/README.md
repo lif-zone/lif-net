@@ -1,5 +1,7 @@
 LIF - Install development env
 =============================
+0.1 if new to this repository: send invite to new.
+0.2 login from same IP in web-interface, to be able to access the repository
 1. git clone git@github.com:xarikgilad/lif-zone-src.git
 2. cd lif-zone-src
 3. npm install

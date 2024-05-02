@@ -3,36 +3,32 @@
 import etask from '../util/etask.js';
 import xerr from '../util/xerr.js';
 import proc from '../util/proc.js';
-import {execSync} from 'node:child_process';
+import efile from '../util/efile.js';
+import path from 'path';
 proc.xexit_init();
-
-function execSync_safe(){
-  try { execSync.apply(this, arguments); } catch(err){} }
 
 const main = ()=>etask(function*main(){
   this.on('uncaught', e=>xerr.xexit(e));
-  // XXX: save copy of previous install dir (copy logic from install.js)
-  let src = execSync('git rev-parse --show-toplevel').toString();
-  src = src.replace('\r', '').replace('\n', '');
+  let src = path.resolve(proc.get_script_dir(), '../');
   let dst = '/var/lif.host';
-  console.log('Installing host tools on %s', dst);
-  execSync_safe('rm -rf '+dst);
-  execSync_safe('rm /usr/local/bin/jcvs');
-  execSync_safe('rm /usr/local/bin/cvsup');
-  execSync_safe('rm /usr/local/bin/cvsdiff');
-  execSync_safe('rm /usr/local/bin/zlint');
-  execSync_safe('rm /usr/local/bin/zdiff');
-  execSync_safe('mkdir '+dst);
-  execSync('cp -rf '+src+'/* '+dst+'/');
-  execSync_safe('ln -sn '+dst+'/script/jcvs.js /usr/local/bin/jcvs');
-  execSync_safe('ln -sn '+dst+'/script/cvsup.js /usr/local/bin/cvsup');
-  execSync_safe('ln -sn '+dst+'/script/cvsdiff.js /usr/local/bin/cvsdiff');
-  execSync_safe('ln -sn '+dst+'/script/cvsdiff.js /usr/local/bin/zdiff');
-  execSync_safe('ln -sn '+dst+'/script/zlint.js /usr/local/bin/zlint');
-  execSync('cp -rf '+src+'/script/vimrc_lif.vim /etc/vim/');
-  console.log('\nINSTALL VIM Plugins:\n'+
-    '  Add to ~/.vimrc at the end of the file:\n'+
-    '  runtime vimrc_lif.vim');
+  console.log('Installing host tools %s from %s', dst, src);
+  // XXX: make install safe. save copy of prev install (copy from install.js)
+  yield efile.rm_rf_e(dst);
+  yield efile.rm_rf_e('/usr/local/bin/jcvs');
+  yield efile.rm_rf_e('/usr/local/bin/cvsup');
+  yield efile.rm_rf_e('/usr/local/bin/cvsdiff');
+  yield efile.rm_rf_e('/usr/local/bin/zlint');
+  yield efile.rm_rf_e('/usr/local/bin/zdiff');
+  yield efile.mkdir_e(dst);
+  yield efile.copy_dir_e(src, dst);
+  yield efile.symlink_e(dst+'/script/jcvs.js', '/usr/local/bin/jcvs');
+  yield efile.symlink_e(dst+'/script/cvsup.js', '/usr/local/bin/cvsup');
+  yield efile.symlink_e(dst+'/script/cvsdiff.js', '/usr/local/bin/cvsdiff');
+  yield efile.symlink_e(dst+'/script/cvsdiff.js', '/usr/local/bin/zdiff');
+  yield efile.symlink_e(dst+'/script/zlint.js', '/usr/local/bin/zlint');
+  yield efile.copy_e(dst+'/script/vimrc_lif.vim', '/etc/vim/vimrc_lif.vim');
+  console.log('\nTO FINISH INSTALL VIM PLUGINS add to end of ~/.vimrc: '+
+    'runtime vimrc_lif.vim');
 });
 
 main();

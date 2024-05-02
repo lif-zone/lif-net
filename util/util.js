@@ -437,4 +437,3 @@ E.is_number = function(s){ return /^[0-9]+$/.test(s); };
 // XXX: need test
 E.opt_array = function(a){ return Array.isArray(a) ? a : a ? [a] : []; };
 
-

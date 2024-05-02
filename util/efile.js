@@ -118,8 +118,12 @@ E.copy_e = (old_path, new_path, opt)=>etask(function*copy_e(){
     log('copy error: '+e);
     close();
     yield E.unlink_e(new_path);
+    throw e; // XXX: test we throw error
   }
 });
+// XXX: need test
+E.copy_dir_e = (old_path, new_path)=>fs.promises.cp(old_path, new_path,
+  {force: true, recursive: true});
 E.read_line_e = path=>etask(function*read_line_e(){
   let ret;
   yield E.read_line_cb_e(path, line=>{

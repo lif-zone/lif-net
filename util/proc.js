@@ -3,6 +3,7 @@
 import xerr from './xerr.js';
 import xutil from './util.js';
 import assert from 'assert';
+import path from 'path';
 const E = {}, env = process.env;
 export default E;
 
@@ -28,6 +29,17 @@ E.xexit_init = cb=>{
     xerr.on_unhandled_exception = cb;
   }
 };
+
+// XXX: need test
+E.get_script_name = ()=>{
+  let script_name = process.argv[1];
+  if (!/^\/.+\/.+\.js$/.test(script_name))
+    throw new Error('failed to get script name '+script_name);
+  return script_name;
+};
+
+// XXX: need test
+E.get_script_dir = ()=>path.dirname(E.get_script_name());
 
 E.init = ()=>{
   process.on('uncaughtException', err=>xerr.xexit(err));

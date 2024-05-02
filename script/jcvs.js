@@ -63,6 +63,7 @@ function is_git(){
 }
 
 function run_cvs(){
+  // does not work
   let a = Array.from(process.argv);
   if (/\bnode$/.test(a[0]))
     a.shift();

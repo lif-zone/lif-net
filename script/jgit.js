@@ -103,19 +103,19 @@ const main = ()=>etask(function*main(){
   let cmd = argv[0];
   argv.shift();
   switch (cmd){
-    case 'ci':
-    case 'commit':
-      if (!argv[0])
-        do_error(gopt, '*** missing [file/dir] eg: jcvs ci .\n');
-      return git_ci(argv);
-    case 'di':
-    case 'diff':
-      return git_diff(argv, options);
-    case 'add': return git_add(argv);
-    case 'rm':
-      if (!argv[0])
-        do_error(gopt, '*** missing [file/dir]\n');
-      return git_rm(argv);
+  case 'ci':
+  case 'commit':
+    if (!argv[0])
+      do_error(gopt, '*** missing [file/dir] eg: jcvs ci .\n');
+    return git_ci(argv);
+  case 'di':
+  case 'diff':
+    return git_diff(argv, options);
+  case 'add': return git_add(argv);
+  case 'rm':
+    if (!argv[0])
+      do_error(gopt, '*** missing [file/dir]\n');
+    return git_rm(argv);
   default: do_error(gopt, 'Unknown command for GIT: '+cmd);
   }
 });

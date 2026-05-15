@@ -501,7 +501,7 @@ E.prototype.loop = function(promise){
 
 E.prototype._set_wait_timer = function(timeout){
   var _this = this;
-  this.wait_timer = setTimeout(function(){
+  this.wait_timer = E.setTimeout(function(){
     _this.wait_timer = undefined;
     _this._next_run({ret: undefined, err: 'timeout'});
   }, timeout);
@@ -662,7 +662,7 @@ E.prototype.alarm = function(ms, cb){
   }
   this.del_alarm();
   a = this._alarm = {ms: ms, cb: cb, start: Date.now()};
-  a.id = setTimeout(function(){
+  a.id = E.setTimeout(function(){
     _this._alarm = undefined;
     _this.emit('sig_alarm');
   }, a.ms);
@@ -1016,7 +1016,7 @@ E.sleep = function(ms){
   ms = ms||0;
   return etask({name: 'sleep', cancel: true}, [function(){
     this.info.ms = ms+'ms';
-    timer = setTimeout(this.continue_fn(), ms);
+    timer = E.setTimeout(this.continue_fn(), ms);
     return this.wait();
   }, function finally$(){ clearTimeout(timer); }]);
 };

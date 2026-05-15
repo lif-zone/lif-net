@@ -19,6 +19,7 @@ git clone git@github.com:xarikgilad/lif-zone-src.git
   + jgit ddi -D "2 weeks ago" file
   + jgit ddi -D "2 weeks ago" -D "3 weeks ago" file
   + jgit ddi -D "2024-10-13 13:52" file
+  - make jgit ddi full screen
 + jgit ci file|dir|.
 + jgit add file|dir|.
 + jgit rm file|dir|.
@@ -43,16 +44,16 @@ let gopt = getopt.create([
   ['D', '=+', 'date'],
   ]).bindHelp(
     'Usage:\n'+
-    '  jcvs co repository -d [dir]\n'+
-    '  jcvs ci [file|dir]\n'+
-    '  jcvs commit [file|dir]\n'+
-    '  jcvs add [file|dir]\n'+
-    '  jcvs rm [file|dir]\n'+
-    '  jcvs di [file|dir]\n'+
-    '  jcvs diff [file|dir]\n'+
-    '  jcvs diff -D "2 month ago" [file|dir]\n'+
-    '  jcvs diff -D "2024-01-30 13:00" [file|dir]\n'+
-    '  jcvs diff -D "2 month ago" -D "3 month ago" [file|dir]\n'
+    '  jgit co repository -d [dir]\n'+
+    '  jgit ci [file|dir]\n'+
+    '  jgit commit [file|dir]\n'+
+    '  jgit add [file|dir]\n'+
+    '  jgit rm [file|dir]\n'+
+    '  jgit di [file|dir]\n'+
+    '  jgit diff [file|dir]\n'+
+    '  jgit diff -D "2 month ago" [file|dir]\n'+
+    '  jgit diff -D "2024-01-30 13:00" [file|dir]\n'+
+    '  jgit diff -D "2 month ago" -D "3 month ago" [file|dir]\n'
   ).parseSystem();
 
 function is_git(){
@@ -108,7 +109,7 @@ const main = ()=>etask(function*main(){
   case 'ci':
   case 'commit':
     if (!argv[0])
-      do_error(gopt, '*** missing [file/dir] eg: jcvs ci .\n');
+      do_error(gopt, '*** missing [file/dir] eg: jgit ci .\n');
     return git_ci(argv);
   case 'di':
   case 'diff':

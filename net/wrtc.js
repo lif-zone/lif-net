@@ -98,7 +98,7 @@ WrtcConnector.prototype.destroy = function(){
 WrtcConnector.prototype._debug = function(){
   var prepend = '[' + this.id.toString('hex', 0, 2) + ']  ';
   arguments[0] = prepend + arguments[0];
-  debug.apply(null, arguments);
+  debug(...arguments);
 };
 
 inherits(WrtcChannel, EventEmitter);

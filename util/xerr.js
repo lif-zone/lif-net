@@ -231,17 +231,17 @@ E.xexit = function(args){
 };
 }
 else { // browser-xerr
-var chrome;
+const is_node = process?.versions?.node!==undefined;
+
 E.log = [];
 var L_STR = E.L_STR = ['EMERGENCY', 'ALERT', 'CRITICAL', 'ERROR', 'WARNING',
     'NOTICE', 'INFO', 'DEBUG'];
 E.log_max_size = 200;
 E.buffered = false;
-chrome = self.chrome;
-E.conf = self.conf;
-E.level = E.conf && E.conf.xerr_level ? L[self.conf.xerr_level] : L.WARN;
+E.conf = globalThis.conf;
+E.level = E.conf?.xerr_level ? L[E.conf.xerr_level] : L.WARN;
 
-var console_method = l=>l<=L.ERR ? 'error' : !chrome ? 'log' :
+var console_method = l=>l<=L.ERR ? 'error' : is_node ? 'log' :
   l===L.WARN ? 'warn' : l<=L.INFO ? 'info' : 'debug';
 
 _xerr = function(l, args){

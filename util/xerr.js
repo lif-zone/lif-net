@@ -5,7 +5,7 @@ import date from './date.js';
 import array from './array.js';
 import sprintf from './sprintf.js';
 import cluster from 'cluster';
-const is_node = typeof navigator==='undefined';
+const is_node = process?.versions?.node!==undefined;
 let _process = is_node ? process : {env: {}};
 var _xerr;
 var env = _process.env, xerr_cb = [];

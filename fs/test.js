@@ -14,7 +14,7 @@ import buf_util from '../net/buf_util.js';
 import tparser from '../storage/test_parser.js';
 import DiffMatchAndPath from 'diff-match-patch';
 let execSync;
-const is_node = typeof navigator==='undefined';
+const is_node = process?.versions?.node!==undefined;
 const b2s = buf_util.buf_to_str, s2b = buf_util.buf_from_str;
 const Diff = new DiffMatchAndPath();
 const {parse_get_next, parse_exp, parse_exp_arg, rm_parentesis,

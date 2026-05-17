@@ -5,7 +5,7 @@ import etask from '../util/etask.js';
 import xutil from '../util/util.js';
 import * as idb from 'idb';
 import xerr from '../util/xerr.js';
-const is_node = typeof navigator==='undefined';
+const is_node = process?.versions?.node!==undefined;
 
 function wrap_cb(cb){
   return function(){
@@ -256,10 +256,10 @@ function query_to_str(store, query, dir){
 
 if (is_node){
   // XXX HACK: find a better way to load it for now (without using async)
-  (async function(){
+  //(async function(){
     let setGlobalVars = (await import('indexeddbshim')).default;
     await setGlobalVars(null, {addNonIDBGlobals: true});
-  })();
+  //})();
 }
 
 DB.MAX_DECL = 64*1024;

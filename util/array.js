@@ -153,7 +153,7 @@ proto.sed = function(regex, replace){ return E.sed(this, regex, replace); };
 proto.grep = function(regex, replace){ return E.grep(this, regex, replace); };
 proto.to_nl = function(sep){ return E.to_nl(this, sep); };
 proto.push_a = function(){
-  return E.push.apply(null, [this].concat(Array.from(arguments))); };
+  return E.push(this, ...arguments); };
 proto.unshift_a = function(){
-  return E.unshift.apply(null, [this].concat(Array.from(arguments))); };
+  return E.unshift(this, ...arguments); };
 

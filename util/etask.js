@@ -6,7 +6,7 @@ import events from './events.js';
 import array from './array.js';
 import __xerr from './xerr.js';
 let xerr = __xerr;
-const is_node = typeof navigator==='undefined';
+const is_node = process?.versions?.node!==undefined;
 var _process;
 if (!is_node)
   _process = {nextTick: function(fn){ setImmediate(fn); }, env: {}};

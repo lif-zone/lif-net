@@ -13,7 +13,7 @@ import net from 'net';
 import _ from 'lodash';
 import big_object_diff from 'big-object-diff';
 const assign = Object.assign;
-const is_node = typeof navigator==='undefined';
+const is_node = process?.versions?.node!==undefined;
 
 const E = {};
 export default E;

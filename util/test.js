@@ -28,7 +28,7 @@ import sinon from 'sinon';
 import D from 'd.js'; // XXX: rm
 import _ from 'underscore'; // XXX: rm _
 import when from 'when'; // XXX: rm
-const is_node = typeof navigator==='undefined';
+const is_node = process?.versions?.node!==undefined;
 const qw = string.qw;
 const tdir = '/tmp/test_util.'+Math.random();
 xtest.init();

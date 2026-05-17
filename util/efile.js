@@ -376,7 +376,7 @@ E.pipe_stream = (fd, pos, len, stream, opt)=>etask(function*pipe_stream(){
 let call_safe = (method, func, ret, args)=>etask(method, function*(){
     E.errno = 0;
     E.error = null;
-    try { return yield func.apply(null, args); }
+    try { return yield func(...args); }
     catch(e){
       ef(e);
       E.errno = e.code||e;

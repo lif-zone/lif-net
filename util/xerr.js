@@ -181,7 +181,7 @@ var init = function(){
 init();
 
 var xerr_format = function(args){
-    return args.length<=1 ? args[0] : sprintf.apply(null, args); };
+    return args.length<=1 ? args[0] : sprintf(...args); };
 var __xerr = function(level, args){
   var msg = xerr_format(args);
   var k = Object.keys(L);

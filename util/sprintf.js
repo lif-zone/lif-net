@@ -343,6 +343,6 @@ E.vsprintf = function(fmt, argv, opt){
     if (opt.slow)
         return E.parse_slow(fmt)([fmt].concat(argv));
   }
-  return E.sprintf.apply(null, [fmt].concat(argv));
+  return E.sprintf(fmt, ...argv);
 };
 

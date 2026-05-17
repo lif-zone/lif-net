@@ -164,7 +164,7 @@ E.clock_set = function(opt){
   opt.date = opt.date||date;
   is_auto_inc = opt.auto_inc;
   auto_inc_max_ts = undefined;
-  clock = sinon.useFakeTimers.apply(null, [opt.now]);
+  clock = sinon.useFakeTimers(opt.now);
   clock.firstTimerInRange = (from, to)=>firstTimerInRange(clock, from, to);
   clock_restore = clock.restore;
   clock_tick = clock.tick;
@@ -225,7 +225,7 @@ E.create_sandbox = function(opt){
   sandbox.stub_et = function(obj, meth, fn){
     return sandbox.stub(obj, meth, function(){
       var args = arguments;
-      return etask([function(){ return fn.apply(null, args); }]);
+      return etask([function(){ return fn(...args); }]);
     });
   };
   return sandbox;

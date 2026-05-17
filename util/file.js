@@ -316,7 +316,7 @@ function errno_wrapper(func, ret){
   let args = array.slice(arguments, 2);
   E.errno = 0;
   E.error = null;
-  try { return func.apply(null, args); }
+  try { return func(...args); }
   catch(e){
     E.errno = e.code||e;
     E.error = e;

@@ -1,0 +1,44 @@
+misc instructions to install
+----------------------------
+
+Running unit tests
+------------------
+$ cd util
+$ mocha ./test.js
+
+Run specific test:
+$ mocha ./test.js -g fread
+
+Run debugger - open Chrome devtools and click on NodeJS icon: chrome://inspect
+$ mocha --inspect-brk ./test.js -g fread
+
+Repeat for these directorys:
+$ ( cd util && mocha ./test.js )
+$ ( cd net && mocha ./test.js )
+$ ( cd storage && mocha ./test.js )
+$ ( cd fs && mocha ./test.js )
+
+Install localhost server
+------------------------
+Run this, but you can press CTRL-C when it starts fetching trees:
+$ sudo node script/install.js --domain arik.center 127.0.0.1
+$ sudo mv /var/lif /var/lif.dev
+$ node ./server.js
+
+open browser: http://lo
+
+http://localhost/.lif/test_util.html
+http://localhost/.lif/test_net.html
+http://localhost/.lif/test_storage.html
+http://localhost/.lif/test_fs.html
+http://localhost/.lif/test.html
+
+Versions
+--------
+$ mocha --version
+11.7.5
+$ node --version
+v26.1.0
+$ cat /etc/issue
+Ubuntu 24.04.3 LTS
+

@@ -13,7 +13,7 @@ export default function xlog(module){
     args[0] = prepend + args[0];
     if (l=='debug') // XXX: temporary hack until fix properly on xerr
       l = 'info';
-    xerr[l].apply(null, args);
+    xerr[l](...args);
   }
   let ret = function(){ return log('err', arguments); };
   Object.keys(xerr.L).forEach(l=>ret[l.toLowerCase()] = function(){

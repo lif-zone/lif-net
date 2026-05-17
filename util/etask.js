@@ -1158,7 +1158,7 @@ E._apply = function(opt, func, _this, args){
         // hack to wait for result
         var a = arguments;
         returned++;
-        return void E.nextTick(function(){ cb.apply(null, a); });
+        return void E.nextTick(function(){ cb(...a); });
       }
       var nfn = opt.nfn===undefined || opt.nfn ? 1 : 0;
       if (opt.ret_o){
@@ -1250,7 +1250,7 @@ E.to_nfn = function(promise, cb, opt){
       ret = ret.concat(res);
     else
       ret.push(res);
-    cb.apply(null, ret);
+    cb(...ret);
   }]);
 };
 function etask_fn(opt, states, push_this){

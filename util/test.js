@@ -2857,10 +2857,10 @@ describe('sprintf', ()=>{
             sprintf.cache = {};
             assert.strictEqual(sprintf.vsprintf(fmt, args), exp);
             sprintf.cache = {};
-            assert.strictEqual(sprintf.apply(null, [fmt].concat(args)), exp);
+            assert.strictEqual(sprintf(fmt, ...args), exp);
             sprintf.cache = {};
             assert.strictEqual(
-                sprintf.sprintf.apply(null, [fmt].concat(args)), exp);
+                sprintf.sprintf(fmt, ...args), exp);
             assert.strictEqual(sprintf.vsprintf(fmt, args, {slow: 1}), exp);
             assert.strictEqual(sprintf.vsprintf(fmt, args, {fast: 1}), exp);
         };

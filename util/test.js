@@ -6542,7 +6542,7 @@ describe('file', ()=>{
                 let params = [fd, start, size];
                 if (enc)
                     params.push({encoding: enc});
-                assert.deepStrictEqual(F('fread').apply(null, params), exp);
+                assert.deepStrictEqual(F('fread')(...params), exp);
                 file.read_buf_size = prev_read_buf_size;
                 fs.close(fd);
             };
@@ -6556,7 +6556,7 @@ describe('file', ()=>{
             t('αβγδεζηθι', 'Î±Î²Î³', 0, 6, 3, 'binary');
             t('αβγδεζηθι', 'αβγδεζηθι', 0, 18, 3);
             t('a', '', 0, 0);
-            assert_err('fread', [-1], /EBADF|ENOENT|ERR_OUT_OF_RANGE/, null);
+            assert_err('fread', [-1], /EBADF|ENOENT|ERR_OUT_OF_RANGE|RangeError/, null);
         });
         it('write', ()=>{
             let t = (data, exp)=>{

@@ -1,0 +1,16 @@
+<html>
+  <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="https://unpkg.com/mocha/mocha.css" />
+    <script type=module>
+      await $lif.boot.boot_app({lif: {
+        webapp: '/lif-net//www/test_net.js', // local dev
+      }});
+    </script>
+  </head>
+  <body style="margin:0;">
+    <h1>LIF Test</h1>
+    <div id=mocha></div>
+  </body>
+</html>
+

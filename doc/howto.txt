@@ -42,3 +42,10 @@ v26.1.0
 $ cat /etc/issue
 Ubuntu 24.04.3 LTS
 
+Access from lif-kernel
+----------------------
+http://localhost:4000/?/lif-net//www/test_net.html
+http://arik.center/?/lif-net//www/test_net.html
+http://localhost:4000/?/lif-net//www/test_net_lif.html
+http://localhost:4000/?/lif-net//www/test_net.js
+

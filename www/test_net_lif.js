@@ -1,7 +1,7 @@
 import chai from 'chai';
-import mocha form 'mocha';
+import mocha from 'mocha';
 mocha.setup({ui: 'bdd', bail: true, timeout: 50000});
 mocha.checkLeaks();
-import test_bundle from '../.lif/build/net_test.bundle.js';
+import net_test from '../net/test.js';
 mocha.run();
 

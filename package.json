@@ -9,6 +9,14 @@
     "bundle_test_net": "browserify --debug net/test.js > net/test.bundle.js",
     "bundle_lif_node": "browserify --debug --standalone lif_node net/node.js > www/lif_node.bundle.js"
   },
+  "lif": {
+    "dependencies": {
+      "assert": "npm:lif-kernel/assert",
+      "querystring": "npm:lif-kernel/querystring",
+      "lodash": "14.8.1",
+      "chai": "6.2.2"
+    }
+  },
   "dependencies": {
     "@babel/plugin-transform-react-jsx": "7.18.10",
     "@babel/plugin-transform-runtime": "7.18.10",

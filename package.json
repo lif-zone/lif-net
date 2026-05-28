@@ -47,7 +47,7 @@
     "inherits": "2.0.3",
     "iniparser": "1.0.5",
     "isomorphic-git": "1.22.0",
-    "js-fibonacci-heap": "gwtw/js-fibonacci-heap#ec31d0966f9e54b0a52f3a074fe1d2442ab69979",
+    "js-fibonacci-heap": "github:gwtw/js-fibonacci-heap#ec31d0966f9e54b0a52f3a074fe1d2442ab69979",
     "json-6": "1.1.4",
     "k-bucket": "5.1.0",
     "log-buffer": "0.0.3",

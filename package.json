@@ -13,8 +13,9 @@
     "dependencies": {
       "assert": "npm:lif-kernel/assert",
       "querystring": "npm:lif-kernel/querystring",
-      "lodash": "14.8.1",
-      "chai": "6.2.2"
+      "lodash": "4.18.1",
+      "chai": "6.2.2",
+      "path": "0.12.7"
     }
   },
   "dependencies": {

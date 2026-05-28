@@ -20,7 +20,8 @@
       "blake2b": "2.1.4",
       "crypto": "npm:crypto-browserify@3.12.1",
       "cluster": "npm:lif-kernel/cluster",
-      "net": "npm:lif-kernel/net"
+      "net": "npm:lif-kernel/net",
+      "sinon": "22.0.0"
     }
   },
   "dependencies": {

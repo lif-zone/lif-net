@@ -215,6 +215,7 @@ function test_serve(test, app_dir, build_dir){
 }
 
 const main = ()=>etask(function*main(){
+  let do_ssl = process.argv.includes('-s');
   assert(!server_et, 'server alredy running');
   this.on('uncaught', e=>xerr.xexit(e));
   server_et = this;
@@ -242,8 +243,10 @@ const main = ()=>etask(function*main(){
     dev ? 'DEV' : 'PROD', domain.join(','), ip.join(','));
   assert(ip?.length, 'missing server ip, check conf.json');
   assert(domain?.length, 'missing domain, check conf.json');
-  yield dnss.start({ip: conf.ip, domain: conf.domain, ...conf.dnss});
-  yield ssl.start({ssl_dir, dnss, conf});
+  if (do_ssl)
+    yield dnss.start({ip: conf.ip, domain: conf.domain, ...conf.dnss});
+  if (do_ssl)
+    yield ssl.start({ssl_dir, dnss, conf});
   let app_dir = cwd;
   let build_dir = cwd+'/build';
   // XXX: allow to enable/disable http from conf

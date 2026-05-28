@@ -23,7 +23,7 @@ Install localhost server
 Run this, but you can press CTRL-C when it starts fetching trees:
 $ sudo node script/install.js --domain arik.center 127.0.0.1
 $ sudo mv /var/lif /var/lif.dev
-$ node ./server.js
+$ node ./server.js -s
 
 open browser: http://lo
 

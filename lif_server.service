@@ -11,7 +11,7 @@ StandardOutput=append:/var/log/lif_server.log
 StandardError=append:/var/log/lif_server.log
 SyslogIdentifier=initlog.%N
 WorkingDirectory=/var/lif/server
-ExecStart=/usr/local/bin/node --expose-internals --expose-gc /var/lif/server/server.js
+ExecStart=/usr/local/bin/node --expose-internals --expose-gc /var/lif/server/server.js -s
 
 [Install]
 WantedBy=graphical.target

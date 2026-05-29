@@ -281,7 +281,7 @@ E.xexit = function(args){
     stack = e.stack;
     _xerr(L.CRIT, arguments);
   }
-  if ((args&&args.code)!='ERR_ASSERTION')
+  if (args?.code!='ERR_ASSERTION')
     console.error('xerr.xexit was called', new Error().stack);
   if (args.stack!==stack)
     console.error('CRASH:\n'+stack);

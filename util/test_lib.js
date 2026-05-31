@@ -43,8 +43,11 @@ E.hook_assert = ()=>{
     let AssertionError;
     // avoid forcing running mocha/node with --expose-internals and avoid
     // import AssertionError from 'internal/assert/assertion_error';
+    let prev = assert.debugger_break;
+    assert.debugger_break = false;
     try { assert(false); }
     catch(err){ AssertionError = err.constructor; }
+    assert.debugger_break = prev;
     const print = err=>{
         xerr.flush();
         const stack = new Error().stack;

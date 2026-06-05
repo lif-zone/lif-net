@@ -55,15 +55,11 @@ function do_exit(err){
 
 const http_start = opt=>etask({_: this}, function*http_start(){
   xerr.notice('server: start http %s https %s', opt.http, opt.https);
-  let {app_dir, build_dir} = opt;
-	console.log('XXX app_dir %s', app_dir);
-	console.log('XXX build_dir %s', build_dir);
+  let {app_dir, build_dir} = opt, file_cert = opt.cert, file_key = opt.key;
   let app = express();
   let http_server = http.createServer(app).listen(opt.http);
   let https_server;
-  xerr.notice('https: localhost mode');
-  let file_cert ='./net/localhost.crt';
-  let file_key = './net/localhost.key';
+  xerr.notice('https: cert %s key %s', file_cert, file_key);
   let cert = yield fs.promises.readFile(file_cert);
   let key = yield fs.promises.readFile(file_key);
   https_server = https.createServer({cert, key}, app);
@@ -150,6 +146,8 @@ const main = ()=>etask(function*main(){
   const {values} = parseArgs({options: {
     http: {type: 'string', default: '80'},
     https: {type: 'string', default: '443'},
+    cert: {type: 'string', default: './net/localhost.crt'},
+    key: {type: 'string', default: './net/localhost.key'},
   }});
   values.http = +values.http;
   values.https = +values.https;
@@ -168,7 +166,7 @@ const main = ()=>etask(function*main(){
   yield efile.mkdirp_e(build_dir);
   yield efile.mkdirp_e(app_dir);
   let {https_server} = yield http_start({http: values.http,
-    https: values.https, app_dir, build_dir});
+    https: values.https, app_dir, build_dir, cert: values.cert, key: values.key});
   let key = init_conf.get('key');
   let pub = init_conf.get('pub');
   if (!key){

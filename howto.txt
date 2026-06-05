@@ -1,0 +1,21 @@
+localhost certificate
+---------------------
+$ mkdir ~/localhost-certs && cd ~/localhost-certs
+
+# Generate private key + certificate (valid for 365 days)
+$ openssl req -x509 -nodes -days 36500 -newkey rsa:2048 \
+  -keyout localhost.key \
+  -out localhost.crt \
+  -subj "/C=US/ST=Local/L=Local/O=Local/CN=localhost"
+
+
+in chrome:
+----------
+- Go to chrome://settings/certificates
+- select "Installed by you"
+- Import in "Trusted Certificates" your localhost.crt
+- Go to chrome://flags/
+  Insecure origins treated as secure -> enable it and add localhost
+- relaunch Chrome
+- go go to https://localhost and enable the certificate after you get a warning
+

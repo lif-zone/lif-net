@@ -69,15 +69,26 @@ function sni_cb(server_name, cb){
 
 const http_start = opt=>etask({_: this}, function*http_start(){
   xerr.notice('server: start http %s https %s', opt.http, opt.https);
-  let {app_dir, build_dir} = opt;
+  let {app_dir, build_dir, do_localhost} = opt;
   let app = express();
   let http_server = http.createServer(app).listen(opt.http);
-  let https_server = https.createServer({SNICallback: sni_cb}, app)
-  .listen(opt.https);
+  let https_server;
+  if (do_localhost){
+    xerr.notice('https: localhost mode');
+    let file_cert ='./net/localhost.crt';
+    let file_key = './net/localhost.key';
+    let cert = yield fs.promises.readFile(file_cert);
+    let key = yield fs.promises.readFile(file_key);
+    https_server = https.createServer({cert, key}, app);
+  } else
+    https_server = https.createServer({SNICallback: sni_cb}, app);
+  https_server.listen(opt.https);
   // XXX: check caching/other headers and wrap all nicely
   // XXX: rm in production
   app.get('/.lif/test.html',
     (req, res)=>res.sendFile(app_dir+'/www/test.html'));
+  app.get('/.lif/test.js',
+    (req, res)=>res.sendFile(app_dir+'/www/test.js'));
   // XXX: fix test files to include mocha from local include
   app.get('/.lif/test_util.html',
     (req, res)=>res.sendFile(app_dir+'/www/test_util.html'));
@@ -216,6 +227,8 @@ function test_serve(test, app_dir, build_dir){
 
 const main = ()=>etask(function*main(){
   let do_ssl = process.argv.includes('-s');
+  let do_localhost = process.argv.includes('-l');
+  assert(do_ssl ? !do_localhost : true, 'canot use localhost -l with ssl -s');
   assert(!server_et, 'server alredy running');
   this.on('uncaught', e=>xerr.xexit(e));
   server_et = this;
@@ -251,7 +264,7 @@ const main = ()=>etask(function*main(){
   let build_dir = cwd+'/build';
   // XXX: allow to enable/disable http from conf
   let {https_server} = yield http_start({http: 80, https: 443,
-    app_dir, build_dir});
+    app_dir, build_dir, do_localhost});
   yield lif_node_start(soul, https_server);
   if (0) // XXX TODO
     server_et.spawn(start_git(soul));

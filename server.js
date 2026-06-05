@@ -19,6 +19,7 @@ import etask from './util/etask.js';
 import xerr from './util/xerr.js';
 import proc from './util/proc.js';
 import browserify from 'browserify';
+import { parseArgs } from 'util';
 import util from './util/util.js';
 import buf_util from './net/buf_util.js';
 const s2b = buf_util.buf_from_str, b2s = buf_util.buf_to_str;
@@ -146,6 +147,12 @@ function test_serve(test, app_dir, build_dir){
 }
 
 const main = ()=>etask(function*main(){
+  const {values} = parseArgs({options: {
+    http: {type: 'string', default: '80'},
+    https: {type: 'string', default: '443'},
+  }});
+  values.http = +values.http;
+  values.https = +values.https;
   assert(!server_et, 'server alredy running');
   this.on('uncaught', e=>xerr.xexit(e));
   server_et = this;
@@ -160,8 +167,8 @@ const main = ()=>etask(function*main(){
   let build_dir = dir+'/build';
   yield efile.mkdirp_e(build_dir);
   yield efile.mkdirp_e(app_dir);
-  let {https_server} = yield http_start({http: 80, https: 443,
-    app_dir, build_dir});
+  let {https_server} = yield http_start({http: values.http,
+    https: values.https, app_dir, build_dir});
   let key = init_conf.get('key');
   let pub = init_conf.get('pub');
   if (!key){

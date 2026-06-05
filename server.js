@@ -6,6 +6,7 @@ import https from 'https';
 import fs from 'fs';
 import assert from 'assert';
 import Node from './net/node.js';
+import crypto from './util/crypto.js';
 import Conf from './util/conf.js';
 import efile from './util/efile.js';
 import Scroll_conf from './storage/conf.js';
@@ -20,7 +21,7 @@ import proc from './util/proc.js';
 import browserify from 'browserify';
 import util from './util/util.js';
 import buf_util from './net/buf_util.js';
-const b2s = buf_util.buf_to_str;
+const s2b = buf_util.buf_from_str, b2s = buf_util.buf_to_str;
 const {opt_array} = util;
 const cwd = process.cwd();
 let server_et;
@@ -51,37 +52,20 @@ function do_exit(err){
   xerr.xexit(err);
 }
 
-function sni_cb(server_name, cb){
-  let domain = dnss.get_our_domain(server_name);
-  if (!domain){
-    let err = 'domain not handled '+domain;
-    xerr('server: %s', err);
-    return cb(err, null);
-  }
-  let ctx = ssl.get_ctx(domain);
-  if (!ctx){
-    let err = 'failed to get ssl ctx for '+domain;
-    xerr('server: %s', err);
-    return cb(err, null);
-  }
-  cb(null, ctx);
-}
-
 const http_start = opt=>etask({_: this}, function*http_start(){
   xerr.notice('server: start http %s https %s', opt.http, opt.https);
-  let {app_dir, build_dir, do_localhost} = opt;
+  let {app_dir, build_dir} = opt;
+	console.log('XXX app_dir %s', app_dir);
+	console.log('XXX build_dir %s', build_dir);
   let app = express();
   let http_server = http.createServer(app).listen(opt.http);
   let https_server;
-  if (do_localhost){
-    xerr.notice('https: localhost mode');
-    let file_cert ='./net/localhost.crt';
-    let file_key = './net/localhost.key';
-    let cert = yield fs.promises.readFile(file_cert);
-    let key = yield fs.promises.readFile(file_key);
-    https_server = https.createServer({cert, key}, app);
-  } else
-    https_server = https.createServer({SNICallback: sni_cb}, app);
+  xerr.notice('https: localhost mode');
+  let file_cert ='./net/localhost.crt';
+  let file_key = './net/localhost.key';
+  let cert = yield fs.promises.readFile(file_cert);
+  let key = yield fs.promises.readFile(file_key);
+  https_server = https.createServer({cert, key}, app);
   https_server.listen(opt.https);
   // XXX: check caching/other headers and wrap all nicely
   // XXX: rm in production
@@ -121,74 +105,10 @@ const http_start = opt=>etask({_: this}, function*http_start(){
   return {app, http_server, https_server};
 });
 
-const lif_node_start = (soul, https_server)=>etask(function*lif_node_start(){
+const lif_node_start = (keypair, https_server)=>etask(function*lif_node_start(){
   // XXX: support wrtc+stun
-  let node = new Node({https_server, ...soul.keypair});
+  let node = new Node({https_server, ...keypair});
   xerr.notice('lif node id %s', node.id.s);
-});
-
-const get_boot_scroll = opt=>etask(function*get_boot_scroll(){
-  let {dir, soul_name, boot_root} = opt;
-  assert(dir, 'missing boot dir');
-  assert(soul_name, 'missing soul soul_name');
-  assert(boot_root, 'missing boot_root');
-  let soul_dir = dir+'/soul/'+soul_name;
-  let soul = yield soul_init({name: soul_name, soul_dir});
-  let boot = yield Scroll_conf.open({M: boot_root, soul, db: true});
-  assert(boot.top.seq>0, 'boot scroll is empty');
-  xerr.notice('boot: using boot scroll %s');
-  return boot;
-});
-
-const soul_init = opt=>etask(function*soul_init(){
-  let {name, soul_dir} = opt;
-  let file_key = soul_dir+'/'+name+'.key';
-  let file_pub = soul_dir+'/'+name+'.pub';
-  let keypair = yield Soul.read_keypair(file_key, file_pub);
-  let soul = new Soul({name: 'server', keypair});
-  let db_dir = soul_dir+'/db';
-  yield DB.init({db_dir});
-  xerr.notice('soul: init pub %s at %s', b2s(keypair.pub), soul_dir);
-  return soul;
-});
-
-const start_git = soul=>etask(function*start_git(){
-  let conf = {}; // XXX TODO
-  if (!conf.soul.git?.enable)
-    return xerr.notice('git: clone is disabled');
-  let settings = soul.get(soul.conf.get('root'));
-  let keypair = soul.keypair; // XXX: allow to scroll.create get it from soul
-  assert(settings, 'missing soul settings root');
-  let git_dir = conf.soul.git.dir; // XXX ||dir+'/git';
-  xerr.notice('git: clone is enabled at %s', git_dir);
-  let a = opt_array(conf.soul.git.clone), cfid = 0;
-  for (let i=0; i<a.length; i++){
-    let src = a[i].toLowerCase(); // XXX: normalize
-    xerr.notice('git: clone %s', src);
-    // XXX: fix find_one_data api to auto-calc bseq if not provided
-    let bseq = settings.get_bseq_top(cfid, '0').bseq;
-    let git, o = yield settings.find_one_data(src, {dir: 'dn',
-      name: 'git.src', cfid, bseq}), M = o?.data.M;
-    if (!M){
-      git = yield Git.create({soul, ...keypair, db: true}, {git: {src}});
-      M = git.name;
-      xerr.notice('git: clone scroll %s src %s', git.name, src);
-      yield git.flush();
-      // XXX derry: review and decide how to define deep links
-      // (and link to last seal)
-      yield settings.decl({git: {src}, M});
-      yield settings.flush();
-    } else {
-      git = yield Git.open({M, soul, ...keypair, db: true});
-      xerr.notice('git: load scroll %s src %s', M, src);
-    }
-    xerr.notice('git: sync %s src %s top %s top_oid %s', M, src,
-      git.top.seq, yield git.get_git_br_top_oid(cfid, 'main'));
-    yield git.sync({dir: git_dir+'/'+Git.escape_url(src)});
-    yield git.flush(); // XXX: do it autoatically on process exit
-    xerr.notice('git: sync DONE %s src %s top %s top_oid %s', M, src,
-      git.top.seq, yield git.get_git_br_top_oid(cfid, 'main'));
-  }
 });
 
 const browserify_map = {};
@@ -226,48 +146,32 @@ function test_serve(test, app_dir, build_dir){
 }
 
 const main = ()=>etask(function*main(){
-  let do_ssl = process.argv.includes('-s');
-  let do_localhost = process.argv.includes('-l');
-  assert(do_ssl ? !do_localhost : true, 'canot use localhost -l with ssl -s');
   assert(!server_et, 'server alredy running');
   this.on('uncaught', e=>xerr.xexit(e));
   server_et = this;
-  let init_conf_file = /^\/var\/lif\//.test(cwd) ?
-    '/var/lif/conf.json' : '/var/lif.dev/conf.json';
-  if (!(yield efile.exists(init_conf_file)))
-    init_conf_file = '/var/lif.dev/conf.json';
+  let dir = cwd+'/build';
+  yield efile.mkdirp_e(dir);
+  let init_conf_file = dir+'/conf.json';
   xerr.notice('boot: init conf %s', init_conf_file);
   let init_conf = new Conf(init_conf_file);
-  try { yield init_conf.init(); }
-  catch(err){
-    xerr.notice('boot: %s not found\nRun: script/lif.js init --dev');
-    throw err;
-  }
-  let dir = init_conf.get('dir');
-  let boot = yield get_boot_scroll({dir, soul_name: init_conf.get('soul'),
-    boot_root: init_conf.get('boot')});
-  let soul = boot.soul;
-  let conf = yield boot.get('');
-  let domain = opt_array(conf.domain);
-  let ip = opt_array(conf.ip);
-  let dev = !!conf.dev;
-  let ssl_dir = dir+'/ssl';
-  xerr.notice('boot: startup mode %s domain: %s ip: %s',
-    dev ? 'DEV' : 'PROD', domain.join(','), ip.join(','));
-  assert(ip?.length, 'missing server ip, check conf.json');
-  assert(domain?.length, 'missing domain, check conf.json');
-  if (do_ssl)
-    yield dnss.start({ip: conf.ip, domain: conf.domain, ...conf.dnss});
-  if (do_ssl)
-    yield ssl.start({ssl_dir, dnss, conf});
+  yield init_conf.init({create: true});
+  xerr.notice('boot: dir %s', dir);
   let app_dir = cwd;
-  let build_dir = cwd+'/build';
-  // XXX: allow to enable/disable http from conf
+  let build_dir = dir+'/build';
+  yield efile.mkdirp_e(build_dir);
+  yield efile.mkdirp_e(app_dir);
   let {https_server} = yield http_start({http: 80, https: 443,
-    app_dir, build_dir, do_localhost});
-  yield lif_node_start(soul, https_server);
-  if (0) // XXX TODO
-    server_et.spawn(start_git(soul));
+    app_dir, build_dir});
+  let key = init_conf.get('key');
+  let pub = init_conf.get('pub');
+  if (!key){
+    let keypair = yield crypto.keypair(crypto.crypt_def);
+    key = b2s(keypair.key);
+    pub = b2s(keypair.pub);
+    init_conf.set('key', key);
+    init_conf.set('pub', pub);
+  }
+  yield lif_node_start({key: s2b(key), pub: s2b(pub)}, https_server);
   return etask.wait();
 });
 

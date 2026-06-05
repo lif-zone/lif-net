@@ -38,6 +38,7 @@ function WsConnector(id, server){
     if (_this.destroyed)
       return;
     let port = _this._wss._server.address().port;
+    xerr.notice('ws: listen port %s url %s', port, _this.url);
     _this.emit('listen', {port, url: _this.url});
   }
 }

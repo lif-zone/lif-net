@@ -1,11 +1,19 @@
 <html>
-	<head>
+  <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-	</head>
-	<body style="margin:0;">
-	<h1>LIF Test</h1>
+  </head>
+    <body style="margin:0;">
+    <h1>LIF NET Test</h1>
     <script src=/.lif/lif_node.bundle.js></script>
     <script src=/.lif/test.js></script>
-	</body>
+    <ul>
+      <li>
+	ping server:
+	<pre><code>
+          g_node.ping(g_node.wsConnector.channels[1].id.s, {}).on('res', msg=&gtconsole.log('sw: &ltping_r'));
+	</code></pre>
+      </li>
+    </ul>	   
+  </body>
 </html>
 

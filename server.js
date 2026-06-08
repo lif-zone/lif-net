@@ -103,7 +103,6 @@ const http_start = opt=>etask({_: this}, function*http_start(){
 });
 
 const lif_node_start = (keypair, https_server)=>etask(function*lif_node_start(){
-  // XXX: support wrtc+stun
   let node = new Node({https_server, ...keypair});
   xerr.notice('server: node id %s', node.id.s);
 });

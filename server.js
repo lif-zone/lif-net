@@ -105,7 +105,7 @@ const http_start = opt=>etask({_: this}, function*http_start(){
 const lif_node_start = (keypair, https_server)=>etask(function*lif_node_start(){
   // XXX: support wrtc+stun
   let node = new Node({https_server, ...keypair});
-  xerr.notice('lif node id %s', node.id.s);
+  xerr.notice('server: node id %s', node.id.s);
 });
 
 const browserify_map = {};
@@ -157,10 +157,11 @@ const main = ()=>etask(function*main(){
   let dir = cwd+'/build';
   yield efile.mkdirp_e(dir);
   let init_conf_file = dir+'/conf.json';
-  xerr.notice('boot: init conf %s', init_conf_file);
+  xerr.notice('argv: --http %s --https %s --cert %s --key %s',
+	  values.http, values.https, values.cert, values.key);
+  xerr.notice('boot: dir %s', dir);
   let init_conf = new Conf(init_conf_file);
   yield init_conf.init({create: true});
-  xerr.notice('boot: dir %s', dir);
   let app_dir = cwd;
   let build_dir = dir+'/build';
   yield efile.mkdirp_e(build_dir);

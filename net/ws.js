@@ -99,6 +99,7 @@ WsConnector.prototype.dbg_str = function(){ return dbg_id(this.id); };
 inherits(WsChannel, EventEmitter);
 function WsChannel(local_id, ws){
   var _this = this;
+  this.type = 'ws';
   this.local_id = local_id;
   this.id = undefined;
   this.destroyed = false;

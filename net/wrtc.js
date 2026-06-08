@@ -104,6 +104,7 @@ WrtcConnector.prototype._debug = function(){
 inherits(WrtcChannel, EventEmitter);
 function WrtcChannel(sp, id){
   var _this = this;
+  this.type = 'wrtc';
   this.destroyed = false;
   this.id = id;
   this._sp = sp;

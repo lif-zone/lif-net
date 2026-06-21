@@ -38,7 +38,7 @@ export default class Router extends EventEmitter {
     for (let c of this._channels.toArray())
       this._onChannelAdded(c);
   }
-  msgid = function(){ return ++this.msg_id_n; }
+  msgid = function(){ return ++this.msg_id_n; };
   send_msg(dst, msg){
     let msgid = this.msgid();
     assert(!msg.msgid);
@@ -152,7 +152,7 @@ export default class Router extends EventEmitter {
       lbuffer.add_json(msg2);
     }
     return {channel, lbuffer, fwd_rt};
-  }
+  };
   _on_msg = (data, channel)=>{
     let lbuffer = LBuffer.from(data), msg = lbuffer.msg();
     let msg0 = lbuffer.get_json(0), rt = msg0.rt, path = rt?.path;
@@ -186,7 +186,7 @@ export default class Router extends EventEmitter {
           this.ack(channel, lbuffer, false, fwd_rt);
       }
     }
-  }
+  };
   ack_pending(){
     if (!this.pending_ack)
       return;
@@ -208,7 +208,7 @@ export default class Router extends EventEmitter {
     let dst = channel.id, node = this.node_map.get(dst);
     node.del_conn(dst);
     channel.removeListener('message', this._on_msg);
-  }
+  };
   get_channel_from_id(id){
     return this._channels.get(id.s);
   }

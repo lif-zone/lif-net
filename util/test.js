@@ -1,5 +1,5 @@
 // author: derry. coder: arik.
-'use strict'; /*eslint-env mocha*/
+'use strict';
 import net from 'net';
 import fs from 'fs';
 import path from 'path';
@@ -6912,7 +6912,7 @@ describe('file', ()=>{
     let cwd;
     before(()=>{
       cwd = process.cwd();
-      process.chdir(fule.url2fs(import.meta.resolve('.')));
+      process.chdir(file.url2fs(import.meta.resolve('.')));
     });
     after(()=>{
       process.chdir(cwd);

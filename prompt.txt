@@ -1,0 +1,6 @@
+---
+USER:
+I want in lif-net to add a test to github workflows that runs 'node ./server -l' and opens a browser (puppeteer?) to localhost:4001/www/test_util.html and runs there the mocha tests.
+
+CLAUDE:
+Created test/browser_test.js — a standalone Node script that spawns `node ./server -l`, waits for it to output "Serving", launches Chrome via puppeteer-core, navigates to localhost:4001/www/test_util.html, waits for mocha's #mocha-stats .duration element (signals test run complete), reads pass/fail counts, prints any failures, and exits with code 1 on failures. Added "test-browser": "node test/browser_test.js" to package.json scripts. Added browser-test job to .github/workflows/test.yml using browser-actions/setup-chrome@v1 to install Chrome and CHROME_PATH env var to point puppeteer at it.

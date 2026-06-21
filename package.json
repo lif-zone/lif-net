@@ -9,7 +9,8 @@
     "bundle_test_net": "browserify --debug net/test.js > net/test.bundle.js",
     "bundle_lif_node": "browserify --debug --standalone lif_node net/node.js > www/lif_node.bundle.js",
     "lint": "eslint",
-    "test": "mocha --reporter spec util/test.js net/test.js fs/test.js storage/test.js"
+    "test": "mocha --reporter spec util/test.js net/test.js fs/test.js storage/test.js",
+    "test-browser": "node test/browser_test.js"
   },
   "lif": {
     "dependencies": {
@@ -98,20 +99,21 @@
     "yargs": "18.0.0"
   },
   "devDependencies": {
-    "@eslint/js": "10.0.1",
-    "@eslint/json": "2.0.0",
-    "eslint": "10.5.0",
-    "globals": "17.6.0",
     "@babel/core": "^7.16.5",
     "@babel/plugin-syntax-import-assertions": "7.20.0",
+    "@eslint/js": "10.0.1",
+    "@eslint/json": "2.0.0",
     "autoprefixer": "10.2.4",
     "big-integer": "1.6.51",
     "brittle": "^3.0.0",
     "d.js": "0.7.2",
     "electron-webrtc": "0.3.0",
+    "eslint": "10.5.0",
     "evil-dns": "0.2.0",
+    "globals": "17.6.0",
     "mocha": "11.7.6",
     "ping": "0.4.1",
+    "puppeteer-core": "^25.1.0",
     "random-access-memory": "^5.0.1",
     "sinon": "1.17.6",
     "when": "2.2.1"

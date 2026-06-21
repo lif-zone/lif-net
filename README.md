@@ -4,7 +4,7 @@
 
 **LIF Network** is a JS Programmable Overlay Network, Sub-Ether-Net which
 works both below the Ethernet (Etha-Net) layer, and a Hypernet above
-the IP/TCP level. Its a NationZone wide-area-network, where all leafs nodes
+the IP/TCP level. Its a NationZone wide-area-network, where all leaf nodes
 and trunk nodes are Open Residential Gateways (OpenRG).
 
 [LIF Network][lif.zone]

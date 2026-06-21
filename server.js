@@ -158,7 +158,7 @@ const main = ()=>etask(function*main(){
   yield efile.mkdirp_e(dir);
   let init_conf_file = dir+'/conf.json';
   xerr.notice('argv: --http %s --https %s --cert %s --key %s',
-	  values.http, values.https, values.cert, values.key);
+    values.http, values.https, values.cert, values.key);
   xerr.notice('boot: dir %s', dir);
   let init_conf = new Conf(init_conf_file);
   yield init_conf.init({create: true});
@@ -167,7 +167,8 @@ const main = ()=>etask(function*main(){
   yield efile.mkdirp_e(build_dir);
   yield efile.mkdirp_e(app_dir);
   let {https_server} = yield http_start({http: values.http,
-    https: values.https, app_dir, build_dir, cert: values.cert, key: values.key});
+    https: values.https, app_dir, build_dir,
+    cert: values.cert, key: values.key});
   let key = init_conf.get('key');
   let pub = init_conf.get('pub');
   if (!key){

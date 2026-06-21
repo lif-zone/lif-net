@@ -470,3 +470,5 @@ E.is_subdir = (root, sub)=>{
   return !root || sub.startsWith(root) && (root[nroot-1]=='/' ||
     sub[nroot]===undefined || sub[nroot]=='/');
 };
+E.url2fs = src=>src.startsWith('file://') ? src.slice(7) : src;
+

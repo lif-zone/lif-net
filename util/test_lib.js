@@ -804,7 +804,11 @@ E.set_timeout = function(_this, ms){
   _this.timeout(xutil.is_inspect() ? Number.MAX_SAFE_INTEGER : ms);
 };
 
+let inited;
 E.init = function(){
+  if (inited) // when mocha is run on many test.js files
+    return;
+  inited = true;
   proc.init();
   // XXX: is it needed?
   xerr.on_unhandled_exception = err=>assert(false, err);

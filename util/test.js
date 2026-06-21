@@ -6909,13 +6909,28 @@ describe('file', ()=>{
     };
     describe('throwing', ()=>throwing_safe_test(0));
     describe('safe', ()=>throwing_safe_test(1));
+    let cwd;
+    before(()=>{
+      cwd = process.cwd();
+      process.chdir(import.meta.resolve('.'));
+    });
+    after(()=>{
+      process.chdir(cwd);
+    });
+    it('url2fs', ()=>{
+        let t = (filename, exp)=>assert.strictEqual(
+            file.url2fs(filename), exp);
+        t('file:///usr/bin/ls', '/usr/bin/ls');
+        t('file:///usr/bin/', '/usr/bin/');
+        t('/usr/bin/ls', '/usr/bin/ls');
+    });
     it('exists', ()=>{
         let t = (filename, exp)=>assert.strictEqual(
             file.exists(filename), exp);
         t('.', true);
         t('..', true);
         t('does_not_exist', false);
-        t('test.js', true);
+        t('test.js', true);  // failed when not in CWD
         t('./test.js', true);
     });
     it('is_file', ()=>{

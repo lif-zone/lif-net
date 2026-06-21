@@ -19,7 +19,7 @@ import etask from './util/etask.js';
 import xerr from './util/xerr.js';
 import proc from './util/proc.js';
 import browserify from 'browserify';
-import { parseArgs } from 'util';
+import {parseArgs} from 'util';
 import util from './util/util.js';
 import buf_util from './net/buf_util.js';
 const s2b = buf_util.buf_from_str, b2s = buf_util.buf_to_str;
@@ -148,9 +148,16 @@ const main = ()=>etask(function*main(){
     https: {type: 'string', default: '443'},
     cert: {type: 'string', default: './net/localhost.crt'},
     key: {type: 'string', default: './net/localhost.key'},
+    local: {type: 'boolean', short: 'l', default: false},
   }});
   values.http = +values.http;
   values.https = +values.https;
+  if (values.local){
+    if (values.http<1024)
+      values.http = 4001;
+    if (values.https<1024)
+      values.https = 4002;
+  }
   assert(!server_et, 'server alredy running');
   this.on('uncaught', e=>xerr.xexit(e));
   server_et = this;

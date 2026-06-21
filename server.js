@@ -67,36 +67,31 @@ const http_start = opt=>etask({_: this}, function*http_start(){
   // XXX: check caching/other headers and wrap all nicely
   // XXX: rm in production
   app.get('/',
+    (req, res)=>res.redirect('/www/test.html'));
+  app.get('/www/test.html',
     (req, res)=>res.sendFile(app_dir+'/www/test.html'));
-  app.get('/.lif/test.html',
-    (req, res)=>res.sendFile(app_dir+'/www/test.html'));
-  app.get('/.lif/test.js',
+  app.get('/www/test.js',
     (req, res)=>res.sendFile(app_dir+'/www/test.js'));
   // XXX: fix test files to include mocha from local include
-  app.get('/.lif/test_util.html',
+  app.get('/www/test_util.html',
     (req, res)=>res.sendFile(app_dir+'/www/test_util.html'));
-  app.get('/.lif/test_storage.html',
+  app.get('/www/test_storage.html',
     (req, res)=>res.sendFile(app_dir+'/www/test_storage.html'));
-  app.get('/.lif/test_net.html',
+  app.get('/www/test_net.html',
     (req, res)=>res.sendFile(app_dir+'/www/test_net.html'));
-  app.get('/.lif/test_fs.html',
+  app.get('/www/test_fs.html',
     (req, res)=>res.sendFile(app_dir+'/www/test_fs.html'));
-  app.get('/.lif/build/util_test.bundle.js',
+  app.get('/www/build/util_test.bundle.js',
     test_serve('util/test.js', app_dir, build_dir));
-  app.get('/.lif/build/net_test.bundle.js',
+  app.get('/www/build/net_test.bundle.js',
     test_serve('net/test.js', app_dir, build_dir));
-  app.get('/.lif/build/storage_test.bundle.js',
+  app.get('/www/build/storage_test.bundle.js',
     test_serve('storage/test.js', app_dir, build_dir));
-  app.get('/.lif/build/fs_test.bundle.js',
+  app.get('/www/build/fs_test.bundle.js',
     test_serve('fs/test.js', app_dir, build_dir));
   // XXX: use link rel='modulepreload'
-  app.get('/.lif/lif_node.bundle.js',
+  app.get('/www/lif_node.bundle.js',
     (req, res)=>res.sendFile(build_dir+'/lif_node.bundle.js'));
-  // XXX: review babel/favicon
-  app.get('/.lif.babel.js', (req, res)=>
-    res.sendFile(app_dir+'//node_modules/@babel/standalone/babel.js'));
-  app.get('/.lif.favicon.svg',
-    (req, res)=>res.sendFile(app_dir+'/www/favicon.svg'));
   this.spawn(browserify_js(build_dir, build_dir+'/lif_node.bundle.js',
     [app_dir+'/net/node.js'], {debug: true, standalone: 'lif_node'}));
   return {app, http_server, https_server};

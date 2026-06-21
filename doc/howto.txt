@@ -27,11 +27,11 @@ $ node ./server.js -s
 
 open browser: http://lo
 
-http://localhost/.lif/test_util.html
-http://localhost/.lif/test_net.html
-http://localhost/.lif/test_storage.html
-http://localhost/.lif/test_fs.html
-http://localhost/.lif/test.html
+http://localhost/www/test_util.html
+http://localhost/www/test_net.html
+http://localhost/www/test_storage.html
+http://localhost/www/test_fs.html
+http://localhost/www/test.html
 
 Versions
 --------

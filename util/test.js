@@ -6930,7 +6930,7 @@ describe('file', ()=>{
         t('.', true);
         t('..', true);
         t('does_not_exist', false);
-        t('test.js', true);  // failed when not in CWD
+        t('test.js', true); // failed when not in CWD
         t('./test.js', true);
     });
     it('is_file', ()=>{

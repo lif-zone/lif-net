@@ -112,7 +112,7 @@ const browserify_js = (build_dir, target, files, opt={})=>
   let wait = browserify_map[key] = etask.wait();
   xerr.notice('server: browserfiy %s', target);
   fs.mkdirSync(build_dir, {recursive: true});
-  var b = browserify(opt);
+  var b = browserify({...opt, debug: true});
   b.add(files);
   let stream = fs.createWriteStream(target);
   stream.on('close', ()=>{

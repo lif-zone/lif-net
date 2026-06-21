@@ -114,6 +114,10 @@
     "sinon": "1.17.6",
     "when": "2.2.1"
   },
+  "scripts": {
+    "lint": "eslint",
+    "test": "bmocha --reporter spec test/*.js"
+  },
   "browserify": {
     "transform": [
       [

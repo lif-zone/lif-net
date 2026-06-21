@@ -90,7 +90,6 @@ const http_start = opt=>etask({_: this}, function*http_start(){
   app.get('/.lif/build/fs_test.bundle.js',
     test_serve('fs/test.js', app_dir, build_dir));
   // XXX: use link rel='modulepreload'
-  app.get('/.lif.sw.js', (req, res)=>res.sendFile(app_dir+'/www/sw.js'));
   app.get('/.lif/lif_node.bundle.js',
     (req, res)=>res.sendFile(build_dir+'/lif_node.bundle.js'));
   // XXX: review babel/favicon

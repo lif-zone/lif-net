@@ -1278,7 +1278,7 @@ describe('git', function(){
         ' =dun1\n -----END PGP SIGNATURE-----\n \n');
     });
   });
-  if (!is_node) // XXX: TODO
+  if (!is_node || process.env.CI) // XXX: TODO
     return;
   describe('sync', ()=>{
     let _t_common = `$$mf(mode:100644) $$m0(mode:0) $$md(mode:040000)

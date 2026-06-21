@@ -106,7 +106,7 @@ export default class Node extends EventEmitter {
       return;
     let req = new Req({node: this, dst});
     req.send(body);
-  }
+  };
   _on_conn_info_r = msg=>etask({_: this}, function*(){
     let {from} = msg;
     let _this = this._;

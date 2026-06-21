@@ -36,7 +36,7 @@ export default class Channels extends EventEmitter {
     return this.map[id];
   }
   // XXX: rm and create iterator
-  toArray = function(){
+  toArray(){
     let a = [];
     for (let id in this.map)
       a.push(this.map[id]);

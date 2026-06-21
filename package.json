@@ -9,7 +9,7 @@
     "bundle_test_net": "browserify --debug net/test.js > net/test.bundle.js",
     "bundle_lif_node": "browserify --debug --standalone lif_node net/node.js > www/lif_node.bundle.js",
     "lint": "eslint",
-    "test": "bmocha --reporter spec test/*.js"
+    "test": "mocha --reporter spec test/*.js"
   },
   "lif": {
     "dependencies": {

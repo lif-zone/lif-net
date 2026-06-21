@@ -7,7 +7,9 @@
     "bundle_test_storage": "browserify --debug storage/test.js > storage/test.bundle.js",
     "bundle_test_fs": "browserify --debug fs/test.js > fs/test.bundle.js",
     "bundle_test_net": "browserify --debug net/test.js > net/test.bundle.js",
-    "bundle_lif_node": "browserify --debug --standalone lif_node net/node.js > www/lif_node.bundle.js"
+    "bundle_lif_node": "browserify --debug --standalone lif_node net/node.js > www/lif_node.bundle.js",
+    "lint": "eslint",
+    "test": "bmocha --reporter spec test/*.js"
   },
   "lif": {
     "dependencies": {
@@ -113,10 +115,6 @@
     "random-access-memory": "^5.0.1",
     "sinon": "1.17.6",
     "when": "2.2.1"
-  },
-  "scripts": {
-    "lint": "eslint",
-    "test": "bmocha --reporter spec test/*.js"
   },
   "browserify": {
     "transform": [

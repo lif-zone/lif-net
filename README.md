@@ -1,4 +1,4 @@
-# Lifcoin
+# LIF Network
 
 [![BAT](https://github.com/lif-zone/lif-net/actions/workflows/test.yml/badge.svg)](https://github.com/lif-zone/lif-net/actions/workflows/test.yml)
 

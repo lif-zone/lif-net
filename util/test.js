@@ -6912,7 +6912,7 @@ describe('file', ()=>{
     let cwd;
     before(()=>{
       cwd = process.cwd();
-      process.chdir(import.meta.resolve('.'));
+      process.chdir(fule.url2fs(import.meta.resolve('.')));
     });
     after(()=>{
       process.chdir(cwd);

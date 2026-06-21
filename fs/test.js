@@ -1,4 +1,4 @@
-'use strict'; /*eslint-env mocha*/
+'use strict';
 import assert from 'assert';
 import fs from 'fs';
 import xtest from '../util/test_lib.js';

@@ -1,4 +1,4 @@
-'use strict'; /*eslint-env mocha*/
+'use strict';
 import assert from 'assert';
 import tparser from './test_parser.js';
 import {test_run, parse_var, parse_cfid_seq, parse_conflict, macro_to_m}

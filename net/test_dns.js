@@ -1,4 +1,4 @@
-'use strict'; /*eslint-env mocha*/
+'use strict';
 import assert from 'assert';
 import {exec} from 'node:child_process';
 import etask from '../util/etask.js';

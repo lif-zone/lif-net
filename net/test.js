@@ -1,4 +1,4 @@
-'use strict'; /*eslint-env mocha*/
+'use strict';
 import assert from 'assert';
 import Node from './node.js';
 import Router from './router.js';

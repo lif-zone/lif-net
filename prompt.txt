@@ -16,3 +16,10 @@ Debugged browser test failures in sequence:
 3. SyntaxError from unpkg.com/chai: chai v6 is ESM-only, breaks as regular <script>. Chrome had old UMD version cached. Fixed by pinning to https://unpkg.com/chai@4/chai.js in test_util.html.
 4. Added/removed CDP session, response logging, request logging during debugging, then cleaned them up.
 Result: passes: 4, failures: 0, exit 0. Only 4 tests run in browser because most util/test.js tests use is_node guards.
+
+---
+USER:
+448 tests pass in Chrome. Want all mocha output streamed like spec reporter, not just summary.
+
+CLAUDE:
+Added spec-style streaming: in evaluateOnNewDocument mocha.run patch, added runner event listeners (suite/pass/fail/pending) that console.log indented output with ✓/✗. Updated puppeteer console handler to forward all messages (stdout for log/info, stderr for error/warning) using process.stdout.write directly.

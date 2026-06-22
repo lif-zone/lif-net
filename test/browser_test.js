@@ -46,8 +46,11 @@ async function test_run(){
     let js_errors = [];
     page.on('pageerror', err=>js_errors.push(err.message));
     page.on('console', msg=>{
-      if (msg.type()=='error')
-        console.error('[browser error]', msg.text());
+      let type = msg.type();
+      if (type=='error'||type=='warning')
+        process.stderr.write(msg.text()+'\n');
+      else
+        process.stdout.write(msg.text()+'\n');
     });
     // Patch mocha.run() so the runner ignores puppeteer-injected globals (__aria*, puppeteer___*)
     // These are injected lazily during test execution, so they can't be whitelisted upfront
@@ -63,6 +66,27 @@ async function test_run(){
           // signal when mocha is truly done
           window._mocha_done = false;
           runner.on('end', ()=>{ window._mocha_done = true; });
+          // spec-style streaming output via console (forwarded by puppeteer)
+          runner.on('suite', suite=>{
+            if (!suite.title) return;
+            let depth = suite.titlePath().length - 1;
+            console.log('  '.repeat(depth) + suite.title);
+          });
+          runner.on('pass', test=>{
+            let depth = test.titlePath().length - 1;
+            console.log('  '.repeat(depth) + '\u2713 ' + test.title
+              + ' (' + test.duration + 'ms)');
+          });
+          runner.on('pending', test=>{
+            let depth = test.titlePath().length - 1;
+            console.log('  '.repeat(depth) + '- ' + test.title);
+          });
+          runner.on('fail', (test, err)=>{
+            let depth = test.titlePath ? test.titlePath().length - 1 : 1;
+            console.error('  '.repeat(depth) + '\u2717 ' + (test.fullTitle
+              ? test.fullTitle() : test.title||''));
+            console.error('  '.repeat(depth+1) + (err.message||err));
+          });
           // whitelist puppeteer-injected globals on every leak check
           let origCheck = runner.checkGlobals.bind(runner);
           runner.checkGlobals = function(test){

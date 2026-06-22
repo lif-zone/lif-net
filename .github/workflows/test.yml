@@ -46,7 +46,6 @@ jobs:
   browser-test:
     name: Browser Test
     runs-on: ubuntu-24.04
-    if: false
     steps:
       - uses: actions/checkout@v4
       - name: Setup Node

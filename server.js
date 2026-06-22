@@ -180,6 +180,7 @@ const main = ()=>etask(function*main(){
     init_conf.set('pub', pub);
   }
   yield lif_node_start({key: s2b(key), pub: s2b(pub)}, https_server);
+  xerr.notice('Serving');
   return etask.wait();
 });
 

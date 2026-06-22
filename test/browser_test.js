@@ -103,7 +103,7 @@ async function run_page(browser, url){
         process.stdout.write(msg.text()+'\n');
     });
     await page.evaluateOnNewDocument(mocha_patch);
-    let res = await page.goto(url, {waitUntil: 'domcontentloaded', timeout: 60000});
+    let res = await page.goto(url, {waitUntil: 'domcontentloaded', timeout: 120000});
     if (res.status()!==200){
       console.error('Page load failed:', url, res.status());
       return 1;

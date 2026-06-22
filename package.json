@@ -10,6 +10,7 @@
     "bundle_lif_node": "browserify --debug --standalone lif_node net/node.js > www/lif_node.bundle.js",
     "lint": "eslint",
     "test": "mocha --reporter spec util/test.js net/test.js fs/test.js storage/test.js",
+    "test-ci": "mocha --reporter mocha-junit-reporter --reporter-options mochaFile=./test-results.xml util/test.js net/test.js fs/test.js storage/test.js",
     "test-browser": "node test/browser_test.js"
   },
   "lif": {
@@ -112,6 +113,7 @@
     "evil-dns": "0.2.0",
     "globals": "17.6.0",
     "mocha": "11.7.6",
+    "mocha-junit-reporter": "^2.2.1",
     "ping": "0.4.1",
     "puppeteer": "^25.2.0",
     "puppeteer-core": "^25.2.0",

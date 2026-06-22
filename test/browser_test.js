@@ -63,6 +63,8 @@ const mocha_patch = ()=>{
         let depth = suite.titlePath().length - 1;
         console.log('  '.repeat(depth) + suite.title);
       });
+      runner.on('test', ()=>{ window._mocha_last_activity = Date.now(); });
+      runner.on('hook', ()=>{ window._mocha_last_activity = Date.now(); });
       runner.on('pass', test=>{
         window._mocha_last_activity = Date.now();
         let depth = test.titlePath().length - 1;
@@ -107,7 +109,10 @@ async function run_page(browser, url){
         process.stdout.write(msg.text()+'\n');
     });
     await page.evaluateOnNewDocument(mocha_patch);
-    let res = await page.goto(url, {waitUntil: 'domcontentloaded', timeout: 120000});
+    // Pre-warm: trigger bundle build server-side before navigating so page.goto doesn't block on it
+    let bundle = url.replace(/\/test_(\w+)\.html$/, '/build/$1_test.bundle.js');
+    await fetch(bundle);
+    let res = await page.goto(url, {waitUntil: 'domcontentloaded', timeout: 30000});
     if (res.status()!==200){
       console.error('Page load failed:', url, res.status());
       return 1;

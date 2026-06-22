@@ -117,11 +117,11 @@ const browserify_js = (build_dir, target, files, opt={})=>
   let stream = fs.createWriteStream(target);
   stream.on('close', ()=>{
     xerr.notice('server: browserify %s DONE', target);
-    wait.continue();
+    wait.return();
   });
   stream.on('error', err=>{
     xerr('server: browserify error %s', err);
-    wait.reject(err);
+    wait.throw(err);
   });
   b.bundle().pipe(stream);
   return wait;

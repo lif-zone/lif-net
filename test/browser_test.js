@@ -6,7 +6,13 @@ import etask from '../util/etask.js';
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const port = 4001;
-const url = `http://localhost:${port}/www/test_util.html`;
+const base = `http://localhost:${port}/www`;
+const test_pages = [
+  'test_util.html',
+  'test_net.html',
+  'test_storage.html',
+  'test_fs.html',
+];
 const chrome = process.env.CHROME_PATH||'/usr/bin/google-chrome';
 
 let proc;
@@ -38,12 +44,56 @@ async function start_browser(){
   });
 }
 
-async function test_run(){
-  await start_server();
-  let browser = await start_browser();
+const mocha_patch = ()=>{
+  window._mocha_done = false; // declare early so mocha's initial globals snapshot includes it
+  let id = setInterval(()=>{
+    if (!window.mocha||!mocha.run)
+      return;
+    clearInterval(id);
+    let orig = mocha.run.bind(mocha);
+    mocha.run = function(...args){
+      let runner = orig(...args);
+      window._mocha_done = false;
+      runner.on('end', ()=>{ window._mocha_done = true; });
+      // spec-style streaming output via console (forwarded by puppeteer)
+      runner.on('suite', suite=>{
+        if (!suite.title) return;
+        let depth = suite.titlePath().length - 1;
+        console.log('  '.repeat(depth) + suite.title);
+      });
+      runner.on('pass', test=>{
+        let depth = test.titlePath().length - 1;
+        console.log('  '.repeat(depth) + '\u2713 ' + test.title
+          + ' (' + test.duration + 'ms)');
+      });
+      runner.on('pending', test=>{
+        let depth = test.titlePath().length - 1;
+        console.log('  '.repeat(depth) + '- ' + test.title);
+      });
+      runner.on('fail', (test, err)=>{
+        let depth = test.titlePath ? test.titlePath().length - 1 : 1;
+        console.error('  '.repeat(depth) + '\u2717 ' + (test.fullTitle
+          ? test.fullTitle() : test.title||''));
+        console.error('  '.repeat(depth+1) + (err.message||err));
+      });
+      // whitelist puppeteer-injected globals on every leak check
+      let origCheck = runner.checkGlobals.bind(runner);
+      runner.checkGlobals = function(test){
+        runner._globals = runner._globals.concat(
+          Object.keys(window).filter(
+            k=>k.startsWith('__')||k.startsWith('puppeteer___'))
+        );
+        origCheck(test);
+      };
+      return runner;
+    };
+  }, 10);
+};
+
+async function run_page(browser, url){
+  let page = await browser.newPage();
+  let js_errors = [];
   try {
-    let page = await browser.newPage();
-    let js_errors = [];
     page.on('pageerror', err=>js_errors.push(err.message));
     page.on('console', msg=>{
       let type = msg.type();
@@ -52,63 +102,14 @@ async function test_run(){
       else
         process.stdout.write(msg.text()+'\n');
     });
-    // Patch mocha.run() so the runner ignores puppeteer-injected globals (__aria*, puppeteer___*)
-    // These are injected lazily during test execution, so they can't be whitelisted upfront
-    await page.evaluateOnNewDocument(()=>{
-      window._mocha_done = false; // declare early so mocha's initial globals snapshot includes it
-      let id = setInterval(()=>{
-        if (!window.mocha||!mocha.run)
-          return;
-        clearInterval(id);
-        let orig = mocha.run.bind(mocha);
-        mocha.run = function(...args){
-          let runner = orig(...args);
-          // signal when mocha is truly done
-          window._mocha_done = false;
-          runner.on('end', ()=>{ window._mocha_done = true; });
-          // spec-style streaming output via console (forwarded by puppeteer)
-          runner.on('suite', suite=>{
-            if (!suite.title) return;
-            let depth = suite.titlePath().length - 1;
-            console.log('  '.repeat(depth) + suite.title);
-          });
-          runner.on('pass', test=>{
-            let depth = test.titlePath().length - 1;
-            console.log('  '.repeat(depth) + '\u2713 ' + test.title
-              + ' (' + test.duration + 'ms)');
-          });
-          runner.on('pending', test=>{
-            let depth = test.titlePath().length - 1;
-            console.log('  '.repeat(depth) + '- ' + test.title);
-          });
-          runner.on('fail', (test, err)=>{
-            let depth = test.titlePath ? test.titlePath().length - 1 : 1;
-            console.error('  '.repeat(depth) + '\u2717 ' + (test.fullTitle
-              ? test.fullTitle() : test.title||''));
-            console.error('  '.repeat(depth+1) + (err.message||err));
-          });
-          // whitelist puppeteer-injected globals on every leak check
-          let origCheck = runner.checkGlobals.bind(runner);
-          runner.checkGlobals = function(test){
-            runner._globals = runner._globals.concat(
-              Object.keys(window).filter(
-                k=>k.startsWith('__')||k.startsWith('puppeteer___'))
-            );
-            origCheck(test);
-          };
-          return runner;
-        };
-      }, 10);
-    });
-    let res = await page.goto(url, {waitUntil: 'domcontentloaded',
-      timeout: 60000});
+    await page.evaluateOnNewDocument(mocha_patch);
+    let res = await page.goto(url, {waitUntil: 'domcontentloaded', timeout: 60000});
     if (res.status()!==200){
-      console.error('Page load failed with status:', res.status());
+      console.error('Page load failed:', url, res.status());
       return 1;
     }
-    // Wait for mocha's 'end' event (signaled via window._mocha_done)
     await page.waitForFunction(()=>window._mocha_done===true,
-      {timeout: 120000, polling: 500});
+      {timeout: 600000, polling: 500});
     let handle = await page.evaluateHandle(()=>{
       let stats = document.querySelector('#mocha-stats');
       let passes = stats&&stats.querySelector('.passes em');
@@ -123,7 +124,6 @@ async function test_run(){
     let result = await handle.jsonValue();
     console.log(`passes: ${result.passes}, failures: ${result.failures}, duration: ${result.duration}`);
     if (result.failures>0){
-      // Print failed test titles from the DOM
       let failed = await page.evaluate(()=>{
         let els = document.querySelectorAll('#mocha-report .test.fail');
         return [...els].map(el=>({
@@ -141,6 +141,23 @@ async function test_run(){
     if (js_errors.length){
       console.error('Page JS errors:', js_errors.join('\n'));
       return 1;
+    }
+    return 0;
+  } finally {
+    await page.close();
+  }
+}
+
+async function test_run(){
+  await start_server();
+  let browser = await start_browser();
+  try {
+    for (let html of test_pages){
+      let url = base+'/'+html;
+      console.log('\n=== '+html+' ===');
+      let code = await run_page(browser, url);
+      if (code)
+        return code;
     }
   } finally {
     await browser.close();

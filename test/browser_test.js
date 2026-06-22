@@ -10,6 +10,7 @@ const base = `http://localhost:${port}/www`;
 const test_pages = [
   'test_util.html',
   'test_net.html',
+// XXX disabled - until fixed for browser
 //  'test_storage.html',
 //  'test_fs.html',
 ];

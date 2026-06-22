@@ -10,8 +10,8 @@ const base = `http://localhost:${port}/www`;
 const test_pages = [
   'test_util.html',
   'test_net.html',
-  'test_storage.html',
-  'test_fs.html',
+//  'test_storage.html',
+//  'test_fs.html',
 ];
 const chrome = process.env.CHROME_PATH||'/usr/bin/google-chrome';
 

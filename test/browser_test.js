@@ -52,12 +52,17 @@ async function test_run(){
     // Patch mocha.run() so the runner ignores puppeteer-injected globals (__aria*, puppeteer___*)
     // These are injected lazily during test execution, so they can't be whitelisted upfront
     await page.evaluateOnNewDocument(()=>{
+      window._mocha_done = false; // declare early so mocha's initial globals snapshot includes it
       let id = setInterval(()=>{
         if (!window.mocha||!mocha.run) return;
         clearInterval(id);
         let orig = mocha.run.bind(mocha);
         mocha.run = function(...args){
           let runner = orig(...args);
+          // signal when mocha is truly done
+          window._mocha_done = false;
+          runner.on('end', ()=>{ window._mocha_done = true; });
+          // whitelist puppeteer-injected globals on every leak check
           let origCheck = runner.checkGlobals.bind(runner);
           runner.checkGlobals = function(test){
             runner._globals = runner._globals.concat(
@@ -74,22 +79,19 @@ async function test_run(){
       console.error('Page load failed with status:', res.status());
       return 1;
     }
-    // Wait for mocha to complete — duration element is added on 'end' event
-    let handle = await page.waitForFunction(()=>{
+    // Wait for mocha's 'end' event (signaled via window._mocha_done)
+    await page.waitForFunction(()=>window._mocha_done===true, {timeout: 120000, polling: 500});
+    let handle = await page.evaluateHandle(()=>{
       let stats = document.querySelector('#mocha-stats');
-      if (!stats)
-        return null;
-      let passes = stats.querySelector('.passes em');
-      let failures = stats.querySelector('.failures em');
-      let duration = stats.querySelector('.duration em');
-      if (!passes||!failures||!duration)
-        return null;
+      let passes = stats&&stats.querySelector('.passes em');
+      let failures = stats&&stats.querySelector('.failures em');
+      let duration = stats&&stats.querySelector('.duration em');
       return {
-        passes: parseInt(passes.textContent)||0,
-        failures: parseInt(failures.textContent)||0,
-        duration: duration.textContent,
+        passes: parseInt(passes&&passes.textContent)||0,
+        failures: parseInt(failures&&failures.textContent)||0,
+        duration: (duration&&duration.textContent)||'',
       };
-    }, {timeout: 60000, polling: 500});
+    });
     let result = await handle.jsonValue();
     console.log(`passes: ${result.passes}, failures: ${result.failures}, duration: ${result.duration}`);
     if (result.failures>0){

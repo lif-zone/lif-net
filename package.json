@@ -113,7 +113,8 @@
     "globals": "17.6.0",
     "mocha": "11.7.6",
     "ping": "0.4.1",
-    "puppeteer-core": "^25.1.0",
+    "puppeteer": "^25.2.0",
+    "puppeteer-core": "^25.2.0",
     "random-access-memory": "^5.0.1",
     "sinon": "1.17.6",
     "when": "2.2.1"

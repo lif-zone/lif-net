@@ -46,6 +46,7 @@ async function start_browser(){
 
 const mocha_patch = ()=>{
   window._mocha_done = false; // declare early so mocha's initial globals snapshot includes it
+  window._mocha_last_activity = Date.now();
   let id = setInterval(()=>{
     if (!window.mocha||!mocha.run)
       return;
@@ -54,6 +55,7 @@ const mocha_patch = ()=>{
     mocha.run = function(...args){
       let runner = orig(...args);
       window._mocha_done = false;
+      window._mocha_last_activity = Date.now(); // reset when tests actually start
       runner.on('end', ()=>{ window._mocha_done = true; });
       // spec-style streaming output via console (forwarded by puppeteer)
       runner.on('suite', suite=>{
@@ -62,6 +64,7 @@ const mocha_patch = ()=>{
         console.log('  '.repeat(depth) + suite.title);
       });
       runner.on('pass', test=>{
+        window._mocha_last_activity = Date.now();
         let depth = test.titlePath().length - 1;
         console.log('  '.repeat(depth) + '\u2713 ' + test.title
           + ' (' + test.duration + 'ms)');
@@ -71,6 +74,7 @@ const mocha_patch = ()=>{
         console.log('  '.repeat(depth) + '- ' + test.title);
       });
       runner.on('fail', (test, err)=>{
+        window._mocha_last_activity = Date.now();
         let depth = test.titlePath ? test.titlePath().length - 1 : 1;
         console.error('  '.repeat(depth) + '\u2717 ' + (test.fullTitle
           ? test.fullTitle() : test.title||''));
@@ -108,8 +112,14 @@ async function run_page(browser, url){
       console.error('Page load failed:', url, res.status());
       return 1;
     }
-    await page.waitForFunction(()=>window._mocha_done===true,
-      {timeout: 600000, polling: 500});
+    // Poll until mocha done; fail if no pass/fail in 15s (stall detection)
+    await page.waitForFunction(()=>{
+      if (window._mocha_done)
+        return true;
+      if (Date.now()-window._mocha_last_activity>15000)
+        throw new Error('mocha stalled: no new test in 15s');
+      return false;
+    }, {timeout: 600000, polling: 500});
     let handle = await page.evaluateHandle(()=>{
       let stats = document.querySelector('#mocha-stats');
       let passes = stats&&stats.querySelector('.passes em');

@@ -45,7 +45,31 @@ async function test_run(){
     let page = await browser.newPage();
     let js_errors = [];
     page.on('pageerror', err=>js_errors.push(err.message));
-    let res = await page.goto(url, {waitUntil: 'domcontentloaded', timeout: 15000});
+    page.on('console', msg=>{
+      if (msg.type()=='error')
+        console.error('[browser error]', msg.text());
+    });
+    // Patch mocha.run() so the runner ignores puppeteer-injected globals (__aria*, puppeteer___*)
+    // These are injected lazily during test execution, so they can't be whitelisted upfront
+    await page.evaluateOnNewDocument(()=>{
+      let id = setInterval(()=>{
+        if (!window.mocha||!mocha.run) return;
+        clearInterval(id);
+        let orig = mocha.run.bind(mocha);
+        mocha.run = function(...args){
+          let runner = orig(...args);
+          let origCheck = runner.checkGlobals.bind(runner);
+          runner.checkGlobals = function(test){
+            runner._globals = runner._globals.concat(
+              Object.keys(window).filter(k=>k.startsWith('__')||k.startsWith('puppeteer___'))
+            );
+            origCheck(test);
+          };
+          return runner;
+        };
+      }, 10);
+    });
+    let res = await page.goto(url, {waitUntil: 'domcontentloaded', timeout: 60000});
     if (res.status()!==200){
       console.error('Page load failed with status:', res.status());
       return 1;
@@ -71,11 +95,17 @@ async function test_run(){
     if (result.failures>0){
       // Print failed test titles from the DOM
       let failed = await page.evaluate(()=>{
-        let els = document.querySelectorAll('#mocha-report .test.fail h2');
-        return [...els].map(el=>el.textContent.trim());
+        let els = document.querySelectorAll('#mocha-report .test.fail');
+        return [...els].map(el=>({
+          title: (el.querySelector('h2')||{}).textContent||'',
+          error: (el.querySelector('pre.error')||{}).textContent||'',
+        }));
       });
-      for (let f of failed)
-        console.error('FAIL:', f);
+      for (let f of failed){
+        console.error('FAIL:', f.title.trim());
+        if (f.error)
+          console.error(f.error.trim());
+      }
       return 1;
     }
     if (js_errors.length){

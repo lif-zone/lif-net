@@ -4,3 +4,15 @@ I want in lif-net to add a test to github workflows that runs 'node ./server -l'
 
 CLAUDE:
 Created test/browser_test.js — a standalone Node script that spawns `node ./server -l`, waits for it to output "Serving", launches Chrome via puppeteer-core, navigates to localhost:4001/www/test_util.html, waits for mocha's #mocha-stats .duration element (signals test run complete), reads pass/fail counts, prints any failures, and exits with code 1 on failures. Added "test-browser": "node test/browser_test.js" to package.json scripts. Added browser-test job to .github/workflows/test.yml using browser-actions/setup-chrome@v1 to install Chrome and CHROME_PATH env var to point puppeteer at it.
+
+---
+USER:
+ran npx mocha test/browser_test.js, got global leak errors from puppeteer-injected globals, then SyntaxError from chai, only 4 tests running. how do I debug? various fixes applied.
+
+CLAUDE:
+Debugged browser test failures in sequence:
+1. Global leak: puppeteer injects __ariaQuerySelector* lazily during test execution. Fixed by patching runner.checkGlobals in evaluateOnNewDocument to whitelist globals starting with __ or puppeteer___ on each check.
+2. Navigation timeout: increased page.goto timeout from 15s to 60s (bundle builds take ~20s).
+3. SyntaxError from unpkg.com/chai: chai v6 is ESM-only, breaks as regular <script>. Chrome had old UMD version cached. Fixed by pinning to https://unpkg.com/chai@4/chai.js in test_util.html.
+4. Added/removed CDP session, response logging, request logging during debugging, then cleaned them up.
+Result: passes: 4, failures: 0, exit 0. Only 4 tests run in browser because most util/test.js tests use is_node guards.

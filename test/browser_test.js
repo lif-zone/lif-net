@@ -41,7 +41,6 @@ async function start_browser(){
 async function test_run(){
   await start_server();
   let browser = await start_browser();
-  let exit_code = 0;
   try {
     let page = await browser.newPage();
     let js_errors = [];
@@ -77,7 +76,7 @@ async function test_run(){
       });
       for (let f of failed)
         console.error('FAIL:', f);
-      exit_code = 1;
+      return 1;
     }
     if (js_errors.length){
       console.error('Page JS errors:', js_errors.join('\n'));
@@ -87,7 +86,7 @@ async function test_run(){
     await browser.close();
     proc.kill();
   }
-  return exit_code;
+  return 0;
 }
 
 try {

@@ -54,7 +54,8 @@ async function test_run(){
     await page.evaluateOnNewDocument(()=>{
       window._mocha_done = false; // declare early so mocha's initial globals snapshot includes it
       let id = setInterval(()=>{
-        if (!window.mocha||!mocha.run) return;
+        if (!window.mocha||!mocha.run)
+          return;
         clearInterval(id);
         let orig = mocha.run.bind(mocha);
         mocha.run = function(...args){
@@ -66,7 +67,8 @@ async function test_run(){
           let origCheck = runner.checkGlobals.bind(runner);
           runner.checkGlobals = function(test){
             runner._globals = runner._globals.concat(
-              Object.keys(window).filter(k=>k.startsWith('__')||k.startsWith('puppeteer___'))
+              Object.keys(window).filter(
+                k=>k.startsWith('__')||k.startsWith('puppeteer___'))
             );
             origCheck(test);
           };
@@ -74,13 +76,15 @@ async function test_run(){
         };
       }, 10);
     });
-    let res = await page.goto(url, {waitUntil: 'domcontentloaded', timeout: 60000});
+    let res = await page.goto(url, {waitUntil: 'domcontentloaded',
+      timeout: 60000});
     if (res.status()!==200){
       console.error('Page load failed with status:', res.status());
       return 1;
     }
     // Wait for mocha's 'end' event (signaled via window._mocha_done)
-    await page.waitForFunction(()=>window._mocha_done===true, {timeout: 120000, polling: 500});
+    await page.waitForFunction(()=>window._mocha_done===true,
+      {timeout: 120000, polling: 500});
     let handle = await page.evaluateHandle(()=>{
       let stats = document.querySelector('#mocha-stats');
       let passes = stats&&stats.querySelector('.passes em');

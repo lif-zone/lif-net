@@ -3,10 +3,13 @@ import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import puppeteer from 'puppeteer-core';
 import etask from '../util/etask.js';
+import {server_open, browser_open, err, warn, log, log_type,
+} from 'lif-kernel/test/test_lib.js';
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
-const port = 4007;
+const port = 4001;
 const base = `http://localhost:${port}/www`;
+const cmd = [root+'/server.js', '-l'];
 const test_pages = [
   'test_util.html',
   'test_net.html',
@@ -14,36 +17,6 @@ const test_pages = [
 //  'test_storage.html',
 //  'test_fs.html',
 ];
-const chrome = process.env.CHROME_PATH||'/usr/bin/google-chrome';
-
-let proc;
-async function start_server(){ return etask(function*(){
-  proc = spawn('node', ['./server.js', '-l'], {
-    cwd: root,
-    stdio: ['ignore', 'pipe', 'pipe'],
-  });
-  proc.stderr.on('data', data=>{
-    process.stderr.write(data);
-    if ((''+data).includes('Serving'))
-      this.return();
-  });
-  proc.stdout.on('data', data=>{
-    process.stderr.write(data);
-    if ((''+data).includes('Serving'))
-      this.return();
-  });
-  proc.on('error', err=>this.throw(err));
-  proc.on('exit', code=>this.throw(Error('server exited early: '+code)));
-  return yield this.wait(8000);
-}); }
-
-async function start_browser(){
-  return await puppeteer.launch({
-    executablePath: chrome,
-    headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox'],
-  });
-}
 
 const mocha_patch = ()=>{
   window._mocha_done = false; // declare early so mocha's initial globals snapshot includes it
@@ -102,13 +75,7 @@ async function run_page(browser, url){
   let js_errors = [];
   try {
     page.on('pageerror', err=>js_errors.push(err.message));
-    page.on('console', msg=>{
-      let type = msg.type();
-      if (type=='error'||type=='warning')
-        process.stderr.write(msg.text()+'\n');
-      else
-        process.stdout.write(msg.text()+'\n');
-    });
+    page.on('console', msg=>log_type(msg.type(), msg));
     await page.evaluateOnNewDocument(mocha_patch);
     // Pre-warm: trigger bundle build server-side before navigating so page.goto doesn't block on it
     let bundle = url.replace(/\/test_(\w+)\.html$/, '/build/$1_test.bundle.js');
@@ -165,9 +132,10 @@ async function run_page(browser, url){
 }
 
 async function test_run(){
-  await start_server();
-  let browser = await start_browser();
+  let proc, browser;
   try {
+    proc = await server_open({cmd, search: 'Serving', cwd: root});
+    browser = await browser_open();
     for (let html of test_pages){
       let url = base+'/'+html;
       console.log('\n=== '+html+' ===');
@@ -177,14 +145,10 @@ async function test_run(){
     }
   } finally {
     await browser.close();
-    proc.kill();
+    proc?.kill();
   }
   return 0;
 }
 
-try {
-  let exit_code = await test_run();
-  process.exit(exit_code);
-} finally {
-  proc?.kill();
-}
+let exit_code = await test_run();
+process.exit(exit_code);

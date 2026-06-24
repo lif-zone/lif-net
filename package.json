@@ -35,12 +35,16 @@
       "crypto": "npm:crypto-browserify@3.12.1",
       "cluster": "npm:lif-kernel/cluster",
       "events": "npm:lif-kernel/events",
+      "node:events": "npm:lif-kernel/events",
       "util": "0.12.5",
+      "node:util": "npm:util@0.12.5",
       "os": "npm:os-browserify@0.3.0",
       "string_decoder": "1.3.0",
       "stream": "npm:readable-stream@4.7.0",
       "fs": "npm:browserfs@1.4.3",
+      "node:fs": "npm:browserfs@1.4.3",
       "url": "npm:native-url@0.3.4",
+      "node:url": "npm:native-url@0.3.4",
       "buffer": "6.0.3"
     }
   },

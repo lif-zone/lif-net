@@ -144,7 +144,7 @@ async function test_run(){
         return code;
     }
   } finally {
-    await browser.close();
+    await browser?.close();
     proc?.kill();
   }
   return 0;

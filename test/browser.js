@@ -5,7 +5,7 @@ import puppeteer from 'puppeteer-core';
 import etask from '../util/etask.js';
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
-const port = 4001;
+const port = 4007;
 const base = `http://localhost:${port}/www`;
 const test_pages = [
   'test_util.html',

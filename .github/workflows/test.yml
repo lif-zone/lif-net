@@ -47,7 +47,7 @@ jobs:
           comment_mode: always
 
   test-browser:
-    name: Test Browser
+    name: Test Browser Old
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
@@ -63,7 +63,7 @@ jobs:
       - name: Install
         run: npm ci --prefer-offline --no-audit --no-fund
       - name: Browser Test
-        run: npm run test-browser
+        run: npm run test-browser-old
         timeout-minutes: 5
         env:
           CHROME_PATH: ${{ steps.setup-chrome.outputs.chrome-path }}

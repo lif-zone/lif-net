@@ -11,7 +11,7 @@
     "lint": "eslint",
     "test": "mocha --reporter spec util/test.js net/test.js fs/test.js storage/test.js",
     "test-ci": "mocha --reporter mocha-multi-reporters --reporter-options configFile=test/mocharc.json util/test.js net/test.js fs/test.js storage/test.js",
-    "test-browser": "node test/browser_old.js",
+    "test-browser-old": "node test/browser_old.js",
     "test-lif": "mocha --reporter mocha-multi-reporters --reporter-options configFile=test/mocharc.json test/browser.js"
   },
   "lif": {

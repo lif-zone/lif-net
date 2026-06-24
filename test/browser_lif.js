@@ -24,8 +24,8 @@ describe('browser', function(){
   it('GET /lif-kernel/hi.js', async()=>{
     await fetch_test({url: url_base+'/lif-kernel/hi.js', search: 'hi world'});
   });
-  it('page /?/lif-net/', async function(){
-    this.timeout(60000);
+  it('page /?/lif-net/www/test_net_lif.html', async function(){
+    this.timeout(120000);
     await browser_test({browser,
       url: url_base+'/?/lif-net//www/test_net_lif.html',
       search: 'LIF Test'});

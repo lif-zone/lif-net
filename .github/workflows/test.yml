@@ -62,9 +62,9 @@ jobs:
         id: setup-chrome
       - name: Install
         run: npm ci --prefer-offline --no-audit --no-fund
-        timeout-minutes: 5
       - name: Browser Test
         run: npm run test-browser
+        timeout-minutes: 5
         env:
           CHROME_PATH: ${{ steps.setup-chrome.outputs.chrome-path }}
 
@@ -84,8 +84,8 @@ jobs:
         id: setup-chrome
       - name: Install
         run: npm ci --prefer-offline --no-audit --no-fund
-        timeout-minutes: 5
       - name: Test LIF
         run: npm run test-lif
+        timeout-minutes: 5
         env:
           CHROME_PATH: ${{ steps.setup-chrome.outputs.chrome-path }}

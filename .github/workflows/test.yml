@@ -46,8 +46,8 @@ jobs:
           files: ./test-results.xml
           comment_mode: always
 
-  browser-test:
-    name: Browser Test
+  test-browser:
+    name: Test Browser
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
@@ -65,5 +65,27 @@ jobs:
         timeout-minutes: 5
       - name: Browser Test
         run: npm run test-browser
+        env:
+          CHROME_PATH: ${{ steps.setup-chrome.outputs.chrome-path }}
+
+  test-lif:
+    name: Test LIF
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 26.1.0
+          cache: 'npm'
+          cache-dependency-path: '**/package-lock.json'
+      - name: Setup Chrome
+        uses: browser-actions/setup-chrome@v1
+        id: setup-chrome
+      - name: Install
+        run: npm ci --prefer-offline --no-audit --no-fund
+        timeout-minutes: 5
+      - name: Test LIF
+        run: npm run test-lif
         env:
           CHROME_PATH: ${{ steps.setup-chrome.outputs.chrome-path }}

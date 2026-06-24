@@ -9,6 +9,7 @@ const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const port = 4004;
 const url_base = `http://localhost:${port}`;
 const cmd = [root+'/server_lif.js', '-p', ''+port];
+const SEC = 1000;
 
 describe('browser', function(){
   let proc, browser;
@@ -26,7 +27,7 @@ describe('browser', function(){
   });
   it('page /?/lif-net/www/test_net_lif.html', async function(){
     this.timeout(300000);
-    await browser_test({browser,
+    await browser_test({browser, inactive_stall: 30*SEC,
       url: url_base+'/?/lif-net//www/test_net_lif.html',
       search: 'LIF Test'});
   });

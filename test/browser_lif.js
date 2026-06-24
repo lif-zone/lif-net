@@ -6,7 +6,7 @@ import {browser_open, browser_test, server_open, fetch_test,
 } from 'lif-kernel/test/test_lib.js';
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
-const port = 4004;
+const port = 4007;
 const url_base = `http://localhost:${port}`;
 const cmd = [root+'/server_lif.js', '-p', ''+port];
 const SEC = 1000;

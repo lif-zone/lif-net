@@ -1,0 +1,30 @@
+name: BAT browser old
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  test-browser:
+    name: Test Browser Old
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 26.1.0
+          cache: 'npm'
+          cache-dependency-path: '**/package-lock.json'
+      - name: Setup Chrome
+        uses: browser-actions/setup-chrome@v1
+        id: setup-chrome
+      - name: Install
+        run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Browser Test
+        run: npm run test-browser-old
+        timeout-minutes: 5
+        env:
+          CHROME_PATH: ${{ steps.setup-chrome.outputs.chrome-path }}

@@ -1,0 +1,31 @@
+name: Test nodejs
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  test:
+    name: Test NodeJS
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup
+        uses: actions/setup-node@v4
+        with:
+          node-version: 26.1.0
+          cache: 'npm'
+          cache-dependency-path: '**/package-lock.json'
+      - name: Install
+        run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Test
+        run: npm run test-ci
+        timeout-minutes: 5
+      - name: Publish Test Results (Mocha)
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        if: always()
+        with:
+          files: ./test/results.xml
+          comment_mode: always

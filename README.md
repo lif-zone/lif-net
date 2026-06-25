@@ -1,9 +1,9 @@
 # LIF Network
 
 [![lint](https://github.com/lif-zone/lif-net/actions/workflows/lint.yml/badge.svg)](https://github.com/lif-zone/lif-net/actions/workflows/lint.yml)
-[![nodejs](https://github.com/lif-zone/lif-net/actions/workflows/test.yml/badge.svg)](https://github.com/lif-zone/lif-net/actions/workflows/nodejs.yml)
-[![browser-lif](https://github.com/lif-zone/lif-net/actions/workflows/lint.yml/badge.svg)](https://github.com/lif-zone/lif-net/actions/workflows/browser-lif.yml)
-[![browser-old](https://github.com/lif-zone/lif-net/actions/workflows/lint.yml/badge.svg)](https://github.com/lif-zone/lif-kernel/actions/workflows/browser-old.yml)
+[![nodejs](https://github.com/lif-zone/lif-net/actions/workflows/nodejs.yml/badge.svg)](https://github.com/lif-zone/lif-net/actions/workflows/nodejs.yml)
+[![browser lif](https://github.com/lif-zone/lif-net/actions/workflows/browser_lif.yml/badge.svg)](https://github.com/lif-zone/lif-net/actions/workflows/browser_lif.yml)
+[![browser old](https://github.com/lif-zone/lif-net/actions/workflows/browser_old.yml/badge.svg)](https://github.com/lif-zone/lif-kernel/actions/workflows/browser_old.yml)
 
 **LIF Network** is a JS Programmable Overlay Network, Sub-Ether-Net which
 works both below the Ethernet (Etha-Net) layer, and a Hypernet above

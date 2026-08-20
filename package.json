@@ -1,6 +1,6 @@
 {
   "name": "lif_server",
-  "version": "0.1.0",
+  "version": "2026.8.21",
   "type": "module",
   "scripts": {
     "bundle_test_util": "browserify --debug util/test.js > util/test.bundle.js",

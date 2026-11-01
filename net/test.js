@@ -3732,44 +3732,44 @@ describe('net', function(){
             de[f]:cd[ef]:bc:ab[!c]:af>msg(type:req cmd:ping)
             ef:de[f]:cd[ef]:bc:ab[!c]:af>msg(type:req cmd:ping)`);
           t('abc.!def>msg(type:req cmd:ping)',
-              `ab[c]:af>msg(type:req cmd:ping)
-              bc:ab[c]:af>msg(type:req cmd:ping)
-              cd[!ef]:bc:ab[c]:af>msg(type:req cmd:ping)
-              de[!f]:cd[!ef]:bc:ab[c]:af>msg(type:req cmd:ping)
-              ef:de[!f]:cd[!ef]:bc:ab[c]:af>msg(type:req cmd:ping)`);
+            `ab[c]:af>msg(type:req cmd:ping)
+            bc:ab[c]:af>msg(type:req cmd:ping)
+            cd[!ef]:bc:ab[c]:af>msg(type:req cmd:ping)
+            de[!f]:cd[!ef]:bc:ab[c]:af>msg(type:req cmd:ping)
+            ef:de[!f]:cd[!ef]:bc:ab[c]:af>msg(type:req cmd:ping)`);
           t('!abc.!def>msg(type:req cmd:ping)',
-              `ab[!c]:af>msg(type:req cmd:ping)
-              bc:ab[!c]:af>msg(type:req cmd:ping)
-              cd[!ef]:bc:ab[!c]:af>msg(type:req cmd:ping)
-              de[!f]:cd[!ef]:bc:ab[!c]:af>msg(type:req cmd:ping)
-              ef:de[!f]:cd[!ef]:bc:ab[!c]:af>msg(type:req cmd:ping)`);
+            `ab[!c]:af>msg(type:req cmd:ping)
+            bc:ab[!c]:af>msg(type:req cmd:ping)
+            cd[!ef]:bc:ab[!c]:af>msg(type:req cmd:ping)
+            de[!f]:cd[!ef]:bc:ab[!c]:af>msg(type:req cmd:ping)
+            ef:de[!f]:cd[!ef]:bc:ab[!c]:af>msg(type:req cmd:ping)`);
           t('abc<msg(type:req cmd:ping)', `bc[a]:ac<msg(type:req cmd:ping)
             ab:bc[a]:ac<msg(type:req cmd:ping)`);
           t('!abc<msg(type:req cmd:ping)', `bc[a!]:ac<msg(type:req cmd:ping)
             ab:bc[a!]:ac<msg(type:req cmd:ping)`);
           t('abc.def<msg(type:req cmd:ping)', `ef[d]:af<msg(type:req cmd:ping)
-              de:ef[d]:af<msg(type:req cmd:ping)
-              cd[ab]:de:ef[d]:af<msg(type:req cmd:ping)
-              bc[a]:cd[ab]:de:ef[d]:af<msg(type:req cmd:ping)
-              ab:bc[a]:cd[ab]:de:ef[d]:af<msg(type:req cmd:ping)`);
+            de:ef[d]:af<msg(type:req cmd:ping)
+            cd[ab]:de:ef[d]:af<msg(type:req cmd:ping)
+            bc[a]:cd[ab]:de:ef[d]:af<msg(type:req cmd:ping)
+            ab:bc[a]:cd[ab]:de:ef[d]:af<msg(type:req cmd:ping)`);
           t('!abc.def<msg(type:req cmd:ping)', `
-              ef[d]:af<msg(type:req cmd:ping)
-              de:ef[d]:af<msg(type:req cmd:ping)
-              cd[ab!]:de:ef[d]:af<msg(type:req cmd:ping)
-              bc[a!]:cd[ab!]:de:ef[d]:af<msg(type:req cmd:ping)
-              ab:bc[a!]:cd[ab!]:de:ef[d]:af<msg(type:req cmd:ping)`);
+            ef[d]:af<msg(type:req cmd:ping)
+            de:ef[d]:af<msg(type:req cmd:ping)
+            cd[ab!]:de:ef[d]:af<msg(type:req cmd:ping)
+            bc[a!]:cd[ab!]:de:ef[d]:af<msg(type:req cmd:ping)
+            ab:bc[a!]:cd[ab!]:de:ef[d]:af<msg(type:req cmd:ping)`);
           t('abc.!def<msg(type:req cmd:ping)', `
-              ef[d!]:af<msg(type:req cmd:ping)
-              de:ef[d!]:af<msg(type:req cmd:ping)
-              cd[ab]:de:ef[d!]:af<msg(type:req cmd:ping)
-              bc[a]:cd[ab]:de:ef[d!]:af<msg(type:req cmd:ping)
-              ab:bc[a]:cd[ab]:de:ef[d!]:af<msg(type:req cmd:ping)`);
+            ef[d!]:af<msg(type:req cmd:ping)
+            de:ef[d!]:af<msg(type:req cmd:ping)
+            cd[ab]:de:ef[d!]:af<msg(type:req cmd:ping)
+            bc[a]:cd[ab]:de:ef[d!]:af<msg(type:req cmd:ping)
+            ab:bc[a]:cd[ab]:de:ef[d!]:af<msg(type:req cmd:ping)`);
           t('!abc.!def<msg(type:req cmd:ping)', `
-              ef[d!]:af<msg(type:req cmd:ping)
-              de:ef[d!]:af<msg(type:req cmd:ping)
-              cd[ab!]:de:ef[d!]:af<msg(type:req cmd:ping)
-              bc[a!]:cd[ab!]:de:ef[d!]:af<msg(type:req cmd:ping)
-              ab:bc[a!]:cd[ab!]:de:ef[d!]:af<msg(type:req cmd:ping)`);
+            ef[d!]:af<msg(type:req cmd:ping)
+            de:ef[d!]:af<msg(type:req cmd:ping)
+            cd[ab!]:de:ef[d!]:af<msg(type:req cmd:ping)
+            bc[a!]:cd[ab!]:de:ef[d!]:af<msg(type:req cmd:ping)
+            ab:bc[a!]:cd[ab!]:de:ef[d!]:af<msg(type:req cmd:ping)`);
           t('ab[cd].e>msg(type:req cmd:ping)', `
             ab[cd]:ae>msg(type:req cmd:ping)
             be:ab[cd]:ae>msg(type:req cmd:ping)`);

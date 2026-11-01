@@ -458,16 +458,16 @@ export default class Git extends FS {
     return n;
   }); }
   _get_head_git_br(config){ return etask(function*_get_head_git_br(){
-  if (!config.gitdir) // force update origin refs
-    yield git_api.listServerRefs({...config, remote: 'origin'});
-  let s, m;
-  try {
-    let file = config.dir+'/.git/refs/remotes/origin/HEAD';
-    s = ''+(yield fs.promises.readFile(file));
-  } catch(err){ return ''; }
-  if (!s || !(m = s.match(/^ref: .*\/([^/]+)$/)))
-    return '';
-  return m[1].trim();
+    if (!config.gitdir) // force update origin refs
+      yield git_api.listServerRefs({...config, remote: 'origin'});
+    let s, m;
+    try {
+      let file = config.dir+'/.git/refs/remotes/origin/HEAD';
+      s = ''+(yield fs.promises.readFile(file));
+    } catch(err){ return ''; }
+    if (!s || !(m = s.match(/^ref: .*\/([^/]+)$/)))
+      return '';
+    return m[1].trim();
   }); }
   get_git_br_top_oid(cfid, git_br){ return etask({_: this},
     function*get_git_br_top_oid()
@@ -699,7 +699,8 @@ Git.def_index = opt=>{
       filter: {type: 'git_head'}, data: ['op', 'git.branch'],
       all_branches: true},
     {name: 'git_committer_ts', field: 'git.committer.ts',
-      filter: {type: 'commit'}, data: 'git.oid'}];
+      filter: {type: 'commit'}, data: 'git.oid'},
+  ];
 };
 
 Git.create = (opt, d)=>etask(function*scroll_create(){
